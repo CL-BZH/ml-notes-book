@@ -190,10 +190,6 @@ python code/em-three-coin/em_eval.py
 jupyter lab notebooks/
 ```
 
-`code/backpropagation/backpropagation.ipynb` is a demo notebook from the IBM
-*Machine Learning Foundation* course (Skills Network, © IBM). Check its licence
-before publishing the repository, or remove it.
-
 ## Licence
 
 No licence has been chosen yet. Until one is added, the default copyright
