@@ -16,6 +16,8 @@ or unreliable. You will learn
   \item how MAP estimation relates to maximum likelihood and to
         regularization;
   \item a continuous example (the noisy pendulum) computed on a grid;
+  \item ``explaining away'': how evidence for one cause lowers the probability of
+        another;
   \item how to model unreliable sources with latent variables, soft evidence
         (Jeffrey's rule) and virtual evidence.
 \end{itemize}
@@ -168,8 +170,8 @@ the mode of a density), whereas posterior probabilities do not.
 
 \section{A continuous example: the noisy pendulum}\label{bayesian-reasoning:sec:pendulum}
 
-This example follows D.~Barber, \emph{Bayesian Reasoning and Machine Learning},
-Chapter~1. An idealized pendulum has angular displacement $\sin(\theta t)$ at time
+This example follows D.~Barber, \emph{Bayesian Reasoning and Machine Learning}
+(2012), Example~1.11. An idealized pendulum has angular displacement $\sin(\theta t)$ at time
 $t$, where $\theta = \sqrt{g/L}$ depends on gravity and the length of the
 pendulum. A poor instrument measures
 \[
@@ -202,6 +204,41 @@ noisy, the posterior is sharply peaked near the true value $\theta = 0.5$.
 $\sin(0.5\,t)$. Right: the posterior over $\theta$ computed on a grid.}
 \label{bayesian-reasoning:fig:pendulum}
 \end{figure}
+
+\section{Several causes: explaining away}\label{bayesian-reasoning:sec:explaining-away}
+
+When an observation has several possible causes, evidence for one cause lowers
+the probability of the others, even if the causes are independent a priori.
+D.~Barber's \emph{Bayesian Reasoning and Machine Learning} (2012, Example~3.1,
+adapted from Pearl) gives a striking example.
+
+\begin{example}[Was it the burglar?]\label{bayesian-reasoning:ex:burglar}
+Sally's burglar alarm ($A$) can be set off by a burglar ($B$) or by an earthquake
+($E$); a radio report ($R$) announces earthquakes. The joint distribution
+factorizes as $p(B,E,A,R) = p(B)\,p(E)\,p(A\mid B,E)\,p(R\mid E)$, with
+$p(B = 1) = 0.01$, $p(E = 1) = 0.000001$, $p(R = 1\mid E = 1) = 1$,
+$p(R = 1\mid E = 0) = 0$, and
+\begin{center}
+\begin{tabular}{@{}cccccc@{}}
+\toprule
+$(B, E)$ & $(1,1)$ & $(1,0)$ & $(0,1)$ & $(0,0)$\\
+$p(A = 1\mid B, E)$ & $0.9999$ & $0.99$ & $0.99$ & $0.0001$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\emph{The alarm sounds.} Summing over $E$,
+$p(B = 1, A = 1)\approx0.01\times0.99 = 0.0099$ and
+$p(B = 0, A = 1)\approx0.99\times(0.99\times10^{-6} + 0.0001)\approx0.0001$, so
+$p(B = 1\mid A = 1)\approx0.99$: almost certainly a burglary.
+
+\emph{The radio then reports an earthquake.} Now $E = 1$ is known, and
+\[
+  p(B = 1\mid A = 1, R = 1) = \frac{0.01\times0.9999}{0.01\times0.9999 + 0.99\times0.99}\approx0.01 .
+\]
+The earthquake accounts for the alarm, and the probability of a burglary falls
+back to its prior value. $B$ and $E$ are independent, but they become
+\emph{dependent once their common effect $A$ is observed}.
+\end{example}
 
 \section{Noisy, uncertain and unreliable evidence}\label{bayesian-reasoning:sec:evidence}
 
@@ -240,43 +277,79 @@ of the time.
 
 \subsection{Soft and virtual evidence}
 
-Sometimes we do not observe a variable at all, but receive a message whose
-content we can only interpret. Barber's ``burglar'' story illustrates this. A
-burglary ($B$) may trigger an alarm ($A$); Watson phones to say he hears the alarm
-($W$); a neighbour, Mrs Gibbon, says she might have heard it ($H$), but Holmes
-does not fully trust her. We use the model
-\[
-  p(B,A,W,H) = p(B)\,p(A\mid B)\,p(W\mid A)\,p(H\mid A),
-\]
-with $p(B = 1) = 0.01$, $p(A = 1\mid B = 1) = 0.99$, $p(A = 1\mid B = 0) = 0.05$,
-$p(W = 1\mid A = 1) = 0.9$ and $p(W = 1\mid A = 0) = 0.5$.
+Sometimes a variable is not observed with certainty, and what we receive is a
+graded message about it. Barber (\emph{Bayesian Reasoning and Machine Learning},
+Section~3.2) distinguishes two cases, which lead to different computations.
 
-\paragraph{Virtual evidence.} Holmes cannot specify a likelihood for Mrs Gibbon's
-words, but judges that her testimony favours ``alarm'' over ``no alarm'' by
-$0.8$ to $0.2$. \emph{Virtual evidence} encodes exactly this as a likelihood
-factor $p(H\mid A = 1) = 0.8$, $p(H\mid A = 0) = 0.2$ for a fictitious observed
-variable $H$. Since $A$ is unobserved, it is summed out:
+\begin{description}
+  \item[Soft (uncertain) evidence.] The evidence states a \emph{distribution} over
+        the values of an observed variable $y$, say $q(y)$. We condition the model on
+        each value of $y$ and average with these weights (\emph{Jeffrey's rule}):
+        \[
+          p(x\mid\tilde y) = \sum_yp(x\mid y)\,q(y).
+        \]
+        Hard evidence is the special case where $q$ puts all its mass on one value.
+  \item[Virtual (likelihood) evidence.] The evidence is our own judgement of how
+        much more likely the message is under each value of a hidden variable. It
+        enters the model as a likelihood factor $p(H\mid A)$ for a fictitious
+        observed variable $H$; only the ratios of its entries matter, and it is not
+        a distribution over $A$.
+\end{description}
+
+\begin{example}[Was it the burglar? Soft evidence]
+In \cref{bayesian-reasoning:ex:burglar}, suppose Sally is only $70\%$ sure that she
+heard the alarm. With $p(B = 1\mid A = 1)\approx0.99$ and
+$p(B = 1\mid A = 0)\approx0.0001$, Jeffrey's rule gives
+$p(B = 1\mid\tilde A)\approx0.99\times0.7 + 0.0001\times0.3\approx0.69$ (Barber,
+Example~3.2).
+\end{example}
+
+\paragraph{Holmes, Watson and Mrs Gibbon.} Barber adapts a story of Pearl's to
+contrast the two cases. Holmes' house may have been burgled ($B$), which may set
+off the alarm ($A$); Dr Watson ($W$) and Mrs Gibbon ($G$) may hear it. The model is
+\[
+  p(B,A,W,G) = p(B)\,p(A\mid B)\,p(W\mid A)\,p(G\mid A),
+\]
+with the tables of Barber's Exercise~3.8: $p(B = 1) = 0.01$;
+$p(A = 1\mid B = 1) = 0.99$, $p(A = 1\mid B = 0) = 0.05$;
+$p(W = 1\mid A = 1) = 0.9$, $p(W = 1\mid A = 0) = 0.5$;
+$p(G = 1\mid A = 1) = 0.7$, $p(G = 1\mid A = 0) = 0.2$. Watson reports that he
+heard the alarm ($W = 1$). Summing out $A$,
+\begin{align*}
+  B = 1:&\quad 0.01\,(0.99\times0.9 + 0.01\times0.5) = 0.00896,\\
+  B = 0:&\quad 0.99\,(0.05\times0.9 + 0.95\times0.5) = 0.5148,
+\end{align*}
+so $p(B = 1\mid W = 1)\approx0.017$. Now consider Mrs Gibbon in two ways.
+
+\emph{Soft evidence.} Mrs Gibbon is a little deaf and is herself $80\%$ sure that she
+heard the alarm: $q(G = 1) = 0.8$. Conditioning on each value of $G$ (the model
+term $p(G\mid A)$ is kept) gives $p(B = 1\mid W = 1, G = 1)\approx0.048$ and
+$p(B = 1\mid W = 1, G = 0)\approx0.0069$, and Jeffrey's rule averages them:
+\[
+  p(B = 1\mid W = 1,\tilde G)\approx0.8\times0.048 + 0.2\times0.0069\approx0.039 .
+\]
+
+\emph{Virtual evidence.} Holmes suspects that Mrs Gibbon has been drinking, discards
+her account together with the model term $p(G\mid A)$, and replaces them with his
+own judgement: the message is four times more likely if the alarm sounded,
+$p(H\mid A = 1) = 0.8$, $p(H\mid A = 0) = 0.2$. Then
 \begin{align*}
   B = 1:&\quad 0.01\bigl(0.99\times0.9\times0.8 + 0.01\times0.5\times0.2\bigr) = 0.00714,\\
   B = 0:&\quad 0.99\bigl(0.05\times0.9\times0.8 + 0.95\times0.5\times0.2\bigr) = 0.1297,
 \end{align*}
-so $p(B = 1\mid W = 1, H)\approx0.00714/0.1368\approx0.052$. Without Mrs Gibbon
-(the $p(H\mid A)$ factors removed) the same computation gives about $0.017$: her
-unreliable testimony triples the probability of a burglary.
+so $p(B = 1\mid W = 1, H)\approx0.00714/0.1368\approx0.052$.
 
-\paragraph{Soft evidence (Jeffrey's rule).} A different situation is when we are
-told the \emph{resulting belief} about a variable, say $q(A = 1) = 0.8$, rather
-than the strength of a piece of evidence. Jeffrey's rule then updates other
-variables by averaging the conditionals with these new weights:
-$p'(B) = \sum_ap(B\mid A = a)\,q(A = a)$.
+The same ``$0.8$'' thus gives $0.039$ or $0.052$ depending on whose $80\%$ it is:
+Mrs Gibbon's confidence in what she heard, or Holmes' assessment of what her words
+say about the alarm.
 
 \begin{pitfall}[A likelihood ratio is not a belief]
 The virtual-evidence factor $0.8 : 0.2$ is \emph{not} Holmes' belief that the alarm
 sounded. Combined with the prior $p(A = 1) = 0.01\times0.99 + 0.99\times0.05\approx0.059$,
 it gives $p(A = 1\mid H) = \frac{0.059\times0.8}{0.059\times0.8 + 0.941\times0.2}\approx0.20$.
 Virtual evidence \emph{multiplies} the current belief by a likelihood ratio (here
-$4$); soft evidence \emph{replaces} the marginal of $A$ by a given distribution.
-Using one when the other is meant gives different answers.
+$4$); soft evidence \emph{fixes} the distribution of the observed variable and
+averages over it. Using one when the other is meant gives different answers.
 \end{pitfall}
 
 \begin{chaptersummary}
@@ -291,6 +364,8 @@ Using one when the other is meant gives different answers.
         Gaussian priors give ridge, Laplace priors the lasso.
   \item One-dimensional posteriors without closed form can be computed on a
         grid.
+  \item Independent causes of an observed effect become dependent: evidence for
+        one explains the effect away from the other.
   \item Noisy evidence is a likelihood; unreliable sources are modelled with
         latent reliability variables; virtual evidence is a likelihood ratio on
         a fictitious observation, soft evidence a replacement marginal
