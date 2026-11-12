@@ -436,27 +436,31 @@ of predictions it can produce on the sample matter.
 \section*{Exercises}
 \addcontentsline{toc}{section}{Exercises}
 
-\begin{exercise}
+\begin{exercise}\label{erm:exr:1}
 Show that the approximation error is a non-increasing function of the class:
 if $\Hs_1\subseteq\Hs_2$ then $\Risk(f_{\Hs_2}) \leq \Risk(f_{\Hs_1})$. Is the
 estimation error necessarily non-decreasing? Give an example or an argument.
+\solutionlink{erm:exr:1}
 \end{exercise}
 
-\begin{exercise}
+\begin{exercise}\label{erm:exr:2}
 In \cref{erm:ex:ols-optimism}, show that $\frac{1}{n-p}\norm{y-\hat y}^2$ is an
 unbiased estimator of $\sigma^2$. Why does one divide by $n-p$ rather than $n$?
+\solutionlink{erm:exr:2}
 \end{exercise}
 
-\begin{exercise}
+\begin{exercise}\label{erm:exr:3}
 Let $\hat f(x) = \frac1n\sum_i Y_i$ be the constant predictor equal to the
 sample mean, with $\Var(Y) = v$. Compute its bias and variance at any $x$ and
 its expected risk under the squared loss.
 \hint{$\Risk(c) = \Var(Y) + (c - \E Y)^2$ for a constant $c$.}
+\solutionlink{erm:exr:3}
 \end{exercise}
 
-\begin{exercise}
+\begin{exercise}\label{erm:exr:4}
 How large must $n$ be in \cref{erm:thm:finite} to guarantee, with
 probability $0.99$, an estimation error below $0.01$ for a class of $10^6$
 models?
+\solutionlink{erm:exr:4}
 \end{exercise}
 \end{notechapter}

@@ -399,24 +399,27 @@ subject of \cref{ch:erm}.
 \section*{Exercises}
 \addcontentsline{toc}{section}{Exercises}
 
-\begin{exercise}
+\begin{exercise}\label{learning-problem:exr:1}
 In \cref{learning-problem:ex:die}, replace ``prime'' by ``at least 4''
 ($Y=1$ for 4, 5, 6). Compute the joint table and the risk of the four
 classifiers. Which one is best, and what is its risk?
+\solutionlink{learning-problem:exr:1}
 \end{exercise}
 
-\begin{exercise}
+\begin{exercise}\label{learning-problem:exr:2}
 Show that for the squared loss and a predictor $f$ chosen independently of
 the sample, $\Var(\ERisk(f)) = \Var\bigl((f(X)-Y)^2\bigr)/n$. If
 $Y = f(X) + \varepsilon$ with $\varepsilon \sim \mathcal N(0, s^2)$
 independent of $X$, compute this variance explicitly.
 \hint{$\E[\varepsilon^4] = 3 s^4$.}
+\solutionlink{learning-problem:exr:2}
 \end{exercise}
 
-\begin{exercise}
+\begin{exercise}\label{learning-problem:exr:3}
 A classifier is evaluated on a test set of $m$ points and makes $k$ errors.
 Using \cref{learning-problem:prop:unbiased}, give an approximate standard
 error for the estimated error rate $k/m$. How large must $m$ be for this
 standard error to be below $0.01$ when the error rate is about $0.1$?
+\solutionlink{learning-problem:exr:3}
 \end{exercise}
 \end{notechapter}

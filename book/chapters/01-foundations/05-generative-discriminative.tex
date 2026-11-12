@@ -322,22 +322,25 @@ Discriminative models trained with the cross-entropy are preferable when
 \section*{Exercises}
 \addcontentsline{toc}{section}{Exercises}
 
-\begin{exercise}
+\begin{exercise}\label{generative-discriminative:exr:1}
 Redo \cref{generative-discriminative:ex:spam} with Laplace smoothing. How do the
 two posterior probabilities change?
+\solutionlink{generative-discriminative:exr:1}
 \end{exercise}
 
-\begin{exercise}
+\begin{exercise}\label{generative-discriminative:exr:2}
 Show that for binary features, the log-odds of a naive Bayes model are also an
 affine function of $x$. Express the weights in terms of
 $\phi_{j1} = P(X_j = 1\mid Y=1)$ and $\phi_{j0} = P(X_j=1\mid Y=0)$.
 \hint{write $P(X_j=x_j\mid Y=c) = \phi_{jc}^{x_j}(1-\phi_{jc})^{1-x_j}$.}
+\solutionlink{generative-discriminative:exr:2}
 \end{exercise}
 
-\begin{exercise}
+\begin{exercise}\label{generative-discriminative:exr:3}
 Duplicate the feature ``money'' in \cref{generative-discriminative:ex:spam}
 (so that each email has features $(M, M, F)$). Recompute the posterior for an
 email with $M = 1$, $F = 0$ before and after duplication, and explain the effect
 in terms of the conditional-independence assumption.
+\solutionlink{generative-discriminative:exr:3}
 \end{exercise}
 \end{notechapter}

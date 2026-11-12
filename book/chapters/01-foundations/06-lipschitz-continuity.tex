@@ -300,25 +300,28 @@ RL, metric learning & value, policy, embedding & similar inputs give similar out
 \section*{Exercises}
 \addcontentsline{toc}{section}{Exercises}
 
-\begin{exercise}
+\begin{exercise}\label{lipschitz-continuity:exr:1}
 Show that $\log(1 + e^{x})$ (the softplus) is $1$-Lipschitz and that its
 derivative is $\frac14$-Lipschitz. Deduce a safe learning rate for the
 one-dimensional logistic loss $\theta\mapsto\log(1 + e^{-y\theta x})$ with
 $\abs x\leq 1$, $y\in\{\pm1\}$.
+\solutionlink{lipschitz-continuity:exr:1}
 \end{exercise}
 
-\begin{exercise}
+\begin{exercise}\label{lipschitz-continuity:exr:2}
 Compute the Lipschitz constant of $x\mapsto Wx$ for
 $W = \begin{psmallmatrix}3 & 0\\ 4 & 5\end{psmallmatrix}$, and compare with
 the Frobenius norm $\norm W_F$. Which is the larger, and why is that always the
 case?
+\solutionlink{lipschitz-continuity:exr:2}
 \end{exercise}
 
-\begin{exercise}
+\begin{exercise}\label{lipschitz-continuity:exr:3}
 Let $\mathcal J(\theta) = \frac12\theta^\top A\theta$ with $A$ symmetric
 positive definite and eigenvalues $0<\lambda_{\min}\leq\lambda_{\max}$. Show that
 $\mathcal J$ is $\lambda_{\max}$-smooth and that gradient descent converges iff
 $0<\eta<2/\lambda_{\max}$. Which eigen-direction converges slowest with
 $\eta = 1/\lambda_{\max}$?
+\solutionlink{lipschitz-continuity:exr:3}
 \end{exercise}
 \end{notechapter}

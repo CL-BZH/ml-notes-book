@@ -90,3 +90,8 @@
 
 % exercises are numbered within the chapter, independently of theorems
 \newcommand{\hint}[1]{\par\noindent{\small\itshape Hint: #1}}
+
+% ---------- solutions to exercises (collected in backmatter/solutions.tex) ----
+\newcommand{\solutionlink}[1]{\par\nopagebreak\hfill{\small\hyperref[sol:#1]{Solution, p.~\pageref*{sol:#1}}}}
+\newcommand{\solution}[1]{\par\medskip\noindent\textbf{Exercise~\ref*{#1}}\label{sol:#1}%
+  \hfill{\small\hyperref[#1]{statement, p.~\pageref*{#1}}}\par\nopagebreak\smallskip}

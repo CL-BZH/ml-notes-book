@@ -26,6 +26,10 @@ define no boxes of their own.
 \end{notechapter}
 ```
 
+Every exercise has a label `slug:exr:N` and ends with `\solutionlink{slug:exr:N}`.
+Its solution goes in `backmatter/solutions.tex`, in the section of its chapter,
+introduced by `\solution{slug:exr:N}` (which links back to the statement).
+
 Labels are prefixed with the chapter slug: `slug:sec:...`, `slug:thm:...`,
 `slug:eq:...`, `slug:fig:...`. Cross-references use `\cref`.
 
@@ -41,7 +45,7 @@ Labels are prefixed with the chapter slug: `slug:sec:...`, `slug:thm:...`,
 | `keyidea` | the one thing to remember from a section | purple titled box |
 | `pitfall` | common mistakes and misreadings | red titled box |
 | `chapterintro`, `chaptersummary` | chapter frame | shaded / grey box |
-| `exercise` (+ `\hint`) | exercises, numbered per chapter | plain |
+| `exercise` (+ `\hint`, `\solutionlink{label}`) | exercises, numbered per chapter; each ends with a link to its solution | plain |
 
 Boxes take an optional title: `\begin{pitfall}[Zero counts]`.
 
