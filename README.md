@@ -9,6 +9,8 @@ The notes started as ~100 standalone LaTeX documents, Markdown files and
 notebooks. They are organised here as a single LaTeX book (11 parts,
 93 chapters, ~860 pages), with the accompanying code and notebooks.
 
+**[📕 Download the PDF](https://github.com/CL-BZH/ml-notes-book/releases/latest/download/Notes_on_Machine_Learning.pdf)**
+
 ## Contents
 
 **Part I — Foundations of Statistical Learning**
@@ -154,7 +156,9 @@ make clean
 ```
 
 A GitHub Actions workflow (`.github/workflows/build-book.yml`) builds the PDF
-on every push and uploads it as a build artifact.
+on every push. Pushing a version tag (`git tag v1.1 && git push origin v1.1`)
+also publishes it as a release; the latest version is always available
+[here](https://github.com/CL-BZH/ml-notes-book/releases/latest/download/Notes_on_Machine_Learning.pdf).
 
 ## Repository layout
 

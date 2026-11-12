@@ -3,22 +3,37 @@ name: Build book
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write          # needed to create releases
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Compile LaTeX
         uses: xu-cheng/latex-action@v3
         with:
           root_file: main.tex
           working_directory: book
-          latexmk_use_lualatex: false
-      - name: Upload PDF
+
+      - name: Rename PDF
+        run: cp book/main.pdf Notes_on_Machine_Learning.pdf
+
+      - name: Upload PDF as build artifact
         uses: actions/upload-artifact@v4
         with:
           name: notes-on-machine-learning
-          path: book/main.pdf
+          path: Notes_on_Machine_Learning.pdf
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Notes_on_Machine_Learning.pdf
+          generate_release_notes: true
