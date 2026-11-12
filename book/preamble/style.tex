@@ -1,0 +1,97 @@
+% =====================================================================
+%  style.tex -- the visual language of the book (see STYLE.md)
+%  Loaded after common.tex.  Every chapter uses only these environments:
+%    theorem-like (boxed):  theorem, proposition, lemma, corollary, definition
+%    worked examples:       example
+%    pedagogical boxes:     intuition, keyidea, pitfall
+%    chapter frame:         chapterintro (+ \prerequisites), chaptersummary
+%    exercises:             exercise (in an unnumbered "Exercises" section)
+% =====================================================================
+
+% ---------- fonts ------------------------------------------------------
+\usepackage[sc]{mathpazo}
+\linespread{1.06}
+
+% ---------- palette ----------------------------------------------------
+\definecolor{bookaccent}{RGB}{31,78,121}     % headings, theorem frames
+\definecolor{bookdef}{RGB}{34,110,72}        % definitions
+\definecolor{bookexample}{RGB}{176,96,16}    % examples
+\definecolor{bookintuition}{RGB}{70,110,170} % intuition boxes
+\definecolor{bookkey}{RGB}{120,60,140}       % key ideas
+\definecolor{bookpitfall}{RGB}{170,40,40}    % pitfalls
+\definecolor{booksummary}{RGB}{60,60,60}     % chapter summary
+
+% ---------- headings -----------------------------------------------------
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+  {\normalfont\color{bookaccent}}
+  {\scshape\large Chapter \thechapter}
+  {6pt}
+  {\Huge\bfseries\color{black}}
+  [\vspace{2pt}{\color{bookaccent}\titlerule[1pt]}]
+\titlespacing*{\chapter}{0pt}{0pt}{18pt}
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\color{bookaccent}\thesection}{0.8em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\color{bookaccent}\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries}{\thesubsubsection}{0.8em}{}
+\titleformat{\paragraph}[runin]
+  {\normalfont\normalsize\bfseries}{\theparagraph}{0.5em}{}
+
+% subtitle under the chapter title
+\renewcommand{\chaptersubtitle}[1]{%
+  \vspace*{-10pt}{\large\itshape\color{bookaccent!80!black} #1\par}\vspace{14pt}}
+
+% ---------- boxed theorem-like environments ------------------------------
+\tcbset{
+  bookthm/.style={enhanced, breakable, boxrule=0pt, frame hidden, sharp corners,
+    borderline west={2.5pt}{0pt}{#1}, colback=#1!5!white,
+    left=8pt, right=6pt, top=4pt, bottom=4pt, before skip=10pt, after skip=10pt},
+  bookbox/.style={enhanced, breakable, sharp corners, boxrule=0.6pt,
+    colframe=#1, colback=#1!4!white, coltitle=white, colbacktitle=#1,
+    fonttitle=\bfseries\small, left=8pt, right=8pt, top=5pt, bottom=5pt,
+    before skip=10pt, after skip=10pt, attach boxed title to top left={xshift=8pt, yshift=-2mm},
+    boxed title style={sharp corners, boxrule=0pt}},
+}
+\tcolorboxenvironment{theorem}{bookthm=bookaccent}
+\tcolorboxenvironment{proposition}{bookthm=bookaccent}
+\tcolorboxenvironment{prop}{bookthm=bookaccent}
+\tcolorboxenvironment{lemma}{bookthm=bookaccent}
+\tcolorboxenvironment{corollary}{bookthm=bookaccent}
+\tcolorboxenvironment{claim}{bookthm=bookaccent}
+\tcolorboxenvironment{definition}{bookthm=bookdef}
+\tcolorboxenvironment{assumption}{bookthm=bookdef}
+\tcolorboxenvironment{example}{bookthm=bookexample}
+
+% ---------- book-wide notation (see STYLE.md) ------------------------------
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\Cov}{Cov}
+\newcommand{\Xs}{\mathcal{X}}          % input space
+\newcommand{\Ys}{\mathcal{Y}}          % output space
+\newcommand{\Hs}{\mathcal{F}}          % hypothesis class
+\newcommand{\Risk}{R}                  % population risk R(f)
+\newcommand{\ERisk}{\widehat{R}_n}     % empirical risk on n points
+\newcommand{\given}{\,\middle|\,}      % conditioning bar inside \left( \right)
+
+% ---------- pedagogical boxes ---------------------------------------------
+\newtcolorbox{intuition}[1][Intuition]{bookbox=bookintuition, title={#1}}
+\newtcolorbox{keyidea}[1][Key idea]{bookbox=bookkey, title={#1}}
+\newtcolorbox{pitfall}[1][Pitfall]{bookbox=bookpitfall, title={#1}}
+
+% ---------- chapter frame --------------------------------------------------
+\newcommand{\prerequisites}[1]{%
+  \par\smallskip\noindent{\color{bookaccent}\textbf{Prerequisites.}} #1\par}
+\newtcolorbox{chapterintro}{enhanced, breakable, sharp corners, boxrule=0pt,
+  frame hidden, colback=bookaccent!6!white, borderline north={1pt}{0pt}{bookaccent},
+  borderline south={1pt}{0pt}{bookaccent}, left=8pt, right=8pt, top=6pt, bottom=6pt,
+  before upper={\noindent{\color{bookaccent}\textbf{In this chapter}}\par\smallskip}}
+\newtcolorbox{chaptersummary}{bookbox=booksummary, title={Summary}}
+
+% exercises are numbered within the chapter, independently of theorems
+\newcommand{\hint}[1]{\par\noindent{\small\itshape Hint: #1}}
+
+% ---------- solutions to exercises (collected in backmatter/solutions.tex) ----
+\newcommand{\solutionlink}[1]{\par\nopagebreak\hfill{\small\hyperref[sol:#1]{Solution, p.~\pageref*{sol:#1}}}}
+\newcommand{\solution}[1]{\par\medskip\noindent\textbf{Exercise~\ref*{#1}}\label{sol:#1}%
+  \hfill{\small\hyperref[#1]{statement, p.~\pageref*{#1}}}\par\nopagebreak\smallskip}

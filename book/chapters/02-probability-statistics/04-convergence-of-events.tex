@@ -1,241 +1,222 @@
-% Source: convergence_of_events_and_probabilities.tex
 \begin{notechapter}
 \chapter{Convergence of Events and Probabilities}\label{ch:convergence-of-events}
+\chaptersubtitle{When does $\Prob(A_n)\to\Prob(A)$?}
 
-\section{Introduction}
-
-In probability theory, the convergence of events and their associated 
-probabilities is a fundamental concept. This document explains what 
-it means for a sequence of events \( A_\epsilon \) to converge to an 
-event \( A \), and under what conditions the probabilities 
-\(\mathbb{P}(A_\epsilon)\) converge to \(\mathbb{P}(A)\).
-
-\section{Convergence of Events}
-
-Let \((\Omega, \mathcal{F}, \mathbb{P})\) be a probability space, 
-and let \(\{A_\epsilon\}_{\epsilon > 0}\) be a family of events 
-indexed by \(\epsilon\). We say that \(A_\epsilon\) converges to 
-an event \(A\) as \(\epsilon \to 0\) if the following set-theoretic 
-limit holds:
-\[
-A = \lim_{\epsilon \to 0} A_\epsilon.
-\]
-
-There are two common ways to define this convergence:
-
-\subsection{Pointwise Convergence}
-
-The events \(A_\epsilon\) converge pointwise to \(A\) if, for 
-every outcome \(\omega \in \Omega\), there exists an \(\epsilon_0 > 0\) 
-such that for all \(\epsilon < \epsilon_0\),
-\[
-\omega \in A_\epsilon \quad \text{if and only if} \quad \omega \in A.
-\]
-
-\subsection{Set-Theoretic Limit}
-
-The events \(A_\epsilon\) converge to \(A\) in the set-theoretic 
-sense if:
-\[
-A = \liminf_{\epsilon \to 0} A_\epsilon = \limsup_{\epsilon \to 0} A_\epsilon,
-\]
-where:
-\[
-\liminf_{\epsilon \to 0} A_\epsilon = \bigcup_{\epsilon_0 > 0} 
-\bigcap_{\epsilon < \epsilon_0} A_\epsilon,
-\]
-and
-\[
-\limsup_{\epsilon \to 0} A_\epsilon = \bigcap_{\epsilon_0 > 0} 
-\bigcup_{\epsilon < \epsilon_0} A_\epsilon.
-\]
-
-If \(\liminf_{\epsilon \to 0} A_\epsilon = \limsup_{\epsilon \to 0} A_\epsilon\), 
-then \(A_\epsilon\) converges to \(A\) in the set-theoretic sense.
-
-\section{Convergence of Probabilities}
-
-The convergence of probabilities \(\mathbb{P}(A_\epsilon)\) to 
-\(\mathbb{P}(A)\) depends on the nature of the events \(A_\epsilon\) 
-and the properties of the probability measure \(\mathbb{P}\). Below 
-are some key conditions under which this convergence holds.
-
-\subsection{Monotone Convergence}
-
-If \(A_\epsilon\) is \emph{monotone} (either increasing or decreasing) 
-as \(\epsilon \to 0\), then \(\mathbb{P}(A_\epsilon)\) converges to 
-\(\mathbb{P}(A)\).
-
-\begin{itemize}
-        \item If the events shrink as \(\epsilon \downarrow 0\) (i.e., \(A_\epsilon \subseteq
-    A_{\epsilon'}\) for \(\epsilon < \epsilon'\)), then (continuity from above):
-    \[
-    \lim_{\epsilon \to 0} \mathbb{P}(A_\epsilon) = \mathbb{P}\left(
-    \bigcap_{\epsilon > 0} A_\epsilon \right).
-    \]
-    \item If the events grow as \(\epsilon \downarrow 0\) (i.e., \(A_\epsilon \supseteq
-    A_{\epsilon'}\) for \(\epsilon < \epsilon'\)), then (continuity from below):
-    \[
-    \lim_{\epsilon \to 0} \mathbb{P}(A_\epsilon) = \mathbb{P}\left(
-    \bigcup_{\epsilon > 0} A_\epsilon \right).
-    \]
-    These properties hold for \emph{every} probability measure: they are equivalent to its
-    \(\sigma\)-additivity. (For a family indexed by a real \(\epsilon\), monotonicity allows one to
-    restrict to a sequence \(\epsilon_n \downarrow 0\).)
+\begin{chapterintro}
+Proofs in learning theory often approximate an event by a family of simpler
+events and pass to the limit. Doing so requires knowing when probabilities
+follow events to the limit. This chapter answers that question and applies the
+answer to the symmetrization lemma of \cref{ch:symmetrization-lemma}. You will
+learn
+\begin{itemize}[nosep]
+  \item what it means for events to converge: $\liminf$, $\limsup$ and the
+        set-theoretic limit;
+  \item continuity of probability along monotone sequences, and the
+        convergence theorem for arbitrary convergent sequences;
+  \item convergence in symmetric difference, and Fatou's bounds;
+  \item examples where events do not converge but probabilities do, and
+        where probabilities do not converge;
+  \item how the symmetrization proof avoids taking a limit of events.
 \end{itemize}
+\prerequisites{basic set operations; a probability space $(\Omega,\mathcal F,\Prob)$;
+the dominated convergence theorem (for one proof).}
+\end{chapterintro}
 
-\subsection{Continuity of Probability Measure}
+\section{Limits of events}\label{convergence-of-events:sec:limits}
 
-If a \emph{sequence} of events \(A_n\) converges to \(A\) in the set-theoretic sense,
-then, for \emph{any} probability measure \(\mathbb{P}\):
+Let $(A_n)_{n\geq1}$ be a sequence of events. Statements about families indexed by
+a real parameter $\epsilon\to0$ reduce to sequences by taking $\epsilon_n\to0$.
+
+\begin{definition}[Limit inferior and superior]
 \[
-\lim_{n \to \infty} \mathbb{P}(A_n) = \mathbb{P}(A).
+  \liminf_nA_n = \bigcup_{N\geq1}\bigcap_{n\geq N}A_n,\qquad
+  \limsup_nA_n = \bigcap_{N\geq1}\bigcup_{n\geq N}A_n .
 \]
-Indeed, set-theoretic convergence means exactly that the indicator functions converge pointwise,
-\(\mathbf{1}_{A_n}(\omega) \to \mathbf{1}_{A}(\omega)\) for every \(\omega\), and the dominated convergence
-theorem (the indicators are bounded by \(1\)) gives \(\mathbb{E}[\mathbf{1}_{A_n}] \to \mathbb{E}[\mathbf{1}_{A}]\).
-No ``continuity'' assumption on \(\mathbb{P}\) (such as the absence of atoms) is needed. For a family
-indexed by a real \(\epsilon\), the statement holds along every sequence \(\epsilon_n \to 0\), hence for
-\(\epsilon \to 0\).
+The sequence \emph{converges} to $A$ (in the set-theoretic sense) if
+$\liminf_nA_n = \limsup_nA_n = A$.
+\end{definition}
 
-\subsection{Convergence in Symmetric Difference}
-
-The events \(A_\epsilon\) are said to converge to \(A\) \emph{in symmetric difference} (or in measure) 
-if, for every \(\delta > 0\), there exists an \(\epsilon_0 > 0\) such 
-that for all \(\epsilon < \epsilon_0\), the symmetric difference 
-between \(A_\epsilon\) and \(A\) satisfies:
-\[
-\mathbb{P}(A_\epsilon \Delta A) < \delta,
-\]
-where the symmetric difference \(A_\epsilon \Delta A\) is defined as:
-\[
-A_\epsilon \Delta A = (A_\epsilon \setminus A) \cup (A \setminus A_\epsilon).
-\]
-
-\subsubsection{Explanation}
-This convergence means that the "disagreement" between \(A_\epsilon\) 
-and \(A\) (captured by the symmetric difference \(A_\epsilon \Delta A\)) 
-becomes arbitrarily small in probability as \(\epsilon \to 0\). In other 
-words, the probability of outcomes where \(A_\epsilon\) and \(A\) differ 
-tends to zero. It is weaker than set-theoretic convergence (it ignores sets of probability zero) and is implied by it, by the dominated convergence argument above.
-
-\subsubsection{Implications for Probabilities}
-To understand why this convergence implies \(\mathbb{P}(A_\epsilon) \to \mathbb{P}(A)\), 
-we can decompose \(A_\epsilon\) and \(A\) as follows:
-
-1. The event \(A_\epsilon\) can be written as:
-   \[
-   A_\epsilon = (A_\epsilon \cap A) \cup (A_\epsilon \setminus A).
-   \]
-   Since these two sets are disjoint, the probability of \(A_\epsilon\) is:
-   \[
-   \mathbb{P}(A_\epsilon) = \mathbb{P}(A_\epsilon \cap A) + \mathbb{P}(A_\epsilon \setminus A).
-   \]
-
-2. The event \(A\) can be written as:
-   \[
-   A = (A \cap A_\epsilon) \cup (A \setminus A_\epsilon).
-   \]
-   Since these two sets are disjoint, the probability of \(A\) is:
-   \[
-   \mathbb{P}(A) = \mathbb{P}(A \cap A_\epsilon) + \mathbb{P}(A \setminus A_\epsilon).
-   \]
-   Rearranging this equation, we get:
-   \[
-   \mathbb{P}(A \cap A_\epsilon) = \mathbb{P}(A) - \mathbb{P}(A \setminus A_\epsilon).
-   \]
-
-3. Substituting this into the expression for \(\mathbb{P}(A_\epsilon)\), we obtain:
-   \[
-   \mathbb{P}(A_\epsilon) = \mathbb{P}(A) + \mathbb{P}(A_\epsilon \setminus A) - \mathbb{P}(A \setminus A_\epsilon).
-   \]
-
-Under convergence in symmetric difference, \(\mathbb{P}(A_\epsilon \Delta A) = \mathbb{P}(A_\epsilon \setminus A) + \mathbb{P}(A \setminus A_\epsilon) \to 0\). 
-This implies that both \(\mathbb{P}(A_\epsilon \setminus A) \to 0\) and \(\mathbb{P}(A \setminus A_\epsilon) \to 0\). 
-Substituting this into the equation for \(\mathbb{P}(A_\epsilon)\), we conclude:
-\[
-\lim_{\epsilon \to 0} \mathbb{P}(A_\epsilon) = \mathbb{P}(A).
-\]
-
-\section{Examples}
-
-\subsection{A Convergent Family}
-
-Let \(\Omega = [0, 1]\) with the uniform probability measure
-\(\mathbb{P}\). Define:
-\[
-A_\epsilon = \left[ 0, \frac{1}{2} + \epsilon \right).
-\]
-The family decreases as \(\epsilon \downarrow 0\) and
-\(\bigcap_{\epsilon > 0} A_\epsilon = A = \left[ 0, \frac{1}{2} \right]\). In this case:
-\[
-\mathbb{P}(A_\epsilon) = \frac{1}{2} + \epsilon \quad \text{and} \quad
-\mathbb{P}(A) = \frac{1}{2},
-\]
-so \(\mathbb{P}(A_\epsilon) \to \frac{1}{2} = \mathbb{P}(A)\), as predicted by continuity from above.
-
-\subsection{Events that Do Not Converge}
-
-Since \((-1)^\epsilon\) makes no sense for a real \(\epsilon\), consider a sequence \(\epsilon_n = 1/n\) and
-\[
-A_n = \left[ 0, \frac{1}{2} + \frac{(-1)^n}{n} \right).
-\]
-For even \(n\) the interval is slightly larger than \([0, \frac{1}{2})\), for odd \(n\) slightly smaller. Then
+The definitions are easier to read outcome by outcome:
 \begin{itemize}
-    \item \(\liminf_{n} A_n = \bigcup_{N}\bigcap_{n \geq N} A_n = \left[ 0, \frac{1}{2} \right)\),
-    \item \(\limsup_{n} A_n = \bigcap_{N}\bigcup_{n \geq N} A_n = \left[ 0, \frac{1}{2} \right]\),
+  \item $\omega\in\liminf_nA_n$ iff $\omega$ belongs to $A_n$ for \emph{all $n$
+        large enough} (``eventually always'');
+  \item $\omega\in\limsup_nA_n$ iff $\omega$ belongs to $A_n$ for \emph{infinitely
+        many} $n$ (``infinitely often'').
 \end{itemize}
-so the events do \emph{not} converge in the set-theoretic sense (the point \(\frac{1}{2}\) belongs to
-infinitely many \(A_n\) and misses infinitely many). Nevertheless
-\(\mathbb{P}(A_n) = \frac{1}{2} + \frac{(-1)^n}{n} \to \frac{1}{2}\): the probabilities \emph{do} converge,
-because \(\liminf A_n\) and \(\limsup A_n\) differ only by the null set \(\{\frac{1}{2}\}\), and
-\(\mathbb{P}(A_n \,\Delta\, [0,\frac{1}{2}]) \leq \frac{1}{n} \to 0\).
+Always $\liminf A_n\subseteq\limsup A_n$. Convergence means that every outcome
+is eventually always in, or eventually always out: equivalently, the indicators
+converge pointwise, $\bbone_{A_n}(\omega)\to\bbone_A(\omega)$ for every
+$\omega$.
 
-In general, Fatou's lemma applied to indicator functions gives
+\section{When probabilities converge}\label{convergence-of-events:sec:probabilities}
+
+\begin{theorem}[Continuity of probability]\label{convergence-of-events:thm:monotone}
+\begin{enumerate}[nosep]
+  \item If $A_1\subseteq A_2\subseteq\cdots$, then $\Prob(A_n)\to\Prob\bigl(\bigcup_nA_n\bigr)$
+        (continuity from below).
+  \item If $A_1\supseteq A_2\supseteq\cdots$, then $\Prob(A_n)\to\Prob\bigl(\bigcap_nA_n\bigr)$
+        (continuity from above).
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+(1) The sets $B_1 = A_1$, $B_k = A_k\setminus A_{k-1}$ are disjoint, with
+$\bigcup_{k\leq n}B_k = A_n$ and $\bigcup_kB_k = \bigcup_nA_n$. By
+$\sigma$-additivity, $\Prob(\bigcup_nA_n) = \sum_k\Prob(B_k) = \lim_n\sum_{k\leq n}\Prob(B_k) = \lim_n\Prob(A_n)$.
+(2) Apply (1) to the increasing complements $A_n^c$.
+\end{proof}
+
+These properties hold for \emph{every} probability measure --- they are
+equivalent to $\sigma$-additivity. A monotone sequence always converges, to its
+union or intersection, so the theorem is a special case of the next one.
+
+\begin{theorem}[Convergent events]\label{convergence-of-events:thm:convergent}
+If $A_n\to A$ in the set-theoretic sense, then $\Prob(A_n)\to\Prob(A)$.
+\end{theorem}
+
+\begin{proof}
+Convergence means $\bbone_{A_n}\to\bbone_A$ pointwise. The indicators are bounded
+by $1$, so the dominated convergence theorem gives
+$\Prob(A_n) = \E[\bbone_{A_n}]\to\E[\bbone_A] = \Prob(A)$.
+\end{proof}
+
+No ``continuity'' assumption on $\Prob$ (absence of atoms, say) is needed.
+Convergence of the events is however more than required: sets of probability
+zero should not matter.
+
+\begin{definition}[Convergence in symmetric difference]
+$A_n\to A$ \emph{in symmetric difference} if $\Prob(A_n\,\Delta\,A)\to0$, where
+$A_n\,\Delta\,A = (A_n\setminus A)\cup(A\setminus A_n)$.
+\end{definition}
+
+\begin{proposition}\label{convergence-of-events:prop:symdiff}
+If $\Prob(A_n\,\Delta\,A)\to0$, then $\Prob(A_n)\to\Prob(A)$.
+\end{proposition}
+
+\begin{proof}
+Splitting $A_n$ and $A$ along $A_n\cap A$,
+$\Prob(A_n) = \Prob(A_n\cap A) + \Prob(A_n\setminus A)$ and
+$\Prob(A) = \Prob(A_n\cap A) + \Prob(A\setminus A_n)$. Subtracting,
+$\abs{\Prob(A_n) - \Prob(A)}\leq\Prob(A_n\setminus A) + \Prob(A\setminus A_n) = \Prob(A_n\,\Delta\,A)$.
+\end{proof}
+
+Set-theoretic convergence implies convergence in symmetric difference (apply
+dominated convergence to $\bbone_{A_n\Delta A} = \abs{\bbone_{A_n} - \bbone_A}$),
+but not conversely. Finally, without any convergence, Fatou's lemma applied to
+indicators brackets the probabilities.
+
+\begin{proposition}[Fatou bounds]\label{convergence-of-events:prop:fatou}
+For any sequence of events,
 \[
-\mathbb{P}\big(\liminf_n A_n\big) \leq \liminf_n \mathbb{P}(A_n) \leq \limsup_n \mathbb{P}(A_n) \leq \mathbb{P}\big(\limsup_n A_n\big),
+  \Prob\bigl(\liminf_nA_n\bigr)\leq\liminf_n\Prob(A_n)\leq\limsup_n\Prob(A_n)\leq\Prob\bigl(\limsup_nA_n\bigr).
 \]
-so the probabilities converge whenever \(\mathbb{P}(\limsup A_n \setminus \liminf A_n) = 0\), even if the
-events themselves do not converge.
+In particular $\Prob(A_n)$ converges whenever $\Prob(\limsup A_n\setminus\liminf A_n) = 0$.
+\end{proposition}
 
-\subsection{Probabilities that Do Not Converge}
+\begin{proof}
+The events $C_N = \bigcap_{n\geq N}A_n$ increase to $\liminf A_n$ and satisfy
+$C_N\subseteq A_n$ for $n\geq N$, so
+$\Prob(\liminf A_n) = \lim_N\Prob(C_N)\leq\liminf_n\Prob(A_n)$. The last inequality
+follows by applying this to the complements.
+\end{proof}
 
-To make the probabilities oscillate, the events must differ on a set of positive probability, e.g.
+\section{Examples}\label{convergence-of-events:sec:examples}
+
+Let $\Omega = [0,1]$ with the uniform probability.
+
+\begin{example}[A monotone family]
+$A_\epsilon = [0,\frac12 + \epsilon)$ decreases as $\epsilon\downarrow0$, with
+intersection $[0,\frac12]$. By continuity from above,
+$\Prob(A_\epsilon) = \frac12 + \epsilon\to\frac12$.
+\end{example}
+
+\begin{example}[Events that do not converge, probabilities that do]\label{convergence-of-events:ex:oscillate}
+Let $A_n = [0,\frac12 + \frac{(-1)^n}{n})$: slightly larger than $[0,\frac12)$
+for even $n$, slightly smaller for odd $n$. Every $\omega<\frac12$ is eventually
+always in $A_n$ and every $\omega>\frac12$ eventually always out, but
+$\omega = \frac12$ belongs to all even-indexed sets and to no odd-indexed one. So
+$\liminf A_n = [0,\frac12)$ and $\limsup A_n = [0,\frac12]$: the events do not
+converge. Yet $\Prob(A_n) = \frac12 + \frac{(-1)^n}{n}\to\frac12$, because
+$\liminf$ and $\limsup$ differ by the null set $\{\frac12\}$
+(\cref{convergence-of-events:prop:fatou}); equivalently,
+$\Prob(A_n\,\Delta\,[0,\frac12])\leq\frac1n\to0$.
+\end{example}
+
+\begin{example}[Probabilities that do not converge]
+Let $A_n = [0,\frac12]$ for even $n$ and $A_n = [0,1]$ for odd $n$. Then
+$\liminf A_n = [0,\frac12]$, $\limsup A_n = [0,1]$, and $\Prob(A_n)$ alternates
+between $\frac12$ and $1$. The events disagree on a set of positive
+probability, and nothing can be said.
+\end{example}
+
+\section{Application: the symmetrization lemma}\label{convergence-of-events:sec:symmetrization}
+
+In the proof of \cref{symmetrization-lemma:lem:main}, with $Pg$ the true risk,
+$P_ng$ and $P'_ng$ the empirical risks on the sample and on the ghost sample,
+we met the events
 \[
-A_n = \begin{cases} \left[ 0, \frac{1}{2} \right] & n \text{ even}, \\ [0, 1] & n \text{ odd}. \end{cases}
+  A = \Bigl\{\sup_{g\in\mathcal G}(Pg - P_ng)\geq t\Bigr\},
+  \qquad
+  A_\epsilon = \bigl\{Pg_\epsilon - P_ng_\epsilon\geq t-\epsilon\bigr\},
 \]
-Here \(\liminf A_n = [0, \frac{1}{2}]\), \(\limsup A_n = [0, 1]\), and \(\mathbb{P}(A_n)\) alternates between
-\(\frac{1}{2}\) and \(1\). The root cause is the lack of convergence of \(A_n\), on a set of positive probability.
+where $g_\epsilon$ is a data-dependent function within $\epsilon$ of the
+supremum.
 
-\section{Application to the Symmetrization Lemma}
-
-In the proof of the symmetrization lemma (\cref{ch:symmetrization-lemma}), we have
+\begin{pitfall}[Do not try to prove $\Prob(A_\epsilon)\to\Prob(A)$]
+Because $g_\epsilon$ changes with $\epsilon$, the events $A_\epsilon$ need not be
+monotone and need not converge to anything, so none of the theorems above
+applies. The proof never needs such a limit. The inclusion $A\subseteq A_\epsilon$
+(if the supremum is at least $t$, then $g_\epsilon$ achieves at least $t-\epsilon$)
+gives $\Prob(A)\leq\Prob(A_\epsilon)$ for every $\epsilon$ directly. The only limit
+concerns the right-hand side,
 \[
-A_\epsilon = \left\{ \mathbf{Z} : P^{\text{true}}g_\epsilon
-- P^{\text{emp}}g_\epsilon \geq t - \epsilon \right\},
-\qquad
-A = \left\{ \mathbf{Z} : \sup_{g\in\mathcal{G}}\big(P^{\text{true}}g - P^{\text{emp}}g\big)
-\geq t \right\},
+  \Prob\Bigl[\sup_g(P'_ng - P_ng)\geq\tfrac{t-\epsilon}2\Bigr]
+  \xrightarrow[\epsilon\downarrow0]{}
+  \Prob\Bigl[\sup_g(P'_ng - P_ng)\geq\tfrac t2\Bigr],
 \]
-where \(g_\epsilon\) is a data-dependent function that is \(\epsilon\)-close to the supremum. Because
-\(g_\epsilon\) changes with \(\epsilon\), the events \(A_\epsilon\) are in general neither monotone nor
-convergent, and one should \emph{not} try to prove \(\mathbb{P}(A_\epsilon) \to \mathbb{P}(A)\). Fortunately, this is
-not needed: the inclusion \(A \subseteq A_\epsilon\) (if the supremum is at least \(t\), then
-\(g_\epsilon\) achieves at least \(t - \epsilon\)) gives \(\mathbb{P}(A) \leq \mathbb{P}(A_\epsilon)\) for every
-\(\epsilon\). The only limit taken in the proof concerns the right-hand side,
-\[
-\mathbb{P}\Big[\sup_{g}\big(P^{\text{emp}'}g - P^{\text{emp}}g\big) \geq \tfrac{t-\epsilon}{2}\Big]
-\;\xrightarrow[\epsilon \downarrow 0]{}\;
-\mathbb{P}\Big[\sup_{g}\big(P^{\text{emp}'}g - P^{\text{emp}}g\big) \geq \tfrac{t}{2}\Big],
-\]
-which follows from continuity from above, since these events \emph{decrease} as \(\epsilon \downarrow 0\) with
-intersection \(\{\sup_g (P^{\text{emp}'}g - P^{\text{emp}}g) \geq t/2\}\).
+and there the events \emph{decrease} as $\epsilon\downarrow0$ with intersection
+$\{\sup_g(P'_ng - P_ng)\geq\frac t2\}$, so continuity from above applies.
+\end{pitfall}
 
-\section{Conclusion}
+\begin{keyidea}
+When a proof seems to require a limit of events, look first for an inclusion
+($A\subseteq A_\epsilon$) or a monotone family: either gives the inequality
+directly, with no convergence theorem to check.
+\end{keyidea}
 
-Every probability measure is continuous along monotone families of events, and more generally
-\(\mathbb{P}(A_n) \to \mathbb{P}(A)\) whenever \(A_n \to A\) in the set-theoretic sense or in symmetric difference.
-When a proof involves a limit of events, the safest route is often to avoid it: find a monotone family,
-or an inclusion such as \(A \subseteq A_\epsilon\), that gives the desired inequality directly. This is how the
-symmetrization lemma is proved in \cref{ch:symmetrization-lemma}.
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item $\liminf A_n$ = ``eventually always'', $\limsup A_n$ = ``infinitely
+        often''; $A_n\to A$ when both equal $A$, i.e.\ when indicators converge
+        pointwise.
+  \item For every probability measure: monotone sequences and convergent
+        sequences satisfy $\Prob(A_n)\to\Prob(A)$; so does convergence in
+        symmetric difference.
+  \item Fatou: $\Prob(\liminf A_n)\leq\liminf\Prob(A_n)\leq\limsup\Prob(A_n)\leq\Prob(\limsup A_n)$.
+  \item In the symmetrization lemma an inclusion replaces a limit of events, and
+        the one limit taken is along a monotone family.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{convergence-of-events:exr:1}
+Let $A_n = [0, 1/n]$ on $\Omega = [0,1]$ with the uniform probability. Compute
+$\liminf A_n$, $\limsup A_n$ and $\lim\Prob(A_n)$.
+\solutionlink{convergence-of-events:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{convergence-of-events:exr:2}
+(Borel--Cantelli) Show that if $\sum_n\Prob(A_n)<\infty$, then
+$\Prob(\limsup_nA_n) = 0$.
+\hint{$\limsup A_n\subseteq\bigcup_{n\geq N}A_n$ for every $N$.}
+\solutionlink{convergence-of-events:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{convergence-of-events:exr:3}
+Show that $\bbone_{\limsup A_n} = \limsup_n\bbone_{A_n}$ and
+$\bbone_{\liminf A_n} = \liminf_n\bbone_{A_n}$ pointwise.
+\solutionlink{convergence-of-events:exr:3}
+\end{exercise}
 \end{notechapter}

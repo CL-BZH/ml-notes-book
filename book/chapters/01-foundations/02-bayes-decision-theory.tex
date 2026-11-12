@@ -1,0 +1,494 @@
+\begin{notechapter}
+\chapter{Bayes Decision Theory}\label{ch:bayes-decision-theory}
+\chaptersubtitle{The best possible predictor}
+
+\begin{chapterintro}
+Suppose for a moment that the distribution $P$ of $(X,Y)$ were known. Which
+predictor should we use? This chapter answers the question for every common
+loss, and in doing so defines the benchmark against which every learning
+algorithm is measured. You will learn
+\begin{itemize}[nosep]
+  \item the \emph{pointwise principle}: the best predictor minimizes the
+        expected loss separately at each input;
+  \item that under the 0--1 loss the best classifier picks the most probable
+        class (the \emph{Bayes classifier}), and how it relates to the MAP and
+        maximum-likelihood rules;
+  \item how unequal error costs move the decision threshold;
+  \item that under the squared loss the best predictor is the conditional
+        mean $\E[Y \mid X]$, with two proofs, and what happens when the model
+        class is too small to contain it;
+  \item the best predictors for the absolute loss and the log-loss.
+\end{itemize}
+\prerequisites{\cref{ch:learning-problem}; Bayes' rule; conditional
+expectation and the tower property $\E[Z] = \E\bigl[\E[Z\mid X]\bigr]$.}
+\end{chapterintro}
+
+\section{The pointwise principle}\label{bayes-decision-theory:sec:pointwise}
+
+Recall that the risk of a predictor is $\Risk(f) = \E[\ell(f(X),Y)]$. We look
+for a predictor of smallest risk among \emph{all} functions $\Xs \to \Ys$.
+
+\begin{definition}[Bayes predictor and Bayes risk]
+The \emph{Bayes risk} is the smallest risk achievable by any predictor,
+\[
+  R^* = \inf_{f} \Risk(f),
+\]
+the infimum being over all (measurable) functions $f:\Xs\to\Ys$. A predictor
+$f^*$ with $\Risk(f^*) = R^*$ is a \emph{Bayes predictor} (\emph{Bayes
+classifier} in classification).
+\end{definition}
+
+The key observation is that the choice of $f(x)$ at one input does not
+constrain the choice at another, so the global problem splits into one small
+problem per input.
+
+\begin{theorem}[Pointwise minimization]\label{bayes-decision-theory:thm:pointwise}
+For $x \in \Xs$ and a candidate prediction $a \in \Ys$, let
+\[
+  r(a \mid x) = \E\bigl[\ell(a, Y) \mid X = x\bigr]
+\]
+be the \emph{conditional risk} of predicting $a$ at $x$. If $f^*(x)$ minimizes
+$a \mapsto r(a\mid x)$ for every $x$, then $f^*$ is a Bayes predictor, and
+\[
+  R^* = \E\Bigl[\min_{a} r(a \mid X)\Bigr].
+\]
+\end{theorem}
+
+\begin{proof}
+For any predictor $f$, the tower property gives
+\[
+  \Risk(f) = \E\Bigl[\E\bigl[\ell(f(X), Y)\mid X\bigr]\Bigr] = \E\bigl[r(f(X)\mid X)\bigr].
+\]
+By the choice of $f^*$, $r(f(x)\mid x) \geq r(f^*(x)\mid x)$ for every $x$.
+Taking expectations over $X$ preserves the inequality, so
+$\Risk(f) \geq \Risk(f^*)$ for every $f$.
+\end{proof}
+
+\begin{keyidea}
+To find the best predictor, fix the input $x$, look at the conditional
+distribution of $Y$ given $X = x$, and choose the single value $a$ that has
+the smallest expected loss under that distribution. Only $P(Y\mid X)$ matters;
+the marginal $P(X)$ only weights the inputs when computing $R^*$.
+\end{keyidea}
+
+The rest of the chapter applies this principle to specific losses.
+
+\section{Classification with the 0--1 loss}\label{bayes-decision-theory:sec:01}
+
+Let $\Ys = \{1, \dots, K\}$ and write
+$\eta_k(x) = P(Y = k \mid X = x)$ for the posterior class probabilities.
+Under the 0--1 loss the conditional risk of predicting class $a$ is the
+probability that the true class is something else:
+\[
+  r(a \mid x) = \sum_{k} \bbone[a \neq k]\, \eta_k(x) = 1 - \eta_a(x).
+\]
+Minimizing it means maximizing $\eta_a(x)$.
+
+\begin{theorem}[Bayes classifier]\label{bayes-decision-theory:thm:bayes-classifier}
+Under the 0--1 loss, the classifier
+\[
+  f^*(x) = \argmax_{k \in \Ys} P(Y = k \mid X = x)
+\]
+(ties broken arbitrarily) is a Bayes classifier, and the Bayes risk is
+\[
+  R^* = \E\Bigl[1 - \max_k \eta_k(X)\Bigr].
+\]
+In the binary case, with $\eta(x) = P(Y=1\mid X=x)$, the Bayes classifier
+predicts $1$ exactly when $\eta(x) > \frac12$, and $R^* = \E\bigl[\min(\eta(X), 1-\eta(X))\bigr]$.
+\end{theorem}
+
+\begin{proof}
+Apply \cref{bayes-decision-theory:thm:pointwise} with
+$r(a\mid x) = 1 - \eta_a(x)$. In the binary case
+$\max(\eta, 1-\eta) > \frac12$ is attained by class 1 iff $\eta > \frac12$,
+and $1 - \max(\eta, 1-\eta) = \min(\eta, 1-\eta)$.
+\end{proof}
+
+The Bayes risk is zero only if $Y$ is a deterministic function of $X$. In
+general it is positive: it is the \emph{irreducible error} caused by the
+information missing from $X$.
+
+\begin{example}[The die, continued]\label{bayes-decision-theory:ex:die}
+In \cref{learning-problem:ex:die}, the posteriors are
+\[
+  P(Y=1 \mid X=0) = \frac{2/6}{3/6} = \frac23, \qquad
+  P(Y=1 \mid X=1) = \frac{1/6}{3/6} = \frac13 .
+\]
+The Bayes classifier predicts $f^*(0) = 1$ and $f^*(1) = 0$ --- it is the
+classifier ``flip $X$'' found by enumeration in \cref{ch:learning-problem}.
+At each input the conditional error is $1 - \frac23 = \frac13$, so
+$R^* = \frac12 \cdot \frac13 + \frac12 \cdot \frac13 = \frac13$. One throw in
+three is misclassified whatever we do, because parity does not determine
+primality.
+\end{example}
+
+How much worse than optimal is another classifier? In the binary case there is
+an exact formula.
+
+\begin{proposition}[Excess risk of a binary classifier]\label{bayes-decision-theory:prop:excess}
+For any classifier $g : \Xs \to \{0,1\}$,
+\[
+  \Risk(g) - R^* = \E\Bigl[\,\abs{2\eta(X) - 1}\;\bbone\bigl[g(X) \neq f^*(X)\bigr]\Bigr] \;\geq\; 0 .
+\]
+Consequently $\Risk(g) = R^*$ if and only if $g$ agrees with $f^*$ for almost
+every input at which $\eta(X) \neq \frac12$.
+\end{proposition}
+
+\begin{proof}
+At input $x$, the conditional error of $g$ is $\eta(x)$ if $g(x) = 0$ and
+$1 - \eta(x)$ if $g(x) = 1$. Where $g(x) = f^*(x)$ the two conditional errors
+coincide. Where $g(x) \neq f^*(x)$, $g$ picks the less likely class and its
+conditional error exceeds that of $f^*$ by
+$\max(\eta, 1 - \eta) - \min(\eta, 1-\eta) = \abs{2\eta(x) - 1}$. Taking the
+expectation over $X$ gives the formula; the integrand is non-negative and
+vanishes exactly where $g = f^*$ or $\eta = \frac12$.
+\end{proof}
+
+Disagreeing with the Bayes classifier is cheap where the posterior is close to
+$\frac12$ (both classes are almost equally likely) and expensive where it is
+close to $0$ or $1$.
+
+\section{Bayes, MAP and maximum-likelihood classifiers}\label{bayes-decision-theory:sec:map-ml}
+
+The posterior is rarely modelled directly in generative approaches; one
+models instead the class-conditional distributions $P(X = x \mid Y = k)$ (the
+\emph{likelihoods}) and the class frequencies $P(Y = k)$ (the \emph{priors}).
+Bayes' rule connects them:
+\[
+  P(Y = k \mid X = x) = \frac{P(X = x \mid Y = k)\, P(Y = k)}{P(X = x)} .
+\]
+The denominator does not depend on $k$, so it plays no role in the $\argmax$.
+This gives two classical decision rules.
+
+\begin{definition}[MAP and ML classifiers]
+The \emph{maximum a posteriori} (MAP) classifier and the \emph{maximum-likelihood}
+(ML) classifier are
+\[
+  f_{\mathrm{MAP}}(x) = \argmax_k\, P(X = x \mid Y = k)\,P(Y = k), \qquad
+  f_{\mathrm{ML}}(x) = \argmax_k\, P(X = x \mid Y = k).
+\]
+\end{definition}
+
+The relations between the three rules are now immediate.
+\begin{itemize}
+  \item \textbf{MAP = Bayes under the 0--1 loss.} $f_{\mathrm{MAP}}$ maximizes
+        the posterior, which is exactly the Bayes classifier of
+        \cref{bayes-decision-theory:thm:bayes-classifier}. ``Minimizing the
+        probability of error'' and ``maximizing the posterior'' are the same
+        objective; they only part ways when the costs of errors differ
+        (\cref{bayes-decision-theory:sec:costs}).
+  \item \textbf{ML = MAP with uniform priors.} If $P(Y=k) = 1/K$ for all $k$,
+        the prior factor is constant and drops out of the $\argmax$. Otherwise
+        the ML rule ignores how common each class is, and is in general
+        suboptimal.
+\end{itemize}
+
+\begin{example}[When the prior changes the decision]
+Two classes have priors $P(Y=0) = 0.7$ and $P(Y=1) = 0.3$. We observe an input
+$x$ and consider two possible likelihood models.
+
+\emph{Case 1:} $P(x \mid Y=0) = 0.2$, $P(x\mid Y=1) = 0.8$. The unnormalized
+posteriors are $0.2 \times 0.7 = 0.14$ and $0.8 \times 0.3 = 0.24$; after
+normalization $P(Y = 1\mid x) = 0.24/0.38 \approx 0.63$. Both MAP and ML
+predict class 1.
+
+\emph{Case 2:} $P(x \mid Y=0) = 0.2$, $P(x\mid Y=1) = 0.4$. The unnormalized
+posteriors are $0.14$ and $0.12$, so $P(Y=1\mid x) = 0.12/0.26 \approx 0.46$.
+MAP predicts class 0; ML still predicts class 1, because $x$ is twice as
+likely under class 1. Here the evidence is not strong enough to overturn the
+prior, and the ML rule makes the wrong call more than half of the time.
+\end{example}
+
+\section{Unequal costs of errors}\label{bayes-decision-theory:sec:costs}
+
+Declaring a sick patient healthy is worse than the reverse. Such asymmetries
+are encoded in a \emph{cost matrix} $C$, where $C_{k a}$ is the cost of
+predicting class $a$ when the true class is $k$; usually $C_{kk} = 0$. The loss
+is $\ell(a, k) = C_{k a}$ and the risk becomes
+\[
+  \Risk(f) = \E\bigl[C_{Y, f(X)}\bigr].
+\]
+The pointwise principle gives the optimal rule at once.
+
+\begin{theorem}[Cost-sensitive Bayes classifier]\label{bayes-decision-theory:thm:costs}
+The classifier
+\[
+  f^*(x) = \argmin_{a \in \Ys} \sum_{k\in\Ys} \eta_k(x)\, C_{k a}
+\]
+minimizes $\E[C_{Y,f(X)}]$. In the binary case with $C_{00} = C_{11} = 0$, it
+predicts class $1$ exactly when
+\[
+  \eta(x) > \frac{C_{01}}{C_{01} + C_{10}} .
+\]
+\end{theorem}
+
+\begin{proof}
+The conditional risk of predicting $a$ is $r(a\mid x) = \sum_k \eta_k(x) C_{ka}$;
+apply \cref{bayes-decision-theory:thm:pointwise}. In the binary case,
+predicting $0$ costs $C_{10}$ when $Y = 1$, so $r(0\mid x) = C_{10}\,\eta(x)$;
+predicting $1$ costs $C_{01}$ when $Y = 0$, so $r(1\mid x) = C_{01}(1 - \eta(x))$.
+Class 1 is preferred when $C_{01}(1-\eta) < C_{10}\,\eta$, that is when
+$\eta > C_{01}/(C_{01}+C_{10})$.
+\end{proof}
+
+With equal costs the threshold is $\frac12$ and we recover the Bayes
+classifier. Raising the cost of missing class 1 lowers the threshold, so
+class 1 is predicted more readily.
+
+\begin{example}[Medical screening]\label{bayes-decision-theory:ex:medical}
+Let class 1 be ``sick''. A false alarm costs $C_{01} = 1$ (an extra test); a
+missed case costs $C_{10} = 10$. The threshold becomes
+$1/(1 + 10) = 1/11 \approx 0.09$: the patient is flagged as soon as the
+probability of disease exceeds 9\%, not 50\%.
+\Cref{bayes-decision-theory:fig:costs} shows the two expected costs as
+functions of $\eta$; the optimal decision is the lower line.
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.5\textwidth, height=5.2cm, xmin=0, xmax=1, ymin=0, ymax=1.6,
+  xlabel={$\eta(x) = P(Y=1\mid X=x)$}, ylabel={expected cost},
+  xtick={0, 0.0909, 0.5, 1}, xticklabels={$0$, $\frac{1}{11}$, $\frac12$, $1$},
+  legend style={at={(1.03,0.5)}, anchor=west, font=\small}, axis lines=left]
+  \addplot[thick, bookaccent, domain=0:0.16] {10*x};
+  \addlegendentry{predict 0: $10\,\eta$}
+  \addplot[thick, bookpitfall, domain=0:1] {1-x};
+  \addlegendentry{predict 1: $1-\eta$}
+  \addplot[dashed, gray, domain=0:1] {x};
+  \addlegendentry{predict 0, equal costs: $\eta$}
+  \draw[dotted] (axis cs:0.0909,0) -- (axis cs:0.0909,0.909);
+  \draw[dotted] (axis cs:0.5,0) -- (axis cs:0.5,0.5);
+\end{axis}
+\end{tikzpicture}
+\caption{Expected cost of each decision in \cref{bayes-decision-theory:ex:medical}.
+With equal costs the lines $\eta$ and $1-\eta$ cross at $\frac12$; making a
+missed case ten times more costly moves the crossing point to $\frac1{11}$.}
+\label{bayes-decision-theory:fig:costs}
+\end{figure}
+
+In practice, costs are taken into account in one of four ways:
+\begin{itemize}
+  \item \textbf{threshold adjustment}: train a probabilistic classifier as
+        usual and threshold its estimate of $\eta$ at
+        $C_{01}/(C_{01}+C_{10})$ instead of $\frac12$ --- the direct
+        application of \cref{bayes-decision-theory:thm:costs};
+  \item \textbf{weighted losses}: multiply the training loss of each example
+        by the cost of misclassifying its class;
+  \item \textbf{resampling}: over-sample the costly class (or under-sample the
+        other), which has a similar effect on the learned model;
+  \item \textbf{cost-sensitive algorithms}, such as decision trees or SVMs
+        whose splitting criterion or margin penalty is weighted by $C$.
+\end{itemize}
+
+\section{Regression with the squared loss}\label{bayes-decision-theory:sec:squared}
+
+Let $\Ys = \R$ and $\ell(\hat y, y) = (\hat y - y)^2$. Write
+$m(x) = \E[Y \mid X = x]$ for the \emph{regression function}.
+
+\begin{theorem}[The conditional mean is optimal]\label{bayes-decision-theory:thm:mse}
+Assume $\E[Y^2] < \infty$. For every predictor $f$ with $\E[f(X)^2]<\infty$,
+\begin{equation}\label{bayes-decision-theory:eq:pythagoras}
+  \E\bigl[(f(X) - Y)^2\bigr]
+  = \underbrace{\E\bigl[(Y - m(X))^2\bigr]}_{\text{does not depend on } f}
+  + \E\bigl[(f(X) - m(X))^2\bigr].
+\end{equation}
+Hence $f^* = m$ is a Bayes predictor, the Bayes risk is the expected
+conditional variance $R^* = \E[\Var(Y\mid X)]$, and any other Bayes predictor
+equals $m$ almost surely.
+\end{theorem}
+
+\emph{First proof (calculus).} By the pointwise principle we minimize, for a
+fixed $x$, the conditional risk
+\[
+  r(a\mid x) = \E[(a - Y)^2 \mid X = x] = a^2 - 2a\,m(x) + \E[Y^2\mid X=x],
+\]
+a convex parabola in $a$. Its derivative $2a - 2m(x)$ vanishes at
+$a = m(x)$, which is therefore the unique minimizer.
+\hfill$\square$
+
+\emph{Second proof (orthogonal decomposition).} Write
+$f(X) - Y = \bigl(f(X) - m(X)\bigr) + \bigl(m(X) - Y\bigr)$ and expand the
+square. The cross term vanishes:
+\[
+  \E\bigl[(f(X) - m(X))(m(X) - Y)\bigr]
+  = \E\Bigl[(f(X) - m(X))\,\underbrace{\E[m(X) - Y \mid X]}_{=\,0}\Bigr] = 0,
+\]
+because $f(X) - m(X)$ is a function of $X$ and can be taken out of the
+conditional expectation. This proves \eqref{bayes-decision-theory:eq:pythagoras}.
+The last term is non-negative and is zero if and only if $f(X) = m(X)$ almost
+surely. Finally $\E[(Y-m(X))^2] = \E\bigl[\E[(Y-m(X))^2\mid X]\bigr] =
+\E[\Var(Y\mid X)]$.
+\hfill$\square$
+
+\begin{intuition}[Pythagoras in a space of random variables]
+Equation \eqref{bayes-decision-theory:eq:pythagoras} is Pythagoras' theorem.
+Random variables with finite second moment form a vector space with inner
+product $\inner{U}{V} = \E[UV]$. The conditional mean $m(X)$ is the orthogonal
+projection of $Y$ onto the subspace of functions of $X$, the residual
+$Y - m(X)$ is orthogonal to that subspace, and $f(X) - m(X)$ lies inside it.
+The squared distance from $Y$ to any $f(X)$ is the squared distance to the
+projection plus the squared distance from the projection to $f(X)$.
+\end{intuition}
+
+The second proof gives more than optimality: it says that the excess risk of
+$f$ is exactly its mean squared distance to $m$. It also carries over verbatim
+to vector outputs, with $\norm{f(X) - Y}^2$ and inner products in place of
+products. In \emph{Deep Learning} by Goodfellow, Bengio and Courville
+(Section~6.2.1.2) the same result is derived ``by calculus of variations'';
+the first proof above is that argument made elementary.
+
+\begin{pitfall}[``Unique'' means unique almost everywhere]
+A Bayes predictor can be changed arbitrarily on a set of inputs of probability
+zero without changing its risk. Statements such as ``$m$ is the unique
+optimal predictor'' must be read as ``unique up to a set of probability
+zero''.
+\end{pitfall}
+
+\subsection{When the model class is too small}\label{bayes-decision-theory:sec:projection}
+
+Learning algorithms do not search over all functions but over a class $\Hs$,
+for instance linear functions. Equation \eqref{bayes-decision-theory:eq:pythagoras}
+holds for every $f$, so minimizing the risk over $\Hs$ is the same as
+minimizing $\E[(f(X)-m(X))^2]$: \emph{the best predictor in $\Hs$ is the
+element of $\Hs$ closest to $m$} in mean square. When $\Hs$ is a closed linear
+space this is the orthogonal projection of $m$ onto $\Hs$.
+
+\begin{example}[The best line through a parabola]\label{bayes-decision-theory:ex:parabola}
+Let $X$ be uniform on $[-1,1]$ and $Y = X^2 + \varepsilon$, where
+$\varepsilon$ is independent noise with mean $0$ and variance $s^2$. Then
+$m(x) = x^2$ and $R^* = s^2$.
+
+Among linear predictors $f(x) = a + bx$, the risk is minimized by
+$b = \Cov(X, Y)/\Var(X)$ and $a = \E[Y] - b\,\E[X]$. Here
+$\Cov(X,Y) = \E[X^3] = 0$ by symmetry, so $b = 0$ and
+$a = \E[X^2] = \frac13$: the best line is \emph{horizontal}, although $Y$
+depends strongly on $X$. Its risk is
+\[
+  s^2 + \E\bigl[(X^2 - \tfrac13)^2\bigr] = s^2 + \E[X^4] - \tfrac19
+  = s^2 + \tfrac15 - \tfrac19 = s^2 + \tfrac{4}{45}.
+\]
+The extra $\frac4{45} \approx 0.089$ is the price of the restriction to
+lines; \cref{ch:erm} calls it the \emph{approximation error}.
+\end{example}
+
+For linear regression on $\R^d$ the best linear predictor is unique as a
+function whenever $\E[XX^\top]$ is invertible; with collinear features its
+\emph{coefficients} are not unique, though the predictions are. For
+non-convex classes such as neural networks, several different functions may
+achieve the minimum.
+
+\section{Other losses}\label{bayes-decision-theory:sec:other}
+
+\paragraph{Absolute loss.} For $\ell(\hat y, y) = \abs{\hat y - y}$, the
+conditional risk $a \mapsto \E[\abs{a - Y}\mid X=x]$ is minimized by any
+\emph{median} of the conditional distribution of $Y$ (\cref{bayes-decision-theory:ex:median}).
+Medians are insensitive to extreme values, which makes the absolute loss
+robust to outliers.
+
+\paragraph{Log-loss.} Let the prediction at $x$ be a probability vector
+$q(x) = (q_1(x), \dots, q_K(x))$ and $\ell(q, y) = -\log q_y$.
+
+\begin{proposition}[The log-loss is minimized by the true posterior]\label{bayes-decision-theory:prop:logloss}
+For every $x$ and every probability vector $q$,
+\[
+  \E\bigl[-\log q_Y \mid X = x\bigr]
+  = H\bigl(\eta(x)\bigr) + \mathrm{KL}\bigl(\eta(x)\,\Vert\, q\bigr)
+  \;\geq\; H\bigl(\eta(x)\bigr),
+\]
+where $H(\eta) = -\sum_k \eta_k \log \eta_k$ is the entropy and
+$\mathrm{KL}(\eta\Vert q) = \sum_k \eta_k \log(\eta_k/q_k)$ the Kullback--Leibler
+divergence. Equality holds if and only if $q = \eta(x)$: the Bayes predictor
+is the conditional distribution itself, $f^*(x) = \eta(x)$.
+\end{proposition}
+
+\begin{proof}
+Adding and subtracting $\log \eta_k$,
+$-\sum_k \eta_k \log q_k = -\sum_k \eta_k \log \eta_k + \sum_k \eta_k \log(\eta_k / q_k)$.
+It remains to show $\mathrm{KL}(\eta\Vert q)\geq 0$ with equality iff $q=\eta$
+(Gibbs' inequality). Since $\log$ is concave, Jensen's inequality gives
+\[
+  -\mathrm{KL}(\eta\Vert q) = \sum_{k:\eta_k>0} \eta_k \log\frac{q_k}{\eta_k}
+  \leq \log \sum_{k:\eta_k>0} \eta_k \frac{q_k}{\eta_k}
+  \leq \log 1 = 0,
+\]
+with equality iff $q_k/\eta_k$ is constant on $\{\eta_k > 0\}$ and
+$q$ puts no mass elsewhere, that is iff $q = \eta$.
+\end{proof}
+
+Unlike the 0--1 loss, which only asks for the most likely class, the log-loss
+rewards a predictor for getting the \emph{whole} posterior right. This is why
+models trained with cross-entropy produce probabilities, which can then be
+thresholded for any cost matrix by \cref{bayes-decision-theory:thm:costs}.
+\Cref{bayes-decision-theory:tab:summary} collects the results of the chapter.
+
+\begin{table}[ht]
+\centering
+\caption{Bayes predictors for common losses.}
+\label{bayes-decision-theory:tab:summary}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Loss & Bayes predictor $f^*(x)$ & Bayes risk $R^*$ \\
+\midrule
+0--1 & $\argmax_k \eta_k(x)$ & $\E[1 - \max_k \eta_k(X)]$ \\
+cost matrix $C$ & $\argmin_a \sum_k \eta_k(x) C_{ka}$ & $\E[\min_a \sum_k \eta_k(X) C_{ka}]$ \\
+squared & $\E[Y\mid X=x]$ & $\E[\Var(Y\mid X)]$ \\
+absolute & a median of $Y$ given $X = x$ & $\E[\,\abs{Y - \mathrm{med}(Y\mid X)}\,]$ \\
+log-loss & $\eta(x) = P(Y = \cdot \mid X = x)$ & $\E[H(\eta(X))]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item The Bayes predictor minimizes the conditional risk
+        $\E[\ell(a, Y)\mid X=x]$ separately at each $x$; it depends only on
+        $P(Y\mid X)$.
+  \item Under the 0--1 loss it is the most probable class (the MAP rule); the
+        ML rule coincides with it only when the classes are equally likely.
+  \item The Bayes risk $R^*$ is the irreducible error; it is zero only when
+        $Y$ is a function of $X$. For binary classification
+        $\Risk(g) - R^* = \E[\abs{2\eta-1}\bbone[g\neq f^*]]$.
+  \item Unequal costs move the binary threshold from $\frac12$ to
+        $C_{01}/(C_{01}+C_{10})$.
+  \item Under the squared loss the Bayes predictor is $\E[Y\mid X]$, and the
+        excess risk of any $f$ is $\E[(f(X) - \E[Y\mid X])^2]$; restricting to a
+        class $\Hs$ selects the element of $\Hs$ closest to $\E[Y\mid X]$.
+  \item The absolute loss leads to the conditional median, the log-loss to the
+        full conditional distribution.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{bayes-decision-theory:ex:median}
+Let $Z$ be a real random variable with $\E\abs{Z} < \infty$ and $g(a) = \E\abs{a - Z}$.
+Show that for $h > 0$,
+$g(a+h) - g(a) = h\,\bigl(2\Prob(Z \leq a) - 1\bigr) + 2\,\E\bigl[(a + h - Z)\bbone[a < Z < a+h]\bigr]$,
+and deduce that $g$ is minimized at any median of $Z$.
+\hint{split according to $Z \leq a$, $a < Z < a+h$ and $Z \geq a+h$.}
+\solutionlink{bayes-decision-theory:ex:median}
+\end{exercise}
+
+\begin{exercise}\label{bayes-decision-theory:exr:2}
+Two classes are equally likely and the class-conditional densities of
+$X \in \R$ are $\mathcal N(-1, 1)$ and $\mathcal N(1,1)$. Show that the Bayes
+classifier is $f^*(x) = \bbone[x > 0]$ and that $R^* = \Phi(-1) \approx 0.159$,
+where $\Phi$ is the standard normal distribution function. How does the
+threshold move if $P(Y=1) = 0.2$?
+\solutionlink{bayes-decision-theory:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{bayes-decision-theory:exr:3}
+Generalize \cref{bayes-decision-theory:thm:costs} to $C_{00}, C_{11}$ not
+necessarily zero, assuming $C_{10} > C_{11}$ and $C_{01} > C_{00}$.
+\solutionlink{bayes-decision-theory:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{bayes-decision-theory:exr:4}
+In \cref{bayes-decision-theory:ex:parabola}, find the best \emph{quadratic}
+predictor $a + bx + cx^2$ and its risk. What is its approximation error?
+\solutionlink{bayes-decision-theory:exr:4}
+\end{exercise}
+\end{notechapter}

@@ -1,0 +1,425 @@
+\begin{notechapter}
+\chapter{The Statistical Learning Problem}\label{ch:learning-problem}
+\chaptersubtitle{Data, loss and risk}
+
+\begin{chapterintro}
+Every supervised learning method, from linear regression to a large neural
+network, solves a version of the same problem: choose a function that
+predicts well on data it has not seen. This chapter states that problem
+precisely. By the end of it you should be able to
+\begin{itemize}[nosep]
+  \item describe a learning problem by an input space, an output space, a
+        distribution and a loss function;
+  \item define the \emph{risk} of a predictor and compute it on a small
+        discrete example;
+  \item explain why the training sample is a \emph{random} object, and what
+        it means for the empirical risk to be an \emph{estimator} of the risk;
+  \item name the central difficulty of learning --- generalization --- and the
+        tools the next chapters use to study it.
+\end{itemize}
+\prerequisites{discrete and continuous random variables, expectation,
+conditional probability, the law of large numbers.}
+\end{chapterintro}
+
+\section{Learning from examples}\label{learning-problem:sec:types}
+
+A program \emph{learns} when its performance at a task improves with
+experience, and in machine learning the experience is data. Three broad
+settings are usually distinguished.
+
+\begin{description}
+  \item[Supervised learning.] We observe pairs $(x_i, y_i)$ of an input and
+        the correct output, and we want a function that predicts $y$ from $x$
+        for new inputs. If $y$ takes finitely many values the task is
+        \emph{classification}; if $y$ is real-valued it is \emph{regression}.
+  \item[Unsupervised learning.] We observe inputs $x_i$ only, and look for
+        structure in them: clusters, a low-dimensional representation, an
+        estimate of their density.
+  \item[Reinforcement learning.] An agent acts in an environment, receives
+        rewards, and learns a policy that maximizes its cumulative reward. The
+        data depend on the agent's own actions.
+\end{description}
+
+This part of the book is about supervised learning. Its theory --- called
+\emph{statistical learning theory} --- rests on a single modelling decision:
+the data are random draws from an unknown probability distribution. Everything
+else (risk, overfitting, generalization bounds) follows from taking that
+decision seriously.
+
+\section{The probabilistic setting}\label{learning-problem:sec:setting}
+
+\begin{definition}[Learning problem]\label{learning-problem:def:problem}
+A supervised learning problem consists of
+\begin{enumerate}[nosep]
+  \item an \emph{input space} $\Xs$ and an \emph{output space} $\Ys$;
+  \item a probability distribution $P$ on $\Xs \times \Ys$, \emph{unknown} to
+        the learner, from which input--output pairs $(X, Y)$ are drawn;
+  \item a \emph{loss function} $\ell : \Ys \times \Ys \to [0, \infty)$, where
+        $\ell(\hat y, y)$ is the cost of predicting $\hat y$ when the truth is
+        $y$.
+\end{enumerate}
+A \emph{predictor} (or \emph{hypothesis}) is a function $f : \Xs \to \Ys$. For
+classification it is also called a \emph{classifier}.
+\end{definition}
+
+Throughout the book, capital letters $X, Y$ denote random variables and
+lower-case letters $x, y$ the values they take.
+
+\subsection{The joint distribution and its two factors}
+
+The distribution $P$ of $(X,Y)$ can always be split into two factors,
+\begin{equation}\label{learning-problem:eq:factorization}
+  P(X = x, Y = y) = \underbrace{P(X = x)}_{\text{how inputs occur}}
+  \;\underbrace{P(Y = y \mid X = x)}_{\text{how outputs depend on inputs}} .
+\end{equation}
+The first factor, the \emph{marginal} of $X$, says which inputs are common.
+The second, the \emph{conditional distribution} of $Y$ given $X$, contains all
+there is to know about predicting $Y$ from $X$. A predictor never needs the
+first factor: as \cref{ch:bayes-decision-theory} will show, the best possible
+predictor is determined by $P(Y \mid X)$ alone. Models that estimate
+$P(Y\mid X)$ directly, such as logistic regression, are called
+\emph{discriminative}; models that estimate the whole joint distribution, such
+as naive Bayes, are called \emph{generative}. \Cref{ch:generative-discriminative}
+compares the two.
+
+\begin{example}[Logistic regression models the conditional distribution]
+With $\Xs = \R^d$ and $\Ys = \{0,1\}$, logistic regression posits
+\[
+  P(Y = 1 \mid X = x) = \sigma(w^\top x + b) = \frac{1}{1 + e^{-(w^\top x + b)}},
+\]
+and says nothing about how $X$ is distributed. A classifier is then obtained by
+thresholding: $f(x) = 1$ if $\sigma(w^\top x + b) \geq \frac12$ and $f(x) = 0$
+otherwise.
+\end{example}
+
+\subsection{Loss functions}
+
+The loss turns ``predicting well'' into a number. The choice matters: it
+determines which predictor is best (\cref{ch:bayes-decision-theory}).
+\Cref{learning-problem:tab:losses} lists the losses used in this part.
+
+\begin{table}[ht]
+\centering
+\caption{Common loss functions. For the log-loss the prediction is a
+probability vector $q = (q_1, \dots, q_K)$ rather than a label.}
+\label{learning-problem:tab:losses}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Loss & $\ell(\hat y, y)$ & Typical use \\
+\midrule
+0--1 loss & $\bbone[\hat y \neq y]$ & classification \\
+squared loss & $(\hat y - y)^2$ & regression \\
+absolute loss & $\abs{\hat y - y}$ & robust regression \\
+log-loss (cross-entropy) & $-\log q_y$ & probabilistic classification \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Here $\bbone[A]$ is the \emph{indicator} of the statement $A$: it equals $1$ if
+$A$ is true and $0$ otherwise.
+
+\section{The risk of a predictor}\label{learning-problem:sec:risk}
+
+\begin{definition}[Risk]\label{learning-problem:def:risk}
+The \emph{risk} (also \emph{population risk}, \emph{true risk} or
+\emph{expected risk}) of a predictor $f$ is its average loss on a fresh pair
+drawn from $P$:
+\[
+  \Risk(f) = \E_{(X,Y)\sim P}\bigl[\ell(f(X), Y)\bigr].
+\]
+\end{definition}
+
+The risk is the quantity we care about: it measures performance on data that
+the predictor has never seen. It is a fixed number once $f$ and $P$ are fixed
+--- but it is \emph{unknown}, because $P$ is.
+
+For the 0--1 loss, $\E[\bbone[f(X)\neq Y]] = \Prob(f(X) \neq Y)$: the risk is
+simply the probability of a misclassification, the \emph{error rate} of $f$.
+
+\subsection{A running example: the die}\label{learning-problem:sec:die}
+
+We shall use a deliberately tiny problem, taken from the book by de Mello and
+Ponti, to make every quantity computable by hand.
+
+\begin{example}[Even and prime]\label{learning-problem:ex:die}
+A fair die is thrown. Let $X = 1$ if the outcome is even and $X = 0$ otherwise,
+and let $Y = 1$ if the outcome is prime (2, 3 or 5) and $Y = 0$ otherwise. The
+six outcomes give the joint distribution
+\begin{center}
+\begin{tabular}{@{}c|cc|c@{}}
+ & $Y=0$ & $Y=1$ & $P(X=x)$ \\ \midrule
+$X=0$ (odd: 1, 3, 5)  & $\frac16$ (1) & $\frac26$ (3, 5) & $\frac12$ \\
+$X=1$ (even: 2, 4, 6) & $\frac26$ (4, 6) & $\frac16$ (2) & $\frac12$ \\
+\end{tabular}
+\end{center}
+There are only four classifiers $f : \{0,1\} \to \{0,1\}$. Under the 0--1 loss,
+the risk of $f$ is the total probability of the cells where $f(x) \neq y$:
+\begin{center}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+classifier & $(f(0), f(1))$ & $\Risk(f) = \Prob(f(X) \neq Y)$ \\ \midrule
+always $0$ & $(0,0)$ & $\frac26 + \frac16 = \frac12$ \\
+always $1$ & $(1,1)$ & $\frac16 + \frac26 = \frac12$ \\
+copy $X$ & $(0,1)$ & $\frac26 + \frac26 = \frac23$ \\
+flip $X$ & $(1,0)$ & $\frac16 + \frac16 = \frac13$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+The classifier ``predict prime if and only if odd'' has the smallest risk,
+$\frac13$. It still errs on the outcomes 1 and 2: knowing only the parity
+of the outcome, no classifier can do better (\cref{ch:bayes-decision-theory}).
+\end{example}
+
+\begin{pitfall}[A risk compares a prediction with a label, not two distributions]
+The book computes the quality of the classifier $g = $ ``flip $X$'' as
+\[
+  \sum_{x,y} \abs{P(X=x, Y=y) - P_g(X=x, Y=y)} = \tfrac16 + \tfrac16 + \tfrac16 + \tfrac16 = \tfrac23,
+\]
+where $P_g$ is the distribution of $(X, g(X))$, which puts mass $\frac12$ on
+$(0,1)$ and on $(1,0)$. This number is the $\ell^1$ distance between two
+distributions; it is \emph{not} of the form $\E[\ell(g(X),Y)]$. For a
+deterministic classifier it equals \emph{twice} the 0--1 risk. Indeed
+$P_g(x, g(x)) = P(X=x)$ and $P_g(x,y) = 0$ for $y \neq g(x)$, so
+\[
+  \sum_{x,y} \abs{P(x, y) - P_g(x, y)}
+  = \sum_x \Bigl( \underbrace{P(x) - P(x, g(x))}_{=\sum_{y\neq g(x)}P(x,y)}
+     + \sum_{y \neq g(x)} P(x,y) \Bigr)
+  = 2\,\Prob\bigl(g(X) \neq Y\bigr).
+\]
+Here $2 \times \frac13 = \frac23$. The two numbers must not be compared as if
+they were the same kind of quantity.
+\end{pitfall}
+
+\section{The training sample}\label{learning-problem:sec:sample}
+
+The learner does not know $P$; it sees $n$ examples drawn from it. To reason
+about what the learner can achieve, we must be careful about what is random.
+
+\begin{definition}[Random sample and observed dataset]\label{learning-problem:def:sample}
+A \emph{random sample} of size $n$ is a family of random pairs
+\[
+  D_n = \bigl((X_1, Y_1), \dots, (X_n, Y_n)\bigr),
+  \qquad (X_i, Y_i) \overset{\text{i.i.d.}}{\sim} P .
+\]
+An \emph{observed dataset} $d_n = ((x_1, y_1), \dots, (x_n, y_n))$ is one
+realization of $D_n$: the numbers actually stored on disk.
+\end{definition}
+
+The distinction looks pedantic but it is the heart of learning theory. The
+dataset on disk is fixed. The question ``how good is my method?'' however
+refers to what \emph{would} happen over the datasets we might have received,
+and that question can only be asked about $D_n$.
+
+\begin{intuition}[One dataset among many]
+Imagine re-running the data collection a thousand times. Each run produces a
+different dataset, hence a different trained model and a different training
+error. Statistical learning theory studies the \emph{distribution} of these
+outcomes: their average, their spread, the probability that one of them is
+badly misleading. Your actual dataset is a single draw from that distribution.
+\end{intuition}
+
+\subsection{Four meanings of ``sample''}\label{learning-problem:sec:sample-meanings}
+
+Few words cause as much confusion as \emph{sample}, because it is used with at
+least four different meanings, depending on whether one speaks as a
+statistician, a theorist or an engineer.
+
+\begin{enumerate}
+  \item \textbf{One data point} (engineering usage). ``A batch of 32
+        samples'', ``10 ms per sample'': here a sample is a single example
+        $(x_i,y_i)$ --- one image, one row of a table. A statistician would
+        call it an \emph{observation}.
+  \item \textbf{The observed dataset} (statistics usage). ``We have a sample
+        of size $n = 10\,000$'': the whole collection $d_n$ actually in hand.
+        Its values are fixed numbers; the random draw has already happened.
+  \item \textbf{The random dataset} (learning-theory usage). The sample $D_n$
+        of \cref{learning-problem:def:sample}, a random object with
+        distribution $P^n$, \emph{before} the data are collected. Because the
+        trained model depends on it, the model is random too, and questions
+        such as ``what is the expected error over all the datasets of size $n$
+        we might have drawn?'' make sense.
+  \item \textbf{A generated draw} (sampling as a verb). ``To sample from a
+        distribution'' means to produce a new random value from it: a Monte
+        Carlo draw, a ghost sample in a proof (\cref{ch:symmetrization-lemma}),
+        or an image $\tilde x\sim p_\theta$ produced by a generative model.
+\end{enumerate}
+
+\begin{table}[ht]
+\centering
+\caption{The meanings of ``sample''.}
+\label{learning-problem:tab:sample}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Meaning & Notation & Random or fixed? & Size \\
+\midrule
+one data point & $(x_i, y_i)$ & fixed once observed & $1$ \\
+observed dataset & $d_n$ & fixed (a realization) & $n$ \\
+random dataset & $D_n\sim P^n$ & random & $n$ \\
+generated draw & $\tilde x\sim p_\theta$ & random & $1$ (or a batch) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{keyidea}[Convention used in this book]
+\emph{Sample} always means a whole collection: $D_n$ when it is random, $d_n$
+when it is observed. A single element is called an \emph{example},
+\emph{observation} or \emph{data point}, and ``sample size'' is the number
+$n$ of examples. ``Sampling'' refers to drawing values from a distribution.
+\end{keyidea}
+
+\subsection{The empirical risk as an estimator}
+
+\begin{definition}[Empirical risk]\label{learning-problem:def:emprisk}
+The \emph{empirical risk} of a predictor $f$ on the sample $D_n$ is the average
+loss
+\[
+  \ERisk(f) = \frac1n \sum_{i=1}^n \ell\bigl(f(X_i), Y_i\bigr).
+\]
+\end{definition}
+
+Written with capital letters, $\ERisk(f)$ is an \emph{estimator}: a random
+variable, a function of the random sample. Evaluated on the observed dataset,
+$\frac1n\sum_i \ell(f(x_i),y_i)$ is an \emph{estimate}: a number. Since
+the true risk is unknown, the empirical risk is our only window on it, and its
+quality as an estimator is what matters.
+
+\begin{proposition}[Empirical risk of a fixed predictor]\label{learning-problem:prop:unbiased}
+Let $f$ be a predictor chosen \emph{independently of the sample} and suppose
+$\sigma_f^2 = \Var\bigl(\ell(f(X),Y)\bigr) < \infty$. Then
+\[
+  \E\bigl[\ERisk(f)\bigr] = \Risk(f), \qquad
+  \Var\bigl(\ERisk(f)\bigr) = \frac{\sigma_f^2}{n},
+\]
+and $\ERisk(f) \to \Risk(f)$ almost surely as $n \to \infty$.
+\end{proposition}
+
+\begin{proof}
+Write $L_i = \ell(f(X_i), Y_i)$. Because $f$ does not depend on the sample, the
+$L_i$ are functions of independent, identically distributed pairs, hence are
+themselves i.i.d., with mean $\E[L_i] = \Risk(f)$ and variance $\sigma_f^2$.
+By linearity of expectation $\E[\frac1n \sum_i L_i] = \Risk(f)$. By
+independence the variance of a sum is the sum of the variances, so
+$\Var(\frac1n\sum_i L_i) = \frac1{n^2}\, n \sigma_f^2 = \sigma_f^2 / n$. The
+almost-sure convergence is the strong law of large numbers applied to the
+$L_i$.
+\end{proof}
+
+\begin{example}[Estimating the error of the best die classifier]
+Take $f = $ ``flip $X$'' from \cref{learning-problem:ex:die}. The loss
+$L = \bbone[f(X)\neq Y]$ is a Bernoulli variable with parameter
+$\Risk(f) = \frac13$, so $\sigma_f^2 = \frac13 \cdot \frac23 = \frac29$. With
+$n = 50$ throws, the empirical error rate has mean $\frac13$ and standard
+deviation $\sqrt{2/(9 \cdot 50)} \approx 0.067$: a test on 50 throws reports
+an error rate somewhere around $0.33 \pm 0.13$ (two standard deviations) most
+of the time. To halve this uncertainty one needs four times as many throws ---
+the familiar $1/\sqrt n$ rate.
+\end{example}
+
+\begin{pitfall}[The proposition fails for a trained model]
+The hypothesis ``$f$ chosen independently of the sample'' is essential. A model
+$\hat f$ \emph{trained} on $D_n$ depends on the very points used to evaluate
+it; the losses $\ell(\hat f(X_i), Y_i)$ are then not independent draws of the
+loss on a fresh point, and the training error is typically \emph{smaller} than
+the true risk. \Cref{ch:erm} quantifies this optimism; it is the reason why a
+model is evaluated on separate test data.
+\end{pitfall}
+
+\subsection{Training error and test error}
+
+The same formula $\frac1m\sum_i \ell(f(x_i), y_i)$ receives different names
+depending on the data it is computed on.
+\begin{itemize}
+  \item On the \emph{training set}, it is the \emph{training error} or
+        empirical risk; it is what learning algorithms minimize.
+  \item On a \emph{test set}, drawn independently of the training set and
+        never used during training, it is the \emph{test error}. Conditionally
+        on the trained model, the test points satisfy the hypothesis of
+        \cref{learning-problem:prop:unbiased}, so the test error is an
+        unbiased estimate of the risk of that model.
+\end{itemize}
+Some authors reserve ``empirical risk'' for the training set and use
+``average error'' for any dataset; the mathematical object is the same, and
+what changes is whether the data were used to choose $f$.
+
+\section{The central difficulty: generalization}\label{learning-problem:sec:roadmap}
+
+If $P$ were known, we would simply pick the predictor with the smallest risk;
+\cref{ch:bayes-decision-theory} shows that this ideal predictor, the
+\emph{Bayes predictor}, can be written down explicitly. Since $P$ is unknown,
+the natural strategy is to minimize the empirical risk instead. This is the
+\emph{empirical risk minimization} principle, and its weakness is visible
+already: a sufficiently flexible model can make the training error zero by
+memorizing the sample, while predicting badly elsewhere. This is
+\emph{overfitting}. The difference between the risk and the training error of
+the learned model is the \emph{generalization gap}, and controlling it is the
+central problem of learning theory.
+
+The rest of this part develops the tools to do so:
+\begin{itemize}
+  \item \cref{ch:bayes-decision-theory}: the best possible predictor for each
+        loss, and the irreducible \emph{Bayes risk};
+  \item \cref{ch:erm}: empirical risk minimization, the decomposition of the
+        excess risk into \emph{approximation} and \emph{estimation} errors,
+        the bias--variance trade-off and regularization;
+  \item \cref{ch:symmetrization-lemma}: uniform convergence, the
+        symmetrization lemma, the VC dimension and the resulting
+        generalization bound;
+  \item \cref{ch:generative-discriminative,ch:lipschitz-continuity}:
+        two recurring structural ideas, likelihood factorization and
+        Lipschitz continuity;
+  \item \cref{ch:measuring-performance}: how performance is measured in
+        practice.
+\end{itemize}
+
+\begin{keyidea}[No free lunch]
+No learning algorithm is better than every other on \emph{all} problems: averaged
+over all possible distributions, every algorithm has the same performance
+(the ``no-free-lunch'' theorems of Wolpert). Learning is possible only because
+we restrict attention to a class of predictors that we believe contains a
+good one. This prior choice --- the \emph{hypothesis class} --- is the
+subject of \cref{ch:erm}.
+\end{keyidea}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item A supervised learning problem is a distribution $P$ on
+        $\Xs\times\Ys$, unknown to the learner, together with a loss $\ell$.
+  \item The risk $\Risk(f) = \E[\ell(f(X),Y)]$ is the expected loss on fresh
+        data; for the 0--1 loss it is the error rate.
+  \item The joint distribution factors as $P(X)\,P(Y\mid X)$; prediction only
+        requires the conditional factor.
+  \item The training sample $D_n$ is random; the empirical risk $\ERisk(f)$ is
+        an estimator of $\Risk(f)$, unbiased with variance $\sigma_f^2/n$
+        \emph{when $f$ does not depend on the sample}.
+  \item For a trained model the training error is optimistic; the test error
+        on independent data is not.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{learning-problem:exr:1}
+In \cref{learning-problem:ex:die}, replace ``prime'' by ``at least 4''
+($Y=1$ for 4, 5, 6). Compute the joint table and the risk of the four
+classifiers. Which one is best, and what is its risk?
+\solutionlink{learning-problem:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{learning-problem:exr:2}
+Show that for the squared loss and a predictor $f$ chosen independently of
+the sample, $\Var(\ERisk(f)) = \Var\bigl((f(X)-Y)^2\bigr)/n$. If
+$Y = f(X) + \varepsilon$ with $\varepsilon \sim \mathcal N(0, s^2)$
+independent of $X$, compute this variance explicitly.
+\hint{$\E[\varepsilon^4] = 3 s^4$.}
+\solutionlink{learning-problem:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{learning-problem:exr:3}
+A classifier is evaluated on a test set of $m$ points and makes $k$ errors.
+Using \cref{learning-problem:prop:unbiased}, give an approximate standard
+error for the estimated error rate $k/m$. How large must $m$ be for this
+standard error to be below $0.01$ when the error rate is about $0.1$?
+\solutionlink{learning-problem:exr:3}
+\end{exercise}
+\end{notechapter}

@@ -1,0 +1,317 @@
+\begin{notechapter}
+\chapter{The EM Algorithm}\label{ch:em-algorithm}
+\chaptersubtitle{The three-coin model, from first principles to implementation}
+
+\begin{chapterintro}
+Many models contain variables that are never observed: the component of a
+mixture that generated a point, the hidden state of a Markov chain, the coin
+that was secretly chosen. Maximum likelihood is then hard, because the
+likelihood is a sum inside a logarithm. The Expectation--Maximization (EM)
+algorithm turns this hard problem into a sequence of easy ones. We develop it on
+the smallest possible example, three coins. You will learn
+\begin{itemize}[nosep]
+  \item the complete-data and observed-data likelihoods, and why the latter is
+        hard to maximize;
+  \item the evidence lower bound (ELBO), derived with Jensen's inequality, and
+        when it is tight;
+  \item the E-step and M-step, with closed-form updates for the three coins;
+  \item a proof that EM never decreases the likelihood, and the view of EM as
+        coordinate ascent on the ELBO;
+  \item what EM does on real numbers, and why the three-coin model is a
+        cautionary tale about identifiability.
+\end{itemize}
+\prerequisites{maximum likelihood (\cref{generative-discriminative:sec:likelihood});
+the Kullback--Leibler divergence and Gibbs' inequality
+(\cref{bayes-decision-theory:prop:logloss}); Bayes' rule.}
+\end{chapterintro}
+
+\section{The three-coin problem}\label{em-algorithm:sec:problem}
+
+Three coins have unknown probabilities of heads: $\pi$ for coin~A, $p$ for coin~B
+and $q$ for coin~C. One experiment consists in
+\begin{enumerate}[nosep]
+  \item tossing coin~A;
+  \item tossing coin~B if A shows heads, coin~C otherwise;
+  \item recording only the result of this second toss.
+\end{enumerate}
+Ten experiments give $1, 1, 0, 1, 0, 0, 1, 0, 1, 1$ ($1$ = heads). We never see
+which coin produced each result. Write $y_j$ for the observed result of
+experiment $j$, $z_j\in\{0,1\}$ for the hidden choice ($z_j = 1$: coin~B), and
+$\theta = (\pi, p, q)$. (This example appears in Li Hang's \emph{Statistical
+Learning Methods}.)
+
+\subsection{Complete and observed likelihoods}
+
+If $z$ were observed, the probability of an outcome would be
+\[
+  P(y, z\mid\theta) = \bigl[\pi\,p^y(1-p)^{1-y}\bigr]^z\,\bigl[(1-\pi)\,q^y(1-q)^{1-y}\bigr]^{1-z},
+\]
+where the exponents select the active factor. Since $z$ is hidden, the probability
+of what we see is the marginal
+\[
+  P(y\mid\theta) = \sum_{z\in\{0,1\}}P(y,z\mid\theta) = \pi\,p^y(1-p)^{1-y} + (1-\pi)\,q^y(1-q)^{1-y},
+\]
+and, by independence of the experiments, the log-likelihood of the data is
+\[
+  \mathcal L(\theta) = \sum_{j=1}^n\log\Bigl[\pi\,p^{y_j}(1-p)^{1-y_j} + (1-\pi)\,q^{y_j}(1-q)^{1-y_j}\Bigr].
+\]
+
+\begin{intuition}[A sum inside a logarithm]
+The complete-data log-likelihood
+$\log P(y,z\mid\theta) = z\log(\pi p^y(1-p)^{1-y}) + (1-z)\log((1-\pi)q^y(1-q)^{1-y})$
+splits into separate terms for $\pi$, $p$ and $q$, each maximized by counting. The
+observed-data log-likelihood has the sum \emph{inside} the logarithm, which ties
+all parameters together: its gradient equations have no closed-form solution.
+EM works with the complete-data form, replacing the unknown $z_j$ by its
+expectation.
+\end{intuition}
+
+\section{A lower bound on the log-likelihood}\label{em-algorithm:sec:elbo}
+
+Consider one observation $y$, and let $Q$ be \emph{any} distribution on the hidden
+variable $z$ with $Q(z)>0$. Multiplying and dividing by $Q(z)$,
+\[
+  P(y\mid\theta) = \sum_zQ(z)\,\frac{P(y,z\mid\theta)}{Q(z)} = \E_{z\sim Q}\Bigl[\frac{P(y,z\mid\theta)}{Q(z)}\Bigr].
+\]
+Since $\log$ is concave, Jensen's inequality gives $\log\E[W]\geq\E[\log W]$, hence
+\begin{equation}\label{em-algorithm:eq:elbo}
+  \log P(y\mid\theta)\;\geq\;\mathrm{ELBO}(\theta, Q) = \E_Q\bigl[\log P(y,z\mid\theta)\bigr] + H(Q),
+\end{equation}
+where $H(Q) = -\E_Q[\log Q(z)]$ is the entropy of $Q$. The right-hand side is the
+\emph{evidence lower bound}: $\log P(y\mid\theta)$ is the log-\emph{evidence}, and
+the bound holds for every $Q$.
+
+\begin{proposition}[The gap is a KL divergence]\label{em-algorithm:prop:gap}
+For every $Q$,
+\[
+  \log P(y\mid\theta) = \mathrm{ELBO}(\theta,Q) + \mathrm{KL}\bigl(Q\,\Vert\,P(\cdot\mid y,\theta)\bigr).
+\]
+Hence the bound is tight if and only if $Q$ is the posterior $P(z\mid y,\theta)$.
+\end{proposition}
+
+\begin{proof}
+Write $P(y,z\mid\theta) = P(y\mid\theta)\,P(z\mid y,\theta)$. Then
+\[
+  \mathrm{ELBO}(\theta,Q) = \E_Q\Bigl[\log\frac{P(y\mid\theta)P(z\mid y,\theta)}{Q(z)}\Bigr]
+  = \log P(y\mid\theta) - \E_Q\Bigl[\log\frac{Q(z)}{P(z\mid y,\theta)}\Bigr],
+\]
+and the last expectation is the KL divergence. By Gibbs' inequality it is
+non-negative and vanishes iff $Q = P(\cdot\mid y,\theta)$.
+\end{proof}
+
+For $n$ independent observations the bound is applied term by term, with one
+distribution $Q_j$ per hidden variable $z_j$.
+
+\section{The EM algorithm}\label{em-algorithm:sec:algorithm}
+
+EM alternates between making the bound tight at the current parameters and
+maximizing it.
+
+\begin{center}
+\begin{minipage}{0.92\linewidth}
+\textbf{EM.} Start from $\theta^{(0)}$. For $t = 0, 1, 2,\dots$ until convergence:
+\begin{description}[nosep]
+  \item[E-step:] compute the posteriors $Q_j(z_j) = P(z_j\mid y_j,\theta^{(t)})$ and the
+        expected complete-data log-likelihood
+        \[
+          Q(\theta,\theta^{(t)}) = \sum_{j=1}^n\E_{z_j\sim P(\cdot\mid y_j,\theta^{(t)})}\bigl[\log P(y_j,z_j\mid\theta)\bigr];
+        \]
+  \item[M-step:] $\theta^{(t+1)} = \argmax_\theta Q(\theta,\theta^{(t)})$.
+\end{description}
+\end{minipage}
+\end{center}
+
+(The entropy term of the ELBO does not depend on $\theta$, so maximizing the ELBO
+over $\theta$ is maximizing $Q(\theta,\theta^{(t)})$.)
+
+\subsection{E-step for the three coins}
+
+The posterior that coin~B was used in experiment $j$ --- the \emph{responsibility}
+of coin~B --- is given by Bayes' rule:
+\[
+  \gamma_j^{(t)} = P(z_j = 1\mid y_j,\theta^{(t)})
+  = \frac{\pi^{(t)}(p^{(t)})^{y_j}(1-p^{(t)})^{1-y_j}}
+         {\pi^{(t)}(p^{(t)})^{y_j}(1-p^{(t)})^{1-y_j} + (1-\pi^{(t)})(q^{(t)})^{y_j}(1-q^{(t)})^{1-y_j}} .
+\]
+Since the complete-data log-likelihood is linear in $z_j$, its expectation simply
+replaces $z_j$ by $\gamma_j^{(t)}$:
+\[
+  Q(\theta,\theta^{(t)}) = \sum_{j=1}^n\Bigl[\gamma_j^{(t)}\log\bigl(\pi p^{y_j}(1-p)^{1-y_j}\bigr)
+  + (1-\gamma_j^{(t)})\log\bigl((1-\pi)q^{y_j}(1-q)^{1-y_j}\bigr)\Bigr].
+\]
+
+\subsection{M-step for the three coins}
+
+$Q$ separates into a term in $\pi$, a term in $p$ and a term in $q$. Setting each
+derivative to zero,
+\begin{align*}
+  \frac{\partial Q}{\partial\pi} &= \sum_j\Bigl[\frac{\gamma_j}{\pi} - \frac{1-\gamma_j}{1-\pi}\Bigr] = 0
+  &&\Longrightarrow\quad \pi^{(t+1)} = \frac1n\sum_j\gamma_j^{(t)},\\
+  \frac{\partial Q}{\partial p} &= \sum_j\gamma_j\Bigl[\frac{y_j}{p} - \frac{1-y_j}{1-p}\Bigr] = 0
+  &&\Longrightarrow\quad p^{(t+1)} = \frac{\sum_j\gamma_j^{(t)}y_j}{\sum_j\gamma_j^{(t)}},\\
+  \frac{\partial Q}{\partial q} &= \sum_j(1-\gamma_j)\Bigl[\frac{y_j}{q} - \frac{1-y_j}{1-q}\Bigr] = 0
+  &&\Longrightarrow\quad q^{(t+1)} = \frac{\sum_j(1-\gamma_j^{(t)})y_j}{\sum_j(1-\gamma_j^{(t)})} .
+\end{align*}
+Each update is a count with \emph{soft} assignments: $\pi$ is the average
+responsibility of coin~B, and $p$ (resp.\ $q$) is the proportion of heads among the
+results attributed to coin~B (resp.\ C), each result weighted by its
+responsibility. Each objective is concave, so these stationary points are maxima.
+
+\section{Why EM never decreases the likelihood}\label{em-algorithm:sec:monotone}
+
+\begin{theorem}[Monotonicity of EM]\label{em-algorithm:thm:monotone}
+$\mathcal L(\theta^{(t+1)})\geq\mathcal L(\theta^{(t)})$ for every $t$.
+\end{theorem}
+
+\begin{proof}
+Let $Q^{(t)}$ denote the posteriors at $\theta^{(t)}$. By
+\cref{em-algorithm:prop:gap} the bound is tight there:
+$\mathcal L(\theta^{(t)}) = \mathrm{ELBO}(\theta^{(t)}, Q^{(t)})$. The M-step maximizes
+$\mathrm{ELBO}(\cdot, Q^{(t)})$, and the ELBO is a lower bound for every $\theta$, so
+\[
+  \mathcal L(\theta^{(t+1)})\;\geq\;\mathrm{ELBO}(\theta^{(t+1)}, Q^{(t)})
+  \;\geq\;\mathrm{ELBO}(\theta^{(t)}, Q^{(t)}) = \mathcal L(\theta^{(t)}). \qedhere
+\]
+\end{proof}
+
+The same argument, written with $\log P(y\mid\theta) = \log P(y,z\mid\theta) - \log P(z\mid y,\theta)$
+averaged over $Q^{(t)}$, shows that the gain in log-likelihood equals the gain in
+$Q(\cdot,\theta^{(t)})$ \emph{plus} $\mathrm{KL}(Q^{(t)}\Vert P(\cdot\mid y,\theta^{(t+1)}))\geq0$:
+the likelihood improves at least as much as $Q$ does. It is therefore enough to
+\emph{increase} $Q$ in the M-step rather than maximize it (``generalized EM'').
+
+\begin{keyidea}[EM is coordinate ascent on the ELBO]
+\begin{itemize}[nosep]
+  \item E-step: maximize $\mathrm{ELBO}(\theta^{(t)}, Q)$ over $Q$; by
+        \cref{em-algorithm:prop:gap} the maximizer is the posterior.
+  \item M-step: maximize $\mathrm{ELBO}(\theta, Q^{(t)})$ over $\theta$.
+\end{itemize}
+Each step can only increase the ELBO, and after each E-step the ELBO equals the
+log-likelihood. When the exact posterior is intractable, restricting $Q$ to a
+simpler family gives \emph{variational} EM; amortizing $Q$ with a neural network
+gives the variational autoencoder. Mixtures of Gaussians and hidden Markov models
+(the Baum--Welch algorithm) are classical exact instances.
+\end{keyidea}
+
+\section{EM on the data, and a lesson in identifiability}\label{em-algorithm:sec:numbers}
+
+\Cref{em-algorithm:tab:run} shows two runs of EM on the ten results. In both, the
+iteration stops changing after a single step.
+
+\begin{table}[ht]
+\centering
+\caption{EM on $1,1,0,1,0,0,1,0,1,1$ from two initializations. $\gamma(1)$ and
+$\gamma(0)$ are the responsibilities of coin~B for a head and a tail;
+$s = \pi p + (1-\pi)q$ is the implied probability of heads.}
+\label{em-algorithm:tab:run}
+\begin{tabular}{@{}cccccccc@{}}
+\toprule
+$t$ & $\pi$ & $p$ & $q$ & $\gamma(1)$ & $\gamma(0)$ & $s$ & $\mathcal L$ \\
+\midrule
+0 & 0.5000 & 0.5000 & 0.5000 & 0.5000 & 0.5000 & 0.50 & $-6.931$ \\
+1 & 0.5000 & 0.6000 & 0.6000 & 0.5000 & 0.5000 & 0.60 & $-6.730$ \\
+\midrule
+0 & 0.4000 & 0.6000 & 0.7000 & 0.3636 & 0.4706 & 0.66 & $-6.808$ \\
+1 & 0.4064 & 0.5368 & 0.6432 & 0.3636 & 0.4706 & 0.60 & $-6.730$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The two runs end at different parameters with the \emph{same} likelihood. The
+reason is structural. Each observation is a single toss, so its distribution is
+Bernoulli with parameter
+\[
+  s(\theta) = P(y = 1\mid\theta) = \pi p + (1-\pi)q,
+\]
+and the likelihood $\mathcal L(\theta) = n_1\log s(\theta) + n_0\log(1 - s(\theta))$
+depends on the three parameters only through $s(\theta)$. It is maximized by
+\emph{every} $\theta$ with $s(\theta) = n_1/n = 0.6$: a two-dimensional surface of
+maximum-likelihood estimates. Moreover one M-step always lands on it, because
+$\pi^{(1)}p^{(1)} + (1-\pi^{(1)})q^{(1)} = \frac1n\sum_j\gamma_jy_j + \frac1n\sum_j(1-\gamma_j)y_j = \bar y$.
+
+\begin{pitfall}[Non-identifiability is not a small-sample problem]
+The parameters of the three-coin model cannot be recovered from these data,
+however many experiments are performed: only $s$ is identifiable. Swapping the
+roles of B and C ($(\pi,p,q)\mapsto(1-\pi,q,p)$) is a further symmetry that remains
+even in identifiable models (``label switching''). Identifiability would require
+more information per experiment, for instance several tosses of the selected
+coin.
+\end{pitfall}
+
+\paragraph{Local maxima and restarts.} In identifiable models such as Gaussian
+mixtures, EM converges (under mild conditions) to a \emph{stationary point} of the
+likelihood --- usually a local maximum, sometimes a saddle point --- that depends on
+the initialization. Running EM from several random starting points and keeping
+the solution with the highest likelihood is standard practice.
+
+\subsection{Implementation}
+
+The two steps translate directly into vectorized code. The repository contains a
+more complete version (\texttt{code/em-three-coin/em\_eval.py}) with random
+restarts and simulated data.
+
+\begin{lstlisting}[language=Python, caption={EM for the three-coin model.}]
+import numpy as np
+
+def em_three_coins(y, pi, p, q, n_iter=100, tol=1e-10):
+    y = np.asarray(y, dtype=float)
+    for _ in range(n_iter):
+        # E-step: responsibility of coin B for each result
+        b = pi * p**y * (1 - p)**(1 - y)
+        c = (1 - pi) * q**y * (1 - q)**(1 - y)
+        gamma = b / (b + c)
+        # M-step: weighted counts
+        new = (gamma.mean(),
+               (gamma * y).sum() / gamma.sum(),
+               ((1 - gamma) * y).sum() / (1 - gamma).sum())
+        if max(abs(u - v) for u, v in zip(new, (pi, p, q))) < tol:
+            break
+        pi, p, q = new
+    loglik = np.log(b + c).sum()
+    return (pi, p, q), loglik
+
+print(em_three_coins([1, 1, 0, 1, 0, 0, 1, 0, 1, 1], 0.4, 0.6, 0.7))
+# ((0.4064..., 0.5368..., 0.6432...), -6.7301...)
+\end{lstlisting}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item With hidden variables the log-likelihood is a log of a sum; the
+        complete-data log-likelihood is a sum of logs and is easy to maximize.
+  \item For any $Q$, $\log P(y\mid\theta) = \mathrm{ELBO}(\theta,Q) + \mathrm{KL}(Q\Vert P(z\mid y,\theta))$;
+        the bound is tight exactly at the posterior.
+  \item EM alternates computing posteriors (E) and maximizing the expected
+        complete-data log-likelihood (M); for the three coins the M-step is a
+        weighted count.
+  \item EM never decreases the likelihood; it is coordinate ascent on the ELBO,
+        the starting point of variational inference.
+  \item In the three-coin model only $\pi p + (1-\pi)q$ is identifiable: EM reaches
+        a maximum-likelihood estimate in one step, but which one depends on the
+        initialization.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{em-algorithm:exr:1}
+Verify the first E-step of the second run of \cref{em-algorithm:tab:run}: compute
+$\gamma(1)$ and $\gamma(0)$ for $\theta^{(0)} = (0.4, 0.6, 0.7)$, then $\pi^{(1)}$, $p^{(1)}$
+and $q^{(1)}$.
+\solutionlink{em-algorithm:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{em-algorithm:exr:2}
+Show that if EM is started with $p^{(0)} = q^{(0)}$, then $p^{(t)} = q^{(t)} = \bar y$ and
+$\pi^{(t)} = \pi^{(0)}$ for all $t\geq1$. Why is the coin~A parameter then never
+learned?
+\solutionlink{em-algorithm:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{em-algorithm:exr:3}
+Modify the experiment: for each toss of coin~A, the selected coin is tossed $m$
+times and the number of heads $k_j\in\{0,\dots,m\}$ is recorded. Write the E-step
+and M-step.
+\solutionlink{em-algorithm:exr:3}
+\end{exercise}
+\end{notechapter}

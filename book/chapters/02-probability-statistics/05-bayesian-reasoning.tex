@@ -1,205 +1,405 @@
-% Source: prior_likelyhood_posterior.tex
 \begin{notechapter}
-% ---- chapter-local definitions ----
-\forgetcs\argmax\newcommand{\argmax}{\operatorname*{arg\,max}}
-% -----------------------------------
 \chapter{Bayesian Reasoning}\label{ch:bayesian-reasoning}
-\chaptersubtitle{Prior, likelihood and posterior}
+\chaptersubtitle{Prior, likelihood, posterior --- and evidence that cannot be fully trusted}
 
-\section{Prior, Likelihood, and Posterior}
+\begin{chapterintro}
+Bayesian reasoning treats everything we are uncertain about --- a disease, a
+parameter, the state of an alarm --- as a random variable, and updates beliefs
+with a single rule. This chapter develops that rule from simple discrete
+examples to parameter inference, and then to evidence that is noisy, uncertain
+or unreliable. You will learn
+\begin{itemize}[nosep]
+  \item Bayes' theorem and the roles of prior, likelihood, posterior and
+        evidence, with the base-rate effect;
+  \item Bayesian inference for a coin: the Beta prior, conjugacy, credible
+        intervals and the predictive probability;
+  \item how MAP estimation relates to maximum likelihood and to
+        regularization;
+  \item a continuous example (the noisy pendulum) computed on a grid;
+  \item ``explaining away'': how evidence for one cause lowers the probability of
+        another;
+  \item how to model unreliable sources with latent variables, soft evidence
+        (Jeffrey's rule) and virtual evidence.
+\end{itemize}
+\prerequisites{conditional probability; \cref{ch:stats-and-proba}; the Beta
+function for \cref{bayesian-reasoning:sec:coin}.}
+\end{chapterintro}
 
-In Bayesian reasoning, we are often interested in inferring the 
-probability of a hypothesis \( \theta \) given some observed data 
-\( \mathcal{D} \). This is achieved using Bayes' theorem, which 
-relates the \textbf{prior}, \textbf{likelihood}, and \textbf{posterior} 
-probabilities.
+\section{Bayes' theorem}\label{bayesian-reasoning:sec:theorem}
 
-\subsection{Bayes' Theorem}
-Bayes' theorem is stated as:
+For a hypothesis or parameter $\theta$ and data $\mathcal D$,
 \[
-p(\theta \mid \mathcal{D}) = \frac{p(\mathcal{D} \mid \theta) \, p(\theta)}{p(\mathcal{D})},
+  \underbrace{p(\theta\mid\mathcal D)}_{\text{posterior}}
+  = \frac{\overbrace{p(\mathcal D\mid\theta)}^{\text{likelihood}}\;\overbrace{p(\theta)}^{\text{prior}}}{\underbrace{p(\mathcal D)}_{\text{evidence}}},
+  \qquad
+  p(\mathcal D) = \sum_\theta p(\mathcal D\mid\theta)p(\theta)\ \ \text{or}\ \int p(\mathcal D\mid\theta)p(\theta)\,d\theta .
 \]
-where:
 \begin{itemize}
-    \item \( p(\theta \mid \mathcal{D}) \) is the \textbf{posterior 
-          probability} of the hypothesis \( \theta \) given the data 
-          \( \mathcal{D} \).
-    \item \( p(\mathcal{D} \mid \theta) \) is the \textbf{likelihood} 
-          of the data \( \mathcal{D} \) under the hypothesis \( \theta \).
-    \item \( p(\theta) \) is the \textbf{prior probability} of the 
-          hypothesis \( \theta \), representing our beliefs about 
-          \( \theta \) before observing the data.
-    \item \( p(\mathcal{D}) \) is the \textbf{marginal likelihood} 
-          (or evidence), which acts as a normalizing constant to ensure 
-          the posterior probability sums to 1.
+  \item The \textbf{prior} $p(\theta)$ encodes what is believed before seeing the
+        data.
+  \item The \textbf{likelihood} $p(\mathcal D\mid\theta)$ is the \emph{generative}
+        (or forward) model: how data are produced from $\theta$. As a function of
+        $\theta$ it is not a probability distribution.
+  \item The \textbf{posterior} $p(\theta\mid\mathcal D)$ is the updated belief.
+  \item The \textbf{evidence} (marginal likelihood) $p(\mathcal D)$ does not depend
+        on $\theta$; it normalizes the posterior, so
+        $p(\theta\mid\mathcal D)\propto p(\mathcal D\mid\theta)\,p(\theta)$.
+\end{itemize}
+Bayesian inference is thus the inversion of a generative model: we know how
+$\theta$ produces data, and we ask what the data say about $\theta$.
+
+\begin{example}[A positive test]\label{bayesian-reasoning:ex:medical}
+A disease has prevalence $1\%$. A test detects it with probability $0.9$ (a
+$10\%$ false negative rate) and is positive for $5\%$ of healthy people. For a
+patient who tests positive,
+\[
+  p(\text{sick}\mid+) = \frac{0.9\times0.01}{0.9\times0.01 + 0.05\times0.99}
+  = \frac{0.009}{0.0585}\approx0.15 .
+\]
+A positive result raises the probability of disease fifteenfold, from $1\%$ to
+$15\%$, but most positive patients are healthy: the healthy population is so
+much larger that its $5\%$ false positives outnumber the true positives. This is
+the same base-rate effect as the collapse of precision in
+\cref{measuring-performance:prop:prevalence}.
+\end{example}
+
+\section{Inferring a parameter: the coin}\label{bayesian-reasoning:sec:coin}
+
+A coin with unknown probability of heads $\theta$ is tossed $N$ times and shows
+$h$ heads. The likelihood of the observed sequence is
+\[
+  p(\mathcal D\mid\theta) = \theta^h(1-\theta)^{N-h}.
+\]
+(If only the count is recorded, the binomial likelihood has an extra factor
+$\binom Nh$, which does not depend on $\theta$ and disappears in the
+normalization.)
+
+\begin{proposition}[Beta prior, Beta posterior]\label{bayesian-reasoning:prop:conjugate}
+If the prior is $\mathrm{Beta}(a,b)$, with density proportional to
+$\theta^{a-1}(1-\theta)^{b-1}$ on $[0,1]$, the posterior is
+$\mathrm{Beta}(a + h,\ b + N - h)$.
+\end{proposition}
+
+\begin{proof}
+$p(\theta\mid\mathcal D)\propto\theta^h(1-\theta)^{N-h}\,\theta^{a-1}(1-\theta)^{b-1}
+= \theta^{a+h-1}(1-\theta)^{b+N-h-1}$, which is the unnormalized Beta density with
+the stated parameters.
+\end{proof}
+
+The prior and the posterior belong to the same family: the Beta prior is
+\emph{conjugate} to the Bernoulli likelihood. The prior acts as $a - 1$ heads
+and $b - 1$ tails seen before the experiment, and updating means adding counts.
+The uniform prior is $\mathrm{Beta}(1,1)$. For $\mathrm{Beta}(\alpha,\beta)$ the
+mean is $\alpha/(\alpha+\beta)$ and the mode $(\alpha-1)/(\alpha+\beta-2)$.
+
+\begin{example}[Seven heads in ten tosses]\label{bayesian-reasoning:ex:coin}
+\emph{Uniform prior.} The posterior is $\mathrm{Beta}(8,4)$: mode $0.7$ (the
+maximum-likelihood estimate $h/N$), mean $\frac8{12}\approx0.67$, and $95\%$
+credible interval $[0.39, 0.89]$ (between the $2.5\%$ and $97.5\%$ quantiles).
+Ten tosses leave a lot of uncertainty.
+
+\emph{Prior $\mathrm{Beta}(2,2)$}, a mild belief that the coin is roughly fair. The
+posterior is $\mathrm{Beta}(9,5)$, with mode $\frac8{12}\approx0.67$: the estimate
+is pulled toward $\frac12$.
+
+\emph{Seventy heads in a hundred tosses} (uniform prior): $\mathrm{Beta}(71,31)$,
+with interval $[0.60, 0.78]$. With more data the posterior concentrates and the
+prior matters less (\cref{bayesian-reasoning:fig:beta}).
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.5\textwidth, height=5.2cm, xmin=0, xmax=1, ymin=0, ymax=9.5,
+  xlabel={$\theta$}, ylabel={density}, axis lines=left,
+  legend style={font=\small, at={(1.03,0.5)}, anchor=west}]
+  \addplot[dashed, gray] coordinates {(0.001,0.006) (0.008,0.046) (0.014,0.085) (0.021,0.124) (0.028,0.162) (0.034,0.200) (0.041,0.237) (0.048,0.274) (0.055,0.310) (0.061,0.345) (0.068,0.380) (0.075,0.415) (0.081,0.449) (0.088,0.482) (0.095,0.515) (0.101,0.547) (0.108,0.579) (0.115,0.610) (0.122,0.641) (0.128,0.671) (0.135,0.700) (0.142,0.730) (0.148,0.758) (0.155,0.786) (0.162,0.814) (0.168,0.840) (0.175,0.867) (0.182,0.893) (0.189,0.918) (0.195,0.943) (0.202,0.967) (0.209,0.991) (0.215,1.014) (0.222,1.036) (0.229,1.058) (0.235,1.080) (0.242,1.101) (0.249,1.121) (0.256,1.141) (0.262,1.161) (0.269,1.180) (0.276,1.198) (0.282,1.216) (0.289,1.233) (0.296,1.250) (0.302,1.266) (0.309,1.281) (0.316,1.296) (0.323,1.311) (0.329,1.325) (0.336,1.338) (0.343,1.351) (0.349,1.364) (0.356,1.376) (0.363,1.387) (0.369,1.398) (0.376,1.408) (0.383,1.418) (0.389,1.427) (0.396,1.435) (0.403,1.443) (0.410,1.451) (0.416,1.458) (0.423,1.464) (0.430,1.470) (0.436,1.476) (0.443,1.481) (0.450,1.485) (0.456,1.489) (0.463,1.492) (0.470,1.495) (0.477,1.497) (0.483,1.498) (0.490,1.499) (0.497,1.500) (0.503,1.500) (0.510,1.499) (0.517,1.498) (0.523,1.497) (0.530,1.495) (0.537,1.492) (0.544,1.489) (0.550,1.485) (0.557,1.481) (0.564,1.476) (0.570,1.470) (0.577,1.464) (0.584,1.458) (0.590,1.451) (0.597,1.443) (0.604,1.435) (0.611,1.427) (0.617,1.418) (0.624,1.408) (0.631,1.398) (0.637,1.387) (0.644,1.376) (0.651,1.364) (0.657,1.351) (0.664,1.338) (0.671,1.325) (0.677,1.311) (0.684,1.296) (0.691,1.281) (0.698,1.266) (0.704,1.250) (0.711,1.233) (0.718,1.216) (0.724,1.198) (0.731,1.180) (0.738,1.161) (0.744,1.141) (0.751,1.121) (0.758,1.101) (0.765,1.080) (0.771,1.058) (0.778,1.036) (0.785,1.014) (0.791,0.991) (0.798,0.967) (0.805,0.943) (0.811,0.918) (0.818,0.893) (0.825,0.867) (0.832,0.840) (0.838,0.814) (0.845,0.786) (0.852,0.758) (0.858,0.730) (0.865,0.700) (0.872,0.671) (0.878,0.641) (0.885,0.610) (0.892,0.579) (0.899,0.547) (0.905,0.515) (0.912,0.482) (0.919,0.449) (0.925,0.415) (0.932,0.380) (0.939,0.345) (0.945,0.310) (0.952,0.274) (0.959,0.237) (0.966,0.200) (0.972,0.162) (0.979,0.124) (0.986,0.085) (0.992,0.046) (0.999,0.006)};
+  \addlegendentry{prior $\mathrm{Beta}(2,2)$}
+  \addplot[thick, bookexample] coordinates {(0.001,0.000) (0.008,0.000) (0.014,0.000) (0.021,0.000) (0.028,0.000) (0.034,0.000) (0.041,0.000) (0.048,0.000) (0.055,0.000) (0.061,0.000) (0.068,0.000) (0.075,0.000) (0.081,0.000) (0.088,0.000) (0.095,0.000) (0.101,0.000) (0.108,0.000) (0.115,0.000) (0.122,0.000) (0.128,0.000) (0.135,0.000) (0.142,0.001) (0.148,0.001) (0.155,0.001) (0.162,0.001) (0.168,0.002) (0.175,0.003) (0.182,0.003) (0.189,0.004) (0.195,0.006) (0.202,0.007) (0.209,0.009) (0.215,0.011) (0.222,0.014) (0.229,0.017) (0.235,0.021) (0.242,0.025) (0.249,0.030) (0.256,0.036) (0.262,0.043) (0.269,0.050) (0.276,0.059) (0.282,0.069) (0.289,0.080) (0.296,0.093) (0.302,0.107) (0.309,0.122) (0.316,0.140) (0.323,0.159) (0.329,0.180) (0.336,0.203) (0.343,0.228) (0.349,0.256) (0.356,0.286) (0.363,0.318) (0.369,0.353) (0.376,0.390) (0.383,0.430) (0.389,0.473) (0.396,0.519) (0.403,0.568) (0.410,0.619) (0.416,0.674) (0.423,0.731) (0.430,0.791) (0.436,0.854) (0.443,0.919) (0.450,0.988) (0.456,1.059) (0.463,1.132) (0.470,1.207) (0.477,1.285) (0.483,1.365) (0.490,1.446) (0.497,1.529) (0.503,1.613) (0.510,1.698) (0.517,1.784) (0.523,1.871) (0.530,1.957) (0.537,2.043) (0.544,2.128) (0.550,2.212) (0.557,2.295) (0.564,2.376) (0.570,2.455) (0.577,2.531) (0.584,2.605) (0.590,2.674) (0.597,2.740) (0.604,2.801) (0.611,2.858) (0.617,2.910) (0.624,2.956) (0.631,2.996) (0.637,3.030) (0.644,3.058) (0.651,3.079) (0.657,3.093) (0.664,3.099) (0.671,3.098) (0.677,3.090) (0.684,3.074) (0.691,3.050) (0.698,3.018) (0.704,2.979) (0.711,2.932) (0.718,2.877) (0.724,2.815) (0.731,2.746) (0.738,2.671) (0.744,2.589) (0.751,2.501) (0.758,2.407) (0.765,2.309) (0.771,2.205) (0.778,2.099) (0.785,1.988) (0.791,1.876) (0.798,1.761) (0.805,1.645) (0.811,1.529) (0.818,1.413) (0.825,1.298) (0.832,1.185) (0.838,1.074) (0.845,0.966) (0.852,0.863) (0.858,0.763) (0.865,0.669) (0.872,0.581) (0.878,0.498) (0.885,0.422) (0.892,0.353) (0.899,0.290) (0.905,0.234) (0.912,0.185) (0.919,0.143) (0.925,0.108) (0.932,0.078) (0.939,0.055) (0.945,0.036) (0.952,0.023) (0.959,0.013) (0.966,0.007) (0.972,0.003) (0.979,0.001) (0.986,0.000) (0.992,0.000) (0.999,0.000)};
+  \addlegendentry{posterior, 7/10, prior $\mathrm{Beta}(2,2)$}
+  \addplot[thick, bookdef] coordinates {(0.001,0.000) (0.008,0.000) (0.014,0.000) (0.021,0.000) (0.028,0.000) (0.034,0.000) (0.041,0.000) (0.048,0.000) (0.055,0.000) (0.061,0.000) (0.068,0.000) (0.075,0.000) (0.081,0.000) (0.088,0.000) (0.095,0.000) (0.101,0.000) (0.108,0.000) (0.115,0.000) (0.122,0.000) (0.128,0.000) (0.135,0.001) (0.142,0.001) (0.148,0.001) (0.155,0.002) (0.162,0.002) (0.168,0.003) (0.175,0.004) (0.182,0.005) (0.189,0.006) (0.195,0.007) (0.202,0.009) (0.209,0.011) (0.215,0.014) (0.222,0.017) (0.229,0.020) (0.235,0.024) (0.242,0.028) (0.249,0.033) (0.256,0.039) (0.262,0.045) (0.269,0.052) (0.276,0.061) (0.282,0.070) (0.289,0.080) (0.296,0.091) (0.302,0.104) (0.309,0.117) (0.316,0.132) (0.323,0.149) (0.329,0.167) (0.336,0.187) (0.343,0.208) (0.349,0.231) (0.356,0.255) (0.363,0.282) (0.369,0.311) (0.376,0.341) (0.383,0.374) (0.389,0.408) (0.396,0.445) (0.403,0.484) (0.410,0.525) (0.416,0.569) (0.423,0.614) (0.430,0.662) (0.436,0.712) (0.443,0.764) (0.450,0.819) (0.456,0.875) (0.463,0.934) (0.470,0.994) (0.477,1.057) (0.483,1.121) (0.490,1.187) (0.497,1.255) (0.503,1.324) (0.510,1.394) (0.517,1.466) (0.523,1.538) (0.530,1.611) (0.537,1.685) (0.544,1.760) (0.550,1.834) (0.557,1.908) (0.564,1.982) (0.570,2.055) (0.577,2.128) (0.584,2.199) (0.590,2.268) (0.597,2.336) (0.604,2.402) (0.611,2.466) (0.617,2.526) (0.624,2.584) (0.631,2.638) (0.637,2.689) (0.644,2.736) (0.651,2.779) (0.657,2.817) (0.664,2.850) (0.671,2.878) (0.677,2.901) (0.684,2.918) (0.691,2.929) (0.698,2.935) (0.704,2.934) (0.711,2.927) (0.718,2.913) (0.724,2.892) (0.731,2.865) (0.738,2.832) (0.744,2.791) (0.751,2.744) (0.758,2.691) (0.765,2.631) (0.771,2.564) (0.778,2.492) (0.785,2.414) (0.791,2.330) (0.798,2.241) (0.805,2.148) (0.811,2.050) (0.818,1.948) (0.825,1.843) (0.832,1.735) (0.838,1.625) (0.845,1.513) (0.852,1.401) (0.858,1.288) (0.865,1.176) (0.872,1.066) (0.878,0.957) (0.885,0.852) (0.892,0.750) (0.899,0.652) (0.905,0.560) (0.912,0.473) (0.919,0.393) (0.925,0.319) (0.932,0.253) (0.939,0.195) (0.945,0.145) (0.952,0.103) (0.959,0.069) (0.966,0.042) (0.972,0.023) (0.979,0.011) (0.986,0.004) (0.992,0.001) (0.999,0.000)};
+  \addlegendentry{posterior, 7/10, uniform prior}
+  \addplot[thick, bookaccent] coordinates {(0.001,0.000) (0.008,0.000) (0.014,0.000) (0.021,0.000) (0.028,0.000) (0.034,0.000) (0.041,0.000) (0.048,0.000) (0.055,0.000) (0.061,0.000) (0.068,0.000) (0.075,0.000) (0.081,0.000) (0.088,0.000) (0.095,0.000) (0.101,0.000) (0.108,0.000) (0.115,0.000) (0.122,0.000) (0.128,0.000) (0.135,0.000) (0.142,0.000) (0.148,0.000) (0.155,0.000) (0.162,0.000) (0.168,0.000) (0.175,0.000) (0.182,0.000) (0.189,0.000) (0.195,0.000) (0.202,0.000) (0.209,0.000) (0.215,0.000) (0.222,0.000) (0.229,0.000) (0.235,0.000) (0.242,0.000) (0.249,0.000) (0.256,0.000) (0.262,0.000) (0.269,0.000) (0.276,0.000) (0.282,0.000) (0.289,0.000) (0.296,0.000) (0.302,0.000) (0.309,0.000) (0.316,0.000) (0.323,0.000) (0.329,0.000) (0.336,0.000) (0.343,0.000) (0.349,0.000) (0.356,0.000) (0.363,0.000) (0.369,0.000) (0.376,0.000) (0.383,0.000) (0.389,0.000) (0.396,0.000) (0.403,0.000) (0.410,0.000) (0.416,0.000) (0.423,0.000) (0.430,0.000) (0.436,0.000) (0.443,0.000) (0.450,0.000) (0.456,0.000) (0.463,0.000) (0.470,0.000) (0.477,0.000) (0.483,0.001) (0.490,0.001) (0.497,0.002) (0.503,0.003) (0.510,0.005) (0.517,0.008) (0.523,0.014) (0.530,0.022) (0.537,0.034) (0.544,0.053) (0.550,0.079) (0.557,0.118) (0.564,0.173) (0.570,0.248) (0.577,0.351) (0.584,0.488) (0.590,0.666) (0.597,0.895) (0.604,1.182) (0.611,1.534) (0.617,1.956) (0.624,2.452) (0.631,3.021) (0.637,3.655) (0.644,4.344) (0.651,5.069) (0.657,5.807) (0.664,6.530) (0.671,7.204) (0.677,7.794) (0.684,8.268) (0.691,8.596) (0.698,8.753) (0.704,8.727) (0.711,8.513) (0.718,8.122) (0.724,7.572) (0.731,6.894) (0.738,6.125) (0.744,5.306) (0.751,4.477) (0.758,3.675) (0.765,2.933) (0.771,2.272) (0.778,1.706) (0.785,1.241) (0.791,0.872) (0.798,0.591) (0.805,0.385) (0.811,0.242) (0.818,0.145) (0.825,0.083) (0.832,0.046) (0.838,0.024) (0.845,0.012) (0.852,0.005) (0.858,0.002) (0.865,0.001) (0.872,0.000) (0.878,0.000) (0.885,0.000) (0.892,0.000) (0.899,0.000) (0.905,0.000) (0.912,0.000) (0.919,0.000) (0.925,0.000) (0.932,0.000) (0.939,0.000) (0.945,0.000) (0.952,0.000) (0.959,0.000) (0.966,0.000) (0.972,0.000) (0.979,0.000) (0.986,0.000) (0.992,0.000) (0.999,0.000)};
+  \addlegendentry{posterior, 70/100, uniform prior}
+\end{axis}
+\end{tikzpicture}
+\caption{Posterior distributions of the probability of heads. Ten tosses give a
+broad posterior that depends visibly on the prior; a hundred tosses give a
+narrow one.}
+\label{bayesian-reasoning:fig:beta}
+\end{figure}
+
+\paragraph{Predicting the next toss.} The Bayesian prediction averages over the
+posterior:
+\[
+  p(\text{next is heads}\mid\mathcal D) = \int_0^1\theta\,p(\theta\mid\mathcal D)\,d\theta
+  = \frac{a + h}{a + b + N},
+\]
+the posterior mean. With a uniform prior this is $\frac{h+1}{N+2}$, Laplace's
+\emph{rule of succession}: after $3$ heads in $3$ tosses it predicts $\frac45$,
+not the overconfident $1$ of maximum likelihood. It is exactly the Laplace
+smoothing of naive Bayes (\cref{generative-discriminative:sec:nb}).
+
+\section{MAP, maximum likelihood and regularization}\label{bayesian-reasoning:sec:map}
+
+\begin{definition}[MAP estimate]
+The \emph{maximum a posteriori} estimate is the mode of the posterior,
+\[
+  \hat\theta_{\mathrm{MAP}} = \argmax_\theta\,p(\theta\mid\mathcal D)
+  = \argmax_\theta\,\bigl[\log p(\mathcal D\mid\theta) + \log p(\theta)\bigr].
+\]
+\end{definition}
+
+\begin{itemize}
+  \item With a \textbf{flat prior} the second term is constant and MAP reduces to
+        maximum likelihood, $\hat\theta_{\mathrm{ML}} = \argmax_\theta p(\mathcal D\mid\theta)$
+        (as for the coin with a uniform prior).
+  \item Otherwise $-\log p(\theta)$ acts as a \textbf{penalty}. A Gaussian prior
+        $\theta\sim\mathcal N(0,\tau^2I)$ contributes $\frac{1}{2\tau^2}\norm\theta^2$ to
+        the negative log-posterior: MAP with a Gaussian prior \emph{is} ridge
+        regularization (\cref{erm:sec:bias-variance}), with $\lambda$ inversely
+        proportional to $\tau^2$. A Laplace prior gives the lasso.
 \end{itemize}
 
-\subsection{Prior Probability}
-The prior probability \( p(\theta) \) encodes our initial beliefs 
-about the hypothesis \( \theta \) before observing any data. For 
-example, if \( \theta \) represents the probability of a coin landing 
-heads, a reasonable prior might be a uniform distribution, reflecting 
-no initial bias toward heads or tails.
+\begin{pitfall}[A mode is not a distribution]
+MAP keeps one point of the posterior and discards its spread; the posterior
+mean, a credible interval or the predictive distribution use all of it. The mode
+also depends on the parametrization (a change of variable $\phi = g(\theta)$ moves
+the mode of a density), whereas posterior probabilities do not.
+\end{pitfall}
 
-\subsection{Likelihood}
-The likelihood \( p(\mathcal{D} \mid \theta) \) quantifies how well 
-the hypothesis \( \theta \) explains the observed data \( \mathcal{D} \). 
-For example, if \( \theta \) is the probability of a coin landing 
-heads, and we observe 7 heads in 10 flips, the likelihood measures 
-how probable this outcome is under the hypothesis \( \theta \).
+\section{A continuous example: the noisy pendulum}\label{bayesian-reasoning:sec:pendulum}
 
-\subsection{Posterior Probability}
-The posterior probability \( p(\theta \mid \mathcal{D}) \) represents 
-our updated beliefs about the hypothesis \( \theta \) after observing 
-the data \( \mathcal{D} \). It combines the prior probability and the 
-likelihood using Bayes' theorem. The posterior is proportional to the 
-product of the prior and the likelihood:
+This example follows D.~Barber, \emph{Bayesian Reasoning and Machine Learning}
+(2012), Example~1.11. An idealized pendulum has angular displacement $\sin(\theta t)$ at time
+$t$, where $\theta = \sqrt{g/L}$ depends on gravity and the length of the
+pendulum. A poor instrument measures
 \[
-p(\theta \mid \mathcal{D}) \propto p(\mathcal{D} \mid \theta) \, p(\theta).
+  x_t = \sin(\theta t) + \varepsilon_t,\qquad\varepsilon_t\sim\mathcal N(0,\sigma^2)\ \text{independent}.
+\]
+Given $\theta$ the measurements are independent, so the likelihood factorizes and
+\[
+  p(\theta\mid x_1,\dots,x_T)\propto p(\theta)\prod_{t=1}^T\exp\Bigl(-\frac{(x_t - \sin\theta t)^2}{2\sigma^2}\Bigr).
+\]
+This posterior has no closed form, but in one dimension it is easily computed on
+a grid of values of $\theta$ and normalized numerically.
+\Cref{bayesian-reasoning:fig:pendulum} shows the result for $20$ measurements with
+$\sigma = 0.5$ and a uniform prior on $[0,1]$: although each measurement is very
+noisy, the posterior is sharply peaked near the true value $\theta = 0.5$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[name=obs, width=0.5\textwidth, height=5cm, xmin=0, xmax=20.5, ymin=-2.2, ymax=2.2,
+  xlabel={$t$}, ylabel={$x_t$}, axis lines=left]
+  \addplot[thin, gray] coordinates {(0.000,0.000) (0.101,0.050) (0.201,0.100) (0.302,0.150) (0.402,0.200) (0.503,0.249) (0.603,0.297) (0.704,0.345) (0.804,0.391) (0.905,0.437) (1.005,0.482) (1.106,0.525) (1.206,0.567) (1.307,0.608) (1.407,0.647) (1.508,0.684) (1.608,0.720) (1.709,0.754) (1.809,0.786) (1.910,0.816) (2.010,0.844) (2.111,0.870) (2.211,0.894) (2.312,0.915) (2.412,0.934) (2.513,0.951) (2.613,0.965) (2.714,0.977) (2.814,0.987) (2.915,0.994) (3.015,0.998) (3.116,1.000) (3.216,0.999) (3.317,0.996) (3.417,0.991) (3.518,0.982) (3.618,0.972) (3.719,0.959) (3.819,0.943) (3.920,0.925) (4.020,0.905) (4.121,0.883) (4.221,0.858) (4.322,0.831) (4.422,0.802) (4.523,0.771) (4.623,0.738) (4.724,0.703) (4.824,0.667) (4.925,0.628) (5.025,0.588) (5.126,0.547) (5.226,0.504) (5.327,0.460) (5.427,0.415) (5.528,0.369) (5.628,0.322) (5.729,0.274) (5.829,0.225) (5.930,0.176) (6.030,0.126) (6.131,0.076) (6.231,0.026) (6.332,-0.024) (6.432,-0.074) (6.533,-0.124) (6.633,-0.174) (6.734,-0.223) (6.834,-0.272) (6.935,-0.320) (7.035,-0.367) (7.136,-0.413) (7.236,-0.459) (7.337,-0.503) (7.437,-0.546) (7.538,-0.587) (7.638,-0.627) (7.739,-0.665) (7.839,-0.702) (7.940,-0.737) (8.040,-0.770) (8.141,-0.801) (8.241,-0.830) (8.342,-0.857) (8.442,-0.882) (8.543,-0.904) (8.643,-0.925) (8.744,-0.943) (8.844,-0.958) (8.945,-0.971) (9.045,-0.982) (9.146,-0.990) (9.246,-0.996) (9.347,-0.999) (9.447,-1.000) (9.548,-0.998) (9.648,-0.994) (9.749,-0.987) (9.849,-0.978) (9.950,-0.966) (10.050,-0.951) (10.151,-0.935) (10.251,-0.916) (10.352,-0.894) (10.452,-0.871) (10.553,-0.845) (10.653,-0.817) (10.754,-0.787) (10.854,-0.755) (10.955,-0.721) (11.055,-0.686) (11.156,-0.648) (11.256,-0.609) (11.357,-0.569) (11.457,-0.527) (11.558,-0.483) (11.658,-0.439) (11.759,-0.393) (11.859,-0.346) (11.960,-0.299) (12.060,-0.250) (12.161,-0.201) (12.261,-0.152) (12.362,-0.102) (12.462,-0.052) (12.563,-0.002) (12.663,0.048) (12.764,0.099) (12.864,0.148) (12.965,0.198) (13.065,0.247) (13.166,0.295) (13.266,0.343) (13.367,0.390) (13.467,0.435) (13.568,0.480) (13.668,0.524) (13.769,0.566) (13.869,0.606) (13.970,0.646) (14.070,0.683) (14.171,0.719) (14.271,0.753) (14.372,0.785) (14.472,0.815) (14.573,0.843) (14.673,0.869) (14.774,0.893) (14.874,0.914) (14.975,0.934) (15.075,0.950) (15.176,0.965) (15.276,0.977) (15.377,0.986) (15.477,0.993) (15.578,0.998) (15.678,1.000) (15.779,0.999) (15.879,0.996) (15.980,0.991) (16.080,0.983) (16.181,0.972) (16.281,0.959) (16.382,0.944) (16.482,0.926) (16.583,0.906) (16.683,0.883) (16.784,0.859) (16.884,0.832) (16.985,0.803) (17.085,0.772) (17.186,0.739) (17.286,0.704) (17.387,0.668) (17.487,0.630) (17.588,0.590) (17.688,0.548) (17.789,0.506) (17.889,0.462) (17.990,0.417) (18.090,0.371) (18.191,0.323) (18.291,0.275) (18.392,0.227) (18.492,0.178) (18.593,0.128) (18.693,0.078) (18.794,0.028) (18.894,-0.022) (18.995,-0.073) (19.095,-0.123) (19.196,-0.172) (19.296,-0.222) (19.397,-0.270) (19.497,-0.318) (19.598,-0.366) (19.698,-0.412) (19.799,-0.457) (19.899,-0.501) (20.000,-0.544)};
+  \addplot[only marks, mark=*, mark size=1.5pt, bookaccent] coordinates {(1.000,0.652) (2.000,1.252) (3.000,1.163) (4.000,0.258) (5.000,1.051) (6.000,0.364) (7.000,-0.619) (8.000,-0.466) (9.000,-0.795) (10.000,-0.812) (11.000,-0.691) (12.000,-0.006) (13.000,-0.153) (14.000,0.576) (15.000,0.697) (16.000,1.289) (17.000,0.818) (18.000,0.266) (19.000,-0.466) (20.000,-0.673)};
+\end{axis}
+\begin{axis}[at={(obs.east)}, anchor=west, xshift=1.2cm, width=0.5\textwidth, height=5cm,
+  xmin=0, xmax=1, ymin=0, xlabel={$\theta$}, ylabel={$p(\theta\mid x_{1:T})$}, axis lines=left]
+  \addplot[thick, bookaccent] coordinates {(0.000,0.000) (0.005,0.000) (0.010,0.000) (0.015,0.000) (0.020,0.000) (0.025,0.000) (0.030,0.000) (0.035,0.000) (0.040,0.000) (0.045,0.000) (0.050,0.000) (0.055,0.000) (0.060,0.000) (0.065,0.000) (0.070,0.000) (0.075,0.000) (0.080,0.000) (0.085,0.000) (0.090,0.000) (0.095,0.000) (0.100,0.000) (0.105,0.000) (0.110,0.000) (0.115,0.000) (0.120,0.000) (0.125,0.000) (0.130,0.000) (0.135,0.000) (0.140,0.000) (0.145,0.000) (0.150,0.000) (0.155,0.000) (0.160,0.000) (0.165,0.000) (0.170,0.000) (0.175,0.000) (0.180,0.000) (0.185,0.000) (0.190,0.000) (0.195,0.000) (0.200,0.000) (0.205,0.000) (0.210,0.000) (0.215,0.000) (0.220,0.000) (0.225,0.000) (0.230,0.000) (0.235,0.000) (0.240,0.000) (0.245,0.000) (0.250,0.000) (0.255,0.000) (0.260,0.000) (0.265,0.000) (0.270,0.000) (0.275,0.000) (0.280,0.000) (0.285,0.000) (0.290,0.000) (0.295,0.000) (0.300,0.000) (0.305,0.000) (0.310,0.000) (0.315,0.000) (0.320,0.000) (0.325,0.000) (0.330,0.000) (0.335,0.000) (0.340,0.000) (0.345,0.000) (0.350,0.000) (0.355,0.000) (0.360,0.000) (0.365,0.000) (0.370,0.000) (0.375,0.000) (0.380,0.000) (0.385,0.000) (0.390,0.000) (0.395,0.000) (0.400,0.000) (0.405,0.000) (0.410,0.000) (0.415,0.000) (0.420,0.000) (0.425,0.000) (0.430,0.000) (0.435,0.000) (0.440,0.000) (0.445,0.002) (0.450,0.007) (0.455,0.026) (0.460,0.091) (0.465,0.295) (0.470,0.859) (0.475,2.225) (0.480,5.055) (0.485,9.962) (0.490,16.888) (0.495,24.467) (0.500,30.174) (0.505,31.633) (0.510,28.217) (0.515,21.489) (0.520,14.049) (0.525,7.943) (0.530,3.918) (0.535,1.704) (0.540,0.661) (0.545,0.231) (0.550,0.074) (0.555,0.022) (0.560,0.006) (0.565,0.002) (0.570,0.000) (0.575,0.000) (0.580,0.000) (0.585,0.000) (0.590,0.000) (0.595,0.000) (0.600,0.000) (0.605,0.000) (0.610,0.000) (0.615,0.000) (0.620,0.000) (0.625,0.000) (0.630,0.000) (0.635,0.000) (0.640,0.000) (0.645,0.000) (0.650,0.000) (0.655,0.000) (0.660,0.000) (0.665,0.000) (0.670,0.000) (0.675,0.000) (0.680,0.000) (0.685,0.000) (0.690,0.000) (0.695,0.000) (0.700,0.000) (0.705,0.000) (0.710,0.000) (0.715,0.000) (0.720,0.000) (0.725,0.000) (0.730,0.000) (0.735,0.000) (0.740,0.000) (0.745,0.000) (0.750,0.000) (0.755,0.000) (0.760,0.000) (0.765,0.000) (0.770,0.000) (0.775,0.000) (0.780,0.000) (0.785,0.000) (0.790,0.000) (0.795,0.000) (0.800,0.000) (0.805,0.000) (0.810,0.000) (0.815,0.000) (0.820,0.000) (0.825,0.000) (0.830,0.000) (0.835,0.000) (0.840,0.000) (0.845,0.000) (0.850,0.000) (0.855,0.000) (0.860,0.000) (0.865,0.000) (0.870,0.000) (0.875,0.000) (0.880,0.000) (0.885,0.000) (0.890,0.000) (0.895,0.000) (0.900,0.000) (0.905,0.000) (0.910,0.000) (0.915,0.000) (0.920,0.000) (0.925,0.000) (0.930,0.000) (0.935,0.000) (0.940,0.000) (0.945,0.000) (0.950,0.000) (0.955,0.000) (0.960,0.000) (0.965,0.000) (0.970,0.000) (0.975,0.000) (0.980,0.000) (0.985,0.000) (0.990,0.000) (0.995,0.000) (1.000,0.000)};
+\end{axis}
+\end{tikzpicture}
+\caption{Left: noisy measurements of the pendulum (dots) and the true signal
+$\sin(0.5\,t)$. Right: the posterior over $\theta$ computed on a grid.}
+\label{bayesian-reasoning:fig:pendulum}
+\end{figure}
+
+\section{Several causes: explaining away}\label{bayesian-reasoning:sec:explaining-away}
+
+When an observation has several possible causes, evidence for one cause lowers
+the probability of the others, even if the causes are independent a priori.
+D.~Barber's \emph{Bayesian Reasoning and Machine Learning} (2012, Example~3.1,
+adapted from Pearl) gives a striking example.
+
+\begin{example}[Was it the burglar?]\label{bayesian-reasoning:ex:burglar}
+Sally's burglar alarm ($A$) can be set off by a burglar ($B$) or by an earthquake
+($E$); a radio report ($R$) announces earthquakes. The joint distribution
+factorizes as $p(B,E,A,R) = p(B)\,p(E)\,p(A\mid B,E)\,p(R\mid E)$, with
+$p(B = 1) = 0.01$, $p(E = 1) = 0.000001$, $p(R = 1\mid E = 1) = 1$,
+$p(R = 1\mid E = 0) = 0$, and
+\begin{center}
+\begin{tabular}{@{}cccccc@{}}
+\toprule
+$(B, E)$ & $(1,1)$ & $(1,0)$ & $(0,1)$ & $(0,0)$\\
+$p(A = 1\mid B, E)$ & $0.9999$ & $0.99$ & $0.99$ & $0.0001$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\emph{The alarm sounds.} Summing over $E$,
+$p(B = 1, A = 1)\approx0.01\times0.99 = 0.0099$ and
+$p(B = 0, A = 1)\approx0.99\times(0.99\times10^{-6} + 0.0001)\approx0.0001$, so
+$p(B = 1\mid A = 1)\approx0.99$: almost certainly a burglary.
+
+\emph{The radio then reports an earthquake.} Now $E = 1$ is known, and
+\[
+  p(B = 1\mid A = 1, R = 1) = \frac{0.01\times0.9999}{0.01\times0.9999 + 0.99\times0.99}\approx0.01 .
+\]
+The earthquake accounts for the alarm, and the probability of a burglary falls
+back to its prior value. $B$ and $E$ are independent, but they become
+\emph{dependent once their common effect $A$ is observed}.
+\end{example}
+
+\section{Noisy, uncertain and unreliable evidence}\label{bayesian-reasoning:sec:evidence}
+
+So far each observation was a known value with a known likelihood. Real evidence
+is often less clean. Three situations should be distinguished.
+
+\subsection{Noisy evidence: a likelihood}
+
+A sensor that is sometimes wrong is handled by its likelihood. A weather app that
+is right $80\%$ of the time, observed to say ``rain'' ($y_1 = 1$), contributes
+$p(y_1 = 1\mid x = 1) = 0.8$ and $p(y_1 = 1\mid x = 0) = 0.2$ to the posterior on
+the weather $x$. This is the ordinary Bayes' rule.
+
+\subsection{An unreliable source: a latent reliability variable}
+
+When a source may be in an untrustworthy state, model that state explicitly and
+marginalize it out.
+
+\begin{example}[Is it raining?]\label{bayesian-reasoning:ex:rain}
+The weather app above says ``rain''. A friend says ``no rain'' ($y_2 = 0$).
+With probability $0.7$ the friend is reliable ($r = 1$) and tells the truth; with
+probability $0.3$ he is unreliable ($r = 0$) and then lies $30\%$ of the time.
+Marginalizing $r$,
+\begin{align*}
+  p(y_2 = 0\mid x = 1) &= \underbrace{0}_{r=1}\times0.7 + \underbrace{0.3}_{r=0}\times0.3 = 0.09,\\
+  p(y_2 = 0\mid x = 0) &= 1\times0.7 + 0.7\times0.3 = 0.91 .
+\end{align*}
+With a prior $p(x = 1) = 0.5$ and the two sources independent given $x$,
+\[
+  p(x = 1\mid y_1 = 1, y_2 = 0) = \frac{0.8\times0.09\times0.5}{0.8\times0.09\times0.5 + 0.2\times0.91\times0.5}
+  = \frac{0.036}{0.127}\approx0.28 .
+\]
+The friend, wrong only $9\%$ of the time overall, outweighs the app, wrong $20\%$
+of the time.
+\end{example}
+
+\subsection{Soft and virtual evidence}
+
+Sometimes a variable is not observed with certainty, and what we receive is a
+graded message about it. Barber (\emph{Bayesian Reasoning and Machine Learning},
+Section~3.2) distinguishes two cases, which lead to different computations.
+
+\begin{description}
+  \item[Soft (uncertain) evidence.] The evidence states a \emph{distribution} over
+        the values of an observed variable $y$, say $q(y)$. We condition the model on
+        each value of $y$ and average with these weights (\emph{Jeffrey's rule}):
+        \[
+          p(x\mid\tilde y) = \sum_yp(x\mid y)\,q(y).
+        \]
+        Hard evidence is the special case where $q$ puts all its mass on one value.
+  \item[Virtual (likelihood) evidence.] The evidence is our own judgement of how
+        much more likely the message is under each value of a hidden variable. It
+        enters the model as a likelihood factor $p(H\mid A)$ for a fictitious
+        observed variable $H$; only the ratios of its entries matter, and it is not
+        a distribution over $A$.
+\end{description}
+
+\begin{example}[Was it the burglar? Soft evidence]
+In \cref{bayesian-reasoning:ex:burglar}, suppose Sally is only $70\%$ sure that she
+heard the alarm. With $p(B = 1\mid A = 1)\approx0.99$ and
+$p(B = 1\mid A = 0)\approx0.0001$, Jeffrey's rule gives
+$p(B = 1\mid\tilde A)\approx0.99\times0.7 + 0.0001\times0.3\approx0.69$ (Barber,
+Example~3.2).
+\end{example}
+
+\paragraph{Holmes, Watson and Mrs Gibbon.} Barber adapts a story of Pearl's to
+contrast the two cases. Holmes' house may have been burgled ($B$), which may set
+off the alarm ($A$); Dr Watson ($W$) and Mrs Gibbon ($G$) may hear it. The model is
+\[
+  p(B,A,W,G) = p(B)\,p(A\mid B)\,p(W\mid A)\,p(G\mid A),
+\]
+with the tables of Barber's Exercise~3.8: $p(B = 1) = 0.01$;
+$p(A = 1\mid B = 1) = 0.99$, $p(A = 1\mid B = 0) = 0.05$;
+$p(W = 1\mid A = 1) = 0.9$, $p(W = 1\mid A = 0) = 0.5$;
+$p(G = 1\mid A = 1) = 0.7$, $p(G = 1\mid A = 0) = 0.2$. Watson reports that he
+heard the alarm ($W = 1$). Summing out $A$,
+\begin{align*}
+  B = 1:&\quad 0.01\,(0.99\times0.9 + 0.01\times0.5) = 0.00896,\\
+  B = 0:&\quad 0.99\,(0.05\times0.9 + 0.95\times0.5) = 0.5148,
+\end{align*}
+so $p(B = 1\mid W = 1)\approx0.017$. Now consider Mrs Gibbon in two ways.
+
+\emph{Soft evidence.} Mrs Gibbon is a little deaf and is herself $80\%$ sure that she
+heard the alarm: $q(G = 1) = 0.8$. Conditioning on each value of $G$ (the model
+term $p(G\mid A)$ is kept) gives $p(B = 1\mid W = 1, G = 1)\approx0.048$ and
+$p(B = 1\mid W = 1, G = 0)\approx0.0069$, and Jeffrey's rule averages them:
+\[
+  p(B = 1\mid W = 1,\tilde G)\approx0.8\times0.048 + 0.2\times0.0069\approx0.039 .
 \]
 
-\subsection{Marginal Likelihood}
-The marginal likelihood \( p(\mathcal{D}) \) is computed by summing 
-(or integrating) over all possible hypotheses:
-\[
-p(\mathcal{D}) = \sum_{\theta} p(\mathcal{D} \mid \theta) \, p(\theta)
-\quad\text{or}\quad
-p(\mathcal{D}) = \int p(\mathcal{D} \mid \theta) \, p(\theta)\, d\theta .
-\]
-This ensures that the posterior probability is properly normalized.
+\emph{Virtual evidence.} Holmes suspects that Mrs Gibbon has been drinking, discards
+her account together with the model term $p(G\mid A)$, and replaces them with his
+own judgement: the message is four times more likely if the alarm sounded,
+$p(H\mid A = 1) = 0.8$, $p(H\mid A = 0) = 0.2$. Then
+\begin{align*}
+  B = 1:&\quad 0.01\bigl(0.99\times0.9\times0.8 + 0.01\times0.5\times0.2\bigr) = 0.00714,\\
+  B = 0:&\quad 0.99\bigl(0.05\times0.9\times0.8 + 0.95\times0.5\times0.2\bigr) = 0.1297,
+\end{align*}
+so $p(B = 1\mid W = 1, H)\approx0.00714/0.1368\approx0.052$.
 
-\subsection{Generative Model and Posterior Inference}
-Bayesian reasoning allows us to infer the posterior distribution 
-\( p(\theta \mid \mathcal{D}) \) of a variable \( \theta \) given 
-observed data \( \mathcal{D} \). This is achieved by combining a 
-\textbf{forward} or \textbf{generative model} \( p(\mathcal{D} \mid \theta) \) 
-with a \textbf{prior belief} \( p(\theta) \) about the variable. The 
-generative model describes how the data \( \mathcal{D} \) is generated 
-from the variable \( \theta \), while the prior encodes our initial 
-beliefs about plausible values of \( \theta \).
+The same ``$0.8$'' thus gives $0.039$ or $0.052$ depending on whose $80\%$ it is:
+Mrs Gibbon's confidence in what she heard, or Holmes' assessment of what her words
+say about the alarm.
 
-\subsection{Maximum a Posteriori (MAP) Estimation}
-The \textbf{most probable a posteriori (MAP)} setting is the value of 
-\( \theta \) that maximizes the posterior distribution:
-\[
-\theta^* = \argmax_{\theta} p(\theta \mid \mathcal{D}).
-\]
-This represents the most plausible value of \( \theta \) given the 
-observed data \( \mathcal{D} \) and the prior \( p(\theta) \).
+\begin{pitfall}[A likelihood ratio is not a belief]
+The virtual-evidence factor $0.8 : 0.2$ is \emph{not} Holmes' belief that the alarm
+sounded. Combined with the prior $p(A = 1) = 0.01\times0.99 + 0.99\times0.05\approx0.059$,
+it gives $p(A = 1\mid H) = \frac{0.059\times0.8}{0.059\times0.8 + 0.941\times0.2}\approx0.20$.
+Virtual evidence \emph{multiplies} the current belief by a likelihood ratio (here
+$4$); soft evidence \emph{fixes} the distribution of the observed variable and
+averages over it. Using one when the other is meant gives different answers.
+\end{pitfall}
 
-\subsection{Connection to Maximum Likelihood (ML)}
-When the prior \( p(\theta) \) is \textbf{flat} (i.e., a constant that 
-does not depend on \( \theta \)), the posterior distribution is 
-proportional to the likelihood:
-\[
-p(\theta \mid \mathcal{D}) \propto p(\mathcal{D} \mid \theta).
-\]
-In this case, the MAP solution reduces to the \textbf{Maximum Likelihood 
-(ML)} estimate:
-\[
-\theta^* = \argmax_{\theta} p(\mathcal{D} \mid \theta).
-\]
-The ML estimate is the value of \( \theta \) that maximizes the 
-likelihood of the observed data \( \mathcal{D} \), ignoring any prior 
-information about \( \theta \).
-
-\subsection{Example: Coin Tossing}
-Consider a simple example of inferring the bias \( \theta \) of a coin 
-from observed data. Suppose we flip a coin \( N \) times and observe 
-\( h \) heads. The likelihood of the observed sequence of flips is
-\[
-p(\mathcal{D} \mid \theta) = \theta^h (1 - \theta)^{N - h}.
-\]
-(If only the number of heads is recorded, the binomial likelihood has an extra factor \( \binom{N}{h} \), which does not depend on \( \theta \) and therefore does not change the posterior.)
-If we assume a uniform prior \( p(\theta) = 1 \) for \( \theta \in [0, 1] \), 
-the posterior distribution is:
-\[
-p(\theta \mid \mathcal{D}) \propto \theta^h (1 - \theta)^{N - h}.
-\]
-This is a Beta distribution, \( \text{Beta}(\theta \mid h + 1, N - h + 1) \), 
-which reflects our updated beliefs about the coin's bias after observing 
-the data.
-
-\subsection{Example: Pendulum}
-Consider an idealised pendulum where \( x_t \) is the angular displacement 
-of the pendulum at time \( t \). Assuming that the measurements are 
-independent given the parameter \( \theta \), the likelihood of a sequence 
-of observations \( x_1, \dots, x_T \) is given by:
-\[
-p(x_1, \dots, x_T \mid \theta) = \prod_{t=1}^T p(x_t \mid \theta).
-\]
-If the model is perfect and the measurements are perfect, the physical 
-model is:
-\[
-x_t = \sin(\theta t),
-\]
-where \( \theta \) represents the unknown physical constants of the 
-pendulum (e.g., \( \theta = \sqrt{g/L} \), where \( g \) is the 
-gravitational acceleration and \( L \) is the length of the pendulum). 
-
-However, if the measurement instrument is poor, with a known variance 
-\( \sigma^2 \), the model becomes:
-\[
-x_t = \sin(\theta t) + \epsilon_t,
-\]
-where \( \epsilon_t \) is zero-mean Gaussian noise with variance \( \sigma^2 \).
-
-We can place a prior \( p(\theta) \) over the possible values of \( \theta \), 
-expressing our prior belief in the appropriateness of different values. 
-The posterior distribution is then given by:
-\[
-p(\theta \mid x_1, \dots, x_T) \propto p(\theta) \prod_{t=1}^T p(x_t \mid \theta).
-\]
-Despite noisy measurements, the posterior over the possible values of \( \theta \) 
-becomes strongly peaked, as shown in Figure~1.1 of D.~Barber, \emph{Bayesian Reasoning and Machine Learning}.
-
-\subsubsection{Derivation of the Posterior}
-The expression for the posterior distribution:
-\[
-p(\theta \mid x_1, \dots, x_T) \propto p(\theta) \prod_{t=1}^T p(x_t \mid \theta)
-\]
-is derived from \textbf{Bayes' theorem} and the assumption that the observations 
-\( x_1, \dots, x_T \) are \textbf{conditionally independent} given \( \theta \).
-
-\paragraph{Bayes' Theorem}
-Bayes' theorem states that the posterior distribution is proportional to the 
-product of the prior and the likelihood:
-\[
-p(\theta \mid x_1, \dots, x_T) = \frac{p(x_1, \dots, x_T \mid \theta) \, p(\theta)}{p(x_1, \dots, x_T)}.
-\]
-Since the marginal likelihood \( p(x_1, \dots, x_T) \) does not depend on \( \theta \), 
-we can write:
-\[
-p(\theta \mid x_1, \dots, x_T) \propto p(x_1, \dots, x_T \mid \theta) \, p(\theta).
-\]
-
-\paragraph{Conditional Independence}
-The key assumption is that the observations \( x_1, \dots, x_T \) are conditionally 
-independent given \( \theta \). This means:
-\[
-p(x_1, \dots, x_T \mid \theta) = \prod_{t=1}^T p(x_t \mid \theta).
-\]
-Substituting this into Bayes' theorem gives:
-\[
-p(\theta \mid x_1, \dots, x_T) \propto p(\theta) \prod_{t=1}^T p(x_t \mid \theta).
-\]
-
-\paragraph{Interpretation}
-\begin{itemize}
-    \item The \textbf{prior} \( p(\theta) \) encodes our initial beliefs about \( \theta \).
-    \item The \textbf{likelihood} \( \prod_{t=1}^T p(x_t \mid \theta) \) measures how well 
-          \( \theta \) explains the observed data.
-    \item The \textbf{posterior} combines the prior and likelihood to provide updated 
-          beliefs about \( \theta \).
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Posterior $\propto$ likelihood $\times$ prior; the evidence normalizes.
+        Rare hypotheses stay unlikely after a moderately reliable positive
+        result (base-rate effect).
+  \item With a $\mathrm{Beta}(a,b)$ prior, $h$ heads in $N$ tosses give a
+        $\mathrm{Beta}(a+h, b+N-h)$ posterior; the predictive probability of heads
+        is $(a+h)/(a+b+N)$, Laplace's rule for a uniform prior.
+  \item MAP adds $\log p(\theta)$ to the log-likelihood: flat priors give ML,
+        Gaussian priors give ridge, Laplace priors the lasso.
+  \item One-dimensional posteriors without closed form can be computed on a
+        grid.
+  \item Independent causes of an observed effect become dependent: evidence for
+        one explains the effect away from the other.
+  \item Noisy evidence is a likelihood; unreliable sources are modelled with
+        latent reliability variables; virtual evidence is a likelihood ratio on
+        a fictitious observation, soft evidence a replacement marginal
+        (Jeffrey's rule).
 \end{itemize}
+\end{chaptersummary}
 
-\subsection{Summary}
-Bayesian reasoning provides a principled framework for updating beliefs 
-in light of new evidence. The prior represents initial beliefs, the 
-likelihood measures how well the hypothesis explains the data, and the 
-posterior combines these to provide updated beliefs. The marginal 
-likelihood ensures proper normalization of the posterior. Additionally, 
-the MAP estimate provides the most plausible value of \( \theta \) given 
-the data and prior, while the ML estimate maximizes the likelihood under 
-a flat prior.
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{bayesian-reasoning:exr:1}
+In \cref{bayesian-reasoning:ex:medical}, the patient takes a second, independent
+test of the same kind, which is also positive. What is now the probability of
+disease?
+\solutionlink{bayesian-reasoning:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{bayesian-reasoning:exr:2}
+Show that the posterior mean of $\mathrm{Beta}(a+h, b+N-h)$ is a weighted average of
+the prior mean $a/(a+b)$ and the ML estimate $h/N$, and give the weights. What
+happens as $N\to\infty$?
+\solutionlink{bayesian-reasoning:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{bayesian-reasoning:exr:3}
+Data $y_1,\dots,y_n$ are i.i.d.\ $\mathcal N(\mu,\sigma^2)$ with $\sigma$ known, and
+the prior is $\mu\sim\mathcal N(0,\tau^2)$. Show that the posterior of $\mu$ is
+Gaussian and compute its mean. Interpret it as a shrinkage estimator.
+\solutionlink{bayesian-reasoning:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{bayesian-reasoning:exr:4}
+In \cref{bayesian-reasoning:ex:rain}, what is the posterior probability of rain
+if the friend is always reliable? If he is always unreliable?
+\solutionlink{bayesian-reasoning:exr:4}
+\end{exercise}
 \end{notechapter}

@@ -1,0 +1,466 @@
+\begin{notechapter}
+\chapter{Empirical Risk Minimization}\label{ch:erm}
+\chaptersubtitle{Approximation, estimation and the bias--variance trade-off}
+
+\begin{chapterintro}
+The Bayes predictor of \cref{ch:bayes-decision-theory} requires the unknown
+distribution $P$. Learning algorithms replace $P$ by the sample and choose,
+within a fixed class of models, the one with the smallest training error. This
+chapter studies that principle. You will learn
+\begin{itemize}[nosep]
+  \item the empirical risk minimization (ERM) principle and the role of the
+        hypothesis class;
+  \item the difference between the risk of \emph{one} trained model and the
+        expected risk of a \emph{learning algorithm};
+  \item how the excess risk splits into an approximation error and an
+        estimation error, and why the two pull in opposite directions;
+  \item why the training error is optimistic, with an exact formula for
+        linear regression;
+  \item the bias--variance decomposition and how regularization trades one
+        for the other;
+  \item why ERM works when the empirical risk converges to the risk
+        \emph{uniformly} over the class, and a first generalization bound for
+        finite classes.
+\end{itemize}
+\prerequisites{\cref{ch:learning-problem,ch:bayes-decision-theory};
+Hoeffding's inequality (stated below); basic linear algebra for
+\cref{erm:ex:ols-optimism}.}
+\end{chapterintro}
+
+\section{The ERM principle}\label{erm:sec:principle}
+
+\begin{definition}[Hypothesis class and ERM]\label{erm:def:erm}
+A \emph{hypothesis class} $\Hs$ is a set of predictors $\Xs\to\Ys$ fixed before
+seeing the data. The \emph{empirical risk minimizer} over $\Hs$ is
+\[
+  \hat f_n \in \argmin_{f \in \Hs} \ERisk(f),
+  \qquad \ERisk(f) = \frac1n\sum_{i=1}^n \ell\bigl(f(X_i), Y_i\bigr).
+\]
+\end{definition}
+
+Most familiar training procedures are instances of ERM.
+
+\begin{example}[Least squares and logistic regression]
+\emph{Linear regression}: $\Hs = \{x \mapsto w^\top x + b\}$ with the squared loss;
+ERM is ordinary least squares, minimizing $\frac1n\sum_i (w^\top x_i + b - y_i)^2$.
+
+\emph{Logistic regression}: $\Hs = \{x \mapsto \sigma(w^\top x + b)\}$ with the
+log-loss; ERM is maximum likelihood estimation of $(w,b)$.
+
+\emph{Neural networks}: $\Hs$ is the set of functions computed by a fixed
+architecture as its weights vary; training by gradient descent searches (only
+approximately) for the empirical risk minimizer.
+\end{example}
+
+The hypothesis class encodes what we believe about the solution before seeing
+any data --- smoothness, linearity, invariances. It is indispensable: without
+it, ERM fails completely.
+
+\begin{pitfall}[The memorizer]\label{erm:pit:memorizer}
+Let $X$ be uniform on $[0,1]$, $\Ys=\{0,1\}$, and let $\Hs$ contain \emph{all}
+functions. The predictor
+\[
+  \hat f_n(x) = \begin{cases} y_i & \text{if } x = x_i \text{ for some } i,\\ 0 & \text{otherwise}\end{cases}
+\]
+has zero training error, so it is an empirical risk minimizer. But a fresh
+input almost surely differs from every training input, so
+$\Risk(\hat f_n) = \Prob(Y \neq 0)$, which may be as large as $1$. The
+empirical risk of $\hat f_n$ says nothing about its risk: $\hat f_n$ has been
+tailored to the sample, and \cref{learning-problem:prop:unbiased} does not
+apply to it.
+\end{pitfall}
+
+\section{The risk of a model and the risk of an algorithm}\label{erm:sec:model-vs-algorithm}
+
+A \emph{learning algorithm} is a map $\mathcal A$ from datasets to predictors,
+$\hat f = \mathcal A(D_n)$. Two different quantities measure its quality.
+
+\begin{description}
+  \item[Risk of the trained model.] For the observed dataset $d_n$, the model
+        $\hat f_{d_n} = \mathcal A(d_n)$ is a fixed function and
+        \[
+          \Risk(\hat f_{d_n}) = \E_{(X,Y)\sim P}\bigl[\ell(\hat f_{d_n}(X), Y)\bigr]
+        \]
+        is a number: how well \emph{this} model will do in deployment.
+  \item[Expected risk of the algorithm.] Treating the training set as random,
+        $\Risk(\hat f_{D_n})$ is a random variable, and its mean
+        \[
+          \E_{D_n}\bigl[\Risk(\hat f_{D_n})\bigr]
+          = \E_{D_n,\,(X,Y)}\bigl[\ell(\hat f_{D_n}(X), Y)\bigr]
+        \]
+        measures how well the \emph{procedure} $\mathcal A$ does on average
+        over training sets of size $n$. This is the quantity to compare when
+        choosing between algorithms.
+\end{description}
+
+\section{Decomposing the excess risk}\label{erm:sec:decomposition}
+
+Let $f_{\Hs}$ denote the best predictor \emph{in the class},
+\[
+  f_{\Hs} \in \argmin_{f\in\Hs} \Risk(f)
+\]
+(if the minimum is not attained, replace $\Risk(f_\Hs)$ by $\inf_{f\in\Hs}\Risk(f)$
+below). The gap between the learned model and the Bayes risk splits into two
+terms of very different nature:
+\begin{equation}\label{erm:eq:decomposition}
+  \Risk(\hat f_n) - R^*
+  = \underbrace{\Risk(\hat f_n) - \Risk(f_\Hs)}_{\text{estimation error}}
+  + \underbrace{\Risk(f_\Hs) - R^*}_{\text{approximation error}} .
+\end{equation}
+
+\begin{description}
+  \item[Approximation error.] The price of searching in $\Hs$ instead of among
+        all functions. It does not depend on the data, only on how well $\Hs$
+        can represent the Bayes predictor. \Cref{bayes-decision-theory:ex:parabola}
+        computed one: fitting lines to a parabola costs $\frac4{45}$.
+  \item[Estimation error.] The price of knowing $P$ only through $n$ examples:
+        ERM finds the model that is best \emph{on the sample}, not the one
+        that is best \emph{on average}. It is random, non-negative, and
+        typically shrinks as $n$ grows.
+\end{description}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth, font=\small]
+  \draw[thick, fill=gray!6] (0,0) ellipse (5.2cm and 2.3cm);
+  \node at (-3.3,2.65) {all predictors};
+  \draw[thick, bookaccent, fill=bookaccent!8] (-1.4,-0.2) ellipse (2.4cm and 1.4cm);
+  \node[bookaccent] at (-2.7,0.75) {$\Hs$};
+  \fill (3.4,0.3) circle (2pt) node[right] {$f^*$ (Bayes)};
+  \fill[bookaccent] (0.7,0.1) circle (2pt) node[left] {$f_\Hs$};
+  \fill[bookpitfall] (-0.6,-0.7) circle (2pt) node[below] {$\hat f_n$};
+  \draw[<->, thick] (0.85,0.12) -- node[above] {approximation} (3.25,0.3);
+  \draw[<->, thick, bookpitfall] (-0.5,-0.62) -- node[below right] {estimation} (0.6,0.0);
+\end{tikzpicture}
+\caption{The excess risk of the learned model $\hat f_n$ decomposes into the
+distance from $\Hs$ to the Bayes predictor (approximation) and the distance from
+$\hat f_n$ to the best model of the class (estimation). ``Distance'' is meant
+in terms of risk.}
+\label{erm:fig:decomposition}
+\end{figure}
+
+Adding $R^*$ to both sides of \eqref{erm:eq:decomposition} gives
+\[
+  \Risk(\hat f_n) = \text{estimation error} + \text{approximation error} + \underbrace{R^*}_{\text{Bayes risk}},
+\]
+and taking expectations over $D_n$ gives the same decomposition for the
+expected risk of the algorithm.
+
+\subsection{The fundamental trade-off}
+
+Enlarging $\Hs$ can only decrease the approximation error, since the best model
+in a bigger class is at least as good. But it gives ERM more ways to fit the
+noise of the sample, so it typically increases the estimation error.
+\Cref{erm:fig:tradeoff} shows the resulting picture: the total risk is
+U-shaped in the complexity of the class.
+\begin{itemize}
+  \item A class that is too small \emph{underfits}: large approximation error,
+        and the training error itself stays high.
+  \item A class that is too large \emph{overfits}: small training error, large
+        estimation error, large gap between training and test error.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.55\textwidth, height=5.4cm, xmin=0.3, xmax=6, ymin=0, ymax=2.2,
+  xlabel={complexity of $\Hs$}, ylabel={risk}, xtick=\empty, ytick=\empty,
+  axis lines=left, legend style={at={(1.03,0.5)}, anchor=west, font=\small},
+  samples=80]
+  \addplot[thick, bookdef, domain=0.3:6] {1.2/x};
+  \addlegendentry{approximation}
+  \addplot[thick, bookpitfall, domain=0.3:6] {0.05*x^1.6};
+  \addlegendentry{estimation}
+  \addplot[very thick, black, domain=0.3:6] {1.2/x + 0.05*x^1.6 + 0.15};
+  \addlegendentry{total risk}
+  \addplot[dashed, gray, domain=0.3:6] {0.15};
+  \addlegendentry{Bayes risk $R^*$}
+  \draw[dotted] (axis cs:2.75,0) -- (axis cs:2.75,1.06);
+  \node[font=\small, anchor=north] at (axis cs:1.3,2.1) {underfitting};
+  \node[font=\small, anchor=north] at (axis cs:5.0,2.1) {overfitting};
+\end{axis}
+\end{tikzpicture}
+\caption{Schematic trade-off between approximation and estimation error. The
+best class complexity (dotted line) balances the two.}
+\label{erm:fig:tradeoff}
+\end{figure}
+
+\section{The optimism of the training error}\label{erm:sec:optimism}
+
+The training error of the ERM solution is a biased estimate of its risk, and
+the bias always goes the same way.
+
+\begin{proposition}[Training error is optimistic]\label{erm:prop:optimism}
+If $f_\Hs$ exists,
+\[
+  \E\bigl[\ERisk(\hat f_n)\bigr] \;\leq\; \Risk(f_\Hs) \;\leq\; \E\bigl[\Risk(\hat f_n)\bigr].
+\]
+\end{proposition}
+
+\begin{proof}
+Since $\hat f_n$ minimizes the empirical risk over $\Hs$ and $f_\Hs\in\Hs$,
+$\ERisk(\hat f_n) \leq \ERisk(f_\Hs)$ for every sample. The predictor
+$f_\Hs$ does not depend on the sample, so by \cref{learning-problem:prop:unbiased}
+$\E[\ERisk(f_\Hs)] = \Risk(f_\Hs)$, which gives the first inequality. The second
+holds because $\Risk(\hat f_n) \geq \Risk(f_\Hs)$ for every sample, by definition
+of $f_\Hs$.
+\end{proof}
+
+The expected training error is below the best achievable risk, and the
+expected risk is above it: the training error underestimates the risk of the
+model it produced. For linear regression the gap can be computed exactly.
+
+\begin{example}[Optimism of least squares]\label{erm:ex:ols-optimism}
+Consider a fixed design matrix $\mathbf X \in \R^{n\times p}$ of full rank
+$p$ and responses $y = \mathbf X\beta + \varepsilon$, where the noise vector
+$\varepsilon$ has independent entries with mean $0$ and variance $\sigma^2$. The
+least-squares fit is $\hat y = H y$, with $H = \mathbf X(\mathbf X^\top\mathbf X)^{-1}\mathbf X^\top$
+the orthogonal projection onto the column space of $\mathbf X$; $H$ is
+symmetric, idempotent, and $\tr H = \tr\bigl((\mathbf X^\top\mathbf X)^{-1}\mathbf X^\top\mathbf X\bigr) = p$.
+
+\emph{Training error.} Since $(I - H)\mathbf X\beta = 0$, the residual is
+$y - \hat y = (I-H)\varepsilon$, and for any matrix $A$,
+$\E\norm{A\varepsilon}^2 = \sigma^2 \tr(A^\top A)$. Hence
+\[
+  \E\Bigl[\tfrac1n\norm{y - \hat y}^2\Bigr] = \tfrac{\sigma^2}{n}\tr(I-H) = \sigma^2\Bigl(1 - \frac pn\Bigr).
+\]
+\emph{Error on new responses.} Let $y' = \mathbf X\beta + \varepsilon'$ be new
+responses at the same inputs, with noise $\varepsilon'$ independent of
+$\varepsilon$. Then $y' - \hat y = \varepsilon' - H\varepsilon$ and
+\[
+  \E\Bigl[\tfrac1n\norm{y' - \hat y}^2\Bigr] = \tfrac{1}{n}\bigl(n\sigma^2 + \sigma^2 \tr H\bigr) = \sigma^2\Bigl(1 + \frac pn\Bigr).
+\]
+The Bayes risk is $\sigma^2$. The training error is below it by
+$\sigma^2 p/n$ and the true error above it by the same amount: the optimism is
+$2\sigma^2 p/n$, proportional to the number of parameters and inversely
+proportional to the sample size. With $p = n$ the training error is zero ---
+the model interpolates the data.
+\end{example}
+
+This is why model performance is always reported on data not used for
+training. A \emph{test set} $\{(x'_j,y'_j)\}_{j=1}^m$ drawn independently of
+the training set gives
+\[
+  \widehat R_{\mathrm{test}}(\hat f) = \frac1m\sum_{j=1}^m \ell\bigl(\hat f(x'_j), y'_j\bigr),
+\]
+which, conditionally on the trained model, is an unbiased estimate of
+$\Risk(\hat f)$ with variance $\Var(\ell(\hat f(X),Y))/m$.
+
+\begin{pitfall}[A test set used for selection is no longer a test set]
+If the test set is used to choose among models (or hyperparameters), the
+selected model has been fitted to the test set too, and its test error is
+optimistic for the same reason as the training error. The usual remedy is a
+three-way split: a training set to fit, a \emph{validation} set to select, and
+a test set used once at the very end. \Cref{ch:measuring-performance} describes
+cross-validation, which reuses the data more efficiently.
+\end{pitfall}
+
+\section{Bias, variance and regularization}\label{erm:sec:bias-variance}
+
+For the squared loss the estimation error has a classical finer structure.
+Fix an input $x$ and consider the prediction $\hat f_{D_n}(x)$ as a random
+variable over training sets, with mean $\bar f(x) = \E_{D_n}[\hat f_{D_n}(x)]$.
+
+\begin{proposition}[Bias--variance decomposition]\label{erm:prop:bias-variance}
+Let $m(x) = \E[Y \mid X=x]$. For a test input $X$ independent of the training
+set,
+\[
+  \E_{D_n}\bigl[\Risk(\hat f_{D_n})\bigr]
+  = \underbrace{\E\bigl[\Var(Y\mid X)\bigr]}_{\text{noise } = R^*}
+  + \underbrace{\E\bigl[(\bar f(X) - m(X))^2\bigr]}_{\text{squared bias}}
+  + \underbrace{\E\bigl[\Var_{D_n}(\hat f_{D_n}(X))\bigr]}_{\text{variance}} .
+\]
+\end{proposition}
+
+\begin{proof}
+By \eqref{bayes-decision-theory:eq:pythagoras} applied to the fixed function
+$\hat f_{D_n}$, $\Risk(\hat f_{D_n}) = R^* + \E_X[(\hat f_{D_n}(X) - m(X))^2]$.
+Take the expectation over $D_n$ and, for each fixed $x$, decompose
+$\E_{D_n}[(\hat f_{D_n}(x) - m(x))^2]$ as for any random variable $Z$ and constant
+$c$: $\E[(Z - c)^2] = (\E Z - c)^2 + \Var Z$, with $Z = \hat f_{D_n}(x)$ and $c = m(x)$.
+\end{proof}
+
+The \emph{bias} measures how far the average model is from the truth --- it is
+large for a rigid class (the horizontal line of
+\cref{bayes-decision-theory:ex:parabola} has a large bias). The
+\emph{variance} measures how much the model changes from one training set to
+another --- it is large for flexible classes and small samples.
+
+\subsection{Regularization}
+
+Instead of choosing a smaller class, one can keep a rich class and add a
+penalty $\Omega(f)$ that discourages complex solutions:
+\[
+  \hat f_{n,\lambda} \in \argmin_{f\in\Hs}\ \Bigl\{\ERisk(f) + \lambda\,\Omega(f)\Bigr\},
+  \qquad \lambda \geq 0 .
+\]
+The strength $\lambda$ moves the solution along the trade-off of
+\cref{erm:fig:tradeoff}: $\lambda = 0$ is plain ERM, and $\lambda \to \infty$
+forces the simplest model.
+
+\begin{example}[Ridge regression]
+For linear models $f(x) = w^\top x$ with the squared loss and
+$\Omega(w) = \norm{w}^2$, the objective
+$\frac1n\norm{y - \mathbf Xw}^2 + \lambda\norm{w}^2$ is a strictly convex
+quadratic when $\lambda > 0$. Setting its gradient
+$-\frac2n\mathbf X^\top(y - \mathbf Xw) + 2\lambda w$ to zero gives
+\[
+  \hat w_\lambda = \bigl(\mathbf X^\top\mathbf X + n\lambda I\bigr)^{-1}\mathbf X^\top y .
+\]
+The added $n\lambda I$ makes the matrix invertible even with collinear
+features, and shrinks the coefficients toward zero: the estimate is biased,
+but its variance is smaller. With $\Omega(w) = \norm{w}_1$ (the \emph{lasso})
+some coefficients become exactly zero, which also performs variable selection.
+\end{example}
+
+In practice $\lambda$ (like the choice of $\Hs$) is a \emph{hyperparameter},
+chosen by evaluating several values on validation data.
+
+\section{When does ERM work? Uniform convergence}\label{erm:sec:uniform}
+
+We now look for guarantees that the estimation error is small.
+
+\begin{definition}[Consistency]
+ERM over $\Hs$ is \emph{consistent} for $P$ if its estimation error vanishes:
+$\Risk(\hat f_n) \to \Risk(f_\Hs)$ in probability as $n\to\infty$.
+\end{definition}
+
+The law of large numbers does not settle the question. It gives
+$\ERisk(f) \to \Risk(f)$ for each \emph{fixed} $f$, but $\hat f_n$ is not fixed:
+it is chosen after seeing the sample, precisely because its empirical risk is
+small (recall the memorizer of \cref{erm:sec:principle}). What we need is that the empirical risk be
+close to the risk \emph{simultaneously for all} $f \in \Hs$; then it cannot
+mislead ERM about any model, including the one it selects.
+
+\begin{theorem}[Estimation error and uniform deviation]\label{erm:thm:uniform}
+For every sample,
+\[
+  \Risk(\hat f_n) - \Risk(f_\Hs) \;\leq\; 2\,\sup_{f\in\Hs}\,\abs{\ERisk(f) - \Risk(f)} .
+\]
+\end{theorem}
+
+\begin{proof}
+Insert the empirical risks and use $\ERisk(\hat f_n) \leq \ERisk(f_\Hs)$:
+\[
+  \Risk(\hat f_n) - \Risk(f_\Hs)
+  = \underbrace{\Risk(\hat f_n) - \ERisk(\hat f_n)}_{\leq\ \sup_f \abs{\ERisk(f) - \Risk(f)}}
+  + \underbrace{\ERisk(\hat f_n) - \ERisk(f_\Hs)}_{\leq\ 0}
+  + \underbrace{\ERisk(f_\Hs) - \Risk(f_\Hs)}_{\leq\ \sup_f\abs{\ERisk(f) - \Risk(f)}} . \qedhere
+\]
+\end{proof}
+
+\begin{keyidea}[Uniform convergence]
+If $\sup_{f\in\Hs}\abs{\ERisk(f) - \Risk(f)} \to 0$ in probability, ERM is
+consistent. Proving such \emph{uniform convergence}, with explicit rates, is
+the main business of statistical learning theory. Whether it holds depends on
+the ``size'' of $\Hs$: it fails for the class of all functions (the
+memorizer) and holds for classes of finite VC dimension
+(\cref{ch:symmetrization-lemma}).
+\end{keyidea}
+
+\subsection{A first bound: finite classes}
+
+For a single fixed predictor, a concentration inequality says how fast the
+empirical risk approaches the risk. Abu-Mostafa's \emph{Learning From Data}
+calls this step ``probability to the rescue''.
+
+\begin{lemma}[Hoeffding's inequality]
+Let $Z_1,\dots,Z_n$ be independent random variables with values in $[a,b]$ and
+$\bar Z = \frac1n\sum_i Z_i$. For every $\epsilon > 0$,
+\[
+  \Prob\bigl(\bar Z - \E\bar Z \geq \epsilon\bigr) \leq e^{-2n\epsilon^2/(b-a)^2},
+  \qquad
+  \Prob\bigl(\abs{\bar Z - \E\bar Z} \geq \epsilon\bigr) \leq 2\,e^{-2n\epsilon^2/(b-a)^2}.
+\]
+\end{lemma}
+
+With many hypotheses, the probability that \emph{at least one} of them is
+misleading is at most the sum of the individual probabilities (the
+\emph{union bound}).
+
+\begin{theorem}[Uniform convergence for a finite class]\label{erm:thm:finite}
+Let $\Hs$ be finite and the loss take values in $[0,1]$. For every
+$\epsilon>0$,
+\[
+  \Prob\Bigl(\sup_{f\in\Hs}\abs{\ERisk(f) - \Risk(f)} \geq \epsilon\Bigr) \leq 2\,\abs{\Hs}\,e^{-2n\epsilon^2}.
+\]
+Equivalently, for $\delta\in(0,1)$, with probability at least $1-\delta$,
+\[
+  \Risk(\hat f_n) - \Risk(f_\Hs) \;\leq\; 2\sqrt{\frac{\log(2\abs{\Hs}/\delta)}{2n}} .
+\]
+\end{theorem}
+
+\begin{proof}
+The event that $\sup_f\abs{\ERisk(f) - \Risk(f)}\geq\epsilon$ is the union,
+over $f\in\Hs$, of the events $\abs{\ERisk(f) - \Risk(f)}\geq\epsilon$. Each $f$ is
+fixed, so Hoeffding's inequality applies to the losses
+$\ell(f(X_i),Y_i)\in[0,1]$ and bounds the probability of each event by
+$2e^{-2n\epsilon^2}$; the union bound adds $\abs{\Hs}$ of them. For the second
+form, set $2\abs{\Hs}e^{-2n\epsilon^2} = \delta$, solve for $\epsilon$, and apply
+\cref{erm:thm:uniform}.
+\end{proof}
+
+\begin{example}[Reading the bound]
+With $\abs{\Hs} = 1000$ models, $n = 10\,000$ examples and $\delta = 0.05$,
+$\sqrt{\log(40\,000)/20\,000}\approx 0.023$: with probability $95\%$ the ERM
+solution is within $0.046$ of the best model of the class. The size of the
+class enters only through $\log\abs{\Hs}$, so a million models instead of a
+thousand would merely double the logarithm.
+\end{example}
+
+Most classes of interest --- linear classifiers, neural networks --- are
+infinite, and the union bound over $\abs{\Hs}$ terms is useless. The remedy,
+developed in \cref{ch:symmetrization-lemma}, is to notice that on a finite
+sample an infinite class behaves like a finite one: only the \emph{patterns}
+of predictions it can produce on the sample matter.
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item ERM minimizes the training error over a hypothesis class $\Hs$ fixed in
+        advance; without such a restriction it can memorize the sample.
+  \item The excess risk $\Risk(\hat f_n) - R^*$ is the sum of an estimation
+        error (finite sample) and an approximation error (restricted class);
+        richer classes trade the second for the first.
+  \item The training error of the ERM solution is optimistic; for least
+        squares the optimism is exactly $2\sigma^2p/n$. Risk is estimated on
+        independent test data.
+  \item For the squared loss, the expected risk is noise $+$ bias$^2$ $+$
+        variance; regularization reduces variance at the cost of bias.
+  \item The estimation error is at most twice the uniform deviation
+        $\sup_f\abs{\ERisk(f) - \Risk(f)}$; for a finite class Hoeffding's
+        inequality and the union bound give a rate
+        $\sqrt{\log\abs{\Hs}/n}$.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{erm:exr:1}
+Show that the approximation error is a non-increasing function of the class:
+if $\Hs_1\subseteq\Hs_2$ then $\Risk(f_{\Hs_2}) \leq \Risk(f_{\Hs_1})$. Is the
+estimation error necessarily non-decreasing? Give an example or an argument.
+\solutionlink{erm:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{erm:exr:2}
+In \cref{erm:ex:ols-optimism}, show that $\frac{1}{n-p}\norm{y-\hat y}^2$ is an
+unbiased estimator of $\sigma^2$. Why does one divide by $n-p$ rather than $n$?
+\solutionlink{erm:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{erm:exr:3}
+Let $\hat f(x) = \frac1n\sum_i Y_i$ be the constant predictor equal to the
+sample mean, with $\Var(Y) = v$. Compute its bias and variance at any $x$ and
+its expected risk under the squared loss.
+\hint{$\Risk(c) = \Var(Y) + (c - \E Y)^2$ for a constant $c$.}
+\solutionlink{erm:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{erm:exr:4}
+How large must $n$ be in \cref{erm:thm:finite} to guarantee, with
+probability $0.99$, an estimation error below $0.01$ for a class of $10^6$
+models?
+\solutionlink{erm:exr:4}
+\end{exercise}
+\end{notechapter}

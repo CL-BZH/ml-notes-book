@@ -1,0 +1,441 @@
+\chapter{Solutions to the Exercises}\label{ch:solutions}
+
+Solutions are grouped by chapter. Each exercise statement links to its
+solution, and each solution links back to its statement.
+
+% =====================================================================
+\section{\nameref*{ch:learning-problem}}
+
+\solution{learning-problem:exr:1}
+With $Y = 1$ for $4,5,6$: the odd outcomes $1,3,5$ give $Y = 0,0,1$ and the
+even outcomes $2,4,6$ give $Y = 0,1,1$. Hence
+$P(X{=}0,Y{=}0) = \frac26$, $P(X{=}0,Y{=}1) = \frac16$,
+$P(X{=}1,Y{=}0) = \frac16$, $P(X{=}1,Y{=}1) = \frac26$. The risks are:
+always $0$: $\frac16 + \frac26 = \frac12$; always $1$: $\frac12$; copy $X$:
+$\frac16 + \frac16 = \frac13$; flip $X$: $\frac26 + \frac26 = \frac23$. The best
+classifier is now ``copy $X$'' (predict ``at least 4'' iff even), with risk
+$\frac13$.
+
+\solution{learning-problem:exr:2}
+By \cref{learning-problem:prop:unbiased} applied to the squared loss,
+$\Var(\ERisk(f)) = \sigma_f^2/n$ with $\sigma_f^2 = \Var((f(X)-Y)^2)$. If
+$Y = f(X) + \varepsilon$, the loss is $\varepsilon^2$, and
+$\Var(\varepsilon^2) = \E[\varepsilon^4] - (\E[\varepsilon^2])^2 = 3s^4 - s^4 = 2s^4$.
+Hence $\Var(\ERisk(f)) = 2s^4/n$.
+
+\solution{learning-problem:exr:3}
+The number of errors is binomial with parameters $m$ and $p = \Risk(f)$, so
+$k/m$ has variance $p(1-p)/m$. Replacing $p$ by its estimate gives the standard
+error $\sqrt{\hat p(1-\hat p)/m}$ with $\hat p = k/m$. For $p\approx0.1$ we need
+$0.09/m < 10^{-4}$, i.e.\ $m > 900$ test points.
+
+% =====================================================================
+\section{\nameref*{ch:bayes-decision-theory}}
+
+\solution{bayes-decision-theory:ex:median}
+For $h > 0$, compare $\abs{a+h-Z}$ and $\abs{a-Z}$ on three events. If $Z\leq a$
+the difference is $h$; if $Z\geq a+h$ it is $-h$; if $a<Z<a+h$ it is
+$(a+h-Z) - (Z-a) = 2a + h - 2Z$. Taking expectations and writing
+$\Prob(Z\geq a+h) = 1 - \Prob(Z\leq a) - \Prob(a<Z<a+h)$,
+\[
+  g(a+h) - g(a) = h\bigl(2\Prob(Z\leq a) - 1\bigr) + 2\,\E\bigl[(a+h-Z)\bbone[a<Z<a+h]\bigr].
+\]
+The last term lies between $0$ and $2h\,\Prob(a<Z<a+h)$, which is $o(h)$, so the
+right derivative of $g$ is $g'_+(a) = 2\Prob(Z\leq a) - 1$. The same computation
+for $h<0$ (or the result applied to $-Z$) gives the left derivative
+$g'_-(a) = 2\Prob(Z<a) - 1$. The function $g$ is convex (an expectation of
+convex functions of $a$), and a convex function is minimal at $a$ iff
+$g'_-(a)\leq0\leq g'_+(a)$, i.e.\ iff $\Prob(Z<a)\leq\frac12\leq\Prob(Z\leq a)$.
+This is exactly the definition of a median.
+
+\solution{bayes-decision-theory:exr:2}
+With priors $\pi_0,\pi_1$ and $\varphi$ the standard normal density, the
+log-odds are
+\[
+  \log\frac{\pi_1\varphi(x-1)}{\pi_0\varphi(x+1)} = \log\frac{\pi_1}{\pi_0} + \frac{(x+1)^2 - (x-1)^2}{2} = \log\frac{\pi_1}{\pi_0} + 2x .
+\]
+The Bayes classifier predicts $1$ iff this is positive, i.e.\
+$x > \frac12\log(\pi_0/\pi_1)$. With equal priors the threshold is $0$, and
+$R^* = \frac12\Prob(X>0\mid Y=0) + \frac12\Prob(X\leq0\mid Y=1) = \Phi(-1)\approx0.159$.
+With $\pi_1 = 0.2$ the threshold moves to $\frac12\log4 = \log2\approx0.69$: the
+rarer class needs stronger evidence.
+
+\solution{bayes-decision-theory:exr:3}
+The conditional risks are $r(0\mid x) = C_{00}(1-\eta) + C_{10}\eta$ and
+$r(1\mid x) = C_{01}(1-\eta) + C_{11}\eta$. Class $1$ is preferred iff
+$(C_{01} - C_{00})(1-\eta) < (C_{10} - C_{11})\eta$, that is iff
+\[
+  \eta(x) > \frac{C_{01} - C_{00}}{(C_{01} - C_{00}) + (C_{10} - C_{11})} .
+\]
+Only the cost \emph{differences} matter: adding a constant to a row of $C$ does
+not change the decision.
+
+\solution{bayes-decision-theory:exr:4}
+The regression function $m(x) = x^2$ is itself quadratic, so the best quadratic
+predictor is $m$, with $a = b = 0$, $c = 1$. Its risk is $R^* = s^2$ and its
+approximation error is $0$.
+
+% =====================================================================
+\section{\nameref*{ch:erm}}
+
+\solution{erm:exr:1}
+If $\Hs_1\subseteq\Hs_2$, then $\inf_{\Hs_2}\Risk\leq\inf_{\Hs_1}\Risk$, because
+the infimum over a larger set is smaller; so the approximation error
+$\Risk(f_\Hs) - R^*$ cannot increase. The estimation error has no such
+monotonicity: it depends on how ERM ranks the hypotheses on the sample. For
+instance, adding to a class a hypothesis that is much better than all the others
+--- such as the Bayes predictor in a noise-free problem --- lets ERM select it
+as soon as the other hypotheses make errors on the sample, which can
+\emph{reduce} the estimation error. The trade-off of \cref{erm:fig:tradeoff}
+describes typical behaviour, and bounds such as \cref{erm:thm:finite} that grow
+with the size of the class; it is not a theorem about every pair of classes.
+
+\solution{erm:exr:2}
+\Cref{erm:ex:ols-optimism} gives $\E\norm{y - \hat y}^2 = \sigma^2(n-p)$, so
+$\E\bigl[\frac1{n-p}\norm{y-\hat y}^2\bigr] = \sigma^2$. Dividing by $n$ would
+underestimate $\sigma^2$ by the factor $1 - p/n$: the residual vector
+$(I-H)\varepsilon$ lies in a subspace of dimension $n-p$, because fitting $p$
+coefficients removes $p$ ``degrees of freedom'' of the noise.
+
+\solution{erm:exr:3}
+Let $\mu = \E[Y]$. The prediction $\bar Y$ does not depend on $x$: its mean is
+$\mu$ and its variance $v/n$. At $x$ the bias is $\mu - m(x)$ and the variance
+$v/n$. For a constant $c$, $\Risk(c) = \E[(Y-c)^2] = v + (c-\mu)^2$, so
+\[
+  \E\bigl[\Risk(\bar Y)\bigr] = v + \E[(\bar Y - \mu)^2] = v\Bigl(1 + \frac1n\Bigr).
+\]
+This agrees with \cref{erm:prop:bias-variance}: $R^* = \E[\Var(Y\mid X)]$, the
+squared bias is $\E[(\mu - m(X))^2] = \Var(m(X))$, the variance term is $v/n$,
+and $\E[\Var(Y\mid X)] + \Var(\E[Y\mid X]) = v$ by the law of total variance.
+
+\solution{erm:exr:4}
+We need $2\sqrt{\log(2\abs\Hs/\delta)/(2n)}\leq0.01$ with $\abs\Hs = 10^6$ and
+$\delta = 0.01$, i.e.\ $\log(2\times10^8)/(2n)\leq2.5\times10^{-5}$. Since
+$\log(2\times10^8)\approx19.1$, this requires $n\geq 3.8\times10^5$.
+
+% =====================================================================
+\section{\nameref*{ch:symmetrization-lemma}}
+
+\solution{symmetrization-lemma:exr:1}
+\emph{Four points are shattered.} Take $(\pm1,0)$ and $(0,\pm1)$. For any subset,
+the smallest axis-aligned rectangle containing it does not contain the other
+points (check the subsets of sizes $2$ and $3$; sizes $0,1,4$ are immediate).
+
+\emph{Five points are not.} Among five points pick one with the smallest
+abscissa, one with the largest, one with the smallest ordinate and one with the
+largest: at most four points. Label them $1$ and a remaining point $0$. Any
+rectangle containing the chosen points contains their bounding box, which
+contains all five points, so the labelling is impossible. Hence
+$d_{\mathrm{VC}} = 4$.
+
+\solution{symmetrization-lemma:exr:2}
+For thresholds, $d=1$ and $\sum_{k=0}^1\binom nk = 1 + n = S(\Hs,n)$. For
+intervals, $d = 2$ and $\sum_{k=0}^2\binom nk = 1 + n + \binom n2 = S(\Hs,n)$, as
+computed in the examples: in both cases the bound is attained.
+
+\solution{symmetrization-lemma:exr:3}
+Independence is used in Step~3: conditionally on the first sample, the ghost
+sample must still be an i.i.d.\ sample from $P$, so that Hoeffding's inequality
+applies to the fixed function $g_\epsilon$. If $Z'_i = Z_i$, then
+$P'_ng = P_ng$ for every $g$ and the right-hand side of the lemma is $0$. But the
+left-hand side can be positive: take a single function $g$ with
+$g(Z)\sim\mathrm{Bernoulli}(\frac12)$, $n = 8$ and $t = \frac12$ (so $nt^2 = 2$).
+Then $\Prob(Pg - P_ng\geq\frac12) = \Prob(\text{all } g(Z_i) = 0) = 2^{-8} > 0$.
+
+\solution{symmetrization-lemma:exr:4}
+We need $2\epsilon_n\leq0.05$, i.e.\
+$\frac8n\bigl(3\log\frac{2en}{3} + \log80\bigr)\leq0.025^2$. Solving numerically
+gives $n\approx5.9\times10^5$. The constants of the VC bound are pessimistic;
+the point of the exercise is the order of magnitude and the dependence on $d$
+and $\log n$.
+
+% =====================================================================
+\section{\nameref*{ch:generative-discriminative}}
+
+\solution{generative-discriminative:exr:1}
+With $V_j = 2$, the smoothed estimates are $\hat P(M{=}1\mid\text{spam}) =
+\hat P(F{=}1\mid\text{spam}) = \frac{3+1}{4+2} = \frac23$ and
+$\hat P(M{=}1\mid\text{ham}) = \hat P(F{=}1\mid\text{ham}) = \frac{1+1}{6+2} = \frac14$
+(priors unchanged). For $(M,F) = (1,1)$: spam $0.4\times\frac49\approx0.178$, ham
+$0.6\times\frac1{16} = 0.0375$, posterior $\approx0.83$ (was $0.93$). For
+$(0,0)$: spam $0.4\times\frac19\approx0.044$, ham $0.6\times\frac9{16}\approx0.338$,
+posterior $\approx0.12$ (was $0.06$). Smoothing pulls the estimates toward
+$\frac12$ and makes the posteriors less extreme.
+
+\solution{generative-discriminative:exr:2}
+With $P(X_j = x_j\mid Y = c) = \phi_{jc}^{x_j}(1-\phi_{jc})^{1-x_j}$,
+\[
+  \log\frac{P(Y{=}1\mid x)}{P(Y{=}0\mid x)}
+  = \log\frac{\pi_1}{\pi_0} + \sum_j\Bigl[x_j\log\frac{\phi_{j1}}{\phi_{j0}} + (1-x_j)\log\frac{1-\phi_{j1}}{1-\phi_{j0}}\Bigr]
+  = w_0 + \sum_jw_jx_j,
+\]
+with $w_j = \log\dfrac{\phi_{j1}(1-\phi_{j0})}{\phi_{j0}(1-\phi_{j1})}$ and
+$w_0 = \log\dfrac{\pi_1}{\pi_0} + \sum_j\log\dfrac{1-\phi_{j1}}{1-\phi_{j0}}$.
+Binary naive Bayes and logistic regression are thus another
+generative--discriminative pair.
+
+\solution{generative-discriminative:exr:3}
+Before duplication, for $M = 1$, $F = 0$: spam $0.4\times\frac34\times\frac14 = 0.075$,
+ham $0.6\times\frac16\times\frac56\approx0.0833$, posterior of spam $\approx0.47$.
+After duplication the factor for ``money'' appears twice: spam
+$0.4\times(\frac34)^2\times\frac14\approx0.0563$, ham
+$0.6\times(\frac16)^2\times\frac56\approx0.0139$, posterior $\approx0.80$.
+Nothing about the email changed, but naive Bayes treats the copy as independent
+new evidence and counts it twice: the conditional-independence assumption is
+violated as badly as possible, and the posterior becomes overconfident.
+
+% =====================================================================
+\section{\nameref*{ch:lipschitz-continuity}}
+
+\solution{lipschitz-continuity:exr:1}
+The derivative of $\log(1+e^x)$ is $\sigma(x)\in(0,1)$, so softplus is
+$1$-Lipschitz; the derivative of $\sigma$ is $\sigma(1-\sigma)\leq\frac14$, so
+$\sigma$ is $\frac14$-Lipschitz. For $\mathcal J(\theta) = \log(1+e^{-y\theta x})$,
+$\mathcal J''(\theta) = x^2\sigma(-y\theta x)(1-\sigma(-y\theta x))\leq\frac{x^2}4\leq\frac14$
+(using $y^2 = 1$), so $\mathcal J$ is $\frac14$-smooth. By the descent lemma any
+$\eta<8$ decreases the loss, and $\eta = 1/\beta = 4$ is the classical choice.
+
+\solution{lipschitz-continuity:exr:2}
+$W^\top W = \begin{psmallmatrix}25&20\\20&25\end{psmallmatrix}$ has eigenvalues
+$45$ and $5$, so $\mathrm{Lip} = \norm W_2 = \sqrt{45}\approx6.71$, while
+$\norm W_F = \sqrt{9+16+25} = \sqrt{50}\approx7.07$. Always
+$\norm W_2\leq\norm W_F$, because $\norm W_F^2 = \sum_i\sigma_i^2\geq\sigma_{\max}^2$.
+The Frobenius norm is cheaper to compute but gives a looser Lipschitz bound.
+
+\solution{lipschitz-continuity:exr:3}
+$\nabla\mathcal J(\theta) = A\theta$, so
+$\norm{\nabla\mathcal J(\theta_1) - \nabla\mathcal J(\theta_2)}\leq\norm A_2\norm{\theta_1-\theta_2}$
+with $\norm A_2 = \lambda_{\max}$. Gradient descent gives
+$\theta_{k+1} = (I - \eta A)\theta_k$; in an orthonormal eigenbasis of $A$ each
+coordinate is multiplied by $1 - \eta\lambda_i$ at every step. All coordinates go
+to $0$ iff $\abs{1-\eta\lambda_i}<1$ for all $i$, i.e.\ iff
+$0<\eta<2/\lambda_{\max}$. With $\eta = 1/\lambda_{\max}$ the factor in the
+direction of $\lambda_{\min}$ is $1 - \lambda_{\min}/\lambda_{\max}$, the
+closest to $1$: convergence is slowest there, and the slower the larger the
+condition number $\lambda_{\max}/\lambda_{\min}$.
+
+% =====================================================================
+\section{\nameref*{ch:measuring-performance}}
+
+\solution{measuring-performance:exr:1}
+Take $x = (1,2,3)$, $y = (3,2,3)$ and fit $y\approx bx$ without intercept:
+$b = \sum x_iy_i/\sum x_i^2 = 16/14 = \frac87$. Then
+$SS_{\mathrm{res}} = \sum y_i^2 - (\sum x_iy_i)^2/\sum x_i^2 = 22 - \frac{128}{7} = \frac{26}7$,
+while $\bar y = \frac83$ and $SS_{\mathrm{tot}} = \frac23$. Hence
+$R^2 = 1 - \frac{26}{7}\cdot\frac32 = -\frac{32}7\approx-4.6$: the line through the
+origin is much worse than the constant $\bar y$, which it cannot represent.
+
+\solution{measuring-performance:exr:2}
+Precision $\frac12$ means $r\pi = \phi(1-\pi)$, i.e.\ $\phi = r\pi/(1-\pi)$. With
+$r = 0.8$ and $\pi/(1-\pi) = 1000/100\,000$, $\phi = 0.008$: the false positive
+rate would have to drop from $5\%$ to $0.8\%$ ($800$ false alarms for $800$ true
+detections).
+
+\solution{measuring-performance:exr:3}
+With $P = \mathrm{TP}/(\mathrm{TP}+\mathrm{FP})$ and $R = \mathrm{TP}/(\mathrm{TP}+\mathrm{FN})$,
+\[
+  \frac{2PR}{P+R} = \frac{2\,\mathrm{TP}^2}{\mathrm{TP}(\mathrm{TP}+\mathrm{FN}) + \mathrm{TP}(\mathrm{TP}+\mathrm{FP})}
+  = \frac{2\,\mathrm{TP}}{2\,\mathrm{TP}+\mathrm{FP}+\mathrm{FN}} .
+\]
+TN does not appear. With a rare positive class TN is huge and dominates the
+accuracy (the ``always edible'' classifier); $F_1$ ignores it and only looks at
+how the positive class is handled.
+
+\solution{measuring-performance:exr:4}
+Substituting $u = x - a$ and using the symmetry of $\varphi_h$,
+\[
+  \int\varphi_h(x-a)\varphi_h(x-b)\,dx = \int\varphi_h(u)\,\varphi_h\bigl((a-b) - u\bigr)\,du = (\varphi_h * \varphi_h)(a-b).
+\]
+The convolution of the densities of two independent $\mathcal N(0,h^2)$
+variables is the density of their sum, $\mathcal N(0,2h^2)$, so this equals
+$\varphi_{\sqrt2h}(a-b)$. Expanding the square of
+$\hat f_{\mathcal T} = \frac1n\sum_i\varphi_h(\cdot - X_i)$ then gives
+$\int\hat f_{\mathcal T}^2 = \frac1{n^2}\sum_{i,j}\varphi_{\sqrt2h}(X_i - X_j)$.
+
+% =====================================================================
+\section{\nameref*{ch:stats-and-proba}}
+
+\solution{stats-and-proba:exr:1}
+Exactly, $\Prob(K\leq2) = \sum_{k=0}^2\binom{50}k0.1^k0.9^{50-k}\approx0.005 + 0.029 + 0.078 = 0.112$.
+The normal approximation $\hat p\approx\mathcal N(0.1, 0.0018)$ gives
+$\Phi\bigl((0.04-0.1)/0.0424\bigr) = \Phi(-1.41)\approx0.079$, a poor approximation;
+with the continuity correction ($K\leq2.5$, i.e.\ $\hat p\leq0.05$) it gives
+$\Phi(-1.18)\approx0.119$. For $np = 5$ the binomial is still far from Gaussian.
+
+\solution{stats-and-proba:exr:2}
+$\E[X_i] = \theta/2$, so $\E[2\bar X_n] = \theta$; and $\Var(X_i) = \theta^2/12$, so
+$\mathrm{MSE}(2\bar X_n) = \Var(2\bar X_n) = 4\theta^2/(12n) = \theta^2/(3n)$. The density of
+$M$ is $nx^{n-1}/\theta^n$ on $[0,\theta]$, so $\E[M] = \frac n{n+1}\theta$ and
+$\E[M^2] = \frac n{n+2}\theta^2$, hence $\Var(M) = \frac{n\theta^2}{(n+1)^2(n+2)}$. The
+estimator $T = \frac{n+1}nM$ is unbiased with $\mathrm{MSE}(T) = \Var(T) = \frac{\theta^2}{n(n+2)}$.
+The ratio $\mathrm{MSE}(2\bar X_n)/\mathrm{MSE}(T) = (n+2)/3$ grows with $n$: both are
+unbiased, but $T$ is far more precise --- its error decreases like $1/n$, not
+$1/\sqrt n$.
+
+\solution{stats-and-proba:exr:3}
+A given point is missed by one draw with probability $1 - \frac1n$, and by all $n$
+independent draws with probability $(1-\frac1n)^n$. Since
+$n\log(1-\frac1n) = -1 + O(\frac1n)$, this tends to $e^{-1}$, and the point appears
+with probability $1 - (1-\frac1n)^n\to1 - e^{-1}\approx0.632$.
+
+\solution{stats-and-proba:exr:4}
+$\mathrm{MSE}(cS^2) = c^2\Var(S^2) + (c-1)^2\sigma^4 = \sigma^4\bigl[\frac{2c^2}{n-1} + (c-1)^2\bigr]$.
+Setting the derivative $\frac{4c}{n-1} + 2(c-1)$ to zero gives $c = \frac{n-1}{n+1}$:
+the MSE-optimal estimator divides the sum of squared deviations by $n+1$ --- neither
+$n-1$ (unbiased) nor $n$ (maximum likelihood).
+
+% =====================================================================
+\section{\nameref*{ch:lln-clt-inference}}
+
+\solution{lln-clt-inference:exr:1}
+Chebyshev gives $\Prob(\abs{\hat p - p}\geq0.01)\leq\frac{p(1-p)}{n\times10^{-4}}\leq\frac{0.25}{n\times10^{-4}}$,
+which is at most $0.05$ for $n\geq50\,000$. The CLT asks for
+$1.96\sqrt{0.25/n}\leq0.01$, i.e.\ $n\geq9604$: Chebyshev is valid for every $n$ but
+about five times too pessimistic here.
+
+\solution{lln-clt-inference:exr:2}
+On examples where both classifiers are right or both wrong, the error rates do not
+differ; only the $60$ discordant examples matter. Under $H_0$ (equal error rates)
+each discordant example favours A or B with probability $\frac12$, so the number
+favouring A is $\mathrm{Bin}(60,\frac12)$, with mean $30$ and standard deviation
+$\sqrt{15}\approx3.87$. The observed $40$ gives $z = 10/3.87\approx2.58$ and a two-sided
+$p$-value of about $0.01$: reject at $5\%$; A is better. Comparing the two error
+rates as if the test sets were independent would ignore this pairing and lose
+power.
+
+\solution{lln-clt-inference:exr:3}
+$\E\abs X = \frac2\pi\int_0^\infty\frac{x}{1+x^2}\,dx = \frac1\pi\bigl[\log(1+x^2)\bigr]_0^\infty = \infty$.
+The law of large numbers requires $\E\abs X<\infty$; the Cauchy distribution does not
+satisfy this hypothesis (it has no mean), so there is no contradiction in
+$\bar X_n$ not converging.
+
+\solution{lln-clt-inference:exr:4}
+At $x_1 = 3$ the log-odds are $-1.5 + 2.4 = 0.9$, so $P = \sigma(0.9)\approx0.71$; at
+$x_1 = 2$ they are $0.1$ and $P\approx0.52$. The change is about $0.19$, compared with
+$0.33 - 0.18 = 0.15$ between $x_1 = 0$ and $1$: the same odds ratio produces
+different changes in probability.
+
+% =====================================================================
+\section{\nameref*{ch:covariance-estimation}}
+
+\solution{covariance-estimation:exr:1}
+For $v\in\R^p$, $v^\top\hat\Sigma_Xv = \frac1n\norm{\mathbf X_cv}^2\geq0$. The rank of
+$\hat\Sigma_X$ equals that of $\mathbf X_c = A\mathbf X$, which is at most
+$\mathrm{rank}(A) = n-1$. If $n\leq p$, then $\mathrm{rank}(\hat\Sigma_X)\leq n-1<p$ and the
+$p\times p$ matrix is singular. This is why covariance estimates in high dimension
+are regularized (e.g.\ by adding a multiple of the identity).
+
+\solution{covariance-estimation:exr:2}
+With $u = (1,-1)^\top$, $\Var(X_1 - X_2) = u^\top\Sigma_Xu = 4 + 3 - 2\times2 = 3$. The
+correlation is $2/\sqrt{4\times3}\approx0.58$.
+
+\solution{covariance-estimation:exr:3}
+Let $X$ be uniform on $[-1,1]$ and $Y = X^2$. Then
+$\Cov(X,Y) = \E[X^3] - \E[X]\E[X^2] = 0$, yet $Y$ is a function of $X$. Covariance only
+detects linear dependence.
+
+% =====================================================================
+\section{\nameref*{ch:convergence-of-events}}
+
+\solution{convergence-of-events:exr:1}
+The sets decrease to $\bigcap_nA_n = \{0\}$, so $\liminf A_n = \limsup A_n = \{0\}$ and
+$\Prob(A_n) = 1/n\to0 = \Prob(\{0\})$, as continuity from above predicts.
+
+\solution{convergence-of-events:exr:2}
+For every $N$, $\limsup A_n\subseteq\bigcup_{n\geq N}A_n$, so
+$\Prob(\limsup A_n)\leq\sum_{n\geq N}\Prob(A_n)$. The right-hand side is the tail of a
+convergent series and tends to $0$ as $N\to\infty$.
+
+\solution{convergence-of-events:exr:3}
+The sequence $\bbone_{A_n}(\omega)$ takes values in $\{0,1\}$. Its $\limsup$ is $1$
+iff it equals $1$ infinitely often, i.e.\ iff $\omega$ belongs to infinitely many
+$A_n$, i.e.\ iff $\omega\in\limsup A_n$. Its $\liminf$ is $1$ iff it is eventually
+always $1$, i.e.\ iff $\omega\in\liminf A_n$.
+
+% =====================================================================
+\section{\nameref*{ch:bayesian-reasoning}}
+
+\solution{bayesian-reasoning:exr:1}
+Given the disease status the tests are independent, so
+\[
+  p(\text{sick}\mid+,+) = \frac{0.9^2\times0.01}{0.9^2\times0.01 + 0.05^2\times0.99}
+  = \frac{0.0081}{0.0081 + 0.002475}\approx0.77 .
+\]
+Equivalently, the posterior $0.15$ after the first test becomes the prior for the
+second.
+
+\solution{bayesian-reasoning:exr:2}
+\[
+  \frac{a+h}{a+b+N} = \frac{a+b}{a+b+N}\cdot\frac{a}{a+b} + \frac{N}{a+b+N}\cdot\frac hN .
+\]
+The prior counts as $a+b$ pseudo-observations. As $N\to\infty$ the weight of the
+data tends to $1$ and the posterior mean approaches the ML estimate.
+
+\solution{bayesian-reasoning:exr:3}
+The log-posterior is, up to a constant,
+$-\frac1{2\sigma^2}\sum_i(y_i - \mu)^2 - \frac{\mu^2}{2\tau^2}$, a quadratic in $\mu$ with
+coefficient $-\frac12\bigl(\frac n{\sigma^2} + \frac1{\tau^2}\bigr)$ of $\mu^2$: the
+posterior is Gaussian with precision $\frac n{\sigma^2} + \frac1{\tau^2}$ and mean
+\[
+  \E[\mu\mid y] = \frac{n\bar y/\sigma^2}{n/\sigma^2 + 1/\tau^2} = \frac{n\tau^2}{n\tau^2 + \sigma^2}\,\bar y .
+\]
+The sample mean is shrunk toward the prior mean $0$, more strongly when $n$ is small
+or $\tau$ small: the one-dimensional version of ridge regression.
+
+\solution{bayesian-reasoning:exr:4}
+Always reliable: $p(y_2 = 0\mid x = 1) = 0$, so the posterior probability of rain is
+$0$ --- a fully trusted ``no'' overrides the app. Always unreliable:
+$p(y_2 = 0\mid x = 1) = 0.3$ and $p(y_2 = 0\mid x = 0) = 0.7$, so the posterior is
+$\frac{0.8\times0.3}{0.8\times0.3 + 0.2\times0.7} = \frac{0.24}{0.38}\approx0.63$.
+The value $0.28$ of the example lies between the two.
+
+% =====================================================================
+\section{\nameref*{ch:monte-carlo}}
+
+\solution{monte-carlo:exr:1}
+We need $1.96\sqrt{0.242/N}\leq0.001$, i.e.\ $N\geq0.242\times1960^2\approx9.3\times10^5$.
+
+\solution{monte-carlo:exr:2}
+$\log$ is concave, so the estimator is biased downward:
+$\E[\log\bar Z_M]\leq\log\E[Z]$. With $f(z) = \log z$, $f''(z) = -1/z^2$, and
+\cref{monte-carlo:prop:taylor} gives the leading term
+$-\frac{1}{2M}\frac{\Var(Z)}{(\E Z)^2}$: half the squared coefficient of variation divided
+by $M$. This is why log-likelihoods of latent-variable models estimated by
+averaging importance weights are biased low.
+
+\solution{monte-carlo:exr:3}
+For $j\neq k$, independence gives $\E[Y_jY_k] = (\E Y)^2$; there are $M(M-1)$ ordered
+pairs, so the average is unbiased. Since
+$\sum_{j\neq k}Y_jY_k = \bigl(\sum_jY_j\bigr)^2 - \sum_jY_j^2$ and
+$\sum_jY_j^2 = (M-1)S^2 + M\bar Y^2$, the estimator equals $\bar Y^2 - S^2/M$: the
+naive $\bar Y^2$ corrected by its exact bias, an estimate of $\Var(\bar Y)$.
+
+% =====================================================================
+\section{\nameref*{ch:em-algorithm}}
+
+\solution{em-algorithm:exr:1}
+For a head: $0.4\times0.6 = 0.24$ (coin B) and $0.6\times0.7 = 0.42$ (coin C), so
+$\gamma(1) = 0.24/0.66\approx0.3636$. For a tail: $0.4\times0.4 = 0.16$ and
+$0.6\times0.3 = 0.18$, so $\gamma(0) = 0.16/0.34\approx0.4706$. With six heads and four
+tails, $\sum_j\gamma_j = 6\times0.3636 + 4\times0.4706\approx4.064$, so $\pi^{(1)}\approx0.4064$,
+$p^{(1)} = 2.1818/4.064\approx0.5368$ and $q^{(1)} = 6\times0.6364/5.936\approx0.6432$.
+
+\solution{em-algorithm:exr:2}
+If $p = q$, the two factors in $\gamma_j$ have the same likelihood term, so
+$\gamma_j = \pi$ for every $j$: the observation carries no information on the hidden
+coin, and the posterior equals the prior. The M-step gives $\pi^{(1)} = \pi^{(0)}$ and
+$p^{(1)} = q^{(1)} = \bar y$, and the same holds at every later step. This point is a
+fixed point of EM (and a maximum-likelihood estimate, since $s = \bar y$); EM cannot
+learn $\pi$ because nothing in the data distinguishes the two coins.
+
+\solution{em-algorithm:exr:3}
+With $b_j = \pi\binom m{k_j}p^{k_j}(1-p)^{m-k_j}$ and
+$c_j = (1-\pi)\binom m{k_j}q^{k_j}(1-q)^{m-k_j}$, the E-step is $\gamma_j = b_j/(b_j + c_j)$
+(the binomial coefficients cancel). The M-step is
+\[
+  \pi = \frac1n\sum_j\gamma_j,\qquad
+  p = \frac{\sum_j\gamma_jk_j}{m\sum_j\gamma_j},\qquad
+  q = \frac{\sum_j(1-\gamma_j)k_j}{m\sum_j(1-\gamma_j)} .
+\]
+For $m\geq2$ the distribution of $k_j$ is no longer determined by a single number,
+and the parameters become identifiable (up to swapping B and C).
