@@ -1,0 +1,229 @@
+% Source: uncertain_and_unreliable_evidence.tex
+\begin{notechapter}
+\chapter{Uncertain and Unreliable Evidence}\label{ch:uncertain-evidence}
+
+\section{Introduction}
+In Bayesian reasoning, evidence is used to update beliefs about
+the state of the world. However, evidence can be \textbf{uncertain}
+(noisy or imprecise) or \textbf{unreliable} (potentially incorrect).
+This document explains these concepts and provides fully developed
+examples.
+
+\section{Uncertain Evidence}
+Uncertain evidence refers to observations that are not perfectly
+known. For example, a sensor reading might be noisy. We model
+uncertain evidence using probability distributions.
+
+\subsection{Bayesian Framework}
+Given a true state \( x \) and uncertain evidence \( y \), we use
+Bayes' rule to update our belief:
+\[
+p(x | y) = \frac{p(y | x) \, p(x)}{p(y)}
+\]
+Here:
+\begin{itemize}
+    \item \( p(x) \): Prior belief about \( x \).
+    \item \( p(y | x) \): Likelihood of observing \( y \) given \( x \).
+    \item \( p(x | y) \): Posterior belief about \( x \) after observing \( y \).
+\end{itemize}
+
+\section{Unreliable Evidence and Virtual Evidence}
+Unreliable evidence refers to observations that might be incorrect
+or misleading. For example, a witness might lie. We model
+unreliability by introducing a \textbf{virtual evidence term} that encodes
+the decision-maker's subjective interpretation of the evidence.
+
+\subsection{Virtual Evidence (Barber's Framework)}
+Virtual evidence is used to handle unreliable evidence by replacing
+the original likelihood term \( p(G | A) \) with a virtual evidence
+term \( p(H | A) \). This term encodes the decision-maker's belief
+about the true state \( A \) based on their interpretation of the
+unreliable evidence.
+
+For example, if the decision-maker believes there is an 80\% chance
+the alarm sounded (\( A = \text{tr} \)) and a 20\% chance it did not
+(\( A = \text{fa} \)), the virtual evidence term is:
+\[
+p(H | A) = 
+\begin{cases}
+0.8 & \text{if } A = \text{tr}, \\
+0.2 & \text{if } A = \text{fa}.
+\end{cases}
+\]
+
+\subsection{Effect on the Joint Distribution}
+The virtual evidence term \( p(H | A) \) is incorporated into the
+joint distribution as a factor:
+\[
+p(B, A, H, W) = p(A | B) \, p(B) \, p(W | A) \, p(H | A).
+\]
+This modifies the joint distribution to reflect the decision-maker's
+interpretation of the unreliable evidence.
+
+\subsection{Posterior Update}
+When computing the posterior \( p(B = \text{tr} | W = \text{tr}, H) \),
+the virtual evidence term \( p(H | A) \) acts as a likelihood that
+favors certain states of \( A \) over others. For example, in the
+case above, \( p(H | A) \) favors \( A = \text{tr} \) by a factor
+of 4 compared to \( A = \text{fa} \).
+
+\section{Example: Holmes and the Alarm}
+Suppose Holmes receives unreliable evidence from Mrs Gibbon about
+whether an alarm sounded (\( A \)). He believes there is an 80\%
+chance the alarm sounded and a 20\% chance it did not. We model
+this using a virtual evidence term \( p(H | A) \):
+\[
+p(H | A) = 
+\begin{cases}
+0.8 & \text{if } A = \text{tr}, \\
+0.2 & \text{if } A = \text{fa}.
+\end{cases}
+\]
+
+\subsection{Step 1: Define the Joint Distribution}
+The joint distribution is:
+\[
+p(B, A, H, W) = p(A | B) \, p(B) \, p(W | A) \, p(H | A).
+\]
+
+\subsection{Step 2: Compute the Posterior}
+Using Bayes' rule, and since the alarm state \( A \) is not observed, we must marginalize over it:
+\[
+p(B = \text{tr} | W = \text{tr}, H) \propto p(B = \text{tr}) \sum_{a \in \{\text{tr},\text{fa}\}} p(A = a | B = \text{tr}) \, p(W = \text{tr} | A = a) \, p(H | A = a),
+\]
+and similarly for \( B = \text{fa} \); normalizing the two values gives the posterior. The evidence
+\( W \) and the virtual evidence \( H \) only reach \( B \) through the unobserved alarm \( A \).
+
+\section{Example 1: Is It Raining?}
+Suppose we want to determine if it's raining (\( x = 1 \)) or not
+(\( x = 0 \)). We have two pieces of evidence:
+\begin{itemize}
+    \item A weather app says it's raining (\( y_1 = 1 \)), but it's
+          correct only 80\% of the time.
+        \item A friend says it's not raining (\( y_2 = 0 \)), but he
+          is not always reliable: with probability 0.3 he is in an
+          ``unreliable'' state, in which he lies 30\% of the time (so
+          overall he lies \( 0.3 \times 0.3 = 9\% \) of the time).
+\end{itemize}
+
+\subsection{Step 1: Model Uncertain Evidence}
+The weather app provides uncertain evidence. We model its
+likelihood:
+\[
+p(y_1 = 1 | x = 1) = 0.8, \quad p(y_1 = 1 | x = 0) = 0.2
+\]
+
+\subsection{Step 2: Model Unreliable Evidence (Latent Reliability Variable)}
+The friend provides unreliable evidence. Instead of a virtual evidence term, we
+model the unreliability explicitly with a latent reliability
+variable \( r \) that is marginalized out, where \( r = 1 \) means the friend is reliable,
+and \( r = 0 \) means he is unreliable.
+
+\begin{itemize}
+    \item \textbf{If the friend is reliable (\( r = 1 \)):}
+    \begin{itemize}
+        \item He will tell the truth.
+        \item If it's raining (\( x = 1 \)), he will say it's raining (\( y_2 = 1 \)).
+        \item If it's not raining (\( x = 0 \)), he will say it's not raining (\( y_2 = 0 \)).
+    \end{itemize}
+    So:
+    \[
+    p(y_2 = 1 | x = 1, r = 1) = 1, \quad p(y_2 = 0 | x = 1, r = 1) = 0
+    \]
+    \[
+    p(y_2 = 0 | x = 0, r = 1) = 1, \quad p(y_2 = 1 | x = 0, r = 1) = 0
+    \]
+
+    \item \textbf{If the friend is unreliable (\( r = 0 \)):}
+    \begin{itemize}
+        \item He might lie.
+        \item Suppose he lies 30\% of the time.
+    \end{itemize}
+    So:
+    \[
+    p(y_2 = 1 | x = 1, r = 0) = 0.7, \quad p(y_2 = 0 | x = 1, r = 0) = 0.3
+    \]
+    \[
+    p(y_2 = 0 | x = 0, r = 0) = 0.7, \quad p(y_2 = 1 | x = 0, r = 0) = 0.3
+    \]
+\end{itemize}
+
+\subsection{Step 3: Combine Evidence}
+Assume a prior \( p(x = 1) = 0.5 \) and \( p(r = 1) = 0.7 \). Using
+Bayes' rule, we compute the posterior:
+\[
+p(x = 1 | y_1 = 1, y_2 = 0) \propto p(y_1 = 1 | x = 1) \,
+p(y_2 = 0 | x = 1) \, p(x = 1)
+\]
+\[
+p(x = 0 | y_1 = 1, y_2 = 0) \propto p(y_1 = 1 | x = 0) \,
+p(y_2 = 0 | x = 0) \, p(x = 0)
+\]
+
+First, compute \( p(y_2 = 0 | x = 1) \) and \( p(y_2 = 0 | x = 0) \):
+\[
+p(y_2 = 0 | x = 1) = p(y_2 = 0 | x = 1, r = 1) p(r = 1) +
+p(y_2 = 0 | x = 1, r = 0) p(r = 0)
+\]
+\[
+p(y_2 = 0 | x = 1) = 0 \times 0.7 + 0.3 \times 0.3 = 0.09
+\]
+\[
+p(y_2 = 0 | x = 0) = p(y_2 = 0 | x = 0, r = 1) p(r = 1) +
+p(y_2 = 0 | x = 0, r = 0) p(r = 0)
+\]
+\[
+p(y_2 = 0 | x = 0) = 1 \times 0.7 + 0.7 \times 0.3 = 0.91
+\]
+
+Now, compute the unnormalized posteriors:
+\[
+p(x = 1 | y_1 = 1, y_2 = 0) \propto 0.8 \times 0.09 \times 0.5 = 0.036
+\]
+\[
+p(x = 0 | y_1 = 1, y_2 = 0) \propto 0.2 \times 0.91 \times 0.5 = 0.091
+\]
+
+Normalize to obtain the final probabilities:
+\[
+p(x = 1 | y_1 = 1, y_2 = 0) = \frac{0.036}{0.036 + 0.091} \approx 0.283
+\]
+\[
+p(x = 0 | y_1 = 1, y_2 = 0) = \frac{0.091}{0.036 + 0.091} \approx 0.717
+\]
+
+\section{Example 2: Medical Diagnosis}
+Suppose a patient is tested for a disease (\( x = 1 \) if diseased,
+\( x = 0 \) otherwise). The test result (\( y \)) is positive, but
+the test has a 5\% false positive rate and a 10\% false negative rate.
+
+\subsection{Step 1: Model Uncertain Evidence}
+The test provides uncertain evidence. We model its likelihood:
+\[
+p(y = 1 | x = 1) = 0.9, \quad p(y = 1 | x = 0) = 0.05
+\]
+
+\subsection{Step 2: Incorporate Prior}
+Assume the disease prevalence is 1\%, so \( p(x = 1) = 0.01 \).
+
+\subsection{Step 3: Compute Posterior}
+Using Bayes' rule:
+\[
+p(x = 1 | y = 1) = \frac{p(y = 1 | x = 1) \, p(x = 1)}{p(y = 1)}
+\]
+\[
+p(y = 1) = p(y = 1 | x = 1) \, p(x = 1) + p(y = 1 | x = 0) \, p(x = 0)
+\]
+\[
+p(y = 1) = 0.9 \times 0.01 + 0.05 \times 0.99 = 0.0585
+\]
+\[
+p(x = 1 | y = 1) = \frac{0.9 \times 0.01}{0.0585} \approx 0.153
+\]
+The probability of having the disease given a positive test is 15.3\%.
+
+\section{Conclusion}
+Bayesian reasoning provides a principled way to handle uncertain
+and unreliable evidence. By modeling uncertainty and unreliability,
+we can update our beliefs in a rigorous and interpretable manner.
+\end{notechapter}

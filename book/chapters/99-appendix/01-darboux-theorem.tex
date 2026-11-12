@@ -1,0 +1,58 @@
+% Source: Graph_ML/Temp/tmp.tex
+\begin{notechapter}
+\chapter{Darboux's Theorem}\label{ch:darboux-theorem}
+\chaptersubtitle{The intermediate value property of derivatives}
+
+\section{Theorem Statement}
+Let $f$ be a function differentiable on a neighborhood of the closed interval $[a, b]$. Suppose that $f'(a) < m < f'(b)$. Then there exists a point $c \in (a, b)$ such that $f'(c) = m$.
+
+\section{Recalling Supporting Theorems}
+To prove this result, we rely on the following fundamental theorems of real analysis:
+
+\begin{enumerate}
+    \item \textbf{Extreme Value Theorem (EVT):} If a function $g$ is continuous on a closed and bounded interval $[a, b]$, then $g$ attains its absolute minimum and maximum values on that interval.
+    \item \textbf{Fermat's Theorem (Interior Extremum Theorem):} If a function $g$ is differentiable at an interior point $c \in (a, b)$ and attains a local extremum at $c$, then $g'(c) = 0$.
+\end{enumerate}
+
+\section{The Formal Proof}
+
+\subsection{Step 1: Construction of the Auxiliary Function}
+Define the function $g: [a, b] \to \mathbb{R}$ by:
+\[ g(x) = f(x) - mx \]
+Since $f$ is differentiable on $[a, b]$, it is necessarily continuous on $[a, b]$. Because $mx$ is also continuous, $g$ is continuous on the compact set $[a, b]$. By the \textbf{Extreme Value Theorem}, $g$ must attain an absolute minimum on $[a, b]$. 
+
+The derivative of $g$ is given by $g'(x) = f'(x) - m$. Evaluating at the endpoints, we have:
+\begin{align*}
+    g'(a) &= f'(a) - m < 0 \\
+    g'(b) &= f'(b) - m > 0
+\end{align*}
+
+\subsection{Step 2: Formal Proof that $a$ is not the Minimum}
+We use the $\epsilon$-$\delta$ definition of the derivative at $x=a$. Since $g'(a) = L < 0$, we have:
+\[ \lim_{x \to a^+} \frac{g(x) - g(a)}{x - a} = L \]
+Let $\epsilon = \frac{|L|}{2} > 0$. By the definition of the limit, there exists $\delta_1 > 0$ such that for all $x \in (a, a + \delta_1) \cap [a, b]$:
+\[ \left| \frac{g(x) - g(a)}{x - a} - L \right| < \epsilon \]
+Specifically, this implies:
+\[ \frac{g(x) - g(a)}{x - a} < L + \epsilon = L + \frac{-L}{2} = \frac{L}{2} \]
+Since $L < 0$, then $\frac{L}{2} < 0$. Because $x > a$, we have $x - a > 0$. Multiplying both sides by $(x - a)$ yields:
+\[ g(x) - g(a) < \frac{L}{2}(x - a) < 0 \implies g(x) < g(a) \]
+Thus, $g(a)$ is not the minimum value of $g$ on $[a, b]$.
+
+\subsection{Step 3: Formal Proof that $b$ is not the Minimum}
+Similarly, consider the limit at $x=b$. Since $g'(b) = K > 0$, we have:
+\[ \lim_{x \to b^-} \frac{g(x) - g(b)}{x - b} = K \]
+Let $\epsilon = \frac{K}{2} > 0$. There exists $\delta_2 > 0$ such that for all $x \in (b - \delta_2, b) \cap [a, b]$:
+\[ \frac{g(x) - g(b)}{x - b} > K - \epsilon = K - \frac{K}{2} = \frac{K}{2} \]
+Since $K > 0$, then $\frac{K}{2} > 0$. However, for $x < b$, we have $x - b < 0$. Multiplying both sides by $(x - b)$ reverses the inequality:
+\[ g(x) - g(b) < \frac{K}{2}(x - b) < 0 \implies g(x) < g(b) \]
+Thus, $g(b)$ is not the minimum value of $g$ on $[a, b]$.
+
+\subsection{Step 4: Conclusion via Fermat's Theorem}
+Since the absolute minimum exists on $[a, b]$ but is attained at neither $x=a$ nor $x=b$, the minimum must occur at some point $c$ in the open interval $(a, b)$. 
+
+Because $c$ is an interior point and $g$ is differentiable at $c$, \textbf{Fermat's Theorem} implies:
+\[ g'(c) = 0 \]
+Substituting our expression for $g'(x)$:
+\[ f'(c) - m = 0 \implies f'(c) = m \]
+This completes the proof.
+\end{notechapter}

@@ -1,0 +1,258 @@
+% Source: hierarchical_softmax.tex
+\begin{notechapter}
+% ---- chapter-local definitions ----
+\tikzset{
+    my colour/.style={draw=#1, fill=#1!50},
+    my leaf/.style={my colour=cyan,},
+  }
+\forestset{
+  every leaf node/.style={
+    if n children=0{#1}{}
+  }
+}
+% -----------------------------------
+\chapter{Hierarchical Softmax and Huffman Trees}\label{ch:hierarchical-softmax}
+
+\section{Introduction}
+Hierarchical Softmax is a technique used in natural language
+processing to efficiently compute probabilities for a large
+number of outcomes, such as predicting the next word in a
+sentence. It organizes outcomes into a hierarchical tree
+structure, reducing computational complexity. This document
+provides a detailed explanation of Hierarchical Softmax,
+Huffman trees, and their application in Word2Vec.
+
+\section{Hierarchical Softmax}
+\subsection{Motivation}
+In traditional Softmax, computing probabilities for a large
+vocabulary (e.g., 100,000 words) is computationally expensive
+because it requires calculating scores for every word and
+normalizing them. Hierarchical Softmax addresses this by
+organizing words into a binary tree, reducing the complexity
+from \( O(N) \) to \( O(\log N) \).
+
+\subsection{Tree Structure}
+The vocabulary is organized into a binary tree:
+\begin{itemize}
+    \item Each \textbf{leaf node} represents a word.
+    \item Each \textbf{internal node} represents a decision
+          point (e.g., left or right).
+\end{itemize}
+
+\subsection{Probability Calculation}
+The probability of a word \( w \) given a context vector
+\( w_i \) is computed by traversing the tree from the root
+to the leaf node corresponding to \( w \). At each internal
+node, a binary classifier decides whether to go left or
+right. The probability of \( w \) is the product of the
+probabilities along the path.
+
+\subsection{Example}
+For a vocabulary [cat, dog, apple, banana], the tree might
+look like this:
+
+\begin{verbatim}
+        Root
+       /    \
+     A       B
+    / \     / \
+ cat dog apple banana
+\end{verbatim}
+
+To compute \( P(\text{cat} \,|\, w_i) \):
+\begin{enumerate}
+    \item Start at Root.
+    \item Go left to A with \( P(\text{left} \,|\, \text{Root}, w_i) \).
+    \item Go left to "cat" with \( P(\text{left} \,|\, A, w_i) \).
+    \item \( P(\text{cat} \,|\, w_i) = P(\text{left} \,|\, \text{Root}, w_i)
+          \times P(\text{left} \,|\, A, w_i) \).
+\end{enumerate}
+
+\section{Huffman Trees}
+\subsection{What is a Huffman Tree?}
+A Huffman tree is a binary tree used for efficient encoding.
+It minimizes the average path length by placing frequent
+elements closer to the root. In Word2Vec, it is used to
+organize the vocabulary for Hierarchical Softmax.
+
+\subsection{Construction Algorithm}
+The Huffman tree is constructed using a greedy algorithm:
+\begin{enumerate}
+    \item Create a leaf node for each word, weighted by its frequency.
+    \item Repeatedly combine the two nodes with the smallest
+          frequencies into a new internal node.
+    \item Continue until all nodes are combined into a single tree.
+\end{enumerate}
+
+\subsection{Example}
+For words [cat (10), dog (8), apple (6), banana (5), 
+elephant (4), zebra (3), giraffe (2), lion (1)], the Huffman
+tree is constructed as follows:\\
+\hspace{2pt}\\
+\begin{forest}
+for tree={
+    circle,
+    draw=blue,
+    thick,
+    fill=blue!10, 
+    text=red,
+    s sep=25pt, l sep=10pt,
+    every leaf node={my leaf},
+    minimum size=6.5em,}
+[Root (39)
+    [Node (17)
+        [dog (8)]
+        [Node (9)
+            [banana (5)]
+            [elephant (4)]
+        ]
+    ]
+    [Node (22)
+        [cat (10)]
+        [Node (12)
+            [apple (6)]
+            [Node (6)
+                [zebra (3)]
+                [Node (3)
+                    [giraffe (2)]
+                    [lion (1)]
+                ]
+            ]
+        ]
+    ]
+]
+\end{forest}
+
+\subsection{Why Use a Huffman Tree?}
+\begin{itemize}
+    \item Frequent words are placed closer to the root, reducing
+          the number of computations.
+    \item Rare words are placed deeper in the tree, but their
+          impact on overall computation is minimal.
+    \item The tree minimizes the average path length, making it
+          optimal for efficient probability calculations.
+\end{itemize}
+
+\section{Word2Vec and Hierarchical Softmax}
+\subsection{Tree Depth}
+For a vocabulary of size \( N \), a \emph{balanced} binary tree has depth \( \lceil \log_2 N \rceil \):
+\begin{itemize}
+    \item a vocabulary of 10,000 words gives a depth of 14;
+    \item a vocabulary of 100,000 words gives a depth of 17.
+\end{itemize}
+A Huffman tree is not balanced. Its \emph{average} path length, weighted by word frequencies, lies
+between the entropy \( H \) of the unigram distribution and \( H + 1 \) bits, and \( H \leq \log_2 N \): for a
+Zipfian vocabulary the average path is noticeably shorter than \( \log_2 N \), which is what makes training
+fast. The path of a rare word, however, can be much longer than \( \log_2 N \) (the worst case is \( N - 1 \)),
+so ``\( O(\log N) \)'' should be understood as a statement about the average cost.
+
+\subsection{Node Vectors}
+Each internal node has a vector of size \( d \) (e.g., 300
+in Word2Vec). These vectors are used by binary classifiers
+to make decisions (left or right). The total number of
+vectors is \( N-1 \), where \( N \) is the vocabulary size.
+
+\subsection{Binary Classifiers}
+At each internal node, a binary classifier (e.g., logistic
+regression) computes the probability of going left or right:
+\[
+P(\text{left} \,|\, \text{node}, w_i) = \sigma(\mathbf{v}_{\text{node}}^T
+\cdot w_i + b_{\text{node}}),
+\]
+where:
+\begin{itemize}
+    \item \( \mathbf{v}_{\text{node}} \) is the node's vector.
+    \item \( w_i \) is the context vector.
+    \item \( b_{\text{node}} \) is a bias term.
+    \item \( \sigma \) is the sigmoid function.
+\end{itemize}
+
+\subsection{Training}
+During training:
+\begin{enumerate}
+    \item For a given context vector \( w_i \) and target word \( w \),
+          follow the path from the root to the leaf node for \( w \).
+    \item Update the parameters of the binary classifiers along the
+          path using gradient descent.
+    \item Only the classifiers on the path are updated, making
+          training efficient.
+\end{enumerate}
+
+\subsection{Simultaneous Learning of Tree and Embeddings}
+In Word2Vec, the \textbf{Huffman tree} and \textbf{word embeddings} are learned
+simultaneously during training. Here's how this works:
+\begin{itemize}
+    \item \textbf{Tree Initialization}: The Huffman tree is initialized
+          based on word frequencies. Frequent words are placed closer
+          to the root, and rare words are placed deeper in the tree.
+    \item \textbf{Node Vectors}: Each internal node is assigned a vector
+          (initialized randomly), which is used by binary classifiers
+          to make decisions (left or right).
+    \item \textbf{Forward Pass}: For a given context-target pair, the
+          model computes the probability of the target word by traversing
+          the tree from the root to the leaf node.
+    \item \textbf{Backward Pass}: Gradients are propagated back through
+          the tree, updating:
+          \begin{itemize}
+              \item The \textbf{context vector} (input embedding).
+              \item The \textbf{node vectors} along the path to the target word.
+              \item The \textbf{binary classifiers} at each internal node.
+          \end{itemize}
+    \item \textbf{Dynamic Adaptation}: Over time, the tree structure,
+          node vectors, and word embeddings are jointly optimized to
+          minimize the prediction error.
+\end{itemize}
+
+\section{Vectors in Word2Vec}
+\subsection{What Are the Vectors?}
+In Word2Vec, each word is represented as a dense vector in a
+continuous vector space. These vectors capture semantic
+relationships between words. There are two types of vectors:
+\begin{itemize}
+    \item \textbf{Input Vectors}: Represent the context words.
+    \item \textbf{Output Vectors}: Represent the target words.
+\end{itemize}
+
+\subsection{How Are They Learned?}
+Word2Vec learns these vectors using one of two algorithms:
+\begin{itemize}
+    \item \textbf{Continuous Bag of Words (CBOW)}: Predicts a target
+          word given its context words.
+    \item \textbf{Skip-Gram}: Predicts context words given a target
+          word.
+\end{itemize}
+
+\subsection{Hierarchical Softmax in Word2Vec}
+Hierarchical Softmax is used in both CBOW and Skip-Gram to
+efficiently compute the probability of a target word given
+its context (or vice versa). It replaces the traditional
+Softmax layer with a Huffman tree, reducing computational
+complexity.
+
+\section{Algorithms Using Hierarchical Softmax}
+Hierarchical Softmax is used in the following algorithms:
+\begin{itemize}
+    \item \textbf{Word2Vec}: For efficient word embedding learning.
+    \item \textbf{Glove}: Although Glove typically uses other
+          optimization techniques, variants may use Hierarchical
+          Softmax.
+    \item \textbf{FastText}: Extends Word2Vec to subword
+          representations and uses Hierarchical Softmax for
+          large vocabularies.
+\end{itemize}
+
+\section{Advantages of Hierarchical Softmax}
+\begin{itemize}
+    \item \textbf{Efficiency}: Reduces computational complexity
+          from \( O(N) \) to \( O(\log N) \).
+    \item \textbf{Scalability}: Works well for large vocabularies.
+    \item \textbf{Shared Structure}: A single tree is shared across
+          all context vectors, reducing memory usage.
+\end{itemize}
+
+\section{Conclusion}
+Hierarchical Softmax and Huffman trees are powerful tools
+for efficiently computing probabilities in large vocabularies.
+They are widely used in Word2Vec and other NLP models to
+improve computational efficiency and scalability.
+\end{notechapter}

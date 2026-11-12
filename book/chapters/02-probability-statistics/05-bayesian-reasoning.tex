@@ -1,0 +1,205 @@
+% Source: prior_likelyhood_posterior.tex
+\begin{notechapter}
+% ---- chapter-local definitions ----
+\forgetcs\argmax\newcommand{\argmax}{\operatorname*{arg\,max}}
+% -----------------------------------
+\chapter{Bayesian Reasoning}\label{ch:bayesian-reasoning}
+\chaptersubtitle{Prior, likelihood and posterior}
+
+\section{Prior, Likelihood, and Posterior}
+
+In Bayesian reasoning, we are often interested in inferring the 
+probability of a hypothesis \( \theta \) given some observed data 
+\( \mathcal{D} \). This is achieved using Bayes' theorem, which 
+relates the \textbf{prior}, \textbf{likelihood}, and \textbf{posterior} 
+probabilities.
+
+\subsection{Bayes' Theorem}
+Bayes' theorem is stated as:
+\[
+p(\theta \mid \mathcal{D}) = \frac{p(\mathcal{D} \mid \theta) \, p(\theta)}{p(\mathcal{D})},
+\]
+where:
+\begin{itemize}
+    \item \( p(\theta \mid \mathcal{D}) \) is the \textbf{posterior 
+          probability} of the hypothesis \( \theta \) given the data 
+          \( \mathcal{D} \).
+    \item \( p(\mathcal{D} \mid \theta) \) is the \textbf{likelihood} 
+          of the data \( \mathcal{D} \) under the hypothesis \( \theta \).
+    \item \( p(\theta) \) is the \textbf{prior probability} of the 
+          hypothesis \( \theta \), representing our beliefs about 
+          \( \theta \) before observing the data.
+    \item \( p(\mathcal{D}) \) is the \textbf{marginal likelihood} 
+          (or evidence), which acts as a normalizing constant to ensure 
+          the posterior probability sums to 1.
+\end{itemize}
+
+\subsection{Prior Probability}
+The prior probability \( p(\theta) \) encodes our initial beliefs 
+about the hypothesis \( \theta \) before observing any data. For 
+example, if \( \theta \) represents the probability of a coin landing 
+heads, a reasonable prior might be a uniform distribution, reflecting 
+no initial bias toward heads or tails.
+
+\subsection{Likelihood}
+The likelihood \( p(\mathcal{D} \mid \theta) \) quantifies how well 
+the hypothesis \( \theta \) explains the observed data \( \mathcal{D} \). 
+For example, if \( \theta \) is the probability of a coin landing 
+heads, and we observe 7 heads in 10 flips, the likelihood measures 
+how probable this outcome is under the hypothesis \( \theta \).
+
+\subsection{Posterior Probability}
+The posterior probability \( p(\theta \mid \mathcal{D}) \) represents 
+our updated beliefs about the hypothesis \( \theta \) after observing 
+the data \( \mathcal{D} \). It combines the prior probability and the 
+likelihood using Bayes' theorem. The posterior is proportional to the 
+product of the prior and the likelihood:
+\[
+p(\theta \mid \mathcal{D}) \propto p(\mathcal{D} \mid \theta) \, p(\theta).
+\]
+
+\subsection{Marginal Likelihood}
+The marginal likelihood \( p(\mathcal{D}) \) is computed by summing 
+(or integrating) over all possible hypotheses:
+\[
+p(\mathcal{D}) = \sum_{\theta} p(\mathcal{D} \mid \theta) \, p(\theta)
+\quad\text{or}\quad
+p(\mathcal{D}) = \int p(\mathcal{D} \mid \theta) \, p(\theta)\, d\theta .
+\]
+This ensures that the posterior probability is properly normalized.
+
+\subsection{Generative Model and Posterior Inference}
+Bayesian reasoning allows us to infer the posterior distribution 
+\( p(\theta \mid \mathcal{D}) \) of a variable \( \theta \) given 
+observed data \( \mathcal{D} \). This is achieved by combining a 
+\textbf{forward} or \textbf{generative model} \( p(\mathcal{D} \mid \theta) \) 
+with a \textbf{prior belief} \( p(\theta) \) about the variable. The 
+generative model describes how the data \( \mathcal{D} \) is generated 
+from the variable \( \theta \), while the prior encodes our initial 
+beliefs about plausible values of \( \theta \).
+
+\subsection{Maximum a Posteriori (MAP) Estimation}
+The \textbf{most probable a posteriori (MAP)} setting is the value of 
+\( \theta \) that maximizes the posterior distribution:
+\[
+\theta^* = \argmax_{\theta} p(\theta \mid \mathcal{D}).
+\]
+This represents the most plausible value of \( \theta \) given the 
+observed data \( \mathcal{D} \) and the prior \( p(\theta) \).
+
+\subsection{Connection to Maximum Likelihood (ML)}
+When the prior \( p(\theta) \) is \textbf{flat} (i.e., a constant that 
+does not depend on \( \theta \)), the posterior distribution is 
+proportional to the likelihood:
+\[
+p(\theta \mid \mathcal{D}) \propto p(\mathcal{D} \mid \theta).
+\]
+In this case, the MAP solution reduces to the \textbf{Maximum Likelihood 
+(ML)} estimate:
+\[
+\theta^* = \argmax_{\theta} p(\mathcal{D} \mid \theta).
+\]
+The ML estimate is the value of \( \theta \) that maximizes the 
+likelihood of the observed data \( \mathcal{D} \), ignoring any prior 
+information about \( \theta \).
+
+\subsection{Example: Coin Tossing}
+Consider a simple example of inferring the bias \( \theta \) of a coin 
+from observed data. Suppose we flip a coin \( N \) times and observe 
+\( h \) heads. The likelihood of the observed sequence of flips is
+\[
+p(\mathcal{D} \mid \theta) = \theta^h (1 - \theta)^{N - h}.
+\]
+(If only the number of heads is recorded, the binomial likelihood has an extra factor \( \binom{N}{h} \), which does not depend on \( \theta \) and therefore does not change the posterior.)
+If we assume a uniform prior \( p(\theta) = 1 \) for \( \theta \in [0, 1] \), 
+the posterior distribution is:
+\[
+p(\theta \mid \mathcal{D}) \propto \theta^h (1 - \theta)^{N - h}.
+\]
+This is a Beta distribution, \( \text{Beta}(\theta \mid h + 1, N - h + 1) \), 
+which reflects our updated beliefs about the coin's bias after observing 
+the data.
+
+\subsection{Example: Pendulum}
+Consider an idealised pendulum where \( x_t \) is the angular displacement 
+of the pendulum at time \( t \). Assuming that the measurements are 
+independent given the parameter \( \theta \), the likelihood of a sequence 
+of observations \( x_1, \dots, x_T \) is given by:
+\[
+p(x_1, \dots, x_T \mid \theta) = \prod_{t=1}^T p(x_t \mid \theta).
+\]
+If the model is perfect and the measurements are perfect, the physical 
+model is:
+\[
+x_t = \sin(\theta t),
+\]
+where \( \theta \) represents the unknown physical constants of the 
+pendulum (e.g., \( \theta = \sqrt{g/L} \), where \( g \) is the 
+gravitational acceleration and \( L \) is the length of the pendulum). 
+
+However, if the measurement instrument is poor, with a known variance 
+\( \sigma^2 \), the model becomes:
+\[
+x_t = \sin(\theta t) + \epsilon_t,
+\]
+where \( \epsilon_t \) is zero-mean Gaussian noise with variance \( \sigma^2 \).
+
+We can place a prior \( p(\theta) \) over the possible values of \( \theta \), 
+expressing our prior belief in the appropriateness of different values. 
+The posterior distribution is then given by:
+\[
+p(\theta \mid x_1, \dots, x_T) \propto p(\theta) \prod_{t=1}^T p(x_t \mid \theta).
+\]
+Despite noisy measurements, the posterior over the possible values of \( \theta \) 
+becomes strongly peaked, as shown in Figure~1.1 of D.~Barber, \emph{Bayesian Reasoning and Machine Learning}.
+
+\subsubsection{Derivation of the Posterior}
+The expression for the posterior distribution:
+\[
+p(\theta \mid x_1, \dots, x_T) \propto p(\theta) \prod_{t=1}^T p(x_t \mid \theta)
+\]
+is derived from \textbf{Bayes' theorem} and the assumption that the observations 
+\( x_1, \dots, x_T \) are \textbf{conditionally independent} given \( \theta \).
+
+\paragraph{Bayes' Theorem}
+Bayes' theorem states that the posterior distribution is proportional to the 
+product of the prior and the likelihood:
+\[
+p(\theta \mid x_1, \dots, x_T) = \frac{p(x_1, \dots, x_T \mid \theta) \, p(\theta)}{p(x_1, \dots, x_T)}.
+\]
+Since the marginal likelihood \( p(x_1, \dots, x_T) \) does not depend on \( \theta \), 
+we can write:
+\[
+p(\theta \mid x_1, \dots, x_T) \propto p(x_1, \dots, x_T \mid \theta) \, p(\theta).
+\]
+
+\paragraph{Conditional Independence}
+The key assumption is that the observations \( x_1, \dots, x_T \) are conditionally 
+independent given \( \theta \). This means:
+\[
+p(x_1, \dots, x_T \mid \theta) = \prod_{t=1}^T p(x_t \mid \theta).
+\]
+Substituting this into Bayes' theorem gives:
+\[
+p(\theta \mid x_1, \dots, x_T) \propto p(\theta) \prod_{t=1}^T p(x_t \mid \theta).
+\]
+
+\paragraph{Interpretation}
+\begin{itemize}
+    \item The \textbf{prior} \( p(\theta) \) encodes our initial beliefs about \( \theta \).
+    \item The \textbf{likelihood} \( \prod_{t=1}^T p(x_t \mid \theta) \) measures how well 
+          \( \theta \) explains the observed data.
+    \item The \textbf{posterior} combines the prior and likelihood to provide updated 
+          beliefs about \( \theta \).
+\end{itemize}
+
+\subsection{Summary}
+Bayesian reasoning provides a principled framework for updating beliefs 
+in light of new evidence. The prior represents initial beliefs, the 
+likelihood measures how well the hypothesis explains the data, and the 
+posterior combines these to provide updated beliefs. The marginal 
+likelihood ensures proper normalization of the posterior. Additionally, 
+the MAP estimate provides the most plausible value of \( \theta \) given 
+the data and prior, while the ML estimate maximizes the likelihood under 
+a flat prior.
+\end{notechapter}

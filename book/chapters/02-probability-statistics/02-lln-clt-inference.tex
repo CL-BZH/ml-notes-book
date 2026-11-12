@@ -1,0 +1,93 @@
+% Source: Markdown/stats_details.md
+\begin{notechapter}
+\chapter{Limit Theorems and Statistical Inference}\label{ch:lln-clt-inference}
+
+Throughout, $X_1, \dots, X_n$ are i.i.d.\ copies of a random variable $X$ with mean
+$\mu = \mathbb{E}[X]$ and (when it exists) variance $\sigma^2 = \operatorname{Var}(X)$, and
+$\bar{X}_n = \frac{1}{n}\sum_{i=1}^n X_i$ is the sample mean.
+
+\section{Law of Large Numbers}
+
+\begin{itemize}
+\item \textbf{Statement}: if $\mathbb{E}[|X|] < \infty$, then $\bar{X}_n \to \mu$ as
+  $n \to \infty$, in probability (weak law) and even almost surely (strong law).
+\item \textbf{Quantitative version}: if $\sigma^2 < \infty$, Chebyshev's inequality gives
+  $\mathbb{P}\big(|\bar{X}_n - \mu| \geq \varepsilon\big) \leq \dfrac{\sigma^2}{n\varepsilon^2}$,
+  since $\operatorname{Var}(\bar{X}_n) = \sigma^2/n$.
+\item \textbf{Implication}: estimators built from averages (sample mean, empirical risk,
+  Monte Carlo estimates) become accurate as the sample grows; the standard deviation of
+  the error decreases like $1/\sqrt{n}$.
+\end{itemize}
+
+\section{Central Limit Theorem}
+
+\begin{itemize}
+\item \textbf{Statement}: if $\sigma^2 < \infty$, then
+  \[
+  \sqrt{n}\,\frac{\bar{X}_n - \mu}{\sigma} \xrightarrow{\ d\ } \mathcal{N}(0, 1),
+  \]
+  whatever the distribution of $X$ (as long as its variance is finite). Informally,
+  $\bar{X}_n \approx \mathcal{N}(\mu, \sigma^2/n)$ for large $n$.
+\item \textbf{Caveats}: the finite-variance assumption matters (for a Cauchy distribution,
+  $\bar{X}_n$ has the same Cauchy distribution for every $n$); and ``large $n$'' depends on the
+  skewness of $X$.
+\item \textbf{Implication}: normal approximations can be used for inference, e.g.\ confidence
+  intervals and tests on means, even when $X$ itself is not Gaussian.
+\end{itemize}
+
+\section{Confidence Intervals}
+
+\begin{itemize}
+\item \textbf{Definition}: a $(1-\alpha)$ confidence interval is a \emph{random} interval
+  $[L(X_{1:n}), U(X_{1:n})]$ such that $\mathbb{P}\big(L \leq \mu \leq U\big) \geq 1 - \alpha$
+  (exactly or asymptotically). The probability is over the sample, not over $\mu$, which is fixed.
+\item \textbf{Example}: by the CLT (with $\sigma$ estimated by the sample standard deviation
+  $s$), an approximate 95\% confidence interval for $\mu$ is
+  \[
+  \bar{X}_n \pm 1.96 \cdot \frac{s}{\sqrt{n}},
+  \]
+  where $1.96$ is the $0.975$ quantile of $\mathcal{N}(0,1)$. For small Gaussian samples,
+  $1.96$ is replaced by the $0.975$ quantile of Student's $t_{n-1}$ distribution.
+\item \textbf{Interpretation}: if we repeated the sampling process many times, about 95\% of
+  the intervals would contain $\mu$. Once the data are observed, a \emph{particular} interval
+  either contains $\mu$ or not: it is incorrect to say that $\mu$ lies in it with probability 95\%
+  (that statement belongs to Bayesian credible intervals).
+\end{itemize}
+
+\section{Hypothesis Testing}
+
+\begin{itemize}
+\item \textbf{Purpose}: decide whether the data provide enough evidence against a null
+  hypothesis $H_0$ (e.g.\ $\mu = \mu_0$) in favour of an alternative $H_1$ (e.g.\ $\mu \neq \mu_0$).
+\item \textbf{Steps}:
+  \begin{enumerate}
+  \item State $H_0$, $H_1$ and the significance level $\alpha$ (e.g.\ $0.05$).
+  \item Compute a test statistic whose distribution under $H_0$ is known, e.g.\
+        $T = \sqrt{n}\,(\bar{X}_n - \mu_0)/s$ (Student $t_{n-1}$ for Gaussian data,
+        approximately $\mathcal{N}(0,1)$ for large $n$).
+  \item Compute the $p$-value: the probability, under $H_0$, of a statistic at least as
+        extreme as the one observed.
+  \item Reject $H_0$ if $p \leq \alpha$; the probability of a false rejection (type I error) is then at most $\alpha$.
+  \end{enumerate}
+\item \textbf{Duality}: the two-sided test at level $\alpha$ rejects $\mu = \mu_0$ exactly when
+  $\mu_0$ is outside the $(1-\alpha)$ confidence interval.
+\item \textbf{Caveat}: a $p$-value is not the probability that $H_0$ is true, and failing to reject
+  $H_0$ does not prove it.
+\end{itemize}
+
+\section{Bayesian Inference}
+
+\begin{itemize}
+\item \textbf{Key idea}: treat the unknown parameter $\theta$ as a random quantity with a prior
+  distribution $P(\theta)$ encoding what is known before seeing the data.
+\item \textbf{Posterior distribution}: the updated belief after observing the data $D$,
+  \[
+  P(\theta \mid D) = \frac{P(D \mid \theta)\, P(\theta)}{P(D)} \propto P(D \mid \theta)\, P(\theta).
+  \]
+\item \textbf{Credible intervals}: an interval $I$ with $P(\theta \in I \mid D) = 0.95$ \emph{does}
+  have the probabilistic reading that confidence intervals lack.
+\item \textbf{Advantage}: incorporates prior knowledge and quantifies uncertainty; as $n$ grows,
+  the posterior concentrates around the true value and, under regularity conditions, becomes
+  approximately Gaussian (Bernstein--von Mises theorem), reconciling the two viewpoints.
+\end{itemize}
+\end{notechapter}

@@ -1,0 +1,643 @@
+% Source: em_algorithm.tex
+\begin{notechapter}
+% ---- chapter-local definitions ----
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+% -----------------------------------
+\chapter{The EM Algorithm}\label{ch:em-algorithm}
+\chaptersubtitle{The three-coin model, from first principles to implementation}
+
+\section*{Introduction for Students}
+
+Welcome! This document will guide you through one of the most beautiful ideas in machine learning: the Expectation-Maximization (EM) algorithm. We'll use a simple three-coin example to understand how EM helps us estimate parameters when we have hidden variables. Even if you're new to these concepts, we'll build everything step by step.
+
+\section{The Three-Coin Problem: Setting the Stage}
+
+\subsection{The Physical Setup}
+
+Imagine you have three coins:
+\begin{itemize}
+    \item \textbf{Coin A}: Probability of heads = $\pi$ (unknown)
+    \item \textbf{Coin B}: Probability of heads = $p$ (unknown)
+    \item \textbf{Coin C}: Probability of heads = $q$ (unknown)
+\end{itemize}
+
+Here's the experiment:
+\begin{enumerate}
+    \item Toss coin A
+    \item If coin A shows heads, select coin B; if tails, select coin C
+    \item Toss the selected coin (B or C) and record the result
+    \item Repeat 10 times
+\end{enumerate}
+
+You observe these results: 1, 1, 0, 1, 0, 0, 1, 0, 1, 1 (1 = heads, 0 = tails)
+
+\subsection{The Mathematical Challenge}
+
+Here's the tricky part: \textbf{You only see the final coin toss results, not which coin (B or C) was used!}
+
+Let's define our variables mathematically:
+\begin{itemize}
+    \item $y$: observed outcome (1 = heads, 0 = tails)
+    \item $z$: hidden/latent variable (1 = coin B was used, 0 = coin C was used)
+    \item $\theta = (\pi, p, q)$: parameters we want to estimate
+\end{itemize}
+
+\section{Understanding the Probabilities}
+
+\subsection{Complete Data Likelihood}
+
+If we could see both $y$ and $z$, the probability would be straightforward:
+
+\begin{align*}
+P(y, z|\theta) &= P(z|\theta) \cdot P(y|z,\theta) \\
+&= \begin{cases}
+\pi \cdot p^y(1-p)^{1-y} & \text{if } z = 1 \text{ (coin B was used)} \\
+(1-\pi) \cdot q^y(1-q)^{1-y} & \text{if } z = 0 \text{ (coin C was used)}
+\end{cases}
+\end{align*}
+
+We can write this more compactly using exponents:
+\[
+P(y, z|\theta) = [\pi p^y(1-p)^{1-y}]^z \cdot [(1-\pi) q^y(1-q)^{1-y}]^{1-z}
+\]
+
+\textbf{Why this works}: When $z=1$, the first term is active and the second term becomes $[\cdots]^0 = 1$. When $z=0$, the opposite happens.
+
+\subsection{Marginal Likelihood (What We Actually See)}
+
+Since we don't observe $z$, we need to \textbf{marginalize} over it (sum over all possible values):
+
+\begin{align*}
+P(y|\theta) &= \sum_{z \in \{0,1\}} P(y, z|\theta) \\
+&= P(y, z=1|\theta) + P(y, z=0|\theta) \\
+&= \pi p^y(1-p)^{1-y} + (1-\pi) q^y(1-q)^{1-y}
+\end{align*}
+
+For multiple observations $Y = (y_1, \ldots, y_n)$, since they're independent:
+\[
+P(Y|\theta) = \prod_{j=1}^n \left[\pi p^{y_j}(1-p)^{1-y_j} + (1-\pi) q^{y_j}(1-q)^{1-y_j}\right]
+\]
+
+\section{The Maximum Likelihood Estimation Problem}
+
+\subsection{The Log-Likelihood Function}
+
+We want to find parameters that make our observations most likely:
+\[
+\hat{\theta} = \arg\max_{\theta} \log P(Y|\theta)
+\]
+
+The log-likelihood is:
+\[
+\mathcal{L}(\theta) = \sum_{j=1}^n \log\left[\pi p^{y_j}(1-p)^{1-y_j} + (1-\pi) q^{y_j}(1-q)^{1-y_j}\right]
+\]
+
+\subsection{Why This is Hard to Optimize}
+
+Look at the term inside the log: $\pi p^{y_j}(1-p)^{1-y_j} + (1-\pi) q^{y_j}(1-q)^{1-y_j}$
+
+\begin{itemize}
+    \item It's a \textbf{sum} inside a \textbf{logarithm}
+    \item The parameters $\pi, p, q$ are all mixed together
+    \item Taking derivatives leads to messy equations
+    \item There's no closed-form solution
+\end{itemize}
+
+This is exactly the kind of problem where the EM algorithm shines!
+
+\section{The Brilliant Idea: Expectation-Maximization}
+
+\subsection{Key Insight: Work with Complete Data}
+
+If we knew the hidden variables $z$, the problem would be easy! The complete data log-likelihood would be:
+\[
+\log P(Y, Z|\theta) = \sum_{j=1}^n \left[z_j \log(\pi p^{y_j}(1-p)^{1-y_j}) + (1-z_j) \log((1-\pi) q^{y_j}(1-q)^{1-y_j})\right]
+\]
+
+This separates nicely and we could estimate parameters easily.
+
+\subsection{The Expectation Trick}
+
+Since we don't know $z$, let's take expectations! For any probability distribution $q(z)$, we can write:
+
+\begin{align*}
+P(y|\theta) &= \sum_z P(y,z|\theta) \quad \text{(definition)} \\
+&= \sum_z q(z) \cdot \frac{P(y,z|\theta)}{q(z)} \quad \text{(multiply and divide by $q(z)$)} \\
+&= \mathbb{E}_{q(z)}\left[\frac{P(y,z|\theta)}{q(z)}\right] \quad \text{(this is the key insight!)}
+\end{align*}
+
+\textbf{Let's verify this works}:
+\begin{align*}
+\mathbb{E}_{q(z)}\left[\frac{P(y,z|\theta)}{q(z)}\right] 
+&= q(z=1)\frac{P(y,z=1|\theta)}{q(z=1)} + q(z=0)\frac{P(y,z=0|\theta)}{q(z=0)} \\
+&= P(y,z=1|\theta) + P(y,z=0|\theta) \\
+&= P(y|\theta) \quad \text{✓}
+\end{align*}
+
+The $q(z)$ terms cancel out! This works for \textbf{any} distribution $q(z)$.
+
+\subsection{Jensen's Inequality and the Lower Bound}
+
+Now take logarithms of both sides:
+\[
+\log P(y|\theta) = \log \mathbb{E}_{q(z)}\left[\frac{P(y,z|\theta)}{q(z)}\right]
+\]
+
+Since $\log$ is a \textbf{concave} function, Jensen's inequality tells us:
+\[
+\log \mathbb{E}[X] \geq \mathbb{E}[\log X]
+\]
+
+Applying this:
+\[
+\log P(y|\theta) \geq \mathbb{E}_{q(z)}\left[\log\frac{P(y,z|\theta)}{q(z)}\right]
+\]
+
+Let's expand the right-hand side:
+\begin{align*}
+\mathbb{E}_{q(z)}\left[\log\frac{P(y,z|\theta)}{q(z)}\right] 
+&= \mathbb{E}_{q(z)}\left[\log P(y,z|\theta) - \log q(z)\right] \\
+&= \mathbb{E}_{q(z)}\left[\log P(y,z|\theta)\right] - \mathbb{E}_{q(z)}\left[\log q(z)\right]
+\end{align*}
+
+Define:
+\begin{align*}
+Q(\theta, q) &= \mathbb{E}_{q(z)}\left[\log P(y,z|\theta)\right] \quad \text{(expected complete data log-likelihood)} \\
+H(q) &= -\mathbb{E}_{q(z)}\left[\log q(z)\right] \quad \text{(entropy of $q$)}
+\end{align*}
+
+So we have:
+\[
+\log P(y|\theta) \geq Q(\theta, q) + H(q)
+\]
+
+\subsection{The Evidence Lower Bound (ELBO)}
+
+The quantity $\text{ELBO}(\theta, q) = Q(\theta, q) + H(q)$ is called the \textbf{Evidence Lower Bound}. The name makes sense:
+\begin{itemize}
+    \item \textbf{Evidence}: $\log P(y|\theta)$ is often called the log-evidence
+    \item \textbf{Lower Bound}: Our expression is always ≤ the true log-evidence
+    \item \textbf{Bound}: It bounds the true likelihood from below
+\end{itemize}
+
+\subsection{Finding the Tightest Bound}
+
+When is the bound tight? Jensen's inequality becomes equality when:
+\[
+\frac{P(y,z|\theta)}{q(z)} = \text{constant} \quad \text{(doesn't depend on $z$)}
+\]
+
+If $\frac{P(y,z|\theta)}{q(z)} = c$, then:
+\[
+P(y,z|\theta) = c \cdot q(z)
+\]
+
+Sum over $z$:
+\[
+\sum_z P(y,z|\theta) = c \cdot \sum_z q(z) \Rightarrow P(y|\theta) = c \cdot 1 \Rightarrow c = P(y|\theta)
+\]
+
+So:
+\[
+P(y,z|\theta) = P(y|\theta) \cdot q(z) \Rightarrow q(z) = \frac{P(y,z|\theta)}{P(y|\theta)} = P(z|y,\theta)
+\]
+
+\textbf{The optimal choice is the posterior distribution!}
+
+\section{The EM Algorithm for Three Coins}
+
+\subsection{The EM Strategy}
+
+Since we don't know the optimal $\theta$, we use an iterative approach:
+
+\begin{enumerate}
+    \item Start with initial guess $\theta^{(0)}$
+    \item Repeat until convergence:
+    \begin{itemize}
+        \item \textbf{E-step}: Given current $\theta^{(t)}$, compute $q(z) = P(z|y,\theta^{(t)})$
+        \item \textbf{M-step}: Find $\theta^{(t+1)} = \arg\max_{\theta} Q(\theta, \theta^{(t)})$
+    \end{itemize}
+\end{enumerate}
+
+\subsection{E-step: Computing Responsibilities}
+
+For each observation $y_j$, compute:
+\[
+\gamma_j^{(t)} = P(z_j = 1|y_j, \theta^{(t)}) = \frac{\pi^{(t)} (p^{(t)})^{y_j}(1-p^{(t)})^{1-y_j}}{\pi^{(t)} (p^{(t)})^{y_j}(1-p^{(t)})^{1-y_j} + (1-\pi^{(t)}) (q^{(t)})^{y_j}(1-q^{(t)})^{1-y_j}}
+\]
+
+This $\gamma_j$ represents the probability that coin B was used for observation $j$.
+
+The Q-function becomes:
+\[
+Q(\theta, \theta^{(t)}) = \sum_{j=1}^n \left[\gamma_j^{(t)} \log(\pi p^{y_j}(1-p)^{1-y_j}) + (1-\gamma_j^{(t)}) \log((1-\pi) q^{y_j}(1-q)^{1-y_j})\right]
+\]
+
+\subsection{M-step: Closed-Form Updates}
+
+We maximize $Q(\theta, \theta^{(t)})$ by taking derivatives:
+
+\begin{align*}
+\frac{\partial Q}{\partial \pi} &= \sum_{j=1}^n \left[\frac{\gamma_j^{(t)}}{\pi} - \frac{1-\gamma_j^{(t)}}{1-\pi}\right] = 0 \\
+&\Rightarrow \pi^{(t+1)} = \frac{1}{n} \sum_{j=1}^n \gamma_j^{(t)}
+\end{align*}
+
+\begin{align*}
+\frac{\partial Q}{\partial p} &= \sum_{j=1}^n \gamma_j^{(t)} \left[\frac{y_j}{p} - \frac{1-y_j}{1-p}\right] = 0 \\
+&\Rightarrow p^{(t+1)} = \frac{\sum_{j=1}^n \gamma_j^{(t)} y_j}{\sum_{j=1}^n \gamma_j^{(t)}}
+\end{align*}
+
+\begin{align*}
+\frac{\partial Q}{\partial q} &= \sum_{j=1}^n (1-\gamma_j^{(t)}) \left[\frac{y_j}{q} - \frac{1-y_j}{1-q}\right] = 0 \\
+&\Rightarrow q^{(t+1)} = \frac{\sum_{j=1}^n (1-\gamma_j^{(t)}) y_j}{\sum_{j=1}^n (1-\gamma_j^{(t)})}
+\end{align*}
+
+\subsection{Why EM Guarantees Improvement}
+
+Let's prove why the log-likelihood never decreases. For every $z$,
+$\log P(y|\theta) = \log P(y,z|\theta) - \log P(z|y,\theta)$. Taking the expectation of both sides
+under $P(z|y,\theta^{(t)})$ (the left-hand side does not depend on $z$) gives, for every $\theta$,
+\[
+\mathcal{L}(\theta) = Q(\theta, \theta^{(t)}) + H(\theta, \theta^{(t)}).
+\]
+Hence
+\begin{align*}
+\mathcal{L}(\theta^{(t+1)}) - \mathcal{L}(\theta^{(t)})
+&= [Q(\theta^{(t+1)}, \theta^{(t)}) - Q(\theta^{(t)}, \theta^{(t)})] \\
+&\quad + [H(\theta^{(t+1)}, \theta^{(t)}) - H(\theta^{(t)}, \theta^{(t)})]
+\end{align*}
+
+where $H(\theta, \theta^{(t)}) = -\mathbb{E}_{P(z|y,\theta^{(t)})}[\log P(z|y,\theta)]$.
+
+Now let's examine the second term more carefully. First, recall that at iteration $t$, we use $q(z) = P(z|y,\theta^{(t)})$. The entropy term is:
+
+\[
+H(\theta, \theta^{(t)}) = -\mathbb{E}_{P(z|y,\theta^{(t)})}[\log P(z|y,\theta)]
+\]
+
+Now consider the difference:
+
+\begin{align*}
+H(\theta^{(t+1)}, \theta^{(t)}) - H(\theta^{(t)}, \theta^{(t)}) 
+&= -\mathbb{E}_{P(z|y,\theta^{(t)})}[\log P(z|y,\theta^{(t+1)})] + \mathbb{E}_{P(z|y,\theta^{(t)})}[\log P(z|y,\theta^{(t)})] \\
+&= \mathbb{E}_{P(z|y,\theta^{(t)})}\left[\log\frac{P(z|y,\theta^{(t)})}{P(z|y,\theta^{(t+1)})}\right]
+\end{align*}
+
+But this is exactly the \textbf{KL divergence}:
+
+\[
+\text{KL}(P(z|y,\theta^{(t)}) \| P(z|y,\theta^{(t+1)})) = \mathbb{E}_{P(z|y,\theta^{(t)})}\left[\log\frac{P(z|y,\theta^{(t)})}{P(z|y,\theta^{(t+1)})}\right]
+\]
+
+And we know that KL divergence is always non-negative:
+\[
+\text{KL}(P \| Q) \geq 0 \quad \text{for any distributions } P, Q
+\]
+with equality if and only if $P = Q$.
+
+Therefore:
+\[
+H(\theta^{(t+1)}, \theta^{(t)}) - H(\theta^{(t)}, \theta^{(t)}) = \text{KL}(P(z|y,\theta^{(t)}) \| P(z|y,\theta^{(t+1)})) \geq 0
+\]
+
+Now going back to our original difference:
+
+\begin{align*}
+\mathcal{L}(\theta^{(t+1)}) - \mathcal{L}(\theta^{(t)}) 
+&= [Q(\theta^{(t+1)}, \theta^{(t)}) - Q(\theta^{(t)}, \theta^{(t)})] \\
+&\quad + \underbrace{[H(\theta^{(t+1)}, \theta^{(t)}) - H(\theta^{(t)}, \theta^{(t)})]}_{\text{KL divergence} \geq 0}
+\end{align*}
+
+Since we choose $\theta^{(t+1)}$ to maximize $Q(\theta, \theta^{(t)})$ in the M-step:
+\[
+Q(\theta^{(t+1)}, \theta^{(t)}) - Q(\theta^{(t)}, \theta^{(t)}) \geq 0
+\]
+
+Therefore:
+\[
+\mathcal{L}(\theta^{(t+1)}) - \mathcal{L}(\theta^{(t)}) \geq 0
+\]
+
+\textbf{Intuition}: The log-likelihood increases by at least the improvement of the Q-function: the second term, the KL divergence between the old and new posteriors, can only add to the gain. Since the M-step does not decrease $Q$, the likelihood cannot decrease. (It is even enough to \emph{increase} $Q$ rather than maximize it: this is the ``generalized EM'' algorithm.)
+
+\section{Python Implementation}
+
+\subsection{Complete Implementation with Explanations}
+
+\begin{lstlisting}[language=Python, caption=Complete Three-Coin EM Implementation]
+import numpy as np
+import matplotlib.pyplot as plt
+
+class ThreeCoinEM:
+    def __init__(self, n_restarts=20, tol=1e-8):
+        self.n_restarts = n_restarts
+        self.tol = tol
+        
+    def e_step(self, Y, pi, p, q):
+        """
+        E-step: Compute responsibilities gamma_j = P(z_j=1|y_j,theta)
+        
+        For each observation y_j, we compute the probability that 
+        coin B was used (z_j=1) versus coin C was used (z_j=0)
+        """
+        gamma = np.zeros(len(Y))
+        for j, y_j in enumerate(Y):
+            # Probability if coin B was used
+            prob_if_B = pi * (p ** y_j) * ((1 - p) ** (1 - y_j))
+            # Probability if coin C was used
+            prob_if_C = (1 - pi) * (q ** y_j) * ((1 - q) ** (1 - y_j))
+            # Bayes' theorem: P(B|data) = P(data|B)P(B) / P(data)
+            gamma[j] = prob_if_B / (prob_if_B + prob_if_C)
+        return gamma
+    
+    def m_step(self, Y, gamma):
+        """
+        M-step: Update parameters to maximize Q(theta, theta_old)
+        
+        These updates have intuitive interpretations:
+        - pi: average of responsibilities (how often coin B is selected)
+        - p: success rate when coin B is used
+        - q: success rate when coin C is used
+        """
+        n = len(Y)
+        
+        # pi = probability of selecting coin B
+        pi_new = np.mean(gamma)
+        
+        # p = success rate for coin B (weighted by responsibilities)
+        sum_gamma = np.sum(gamma)
+        p_new = np.sum(gamma * Y) / sum_gamma if sum_gamma > 0 else 0.5
+        
+        # q = success rate for coin C (weighted by 1 - responsibilities)
+        sum_one_minus_gamma = np.sum(1 - gamma)
+        q_new = np.sum((1 - gamma) * Y) / sum_one_minus_gamma if sum_one_minus_gamma > 0 else 0.5
+        
+        return pi_new, p_new, q_new
+    
+    def log_likelihood(self, Y, pi, p, q):
+        """Compute the true log-likelihood L(theta) = log P(Y|theta)"""
+        log_lik = 0
+        for y_j in Y:
+            prob_B = pi * (p ** y_j) * ((1 - p) ** (1 - y_j))
+            prob_C = (1 - pi) * (q ** y_j) * ((1 - q) ** (1 - y_j))
+            log_lik += np.log(prob_B + prob_C)
+        return log_lik
+    
+    def Q_function(self, Y, gamma, pi, p, q):
+        """
+        Compute Q(theta, theta_old) = E[log P(Y,Z|theta)]
+        
+        This is the expected complete data log-likelihood,
+        where expectation is taken over Z given current parameters
+        """
+        Q_val = 0
+        for j, y_j in enumerate(Y):
+            # Contribution if coin B was used
+            term_B = gamma[j] * np.log(pi * (p ** y_j) * ((1 - p) ** (1 - y_j)))
+            # Contribution if coin C was used
+            term_C = (1 - gamma[j]) * np.log((1 - pi) * (q ** y_j) * ((1 - q) ** (1 - y_j)))
+            Q_val += term_B + term_C
+        return Q_val
+    
+    def fit(self, Y, verbose=True):
+        """
+        Run EM algorithm with multiple random restarts
+        
+        Why multiple restarts? EM converges to local optima,
+        so we try many starting points and pick the best one.
+        """
+        best_solution = None
+        best_ll = -np.inf
+        
+        if verbose:
+            print("Running EM with multiple initializations:")
+            print("Run |     π    |     p    |     q    | Log-Likelihood")
+            print("----|----------|----------|----------|---------------")
+        
+        for run in range(self.n_restarts):
+            # Random initialization (avoid boundaries)
+            pi, p, q = np.random.uniform(0.1, 0.9, 3)
+            
+            # Track progress for analysis
+            history = {
+                'pi': [pi], 'p': [p], 'q': [q], 
+                'Q': [], 'L': [], 'iterations': [],
+                'gamma_history': []
+            }
+            
+            # EM iterations
+            for iteration in range(100):
+                # E-step: Compute responsibilities
+                gamma = self.e_step(Y, pi, p, q)
+                history['gamma_history'].append(gamma.copy())
+                
+                # Compute Q and L for monitoring
+                Q_val = self.Q_function(Y, gamma, pi, p, q)
+                L_val = self.log_likelihood(Y, pi, p, q)
+                history['Q'].append(Q_val)
+                history['L'].append(L_val)
+                history['iterations'].append(iteration)
+                
+                # M-step: Update parameters
+                pi_new, p_new, q_new = self.m_step(Y, gamma)
+                
+                # Check convergence
+                param_change = abs(pi_new - pi) + abs(p_new - p) + abs(q_new - q)
+                if param_change < self.tol:
+                    break
+                    
+                pi, p, q = pi_new, p_new, q_new
+                history['pi'].append(pi)
+                history['p'].append(p)
+                history['q'].append(q)
+            
+            final_ll = self.log_likelihood(Y, pi, p, q)
+            if final_ll > best_ll:
+                best_ll = final_ll
+                best_solution = (pi, p, q, history)
+                
+            if verbose:
+                print(f"{run:3d} | {pi:.6f} | {p:.6f} | {q:.6f} | {final_ll:.6f}")
+        
+        return best_solution
+
+# Let's run it on our original data!
+Y = np.array([1, 1, 0, 1, 0, 0, 1, 0, 1, 1])
+print("Original data:", Y)
+print(f"Number of heads: {np.sum(Y)}/{len(Y)}")
+
+model = ThreeCoinEM(n_restarts=10)
+pi, p, q, history = model.fit(Y)
+
+print(f"\n=== FINAL RESULTS ===")
+print(f"π (prob of selecting coin B) = {pi:.4f}")
+print(f"p (prob of heads for coin B) = {p:.4f}") 
+print(f"q (prob of heads for coin C) = {q:.4f}")
+print(f"Final log-likelihood = {model.log_likelihood(Y, pi, p, q):.4f}")
+\end{lstlisting}
+
+\subsection{Visualization and Analysis}
+
+\begin{lstlisting}[language=Python, caption=Visualizing EM Progress]
+def plot_em_progress(history, Y):
+    """Plot the EM algorithm's progress"""
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 8))
+    
+    # Plot 1: Parameter convergence
+    iterations = range(len(history['pi']))
+    ax1.plot(iterations, history['pi'], 'b-', label='π', linewidth=2, marker='o', markersize=4)
+    ax1.plot(iterations, history['p'], 'r-', label='p', linewidth=2, marker='s', markersize=4)
+    ax1.plot(iterations, history['q'], 'g-', label='q', linewidth=2, marker='^', markersize=4)
+    ax1.set_xlabel('Iteration')
+    ax1.set_ylabel('Parameter Value')
+    ax1.set_title('Parameter Convergence')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+    
+    # Plot 2: Q-function and true likelihood
+    ax2.plot(history['iterations'], history['Q'], 'orange', 
+             label='Q(θ,θ^(t))', linewidth=2)
+    ax2.plot(history['iterations'], history['L'], 'purple', 
+             label='L(θ) = log P(Y|θ)', linewidth=2)
+    ax2.set_xlabel('Iteration')
+    ax2.set_ylabel('Log-Likelihood')
+    ax2.set_title('Q-Function vs True Likelihood')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+    
+    # Plot 3: Bound tightness
+    gap = [L - Q for L, Q in zip(history['L'], history['Q'])]
+    ax3.plot(history['iterations'], gap, 'red', linewidth=2)
+    ax3.set_xlabel('Iteration')
+    ax3.set_ylabel('L(θ) - Q(θ,θ^(t))')
+    ax3.set_title('Tightness of Lower Bound (KL Divergence)')
+    ax3.grid(True, alpha=0.3)
+    
+    # Plot 4: Final responsibilities
+    final_gamma = history['gamma_history'][-1]
+    colors = ['red' if y == 0 else 'blue' for y in Y]
+    ax4.bar(range(len(Y)), final_gamma, color=colors, alpha=0.7)
+    ax4.set_xlabel('Observation Index')
+    ax4.set_ylabel('P(coin B was used)')
+    ax4.set_title('Final Responsibilities\n(Blue = heads, Red = tails)')
+    ax4.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.show()
+
+# Generate some analysis
+print("\n=== INTERPRETATION ===")
+print(f"According to our model:")
+print(f"- Coin A selects coin B with probability {pi:.2f} and coin C with probability {1-pi:.2f}")
+print(f"- Coin B shows heads with probability {p:.2f}")
+print(f"- Coin C shows heads with probability {q:.2f}")
+print(f"- Overall expected heads: {pi*p + (1-pi)*q:.2f}")
+print(f"- Actual observed heads: {np.mean(Y):.2f}")
+
+plot_em_progress(history, Y)
+\end{lstlisting}
+
+\section{Deep Dive: Understanding EM and ELBO}
+
+\subsection{The Relationship Between EM and ELBO}
+
+The EM algorithm can be viewed as \textbf{coordinate ascent} on the ELBO:
+
+\begin{itemize}
+    \item \textbf{E-step}: Maximize ELBO with respect to $q$ (distribution over latent variables)
+    \[
+    q^{(t+1)} = \arg\max_q \text{ELBO}(\theta^{(t)}, q) = P(z|y,\theta^{(t)})
+    \]
+    
+    \item \textbf{M-step}: Maximize ELBO with respect to $\theta$ (model parameters)
+    \[
+    \theta^{(t+1)} = \arg\max_{\theta} \text{ELBO}(\theta, q^{(t+1)}) = \arg\max_{\theta} Q(\theta, \theta^{(t)})
+    \]
+\end{itemize}
+
+The ELBO decomposes as:
+\[
+\text{ELBO}(\theta, q) = \mathbb{E}_q[\log P(y,z|\theta)] - \mathbb{E}_q[\log q(z)] = \log P(y|\theta) - \text{KL}(q(z) \| P(z|y,\theta))
+\]
+
+So maximizing ELBO is equivalent to:
+\begin{enumerate}
+    \item Maximizing the expected complete data likelihood
+    \item Minimizing the KL divergence between $q(z)$ and the true posterior
+\end{enumerate}
+
+\subsection{Why This Matters in Modern Machine Learning}
+
+The EM/ELBO framework is fundamental to many modern techniques:
+\begin{itemize}
+    \item \textbf{Variational Autoencoders (VAEs)}: Use the ELBO to train deep generative models
+    \item \textbf{Variational Inference}: General framework for approximate Bayesian inference
+    \item \textbf{Gaussian Mixture Models}: EM is the standard training algorithm
+    \item \textbf{Hidden Markov Models}: Use EM (Baum-Welch algorithm) for parameter estimation
+\end{itemize}
+
+\section{Common Questions and Pitfalls}
+
+\subsection{Why Multiple Restarts?}
+
+EM is guaranteed not to decrease the likelihood, and under mild regularity conditions it converges to a \textbf{stationary point} of the likelihood (usually a local maximum, possibly a saddle point), not necessarily the global maximum. The likelihood surface can have multiple peaks, so we try different starting points.
+
+\subsection{Identifiability Issue}
+
+Notice that if we swap $p$ and $q$ and change $\pi$ to $1-\pi$, we get the same likelihood:
+\[
+\mathcal{L}(\pi, p, q) = \mathcal{L}(1-\pi, q, p)
+\]
+
+This means there are (at least) two equivalent solutions! In fact the situation is much more
+degenerate for the three-coin model: each observation is a single Bernoulli variable with
+\[
+P(y = 1 \mid \theta) = \pi p + (1 - \pi) q =: s(\theta),
+\]
+so the likelihood $\mathcal{L}(\theta) = n_1 \log s(\theta) + n_0 \log(1 - s(\theta))$ depends on the three
+parameters only through $s(\theta)$. It is maximized by \emph{every} $\theta$ with $s(\theta) = n_1/n$
+($= 0.6$ for our data): a whole two-dimensional surface of maximum likelihood estimates. The model is not
+identifiable from these data, and EM simply converges to one point of this surface, determined by the
+initialization. (Identifiability would require more information, e.g.\ several tosses of the selected
+coin for each toss of coin A.)
+
+\subsection{Sensitivity to Initialization}
+
+Different initializations lead to very different parameter estimates, all with the same likelihood. Here this is not a small-sample effect but a consequence of the non-identifiability explained above; with more data the estimates would \emph{not} become unique.
+
+\section{Conclusion}
+
+The three-coin problem teaches us several important lessons:
+
+\begin{itemize}
+    \item \textbf{EM provides a principled approach} to maximum likelihood estimation with latent variables
+    \item \textbf{The ELBO framework} gives us a systematic way to handle incomplete data
+        \item \textbf{Monotonic improvement} of the likelihood is guaranteed, but convergence is only to a stationary point (often a local optimum)
+    \item \textbf{Multiple restarts} are essential in practice
+    \item \textbf{These ideas generalize} to much more complex models
+\end{itemize}
+
+The beauty of EM is that it turns a hard optimization problem into an iterative procedure where each step is easy. This pattern appears throughout machine learning!
+\end{notechapter}

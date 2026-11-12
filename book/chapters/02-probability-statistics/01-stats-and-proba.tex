@@ -1,0 +1,402 @@
+% Source: stats_and_proba_for_ml.tex
+\begin{notechapter}
+\chapter{Statistics and Probability for Machine Learning}\label{ch:stats-and-proba}
+\chaptersubtitle{Estimators, sampling distributions and the training sample}
+
+\section{Fundamental Concepts}
+
+\subsection{Random Quantity vs. Unknown Quantity}
+\begin{itemize}
+    \item \textbf{Unknown Quantity}:
+        \begin{itemize}
+            \item A \textbf{fixed but unknown} value (e.g., population mean, 
+                  true parameter).
+            \item \textbf{Deterministic}: Does not vary or follow a probability 
+                  distribution.
+            \item Goal: Estimate or determine its value using data.
+            \item Example: The true slope \( \beta_1 \) in a regression model.
+        \end{itemize}
+    \item \textbf{Random Quantity}:
+        \begin{itemize}
+            \item A \textbf{variable} value that follows a probability 
+                  distribution.
+            \item \textbf{Stochastic}: Subject to chance and uncertainty.
+            \item Goal: Model its behavior, make predictions, or quantify 
+                  uncertainty.
+            \item Example: The outcome of a coin toss or the error term \( 
+                  \epsilon \) in regression.
+        \end{itemize}
+\end{itemize}
+
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Aspect} & \textbf{Unknown Quantity} & \textbf{Random Quantity} \\
+        \midrule
+        \textbf{Nature} & Fixed but not known & Variable and uncertain \\
+        \textbf{Determinism} & Deterministic & Stochastic (follows a 
+        distribution) \\
+        \textbf{Goal} & Estimate or determine the value & Model variability or 
+        make predictions \\
+        \textbf{Example} & True value of a parameter (e.g., \( \beta_1 \)) & 
+        Outcome of a random experiment \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Estimators and Estimates}
+\begin{itemize}
+    \item \textbf{Estimator}:
+        \begin{itemize}
+            \item A rule or formula (e.g., sample mean \( \bar{X} \)) used to 
+                  estimate an unknown quantity.
+            \item \textbf{Random quantity}: Depends on random sample data.
+            \item Example: \( \bar{X} \) is an estimator of the population mean 
+                  \( \mu \).
+        \end{itemize}
+    \item \textbf{Estimate}:
+        \begin{itemize}
+            \item A specific value computed from a sample (e.g., \( \bar{x} = 
+                  5.2 \)).
+            \item \textbf{Fixed value}: Result of applying the estimator to a 
+                  particular sample.
+        \end{itemize}
+\end{itemize}
+
+\subsection{Sampling Distribution}
+\begin{itemize}
+    \item \textbf{Definition}: The probability distribution of an estimator’s 
+          values across all possible samples.
+    \item \textbf{Key Points}:
+        \begin{itemize}
+            \item Usually \textbf{unknown} in practice (we rarely have access 
+                  to the entire population).
+            \item Can be approximated using:
+                \begin{itemize}
+                    \item \textbf{Theoretical results} (e.g., Central Limit 
+                          Theorem).
+                    \item \textbf{Resampling methods} (e.g., bootstrap).
+                \end{itemize}
+        \end{itemize}
+\end{itemize}
+
+\subsection{Bias and Variance of an Estimator}
+\begin{itemize}
+    \item \textbf{Bias}:
+        \begin{itemize}
+            \item Difference between the expected value of the estimator and 
+                  the true parameter:
+                \[
+                \text{Bias} = \mathbb{E}[\hat{\theta}] - \theta
+                \]
+            \item \textbf{Unknown} in practice (depends on the true parameter 
+                  \( \theta \)).
+            \item Example: The sample mean \( \bar{X} \) is unbiased for \( 
+                  \mu \).
+        \end{itemize}
+    \item \textbf{Variance}:
+        \begin{itemize}
+            \item Measures how much the estimator varies across different 
+                  samples:
+                \[
+                \text{Var}(\hat{\theta}) = \mathbb{E}[(\hat{\theta} - 
+                \mathbb{E}[\hat{\theta}])^2]
+                \]
+            \item \textbf{Unknown} in practice (depends on the population 
+                  distribution).
+            \item Can be estimated using sample data or resampling methods.
+        \end{itemize}
+\end{itemize}
+
+\subsection{Sample Variance (\( s^2 \))}
+\begin{itemize}
+    \item \textbf{Definition}: An estimate of the population variance \( 
+          \sigma^2 \) based on sample data:
+        \[
+        s^2 = \frac{1}{n-1} \sum_{i=1}^n (x_i - \bar{x})^2
+        \]
+    \item \textbf{Key Points}:
+        \begin{itemize}
+            \item \textbf{Unbiased estimator} of \( \sigma^2 \).
+            \item Used to estimate the variance of other estimators (e.g.,
+                  \( \text{Var}(\bar{X}) = \frac{\sigma^2}{n} \) is estimated by \( \frac{s^2}{n} \)).
+            \item The factor \( \frac{1}{n-1} \) (Bessel's correction) makes \( s^2 \) unbiased; dividing by \( n \) gives a biased (but maximum-likelihood under a Gaussian model) estimator. Note that \( s = \sqrt{s^2} \) is still slightly biased for \( \sigma \).
+        \end{itemize}
+\end{itemize}
+
+\section{Training Sample \( D \) as a Random Variable}
+
+\subsection{Definition and Randomness}
+\begin{itemize}
+    \item \textbf{Definition}: The training sample \( D = \{(X_1, Y_1), \dots, 
+          (X_n, Y_n)\} \) consists of input-output pairs drawn from a joint 
+          distribution \( P(X, Y) \).
+    \item \textbf{Randomness}: Since \( D \) is a sample from a population, it 
+          is a \textbf{random variable}. Different samples from the same 
+          population would yield different training sets.
+    \item \textbf{Implications}: Any quantity computed from \( D \) (e.g., a 
+          trained classifier, its parameters, or its performance metrics) is 
+          also a \textbf{random variable} because it depends on the specific 
+          realization of \( D \).
+\end{itemize}
+
+\subsection{Expected Value with Respect to \( D \)}
+\begin{itemize}
+    \item \textbf{Definition}: The expected value of a quantity (e.g., the 
+          generalization error of a classifier) with respect to the 
+          distribution of \( D \) is the average value we would expect if we 
+          could repeatedly draw different training sets \( D \) from the 
+          population.
+    \item \textbf{Mathematically}: For a function \( f(D) \) (e.g., the error 
+          of a classifier trained on \( D \)), the expected value is:
+        \[
+        \mathbb{E}_D[f(D)] = \int f(D) \, P(D) \, dD
+        \]
+        where \( P(D) \) is the distribution of the training sample \( D \).
+    \item \textbf{Challenge}: In practice, \( P(D) \) is \textbf{unknown}, so 
+          we cannot compute this integral directly.
+\end{itemize}
+
+\subsection{Monte Carlo Methods}
+\begin{itemize}
+    \item \textbf{Purpose}: Approximate expected values when the distribution 
+          is unknown.
+    \item \textbf{Steps}:
+        \begin{enumerate}
+                        \item Generate multiple training sets \( D_1, \dots, D_m \): ideally fresh independent samples from the population; in practice, when only one dataset is available, bootstrap resamples (drawn with replacement from it).
+            \item Compute the quantity of interest \( f(D_i) \) for each set.
+            \item Average the results:
+                \[
+                \mathbb{E}_D[f(D)] \approx \frac{1}{m} \sum_{i=1}^m f(D_i)
+                \]
+        \end{enumerate}
+    \item \textbf{Key Points}:
+        \begin{itemize}
+                        \item Relies on the \textbf{law of large numbers}: with independent draws \( D_i \sim P(D) \), the average converges to \( \mathbb{E}_D[f(D)] \), with an error of order \( 1/\sqrt{m} \).
+            \item With bootstrap resamples, the average estimates the expectation under the \emph{empirical} distribution of the data, which only approximates \( P(D) \); moreover the resamples overlap with each other (and with any evaluation data), which biases error estimates unless out-of-bag points are used.
+            \item Useful for tasks like estimating generalization error or 
+                  tuning hyperparameters.
+        \end{itemize}
+\end{itemize}
+
+\section{Logistic Regression}
+
+\subsection{Overview}
+Logistic regression is used for \textbf{binary classification}, where the 
+outcome \( y \) is either 0 or 1. The model predicts the \textbf{probability} 
+that \( y = 1 \) given the input features \( x_1, x_2, \dots, x_p \). The 
+logistic regression model is defined as:
+
+\[
+P(y=1 \mid x) = \frac{1}{1 + e^{-(\beta_0 + \beta_1 x_1 + \dots + \beta_p x_p)}}
+\]
+
+Here:
+\begin{itemize}
+    \item \( P(y=1 \mid x) \) is the probability that \( y = 1 \) given the 
+          features \( x \).
+    \item \( \beta_0, \beta_1, \dots, \beta_p \) are the coefficients to be 
+          estimated.
+    \item The term \( \beta_0 + \beta_1 x_1 + \dots + \beta_p x_p \) is called 
+          the \textbf{linear predictor}.
+\end{itemize}
+
+\subsection{Odds and Log-Odds}
+\begin{itemize}
+    \item \textbf{Odds}:
+        \begin{itemize}
+            \item The \textbf{odds} of an event is the ratio of the probability 
+                  that the event occurs to the probability that it does not 
+                  occur:
+                \[
+                \text{Odds} = \frac{P(y=1 \mid x)}{1 - P(y=1 \mid x)}
+                \]
+            \item For example, if \( P(y=1 \mid x) = 0.75 \), the odds are \( 
+                  0.75 / 0.25 = 3 \), meaning the event is 3 times more likely 
+                  to occur than not.
+        \end{itemize}
+    \item \textbf{Log-Odds}:
+        \begin{itemize}
+            \item The \textbf{log-odds} (also called the \textbf{logit}) is the 
+                  natural logarithm of the odds:
+                \[
+                \text{Log-Odds} = \ln\left(\frac{P(y=1 \mid x)}{1 - P(y=1 \mid 
+                x)}\right)
+                \]
+            \item In logistic regression, the linear predictor \( \beta_0 + 
+                  \beta_1 x_1 + \dots + \beta_p x_p \) is equal to the 
+                  log-odds:
+                \[
+                \ln\left(\frac{P(y=1 \mid x)}{1 - P(y=1 \mid x)}\right) = 
+                \beta_0 + \beta_1 x_1 + \dots + \beta_p x_p
+                \]
+        \end{itemize}
+\end{itemize}
+
+\subsection{Interpretation of Coefficients}
+The coefficients \( \beta_1, \dots, \beta_p \) in logistic regression
+represent the \textbf{change in log-odds} of the outcome for a one-unit change 
+in the corresponding feature, holding all other features constant. The intercept \( \beta_0 \) is the log-odds when all features are \( 0 \).
+
+\subsubsection{Example}
+Suppose we have a logistic regression model with one feature \( x_1 \):
+\[
+\ln\left(\frac{P(y=1 \mid x_1)}{1 - P(y=1 \mid x_1)}\right) = \beta_0 + \beta_1 
+x_1
+\]
+
+\begin{itemize}
+    \item \textbf{Intercept (\( \beta_0 \))}:
+        \begin{itemize}
+            \item When \( x_1 = 0 \), the log-odds of the outcome is \( 
+                  \beta_0 \).
+            \item Example: If \( \beta_0 = -1.5 \), the log-odds of \( y=1 \) 
+                  when \( x_1 = 0 \) is \( -1.5 \).
+        \end{itemize}
+    \item \textbf{Coefficient (\( \beta_1 \))}:
+        \begin{itemize}
+            \item A one-unit increase in \( x_1 \) changes the log-odds by \( 
+                  \beta_1 \).
+            \item Example: If \( \beta_1 = 0.8 \), a one-unit increase in \( 
+                  x_1 \) increases the log-odds by \( 0.8 \).
+        \end{itemize}
+\end{itemize}
+
+\subsection{From Log-Odds to Odds}
+To make the interpretation more intuitive, we can exponentiate the 
+coefficients to get the \textbf{odds ratio}:
+\[
+\text{Odds Ratio} = e^{\beta_1}
+\]
+
+\subsubsection{Example}
+If \( \beta_1 = 0.8 \), the odds ratio is:
+\[
+e^{0.8} \approx 2.23
+\]
+This means that a one-unit increase in \( x_1 \) \textbf{multiplies the odds} 
+of the outcome by \( 2.23 \) (i.e., the odds increase by 123\%).
+
+\section{Practical Applications}
+
+\subsection{Linear Regression}
+\begin{itemize}
+    \item \textbf{Model}: \( y = \beta_0 + \beta_1 x_1 + \dots + \beta_p x_p + 
+          \epsilon \)
+    \item \textbf{Goal}: Estimate the coefficients \( \beta_0, \beta_1, \dots, 
+          \beta_p \) using data.
+    \item \textbf{Assumptions}: Linearity, independence, homoscedasticity, 
+          normality of errors.
+\end{itemize}
+
+\subsection{Logistic Regression}
+\begin{itemize}
+    \item \textbf{Model}: Used for binary classification. Predicts the 
+          probability of a class:
+        \[
+        P(y=1 \mid x) = \frac{1}{1 + e^{-(\beta_0 + \beta_1 x_1 + \dots + 
+        \beta_p x_p)}}
+        \]
+    \item \textbf{Interpretation}:
+        \begin{itemize}
+                        \item The linear predictor is the \textbf{log-odds} of the outcome; each coefficient is a change in log-odds.
+            \item A one-unit increase in \( x_j \) changes the log-odds by \( 
+                  \beta_j \).
+            \item Exponentiating \( \beta_j \) gives the \textbf{odds ratio}, 
+                  which quantifies the multiplicative effect on the odds of the 
+                  outcome.
+        \end{itemize}
+\end{itemize}
+
+\subsection{Resampling Methods}
+\begin{itemize}
+    \item \textbf{Bootstrap}:
+        \begin{itemize}
+            \item Generates multiple samples by resampling with replacement.
+            \item Used to estimate the sampling distribution of an estimator.
+        \end{itemize}
+    \item \textbf{Cross-Validation}:
+        \begin{itemize}
+            \item Divides data into training and validation sets to evaluate 
+                  model performance.
+            \item Helps prevent overfitting.
+        \end{itemize}
+\end{itemize}
+
+\section{Dataset and Samples}
+
+\subsection{Sample as a Collection of Data Points}
+In most statistical and machine learning contexts, a \textbf{sample} refers to 
+a \textbf{collection of data points} drawn from a population. For example:
+\begin{itemize}
+    \item If \( D = \{(X_1, Y_1), \dots, (X_n, Y_n)\} \) is a random variable 
+          representing the training data, then a \textbf{realization} of \( D 
+          \) is a specific collection of data points:
+        \[
+        d = \{(x_1, y_1), \dots, (x_n, y_n)\}
+        \]
+        Here, \( d \) is a \textbf{sample} (or \textbf{dataset}) consisting of 
+        \( n \) observed data points.
+    \item \textbf{Key Point}: In this case, the \textbf{sample} refers to the 
+          entire collection of data points, not individual observations.
+\end{itemize}
+
+\subsection{Sample as an Individual Data Point}
+In some contexts, particularly in probability theory, the term \textbf{sample} 
+can refer to a \textbf{single draw} from a distribution. For example:
+\begin{itemize}
+    \item If \( (X, Y) \) is a random variable with joint distribution \( P(X, 
+          Y) \), then a single realization \( (x_i, y_i) \) is sometimes called 
+          a \textbf{sample}.
+    \item In this case, the \textbf{sample} refers to an individual observation 
+          or data point.
+\end{itemize}
+
+\subsection{Clarifying the Terminology}
+To avoid confusion, it’s important to specify whether you’re referring to:
+\begin{itemize}
+    \item A \textbf{sample} as a \textbf{collection of data points} (e.g., \( 
+          d = \{(x_1, y_1), \dots, (x_n, y_n)\} \)), or
+    \item A \textbf{sample} as a \textbf{single data point} (e.g., \( (x_i, 
+          y_i) \)).
+\end{itemize}
+
+\subsection{Common Usage in Statistics and Machine Learning}
+In most statistical and machine learning contexts:
+\begin{itemize}
+    \item \textbf{Sample} refers to the \textbf{entire dataset} \( d = 
+          \{(x_1, y_1), \dots, (x_n, y_n)\} \).
+    \item \textbf{Individual data points} \( (x_i, y_i) \) are referred to as 
+          \textbf{observations}, \textbf{instances}, or \textbf{examples}.
+\end{itemize}
+
+\subsection{Example}
+Suppose we are studying the heights (\( X \)) and weights (\( Y \)) of 
+individuals in a population.
+
+\begin{itemize}
+    \item \textbf{Sample (Dataset)}:
+        \begin{itemize}
+            \item A sample might consist of \( n = 100 \) individuals:
+                \[
+                d = \{(x_1, y_1), \dots, (x_{100}, y_{100})\}
+                \]
+            \item Here, \( d \) is the \textbf{sample} (or \textbf{dataset}).
+        \end{itemize}
+    \item \textbf{Individual Data Point}:
+        \begin{itemize}
+            \item A single observation \( (x_i, y_i) \) (e.g., \( x_i = 170 \) 
+                  cm, \( y_i = 68 \) kg) is an \textbf{individual data point} 
+                  or \textbf{observation}.
+        \end{itemize}
+\end{itemize}
+
+\section{Conclusion}
+This chapter covers key concepts in probability and statistics, from
+fundamental distinctions (e.g., random vs. unknown quantities) to
+Monte Carlo approximations of expectations over the training sample.
+Limit theorems, confidence intervals, tests and Bayesian inference are
+treated in \cref{ch:lln-clt-inference}. Understanding these 
+concepts is crucial for proper statistical analysis, modeling, and inference.
+\end{notechapter}

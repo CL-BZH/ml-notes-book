@@ -1,0 +1,361 @@
+% Source: laplacian.tex
+\begin{notechapter}
+\chapter{The Laplacian, Local Averages and Graphs}\label{ch:laplacian-average}
+
+\section{Detailed Laplacian-Average Relationship}
+
+\subsection{Step 1: Multivariable Taylor Expansion}
+Expand $f(\mathbf{x} + \mathbf{h})$ around $\mathbf{x} = (x,y)$ where 
+$\mathbf{h} = (h_x, h_y) = (\epsilon \cos\theta, \epsilon \sin\theta)$:
+%
+\begin{align*}
+f(x + h_x, y + h_y) 
+    = f(x,y) 
+    + h_x \frac{\partial f}{\partial x}\bigg|_{\mathbf{x}} 
+    + h_y \frac{\partial f}{\partial y}\bigg|_{\mathbf{x}}
+    + \frac{1}{2}\biggl(
+        h_x^2 \frac{\partial^2 f}{\partial x^2}\bigg|_{\mathbf{x}} 
+        + 2h_x h_y \frac{\partial^2 f}{\partial x \partial y}\bigg|_{\mathbf{x}}
+        + h_y^2 \frac{\partial^2 f}{\partial y^2}\bigg|_{\mathbf{x}} 
+    \biggr) 
+    + \mathcal{O}(\epsilon^3)
+\end{align*}
+
+\subsection{Step 2: Substitute into Circular Average Integral}
+Define circular average over radius $\epsilon$ in polar coordinates:
+%
+\begin{align*}
+\text{Avg}(f) 
+    &= \frac{1}{2\pi} \int_0^{2\pi} f(x+\epsilon \cos\theta, y+\epsilon \sin\theta) d\theta \\
+    &= \frac{1}{2\pi} \int_0^{2\pi} \biggl[
+        f(x,y) 
+        + \epsilon \cos\theta \frac{\partial f}{\partial x} 
+        + \epsilon \sin\theta \frac{\partial f}{\partial y} 
+        + \frac{\epsilon^2}{2}\cos^2\theta \frac{\partial^2 f}{\partial x^2}
+        + \epsilon^2 \cos\theta \sin\theta \frac{\partial^2 f}{\partial x \partial y} 
+        + \frac{\epsilon^2}{2}\sin^2\theta \frac{\partial^2 f}{\partial y^2} 
+    \biggr] d\theta 
+    + \mathcal{O}(\epsilon^3)
+\end{align*}
+
+\subsection{Step 3: Term-by-Term Integration}
+Using angular averages:
+\begin{align*}
+&\int_0^{2\pi} \cos\theta d\theta = 0, \quad 
+\int_0^{2\pi} \sin\theta d\theta = 0 \\
+&\int_0^{2\pi} \cos^2\theta d\theta = \pi, \quad 
+\int_0^{2\pi} \sin^2\theta d\theta = \pi, \\
+&\int_0^{2\pi} \cos\theta\sin\theta d\theta = 0
+\end{align*}
+%
+Surviving terms:
+\begin{align*}
+\text{Avg}(f) &= f(x,y) 
+    + \frac{\epsilon^2}{4}\left(\frac{\partial^2 f}{\partial x^2} + \frac{\partial^2 f}{\partial y^2}\right) 
+    + \mathcal{O}(\epsilon^3) \\
+    &= f(\mathbf{x}) 
+    + \frac{\epsilon^2}{4} \nabla^2 f(\mathbf{x}) 
+        + \mathcal{O}(\epsilon^3)
+\end{align*}
+(In fact the remainder is $\mathcal{O}(\epsilon^4)$: the third-order terms involve odd powers of
+$\cos\theta$ and $\sin\theta$ and integrate to zero.)
+
+Hence $\nabla^2 f(\mathbf{x}) = \lim_{\epsilon\to 0} \frac{4}{\epsilon^2}\big(\text{Avg}(f) - f(\mathbf{x})\big)$:
+the Laplacian measures by how much the average of $f$ on a small circle around $\mathbf{x}$
+exceeds the value at the center. It is positive at a local minimum and negative at a local
+maximum. (Averaging over the \emph{disk} $B_\epsilon(\mathbf{x})$ instead of the circle gives the
+same conclusion with the constant $8$ instead of $4$ in two dimensions.)
+
+\section{Graph Laplacian and Spectral Operations: Detailed Analysis}
+
+\subsection{Graph Fundamentals}
+Let $\mathcal{G}=(V,E,W)$ be an undirected weighted graph where:
+\begin{itemize}
+    \item $V = \{v_1,...,v_n\}$: Set of $n$ nodes
+    \item $E \subseteq V \times V$: Set of edges
+    \item $W \in \mathbb{R}^{n\times n}$: Weight matrix where $W_{ij} \geq 0$ 
+        represents connection strength between nodes $i$ and $j$
+\end{itemize}
+
+\subsection{Graph Laplacian Construction}
+\begin{enumerate}
+    \item \textbf{Degree Matrix} $D$: Diagonal matrix with
+        \[
+        D_{ii} = \sum_{j=1}^n W_{ij} \quad \text{(total weight connected to node $i$)}
+        \]
+        
+    \item \textbf{Combinatorial Laplacian}:
+        \[
+        L = D - W
+        \]
+        This is a symmetric positive semi-definite matrix.
+
+    \item \textbf{Normalized Laplacian} (alternative form):
+        \[
+        \mathcal{L} = D^{-1/2}LD^{-1/2} = I - D^{-1/2}WD^{-1/2}
+        \]
+\end{enumerate}
+
+\subsection{Laplacian Action on Node Functions}
+For any node function $f: V \to \mathbb{R}$ represented as vector 
+$\mathbf{f} = (f_1,...,f_n)^\top \in \mathbb{R}^n$, the Laplacian acts as:
+\[
+(L\mathbf{f})_i = \sum_{j=1}^n W_{ij}(f_i - f_j)
+\]
+This measures:
+\begin{itemize}
+    \item \textbf{Local Variation}: Difference between node $i$'s value 
+        and its neighbors
+        \item \textbf{Smoothness}: a small value of the quadratic form
+        $\mathbf{f}^\top L \mathbf{f} = \frac{1}{2}\sum_{i,j} W_{ij}(f_i - f_j)^2$ indicates that $f$ changes
+        slowly over connected nodes
+\end{itemize}
+
+\subsection{Spectral Graph Theory Fundamentals}
+
+\begin{theorem}[Spectral Decomposition]
+The graph Laplacian admits an orthonormal eigen decomposition:
+\[
+L = U\Lambda U^\top = \sum_{k=1}^n \lambda_k \mathbf{u}_k \mathbf{u}_k^\top
+\]
+where:
+\begin{itemize}
+    \item $\Lambda = \text{diag}(\lambda_1,...,\lambda_n)$: Eigenvalues 
+        ($0 = \lambda_1 \leq \lambda_2 \leq ... \leq \lambda_n$)
+    \item $U = [\mathbf{u}_1|\cdots|\mathbf{u}_n]$: Orthonormal eigenvectors
+    \item $\lambda_k$: Represents "frequency" of eigenmode $\mathbf{u}_k$
+\end{itemize}
+\end{theorem}
+
+\subsection{Graph Fourier Transform}
+Analogous to classical Fourier analysis:
+\begin{itemize}
+    \item \textbf{Fourier Basis}: Eigenvectors $\{\mathbf{u}_k\}$ form 
+        orthonormal basis
+    \item \textbf{Fourier Transform}: Decompose signal into spectral components
+        \[
+        \hat{\mathbf{f}} = U^\top \mathbf{f} \quad \Rightarrow \quad 
+        \hat{f}_k = \langle \mathbf{u}_k, \mathbf{f} \rangle
+        \]
+    \item \textbf{Inverse Transform}: Reconstruct signal from spectrum
+        \[
+        \mathbf{f} = U\hat{\mathbf{f}} = \sum_{k=1}^n \hat{f}_k \mathbf{u}_k
+        \]
+\end{itemize}
+
+\subsection{Spectral Graph Convolution: Technical Details}
+Given input signal $\mathbf{f}$ and filter $g_\theta$:
+\begin{enumerate}
+    \item \textbf{Transform to Spectral Domain}:
+        \[
+        \hat{\mathbf{f}} = U^\top \mathbf{f}
+        \]
+        
+    \item \textbf{Apply Spectral Filter}:
+        \[
+        \hat{\mathbf{f}}' = g_\theta(\Lambda)\hat{\mathbf{f}} = 
+        \text{diag}(g_\theta(\lambda_1),...,g_\theta(\lambda_n))\hat{\mathbf{f}}
+        \]
+        Common filter types:
+        \begin{itemize}
+            \item Low-pass: $g_\theta(\lambda) = e^{-\tau\lambda}$ 
+                (smooths high-frequency noise)
+            \item Band-pass: $g_\theta(\lambda) = \bbone_{[a,b]}(\lambda)$
+            \item Learned: $g_\theta(\lambda) = \sum_{k=0}^K \theta_k \lambda^k$
+        \end{itemize}
+    
+    \item \textbf{Inverse Transform}:
+        \[
+        \mathbf{f}' = U\hat{\mathbf{f}}'
+        \]
+\end{enumerate}
+
+\subsection{Connection to Continuous Laplacian: Deep Analogy}
+\begin{tabular}{p{0.45\textwidth}p{0.45\textwidth}}
+\textbf{Continuous Space} & \textbf{Graph Space} \\
+\hline
+$-\nabla^2 f = -\text{div}(\nabla f)$ & $(L\mathbf{f})_i = \sum_j W_{ij}(f_i-f_j)$ \\
+$-\nabla^2 f \propto f - $ local average & $(L\mathbf{f})_i = D_{ii}(f_i - $ neighborhood average$)$ \\
+Eigenfunctions of Laplacian form Fourier basis & Laplacian eigenvectors form graph Fourier basis \\
+$\hat{f}(\xi) = \int f(x)e^{-i\xi x}dx$ & $\hat{f}_k = \langle \mathbf{u}_k, \mathbf{f} \rangle$ \\
+\end{tabular}
+
+\begin{remark}[Sign convention]
+With $L = D - W$, the graph Laplacian is the discrete analogue of $-\nabla^2$, not of $\nabla^2$:
+$(L\mathbf{f})_i$ is proportional to ``value minus average'', while $\nabla^2 f$ is proportional to
+``average minus value''. This is why $L$ is positive semi-definite whereas $\nabla^2$ is
+negative semi-definite (e.g.\ $\nabla^2 e^{i\xi x} = -\xi^2 e^{i\xi x}$). For instance, on the path
+graph with unit weights, $(L\mathbf{f})_i = 2f_i - f_{i-1} - f_{i+1} \approx -h^2 f''(x_i)$ for samples
+$f_i = f(x_i)$ with spacing $h$.
+\end{remark}
+
+\subsection{Practical Example: 3-Node Graph}
+Consider triangle graph with:
+\[
+W = \begin{bmatrix}
+0 & 1 & 1 \\
+1 & 0 & 1 \\
+1 & 1 & 0
+\end{bmatrix}, \quad
+D = \begin{bmatrix}
+2 & 0 & 0 \\
+0 & 2 & 0 \\
+0 & 0 & 2
+\end{bmatrix}
+\]
+Laplacian matrix:
+\[
+L = D-W = \begin{bmatrix}
+2 & -1 & -1 \\
+-1 & 2 & -1 \\
+-1 & -1 & 2
+\end{bmatrix}
+\]
+Eigenvalues: $\lambda_1=0$, $\lambda_2=3$, $\lambda_3=3$ \\
+Eigenvectors: $\mathbf{u}_1=\frac{1}{\sqrt{3}}(1,1,1)^\top$, 
+$\mathbf{u}_2=\frac{1}{\sqrt{6}}(2,-1,-1)^\top$, etc.
+
+
+\section{Complete Graph Laplacian Derivation}
+
+\subsection{Node Functions: Formal Definition}
+\begin{definition}[Node Function]
+For a graph $\mathcal{G}=(V,E,W)$ with $n=|V|$ nodes, a \textbf{node function} 
+is any map $f: V \to \mathbb{R}$ assigning real values to vertices. 
+Equivalently, it can be represented as a vector $\mathbf{f} \in \mathbb{R}^n$ 
+where $\mathbf{f}_i = f(v_i)$.
+\end{definition}
+
+\subsection{Laplacian Action Derivation}
+\begin{theorem}[Laplacian Action Formula]
+For combinatorial Laplacian $L = D - W$ and node function $\mathbf{f}$:
+\[
+(L\mathbf{f})_i = \sum_{j=1}^n W_{ij}(f_i - f_j)
+\]
+\end{theorem}
+
+\begin{proof}
+Let $D$ be diagonal with $D_{ii} = \sum_j W_{ij}$. Compute $(D\mathbf{f})_i = 
+D_{ii}f_i$ and $(W\mathbf{f})_i = \sum_j W_{ij}f_j$. Then:
+\begin{align*}
+(L\mathbf{f})_i 
+    &= (D\mathbf{f} - W\mathbf{f})_i \\
+    &= D_{ii}f_i - \sum_{j=1}^n W_{ij}f_j \\
+    &= \left(\sum_{j=1}^n W_{ij}\right)f_i - \sum_{j=1}^n W_{ij}f_j \\
+    &= \sum_{j=1}^n W_{ij}(f_i - f_j) \quad \qedhere
+\end{align*}
+\end{proof}
+
+\subsection{Properties of the Graph Laplacian}
+\begin{theorem}[Symmetric Positive Semi-Definiteness]
+$L$ is symmetric and $\forall \mathbf{f},\ \mathbf{f}^\top L\mathbf{f} \geq 0$
+\end{theorem}
+
+\begin{proof}
+Symmetry: $W_{ij}=W_{ji} \Rightarrow (D-W)^\top = D-W$. For quadratic form:
+\begin{align*}
+\mathbf{f}^\top L\mathbf{f} 
+    &= \sum_{i,j} W_{ij}f_i^2 - \sum_{i,j} W_{ij}f_if_j \\
+    &= \frac{1}{2}\sum_{i,j} W_{ij}(f_i^2 - 2f_if_j + f_j^2) \\
+    &= \frac{1}{2}\sum_{i,j} W_{ij}(f_i - f_j)^2 \geq 0 \quad \qedhere
+\end{align*}
+\end{proof}
+
+\subsection{Spectral Theorem Application}
+\begin{theorem}[Spectral Decomposition]
+$\exists$ orthonormal basis $\{\mathbf{u}_k\}_{k=1}^n$ and eigenvalues 
+$0 = \lambda_1 \leq \cdots \leq \lambda_n$ such that:
+\[
+L = \sum_{k=1}^n \lambda_k \mathbf{u}_k \mathbf{u}_k^\top
+\]
+\end{theorem}
+
+\begin{proof}
+Follows from the spectral theorem for symmetric matrices. Since $L$ is real 
+symmetric, it can be diagonalized by an orthogonal matrix of eigenvectors with 
+real eigenvalues. The quadratic form proof shows all $\lambda_k \geq 0$.
+\end{proof}
+
+\subsection{Graph Fourier Transform: Complete Derivation}
+\begin{definition}[Graph Fourier Basis]
+The eigenbasis $\{\mathbf{u}_k\}$ of $L$ serves as the Fourier basis. The 
+Fourier transform $\hat{\mathbf{f}}$ is defined via:
+\[
+\hat{f}_k := \langle \mathbf{u}_k, \mathbf{f} \rangle = \sum_{i=1}^n u_{ki} f_i
+\]
+\end{definition}
+
+\begin{theorem}[Convolution Theorem]
+For diagonalizable filter $g(L) = U g(\Lambda) U^\top$, convolution satisfies:
+\[
+g(L)\mathbf{f} = U(g(\Lambda)(U^\top \mathbf{f}))
+\]
+\end{theorem}
+
+\begin{proof}
+Using $L = U\Lambda U^\top$ and $U^\top U = I$:
+\begin{align*}
+g(L)\mathbf{f} 
+    &= U g(\Lambda) U^\top \mathbf{f} \\
+    &= U (g(\Lambda) \hat{\mathbf{f}}) \\
+    &= \sum_{k=1}^n g(\lambda_k) \hat{f}_k \mathbf{u}_k \quad \qedhere
+\end{align*}
+\end{proof}
+
+\subsection{Worked Example: 3-Node Cycle Graph}
+\begin{example}
+Let $\mathcal{G}$ be a triangle graph with:
+\[
+W = \begin{bmatrix}
+0 & 1 & 1 \\
+1 & 0 & 1 \\
+1 & 1 & 0
+\end{bmatrix},\ 
+D = \begin{bmatrix}
+2 & 0 & 0 \\
+0 & 2 & 0 \\
+0 & 0 & 2
+\end{bmatrix},\ 
+L = D-W = \begin{bmatrix}
+2 & -1 & -1 \\
+-1 & 2 & -1 \\
+-1 & -1 & 2
+\end{bmatrix}
+\]
+
+\textbf{Eigenvalues:} Solve $\det(L-\lambda I)=0$:
+\[
+\begin{vmatrix}
+2-\lambda & -1 & -1 \\
+-1 & 2-\lambda & -1 \\
+-1 & -1 & 2-\lambda
+\end{vmatrix} 
+= (3-\lambda)(3-\lambda)(0-\lambda) = 0
+\]
+Thus $\lambda_1=0$, $\lambda_2=3$, $\lambda_3=3$.
+
+\textbf{Eigenvectors:}
+\begin{itemize}
+\item $\lambda_1=0$: Solve $L\mathbf{u}=0 \Rightarrow \mathbf{u}_1=\frac{1}{\sqrt{3}}(1,1,1)^\top$
+\item $\lambda_2=3$: $(L-3I)\mathbf{u}=0$ means $u_1+u_2+u_3=0$ (a 2-dimensional eigenspace); one choice is $\mathbf{u}_2=\frac{1}{\sqrt{6}}(2,-1,-1)^\top$
+\item $\lambda_3=3$: Orthogonal to $\mathbf{u}_1,\mathbf{u}_2$ gives $\mathbf{u}_3=\frac{1}{\sqrt{2}}(0,1,-1)^\top$
+\end{itemize}
+\end{example}
+
+\subsection{Discrete vs Continuous Laplacian}
+\begin{theorem}[Local Average Interpretation]
+For small $\epsilon > 0$, the continuous Laplacian satisfies:
+\[
+\nabla^2 f(\mathbf{x}) = \lim_{\epsilon \to 0} \frac{4}{\epsilon^2}\left[\text{Avg}_{\partial B_\epsilon(\mathbf{x})}(f) - f(\mathbf{x})\right]
+\]
+while the graph Laplacian gives:
+\[
+(L\mathbf{f})_i = \sum_{j\sim i} W_{ij}(f_i - f_j) = D_{ii}\left(f_i - \text{Avg}_i(f)\right)
+\]
+where $\text{Avg}_{\partial B_\epsilon(\mathbf{x})}$ is the average over the circle of radius $\epsilon$ centered at $\mathbf{x}$ (in $\mathbb{R}^2$) and $\text{Avg}_i(f) = \frac{1}{D_{ii}}\sum_j W_{ij}f_j$. Note the opposite signs: $L$ corresponds to $-\nabla^2$.
+\end{theorem}
+
+\begin{proof}
+For graphs: Rearrange $(L\mathbf{f})_i = D_{ii}f_i - \sum_j W_{ij}f_j = D_{ii}(f_i - \frac{1}{D_{ii}}\sum_j W_{ij}f_j)$. The continuous case follows from the Taylor expansion derivation earlier.
+\end{proof}
+\end{notechapter}

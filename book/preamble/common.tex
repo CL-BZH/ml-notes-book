@@ -1,0 +1,159 @@
+% =====================================================================
+%  common.tex -- shared macros, theorem environments and book layout
+%  Chapters may define their own local macros: every chapter is
+%  wrapped in a TeX group (see \begin{notechapter}), so local
+%  definitions never leak into other chapters.
+% =====================================================================
+\makeatletter
+
+% ---------- helpers used by chapter-local definitions -----------------
+% \forgetcs\foo     : forget \foo so that \newcommand\foo can (re)define it
+% \forgetenv{foo}    : forget environment foo so it can be (re)defined
+\newcommand*{\forgetcs}[1]{\let#1\relax}
+\newcommand*{\forgetenv}[1]{%
+  \expandafter\let\csname #1\endcsname\relax
+  \expandafter\let\csname end#1\endcsname\relax}
+\newcommand*{\guardnewlength}[1]{\ifdefined#1\else\newlength{#1}\fi}
+\newcommand*{\guardnewcounter}[1]{\@ifundefined{c@#1}{\newcounter{#1}}{}}
+
+% ---------- chapter wrapper ----------------------------------------------
+\newenvironment{notechapter}{\begingroup}{\endgroup}
+
+% Appendix inside a chapter (replaces \appendix of the original notes)
+\newcommand{\chapterappendix}{%
+  \par\setcounter{section}{0}%
+  \renewcommand{\thesection}{\thechapter.\Alph{section}}%
+  \renewcommand{\theHsection}{\thechapter.appendix.\Alph{section}}}
+
+% Abstract (the book class has none)
+\newenvironment{abstract}%
+  {\begin{quote}\small\noindent\textbf{Abstract.}\ }%
+  {\end{quote}\medskip}
+
+% Per-chapter bibliography as an unnumbered section
+\renewenvironment{thebibliography}[1]
+  {\section*{References}%
+   \list{\@biblabel{\@arabic\c@enumiv}}%
+        {\settowidth\labelwidth{\@biblabel{#1}}%
+         \leftmargin\labelwidth \advance\leftmargin\labelsep
+         \@openbib@code \usecounter{enumiv}%
+         \let\p@enumiv\@empty
+         \renewcommand\theenumiv{\@arabic\c@enumiv}}%
+   \sloppy\clubpenalty4000\@clubpenalty\clubpenalty
+   \widowpenalty4000\sfcode`\.\@m}
+  {\def\@noitemerr{\@latex@warning{Empty `thebibliography' environment}}%
+   \endlist}
+
+% Python blocks (originally pythontex `pyblock`) are typeset, not run
+\lstnewenvironment{pyblock}{\lstset{language=Python}}{}
+
+\makeatother
+
+% ---------- default listings style ---------------------------------------
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+  backgroundcolor=\color{backcolour}, commentstyle=\color{codegreen},
+  keywordstyle=\color{magenta}, numberstyle=\tiny\color{codegray},
+  stringstyle=\color{codepurple}, basicstyle=\ttfamily\footnotesize,
+  breakatwhitespace=false, breaklines=true, captionpos=b,
+  keepspaces=true, numbers=left, numbersep=5pt, showspaces=false,
+  showstringspaces=false, showtabs=false, tabsize=2}
+\lstset{style=mystyle}
+
+% ---------- theorem-like environments ------------------------------------
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{prop}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem*{theorem*}{Theorem}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{assumption}[theorem]{Assumption}
+\newtheorem{exercise}[theorem]{Exercise}
+\newtheorem{notation}[theorem]{Notation}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{note}[theorem]{Note}
+\newtheorem{warning}[theorem]{Warning}
+\newtheoremstyle{noparentheses}{\topsep}{\topsep}{\itshape}{0pt}{\bfseries}{.}
+  {5pt plus 1pt minus 1pt}{\thmname{#1} \thmnumber{#2} \thmnote{#3}}
+
+% cleveref names for theorem boxes created with \newtcbtheorem in some chapters
+\crefname{tcb@cnt@definition}{Definition}{Definitions}
+\crefname{tcb@cnt@theorem}{Theorem}{Theorems}
+\crefname{tcb@cnt@proposition}{Proposition}{Propositions}
+\crefname{tcb@cnt@lemma}{Lemma}{Lemmas}
+
+% ---------- frequently used notation -------------------------------------
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\bbone}{\mathbf{1}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\Tr}{Tr}
+\DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\sign}{sign}
+\DeclareMathOperator{\softmax}{softmax}
+\newcommand{\abs}[1]{\left|#1\right|}
+\newcommand{\norm}[1]{\left\|#1\right\|}
+\newcommand{\inner}[2]{\left\langle #1, #2 \right\rangle}
+
+% ---------- layout -------------------------------------------------------
+\setcounter{secnumdepth}{2}
+\setcounter{tocdepth}{1}
+\numberwithin{equation}{chapter}
+\numberwithin{figure}{chapter}
+\numberwithin{table}{chapter}
+\allowdisplaybreaks
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt plus 2pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[RE]{\small\nouppercase{\leftmark}}
+\fancyhead[LO]{\small\nouppercase{\rightmark}}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+% ---------- support for chapters converted from Markdown (pandoc) ---------
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+% ---------- Unicode characters found in the sources (pdfLaTeX) ------------
+\DeclareUnicodeCharacter{2192}{\ensuremath{\rightarrow}}
+\DeclareUnicodeCharacter{03B8}{\ensuremath{\theta}}
+\DeclareUnicodeCharacter{03C0}{\ensuremath{\pi}}
+\DeclareUnicodeCharacter{2011}{-}
+\DeclareUnicodeCharacter{2713}{\ding{51}}
+\DeclareUnicodeCharacter{2717}{\ding{55}}
+\DeclareUnicodeCharacter{2264}{\ensuremath{\leq}}
+\DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
+\DeclareUnicodeCharacter{2550}{=}
+\DeclareUnicodeCharacter{2500}{-}
+\lstset{inputencoding=utf8,extendedchars=true,literate=
+  {π}{{$\pi$}}1 {θ}{{$\theta$}}1 {→}{{$\rightarrow$}}1 {×}{{$\times$}}1
+  {✓}{{\ding{51}}}1 {≤}{{$\leq$}}1 {é}{{\'e}}1 {—}{{---}}1 {–}{{--}}1 {’}{{'}}1}
+
+% ---------- chapter subtitle ------------------------------------------------
+\newcommand{\chaptersubtitle}[1]{%
+  \vspace*{-2.5em}{\large\itshape #1\par}\vspace{2em}}
+
+% unique hyperref anchors for algorithmic line numbers
+\makeatletter
+\newcounter{algblockcount}
+\AtBeginEnvironment{algorithmic}{\stepcounter{algblockcount}}
+\providecommand{\theHALG@line}{}\renewcommand{\theHALG@line}{alg\arabic{algblockcount}.\arabic{ALG@line}}
+\makeatother

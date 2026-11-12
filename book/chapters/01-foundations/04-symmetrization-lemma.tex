@@ -1,0 +1,307 @@
+% Source: symmetrization_lemma.tex
+\begin{notechapter}
+\chapter{The Symmetrization Lemma}\label{ch:symmetrization-lemma}
+\chaptersubtitle{A detailed proof}
+
+\section{Symmetrization Lemma}
+
+\noindent \textbf{Statement:}  
+For any \( t > 0 \) such that \( mt^2 \geq 2 \), the following holds:
+\[
+\mathbb{P}_{\mathbf{Z} \sim D^m} \left[ \sup_{g \in \mathcal{G}} 
+(P^{\text{true}}g - P^{\text{emp}}g) \geq t \right] \leq 
+2 \mathbb{P}_{\mathbf{Z}, \mathbf{Z}^{\prime} \sim D^m \times D^m} 
+\left[ \sup_{g \in \mathcal{G}} (P^{\text{emp}^{\prime}}g - 
+P^{\text{emp}}g) \geq \frac{t}{2} \right],
+\]
+where:
+\begin{itemize}
+    \item \( P^{\text{true}}g = \mathbb{E}_{(X,Y) \sim D}[g(X,Y)] \) 
+    is the true risk of \( g \),
+    \item \( P^{\text{emp}}g = \frac{1}{m} \sum_{i=1}^m g(Z_i) \) is 
+    the empirical risk on the sample \( \mathbf{Z} = (Z_1, \dots, Z_m) \),
+    \item \( P^{\text{emp}^{\prime}}g = \frac{1}{m} \sum_{i=1}^m 
+    g(Z_i^{\prime}) \) is the empirical risk on a ghost sample 
+    \( \mathbf{Z}^{\prime} = (Z_1^{\prime}, \dots, Z_m^{\prime}) \).
+\end{itemize}
+
+\subsection{Clarification of \( \mathbf{Z} \sim D^m \) and \( \mathbf{Z}^{\prime} 
+\sim D^m \)}
+
+The notation \( \mathbf{Z} \sim D^m \) means that the dataset 
+\( \mathbf{Z} = (Z_1, Z_2, \dots, Z_m) \) consists of \( m \) i.i.d. 
+samples drawn from the joint distribution \( D \), where each 
+\( Z_i = (X_i, Y_i) \) is a pair of input and output. Similarly, 
+\( \mathbf{Z}^{\prime} \sim D^m \) denotes a ghost sample 
+\( \mathbf{Z}^{\prime} = (Z_1^{\prime}, Z_2^{\prime}, \dots, Z_m^{\prime}) \), 
+which is an independent dataset drawn from the same distribution \( D^m \).
+
+\section{Proof}
+
+\subsection{Step 1: Setup and Approximation Argument}
+
+We want to bound the probability:
+\[
+\mathbb{P}_{\mathbf{Z} \sim D^m} \left[ \sup_{g \in \mathcal{G}} 
+(P^{\text{true}}g - P^{\text{emp}}g) \geq t \right].
+\]
+
+Assume that the functions of \( \mathcal{G} \) take values in \( [0,1] \) (e.g.\ the 0--1 loss of a classifier) and let \( 0 < \epsilon < t \). Since the supremum may not be achieved by any function \( g \in \mathcal{G} \), 
+we use an \textbf{approximation argument}. For any \( \epsilon > 0 \), 
+there exists a function \( g_\epsilon \in \mathcal{G} \) such that:
+\[
+P^{\text{true}}g_\epsilon - P^{\text{emp}}g_\epsilon \geq 
+\sup_{g \in \mathcal{G}} (P^{\text{true}}g - P^{\text{emp}}g) - \epsilon.
+\]
+
+This means \( g_\epsilon \) comes arbitrarily close to achieving 
+the supremum.
+
+\subsection{Step 2: Define the Bad Event}
+
+Define the "bad event" for the function \( g_\epsilon \):
+\[
+A_\epsilon = \left\{ \mathbf{Z} \sim D^m : P^{\text{true}}g_\epsilon 
+- P^{\text{emp}}g_\epsilon \geq t - \epsilon \right\}.
+\]
+
+By the approximation argument, if \( \sup_{g \in \mathcal{G}} 
+(P^{\text{true}}g - P^{\text{emp}}g) \geq t \), then 
+\( P^{\text{true}}g_\epsilon - P^{\text{emp}}g_\epsilon \geq t - \epsilon \). 
+Thus:
+\[
+\mathbb{P}_{\mathbf{Z} \sim D^m} \left[ \sup_{g \in \mathcal{G}} 
+(P^{\text{true}}g - P^{\text{emp}}g) \geq t \right] \leq 
+\mathbb{P}_{\mathbf{Z} \sim D^m} [A_\epsilon].
+\]
+
+\subsection{Step 3: Introduce the Ghost Sample}
+
+To bound \( \mathbb{P}_{\mathbf{Z} \sim D^m} [A_\epsilon] \), we introduce 
+a \textbf{ghost sample} \( \mathbf{Z}^{\prime} = (Z_1^{\prime}, \dots, 
+Z_m^{\prime}) \), drawn independently from \( D^m \). Define the empirical 
+risk on the ghost sample:
+\[
+P^{\text{emp}^{\prime}}g_\epsilon = \frac{1}{m} \sum_{i=1}^m g_\epsilon(Z_i^{\prime}).
+\]
+
+\subsection{Relationship Between \( P^{\text{true}}g_\epsilon \) and \( \mathbb{E}[P^{\text{emp}^{\prime}}g_\epsilon] \)}
+
+The true risk \( P^{\text{true}}g_\epsilon \) is equal to the expected value 
+of the empirical risk on the ghost sample \( P^{\text{emp}^{\prime}}g_\epsilon \):
+\[
+P^{\text{true}}g_\epsilon = \mathbb{E}[P^{\text{emp}^{\prime}}g_\epsilon].
+\]
+
+This follows from the fact that \( \mathbf{Z}^{\prime} = (Z_1^{\prime}, \dots, Z_m^{\prime}) \) 
+is an i.i.d. sample from \( D \), and by linearity of expectation:
+\[
+\mathbb{E}[P^{\text{emp}^{\prime}}g_\epsilon] = \mathbb{E}\left[ \frac{1}{m} \sum_{i=1}^m g_\epsilon(Z_i^{\prime}) \right] 
+= \frac{1}{m} \sum_{i=1}^m \mathbb{E}[g_\epsilon(Z_i^{\prime})] = \mathbb{E}[g_\epsilon(Z)] = P^{\text{true}}g_\epsilon.
+\]
+
+This equality is crucial because it ensures that the deviation 
+\( P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon \) has mean zero, 
+which is a key property used in applying Hoeffding's inequality.
+
+\subsection{Step 4: Relate \( A_\epsilon \) and \( B_\epsilon \)}
+
+We use the following key inequality:
+\[
+\mathbf{1}_{A_\epsilon} \cdot \mathbf{1}_{(P^{\text{true}}g_\epsilon 
+- P^{\text{emp}^{\prime}}g_\epsilon < \frac{t - \epsilon}{2})} \leq 
+\mathbf{1}_{(P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{emp}}g_\epsilon 
+\geq \frac{t - \epsilon}{2})}.
+\]
+
+\begin{itemize}
+    \item If \( \mathbf{Z} \in A_\epsilon \), then 
+    \( P^{\text{true}}g_\epsilon - P^{\text{emp}}g_\epsilon \geq t - \epsilon \).
+    \item If \( P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon 
+    < \frac{t - \epsilon}{2} \), then:
+    \[
+    P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{emp}}g_\epsilon = 
+    (P^{\text{true}}g_\epsilon - P^{\text{emp}}g_\epsilon) - 
+    (P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon) 
+    \geq (t - \epsilon) - \frac{t - \epsilon}{2} = \frac{t - \epsilon}{2}.
+    \]
+    \item Thus, \( \mathbf{1}_{A_\epsilon} \cdot \mathbf{1}_{(P^{\text{true}}g_\epsilon 
+    - P^{\text{emp}^{\prime}}g_\epsilon < \frac{t - \epsilon}{2})} \leq 
+    \mathbf{1}_{(P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{emp}}g_\epsilon 
+    \geq \frac{t - \epsilon}{2})} \).
+\end{itemize}
+
+Here the sample \( \mathbf{Z} \) is held fixed. The function \( g_\epsilon \) depends on \( \mathbf{Z} \) but not on \( \mathbf{Z}^{\prime} \), which is independent of \( \mathbf{Z} \): conditionally on \( \mathbf{Z} \), \( g_\epsilon \) is a fixed function and \( \mathbf{Z}^{\prime} \) is still an i.i.d.\ sample from \( D \). Taking expectations over \( \mathbf{Z}^{\prime} \) (conditionally on \( \mathbf{Z} \)), we get:
+\[
+\mathbf{1}_{A_\epsilon} \cdot \mathbb{E}_{\mathbf{Z}^{\prime} \sim D^m} 
+\left[ \mathbf{1}_{(P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon 
+< \frac{t - \epsilon}{2})} \right] \leq 
+\mathbb{E}_{\mathbf{Z}^{\prime} \sim D^m} \left[ \mathbf{1}_{(P^{\text{emp}^{\prime}}g_\epsilon 
+- P^{\text{emp}}g_\epsilon \geq \frac{t - \epsilon}{2})} \right].
+\]
+
+Since the expectation of an indicator function is equal to the probability 
+of the event it represents, we have:
+\[
+\mathbf{1}_{A_\epsilon} \cdot \mathbb{P}_{\mathbf{Z}^{\prime} \sim D^m} 
+\left[ P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon 
+< \frac{t - \epsilon}{2} \right] \leq 
+\mathbb{P}_{\mathbf{Z}^{\prime} \sim D^m} \left[ P^{\text{emp}^{\prime}}g_\epsilon 
+- P^{\text{emp}}g_\epsilon \geq \frac{t - \epsilon}{2} \right].
+\]
+
+\subsection{Step 5: Apply Hoeffding's Inequality}
+
+In this step, we apply the \textbf{one-sided Hoeffding's inequality} to 
+bound the probability:
+\[
+\mathbb{P}_{\mathbf{Z}^{\prime} \sim D^m} \left[ P^{\text{true}}g_\epsilon 
+- P^{\text{emp}^{\prime}}g_\epsilon \geq \frac{t - \epsilon}{2} \right].
+\]
+
+\subsubsection{Applying the One-Sided Hoeffding’s Inequality}
+
+The \textbf{one-sided Hoeffding’s inequality} bounds the probability that the empirical 
+mean \( \bar{X} \) deviates \textbf{below} the true mean \( \mathbb{E}[\bar{X}] \) by more 
+than \( \delta \). Specifically, for bounded random variables \( X_i \in [a, b] \), 
+it states:
+\[
+\mathbb{P}\left( \bar{X} - \mathbb{E}[\bar{X}] \leq -\delta \right) \leq 
+\exp\left(-\frac{2m\delta^2}{(b - a)^2}\right).
+\]
+
+In our case:
+\begin{itemize}
+    \item The empirical mean is \( P^{\text{emp}^{\prime}}g_\epsilon = 
+    \frac{1}{m} \sum_{i=1}^m g_\epsilon(Z_i^{\prime}) \).
+    \item The true mean is \( P^{\text{true}}g_\epsilon = \mathbb{E}[g_\epsilon(Z)] \).
+    \item The deviation is \( \delta = \frac{t - \epsilon}{2} \).
+\end{itemize}
+
+Since \( g_\epsilon \) is bounded (e.g., \( g_\epsilon \in [0, 1] \)), 
+we have \( b - a = 1 \), and (applied conditionally on \( \mathbf{Z} \), as explained above) the inequality simplifies to:
+\[
+\mathbb{P}\left( P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{true}}g_\epsilon 
+\leq -\frac{t - \epsilon}{2} \right) \leq 
+\exp\left(-\frac{m(t - \epsilon)^2}{2}\right).
+\]
+
+\subsubsection{Connecting to the Original Event}
+
+The event we are interested in:
+\[
+P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon \geq \frac{t - \epsilon}{2},
+\]
+is equivalent to:
+\[
+P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{true}}g_\epsilon \leq -\frac{t - \epsilon}{2}.
+\]
+
+Thus, the one-sided Hoeffding’s inequality directly applies to this event, 
+and we obtain:
+\[
+\mathbb{P}_{\mathbf{Z}^{\prime} \sim D^m} \left[ P^{\text{true}}g_\epsilon 
+- P^{\text{emp}^{\prime}}g_\epsilon \geq \frac{t - \epsilon}{2} \right] 
+\leq \exp\left(-\frac{m(t - \epsilon)^2}{2}\right).
+\]
+
+\subsubsection{Why We Use the One-Sided Inequality}
+
+We are interested in bounding the probability that the true risk exceeds 
+the empirical risk on the ghost sample by at least \( \frac{t - \epsilon}{2} \). 
+This corresponds to the \textbf{lower tail} of the deviation \( P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{true}}g_\epsilon \). 
+The one-sided Hoeffding’s inequality is used because it provides a tight bound 
+for this specific tail, avoiding the unnecessary factor of 2 that would appear 
+in the two-sided version.
+
+\subsubsection{Complement Probability}
+
+The complement of this event is:
+\[
+\mathbb{P}_{\mathbf{Z}^{\prime} \sim D^m} \left[ P^{\text{true}}g_\epsilon 
+- P^{\text{emp}^{\prime}}g_\epsilon < \frac{t - \epsilon}{2} \right] 
+\geq 1 - \exp\left(-\frac{m(t - \epsilon)^2}{2}\right).
+\]
+
+This complement probability is used in the subsequent steps to relate 
+the probabilities of the events \( A_\epsilon \) and \( B_\epsilon \).
+
+\subsection{Step 6: Integrate over \( \mathbf{Z} \)}
+
+Combining Step 4 with the complement probability of Step 5 we have, for every sample
+\( \mathbf{Z} \),
+\[
+\mathbf{1}_{A_\epsilon}(\mathbf{Z}) \left(1 - \exp\left(-\frac{m(t - \epsilon)^2}{2}\right)\right)
+\leq
+\mathbb{P}_{\mathbf{Z}^{\prime} \sim D^m} \left[ P^{\text{emp}^{\prime}}g_\epsilon
+- P^{\text{emp}}g_\epsilon \geq \frac{t - \epsilon}{2} \;\middle|\; \mathbf{Z} \right].
+\]
+Taking the expectation over \( \mathbf{Z} \) and introducing the event
+\[
+B_\epsilon = \left\{ (\mathbf{Z}, \mathbf{Z}^{\prime}) :
+P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{emp}}g_\epsilon \geq \frac{t - \epsilon}{2} \right\}
+\subseteq
+\left\{ (\mathbf{Z}, \mathbf{Z}^{\prime}) :
+\sup_{g \in \mathcal{G}} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t - \epsilon}{2} \right\},
+\]
+we get
+\[
+\mathbb{P}[A_\epsilon] \left(1 - \exp\left(-\frac{m(t - \epsilon)^2}{2}\right)\right)
+\leq \mathbb{P}[B_\epsilon]
+\leq \mathbb{P}\left[ \sup_{g \in \mathcal{G}} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t - \epsilon}{2} \right].
+\]
+Together with Step 2 (\( \mathbb{P}[A] \leq \mathbb{P}[A_\epsilon] \), where \( A \) is the event
+\( \sup_{g} (P^{\text{true}}g - P^{\text{emp}}g) \geq t \)), this gives for every \( \epsilon \in (0, t) \):
+\[
+\mathbb{P}[A] \left(1 - \exp\left(-\frac{m(t - \epsilon)^2}{2}\right)\right)
+\leq \mathbb{P}\left[ \sup_{g \in \mathcal{G}} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t - \epsilon}{2} \right].
+\]
+Note that no limit of the events \( A_\epsilon \) is needed: the inclusion
+\( A \subseteq A_\epsilon \) is enough.
+
+\subsection{Step 7: Let \( \epsilon \to 0 \)}
+
+\begin{itemize}
+    \item \textbf{Left-hand side.} As \( \epsilon \to 0 \),
+    \( 1 - \exp\left(-\frac{m(t - \epsilon)^2}{2}\right) \to 1 - \exp\left(-\frac{mt^2}{2}\right) \).
+    When \( mt^2 \geq 2 \),
+    \[
+    \exp\left(-\frac{mt^2}{2}\right) \leq e^{-1} \approx 0.368 < \frac{1}{2},
+    \qquad\text{so}\qquad 1 - \exp\left(-\frac{mt^2}{2}\right) \geq \frac{1}{2}.
+    \]
+    \item \textbf{Right-hand side.} The events
+    \( \{ \sup_{g} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t - \epsilon}{2} \} \)
+    decrease as \( \epsilon \downarrow 0 \) and their intersection is
+    \( \{ \sup_{g} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t}{2} \} \).
+    By continuity of probability from above, their probabilities converge to
+    \( \mathbb{P}\left[ \sup_{g} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t}{2} \right] \).
+\end{itemize}
+Letting \( \epsilon \to 0 \) in the inequality of Step 6 therefore gives
+\[
+\frac{1}{2}\, \mathbb{P}[A] \leq \left(1 - e^{-mt^2/2}\right) \mathbb{P}[A]
+\leq \mathbb{P}\left[ \sup_{g \in \mathcal{G}} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t}{2} \right].
+\]
+
+\subsection{Final Result}
+
+We conclude that, for \( mt^2 \geq 2 \):
+\[
+\mathbb{P}_{\mathbf{Z} \sim D^m} \left[ \sup_{g \in \mathcal{G}}
+(P^{\text{true}}g - P^{\text{emp}}g) \geq t \right] \leq
+2 \mathbb{P}_{\mathbf{Z}, \mathbf{Z}^{\prime} \sim D^m \times D^m}
+\left[ \sup_{g \in \mathcal{G}} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g)
+\geq \frac{t}{2} \right].
+\]
+
+This completes the proof of the symmetrization lemma \textbf{without assuming
+that the supremum is attained} by some function of \( \mathcal{G} \).
+
+\begin{remark}
+The classical proof replaces Hoeffding's inequality by Chebyshev's inequality:
+since \( g_\epsilon \in [0,1] \), \( \operatorname{Var}(P^{\text{emp}^{\prime}}g_\epsilon) \leq \frac{1}{4m} \), so
+\( \mathbb{P}\big[P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon \geq \frac{t}{2}\big] \leq \frac{4}{4m t^2} = \frac{1}{mt^2} \leq \frac{1}{2} \)
+as soon as \( mt^2 \geq 2 \). This is where the condition \( mt^2 \geq 2 \) comes from; Hoeffding's
+inequality gives the same conclusion. We also implicitly assume that the suprema are measurable
+(e.g.\ \( \mathcal{G} \) countable or suitably separable).
+\end{remark}
+\end{notechapter}

@@ -1,0 +1,130 @@
+% Source: Markdown/close_vs_open_loop.md
+\begin{notechapter}
+\chapter{Open-Loop versus Closed-Loop Prediction}\label{ch:open-closed-loop}
+
+In time series prediction, \textbf{open-loop} and \textbf{closed-loop}
+refer to two distinct approaches for generating forecasts, differing in
+whether \textbf{true observed values} are used to refine predictions
+during the forecasting process.
+
+\begin{remark}[Two opposite conventions]
+The convention below follows control engineering, where a closed loop feeds \emph{measured} outputs
+back. In the neural-network time-series literature, in particular for NARX networks (e.g.\ MATLAB's
+\texttt{narxnet}), the words are used the other way round: the \emph{open-loop} (series--parallel)
+configuration feeds the \emph{true} past outputs to the network (used for training and one-step-ahead
+prediction), while the \emph{closed-loop} (parallel) configuration feeds the network's \emph{own
+predictions} back as inputs (used for multi-step forecasting). Always check which convention a source
+uses; what matters is whether the inputs at each step are observed values or the model's own
+predictions.
+\end{remark}
+
+\section{Open-Loop (Feedforward) Prediction}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Definition}: Predictions are generated in a single pass, using
+  only the \textbf{initial input sequence}. Future steps are forecasted
+  based on the model's own previous predictions, without incorporating
+  actual observations once prediction begins.
+\item
+  \textbf{Process}:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    The model predicts multiple future steps (e.g.,
+    \(t+1, t+2, ..., t+n\)) at once.
+  \item
+    Each step \(t+k\) relies on the predicted value of \(t+(k-1)\), not
+    the true observation.
+  \end{itemize}
+\item
+  \textbf{Pros}: Efficient for batch predictions; suitable when
+  immediate feedback is unavailable.
+\item
+  \textbf{Cons}: \textbf{Error accumulation} due to reliance on prior
+  predictions. Errors propagate as the forecast horizon increases.
+\item
+  \textbf{Example}: Predicting the next 10 days of stock prices all at
+  once, using only historical data up to today.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{Closed-Loop (Feedback) Prediction}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Definition}: Predictions are updated iteratively by
+  incorporating \textbf{true observed values} as they become available.
+  Each new forecast uses the latest ground-truth data to ``correct'' the
+  model.
+\item
+  \textbf{Process}:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Predict one step ahead (e.g., \(t+1\)).
+  \item
+    Once the true value at \(t+1\) is observed, it is fed back into the
+    model to predict \(t+2\), and so on.
+  \end{itemize}
+\item
+  \textbf{Pros}: Reduces error propagation by resetting the input with
+  actual data at each step.
+\item
+  \textbf{Cons}: Requires real-time access to ground-truth observations,
+  which may not always be feasible.
+\item
+  \textbf{Example}: Weather forecasting updated daily with the latest
+  measurements.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{Key Difference}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.2407}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.3704}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.3889}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\textbf{Aspect}
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+\textbf{Open-Loop}
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+\textbf{Closed-Loop}
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{Feedback} & No use of true observations post-start & Uses true
+observations at each step \\
+\textbf{Error Propagation} & High (compounding errors) & Low (errors
+reset with true data) \\
+\textbf{Use Case} & Batch forecasting & Real-time/online forecasting \\
+\end{longtable}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{Practical Applications}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Open-Loop}: Long-term scenario planning, energy demand
+  forecasting, or any context where immediate feedback is impractical.
+\item
+  \textbf{Closed-Loop}: Autonomous systems (e.g., robotics), real-time
+  financial trading, or adaptive control systems.
+\end{itemize}
+
+Understanding this distinction helps in selecting the right approach
+based on data availability and the need for accuracy versus
+computational efficiency.
+\end{notechapter}

@@ -1,0 +1,514 @@
+% Source: Graph_ML/Random_Walk_Similarity/random_walk_similarity.tex
+\begin{notechapter}
+% ---- chapter-local definitions ----
+\makeatletter
+\forgetenv{definition}\forgetenv{definition*}\expandafter\let\csname c@tcb@cnt@definition\endcsname\relax
+\newtcbtheorem[number within=section]{definition}{Definition}{
+  colback=blue!5!white,
+  colframe=blue!75!black,
+  fonttitle=\bfseries,
+  breakable
+}{random-walk-similarity:def}
+\forgetenv{theorem}\forgetenv{theorem*}\expandafter\let\csname c@tcb@cnt@theorem\endcsname\relax
+\newtcbtheorem[number within=section]{theorem}{Theorem}{
+  colback=green!5!white,
+  colframe=green!50!black,
+  fonttitle=\bfseries,
+  breakable
+}{random-walk-similarity:thm}
+\forgetenv{proposition}\forgetenv{proposition*}\expandafter\let\csname c@tcb@cnt@proposition\endcsname\relax
+\newtcbtheorem[number within=section]{proposition}{Proposition}{
+  colback=orange!5!white,
+  colframe=orange!75!black,
+  fonttitle=\bfseries,
+  breakable
+}{random-walk-similarity:prop}
+\forgetenv{intuition}\newtcolorbox{intuition}{
+  colback=yellow!10!white,
+  colframe=yellow!50!black,
+  title=Intuition,
+  fonttitle=\bfseries,
+  breakable
+}
+\forgetenv{keyidea}\newtcolorbox{keyidea}{
+  colback=purple!5!white,
+  colframe=purple!75!black,
+  title=Key Idea,
+  fonttitle=\bfseries,
+  breakable
+}
+\forgetenv{example}\newtcolorbox{example}{
+  colback=gray!5!white,
+  colframe=gray!75!black,
+  title=Example,
+  fonttitle=\bfseries,
+  breakable
+}
+\forgetcs\bA\newcommand{\bA}{\mathbf{A}}
+\forgetcs\bD\newcommand{\bD}{\mathbf{D}}
+\forgetcs\bP\newcommand{\bP}{\mathbf{P}}
+\forgetcs\bI\newcommand{\bI}{\mathbf{I}}
+\forgetcs\bq\newcommand{\bq}{\mathbf{q}}
+\forgetcs\be\newcommand{\be}{\mathbf{e}}
+\forgetcs\bS\newcommand{\bS}{\mathbf{S}}
+\forgetcs\bM\newcommand{\bM}{\mathbf{M}}
+\forgetcs\bT\newcommand{\bT}{\mathbf{T}}
+\forgetcs\R\newcommand{\R}{\mathbb{R}}
+\forgetcs\E\newcommand{\E}{\mathbb{E}}
+\makeatother
+% -----------------------------------
+\chapter{Random-Walk Node Similarity}\label{ch:random-walk-similarity}
+\chaptersubtitle{Following Hamilton's \emph{Graph Representation Learning}}
+
+%=============================================================================
+\section{Introduction}
+%=============================================================================
+
+In the study of graph-based similarity measures, we have seen methods based on counting paths between nodes, such as the Katz index and LHN similarity. These \emph{path-counting} methods use exact counts of walks between nodes to quantify similarity.
+
+\textbf{Random walk methods} take a different approach: instead of counting all paths, they consider the \emph{probability} that a random walker starting at one node will reach another node. This probabilistic perspective offers several advantages:
+\begin{itemize}
+    \item Natural normalization (probabilities sum to 1)
+    \item Interpretable as a stochastic process
+    \item Connection to the famous PageRank algorithm
+\end{itemize}
+
+This document explains the \textbf{Personalized PageRank} approach to node similarity, as described in Hamilton's \emph{Graph Representation Learning}.
+
+%=============================================================================
+\section{Background: Random Walks on Graphs}
+%=============================================================================
+
+\subsection{The Stochastic Matrix}
+
+\begin{definition}{Stochastic Matrix}{stochastic}
+Given a graph $G = (V, E)$ with adjacency matrix $\bA$ and degree matrix $\bD = \text{diag}(d_1, \ldots, d_n)$, the \textbf{stochastic matrix} (or random walk transition matrix) is:
+\begin{equation}
+\bP = \bA \bD^{-1}
+\label{random-walk-similarity:eq:stochastic}
+\end{equation}
+The entry $\bP[v, u] = \dfrac{\bA[v,u]}{d_u}$ gives the probability of transitioning from node $u$ to node $v$ in one step.
+\end{definition}
+
+\begin{intuition}
+At each step, a random walker at node $u$ chooses uniformly at random among $u$'s neighbors. If $u$ has degree $d_u$, each neighbor has probability $1/d_u$ of being selected.
+
+Note that $\bP$ is column-stochastic: each column sums to 1 (assuming no isolated nodes).
+\end{intuition}
+
+\subsection{Standard Random Walk Convergence}
+
+For a connected, non-bipartite graph, if we let a random walk run indefinitely, the probability distribution over nodes converges to a \emph{stationary distribution}. This stationary distribution is proportional to node degrees---high-degree nodes are visited more often.
+
+\begin{keyidea}
+Without any modification, random walk probabilities converge to a \emph{global} measure (related to eigenvector centrality), not a node-specific similarity measure. To obtain pairwise similarity, we need the \textbf{Personalized PageRank} modification.
+\end{keyidea}
+
+%=============================================================================
+\section{Personalized PageRank}
+%=============================================================================
+
+\subsection{The Core Idea: Random Walks with Restarts}
+
+The key insight of Personalized PageRank is to periodically ``teleport'' the random walker back to a source node $u$. This creates a measure of how easily other nodes can be reached from $u$.
+
+\subsubsection*{The Random Walk Process}
+
+Consider a random walker that, at each discrete time step $t$:
+\begin{itemize}
+    \item With probability $c$: follows a random edge (standard random walk step)
+    \item With probability $(1-c)$: ``teleports'' back to the source node $u$
+\end{itemize}
+
+Let $\bq_u^{(t)} \in \R^{|V|}$ be the probability distribution over nodes at time $t$, where $\bq_u^{(t)}[v]$ is the probability that the walker is at node $v$ at time $t$.
+
+\subsubsection*{Deriving the Recurrence}
+
+At time $t+1$, the walker is at node $v$ if either:
+\begin{enumerate}
+    \item The walker took a random step (probability $c$) and transitioned to $v$ from some neighbor $w$, or
+    \item The walker teleported (probability $1-c$) and $v = u$.
+\end{enumerate}
+
+The probability of being at $v$ via a random step is:
+\[
+c \cdot \sum_{w \in V} \bP[v, w] \cdot \bq_u^{(t)}[w] = c \cdot (\bP \bq_u^{(t)})[v]
+\]
+
+The probability of being at $v$ via teleportation is:
+\[
+(1-c) \cdot \be_u[v] = \begin{cases} 1-c & \text{if } v = u \\ 0 & \text{otherwise} \end{cases}
+\]
+
+Combining these, the update rule is:
+\begin{equation}
+\bq_u^{(t+1)} = c \bP \bq_u^{(t)} + (1-c) \be_u
+\label{random-walk-similarity:eq:ppr-dynamics}
+\end{equation}
+
+\subsubsection*{The Stationary Distribution}
+
+We are interested in the \textbf{stationary distribution} $\bq_u$---the distribution that the walker converges to as $t \to \infty$. At stationarity, the distribution no longer changes:
+\[
+\bq_u^{(t+1)} = \bq_u^{(t)} = \bq_u
+\]
+
+Substituting into \cref{random-walk-similarity:eq:ppr-dynamics}:
+
+\begin{definition}{Personalized PageRank}{ppr}
+For a source node $u$, the \textbf{Personalized PageRank vector} $\bq_u \in \R^{|V|}$ is the stationary distribution satisfying:
+\begin{equation}
+\bq_u = c \bP \bq_u + (1 - c) \be_u
+\label{random-walk-similarity:eq:ppr-recurrence}
+\end{equation}
+where:
+\begin{itemize}
+    \item $\be_u$ is the one-hot indicator vector for node $u$ (i.e., $\be_u[v] = 1$ if $v = u$, else 0)
+    \item $c \in (0, 1)$ is the \textbf{damping factor} (typically $c \approx 0.85$)
+    \item $\bq_u[v]$ gives the stationary probability that the random walker is at node $v$
+\end{itemize}
+\end{definition}
+
+\begin{intuition}
+The recurrence has a clear interpretation: the probability of being at any node $v$ is the sum of:
+\begin{itemize}
+    \item The probability of arriving via a random walk step: $c \cdot (\bP \bq_u)[v]$
+    \item The probability of arriving via teleportation: $(1-c) \cdot \be_u[v]$
+\end{itemize}
+\end{intuition}
+
+\subsection{Interpretation of the Damping Factor}
+
+The parameter $c$ controls the trade-off between local and global information:
+
+\begin{center}
+\begin{tabular}{cl}
+\toprule
+\textbf{Value of $c$} & \textbf{Behavior} \\
+\midrule
+$c \to 0$ & Walker always restarts $\Rightarrow$ $\bq_u \to \be_u$ (only source node matters) \\
+$c \to 1$ & Walker rarely restarts $\Rightarrow$ converges to global eigenvector centrality \\
+$c \approx 0.85$ & Typical choice; balances local neighborhood with global structure \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{intuition}
+Think of $(1-c)$ as the probability of ``giving up'' on the current walk and starting over. With $c = 0.85$, the expected walk length before restart is $\frac{1}{1-c} = \frac{1}{0.15} \approx 6.67$ steps. See the box below for the derivation.
+\end{intuition}
+
+\begin{example}
+\textbf{Expected walk length before restart.} At each step, the walker restarts with probability $(1-c)$ and continues with probability $c$. Let $L$ be the number of steps before a restart occurs. This is a \textbf{geometric random variable}: we're counting the number of ``successes'' (continuing) before the first ``failure'' (restarting).
+
+The probability of taking exactly $k$ steps before restarting is:
+\[
+P(L = k) = c^k (1-c)
+\]
+This is because the walker must continue for $k$ steps (probability $c^k$) and then restart (probability $1-c$).
+
+The expected value of a geometric distribution with ``failure'' probability $p = 1-c$ is:
+\begin{align}
+\E[L] &= \sum_{k=0}^{\infty} k \cdot c^k (1-c) = (1-c) \sum_{k=0}^{\infty} k \cdot c^k
+\end{align}
+
+To evaluate $\sum_{k=0}^{\infty} k \cdot c^k$, we use the identity\footnote{This follows from differentiating the geometric series $\sum_{k=0}^{\infty} c^k = \frac{1}{1-c}$ with respect to $c$.}:
+\[
+\sum_{k=0}^{\infty} k \cdot c^k = \frac{c}{(1-c)^2}
+\]
+
+Therefore:
+\[
+\E[L] = (1-c) \cdot \frac{c}{(1-c)^2} = \frac{c}{1-c}
+\]
+
+For $c = 0.85$: $\E[L] = \frac{0.85}{0.15} = 5.67$ steps on average before restart.
+
+\textbf{Note:} There's an alternative convention where we count the restart step itself, giving $\E[L] = \frac{1}{1-c} = 6.67$. The document uses this convention.
+\end{example}
+
+%=============================================================================
+\section{Closed-Form Solution}
+%=============================================================================
+
+\subsection{Deriving the Solution}
+
+The recurrence in \cref{random-walk-similarity:eq:ppr-recurrence} can be solved analytically.
+
+\begin{proposition}{Closed-Form Personalized PageRank}{ppr-closed}
+The Personalized PageRank vector for source node $u$ is:
+\begin{equation}
+\bq_u = (1 - c)(\bI - c\bP)^{-1} \be_u
+\label{random-walk-similarity:eq:ppr-closed}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Starting from the recurrence $\bq_u = c \bP \bq_u + (1 - c) \be_u$, we rearrange:
+\begin{align}
+\bq_u - c \bP \bq_u &= (1 - c) \be_u \\
+(\bI - c\bP) \bq_u &= (1 - c) \be_u \\
+\bq_u &= (1 - c)(\bI - c\bP)^{-1} \be_u
+\end{align}
+This requires $(\bI - c\bP)$ to be invertible. See \cref{random-walk-similarity:app:invertibility} for the proof that this holds when $c < 1$.
+\end{proof}
+
+\subsection{Connection to Neumann Series}
+
+Since $\|c\bP\| < 1$ in spectral norm (see \cref{random-walk-similarity:app:spectral-norm} for the definition), we can expand the inverse as a Neumann series (see \cref{random-walk-similarity:app:neumann}):
+\begin{equation}
+(\bI - c\bP)^{-1} = \sum_{k=0}^{\infty} (c\bP)^k = \bI + c\bP + c^2\bP^2 + c^3\bP^3 + \cdots
+\label{random-walk-similarity:eq:neumann}
+\end{equation}
+
+\begin{intuition}
+This expansion shows that Personalized PageRank is a weighted sum of random walk probabilities at different path lengths:
+\begin{itemize}
+    \item $\bP^0 = \bI$: staying at the source (weight 1)
+    \item $\bP^1$: one-step transitions (weight $c$)
+    \item $\bP^2$: two-step transitions (weight $c^2$)
+    \item $\bP^k$: $k$-step transitions (weight $c^k$)
+\end{itemize}
+Longer paths contribute less due to the decaying weights $c^k$.
+\end{intuition}
+
+%=============================================================================
+\section{Random Walk Similarity Measure}
+%=============================================================================
+
+\subsection{Definition}
+
+Using Personalized PageRank, we can define a node-node similarity measure.
+
+\begin{definition}{Random Walk Similarity}{rw-sim}
+The \textbf{random walk similarity} between nodes $u$ and $v$ is:
+\begin{equation}
+\bS_{\text{RW}}[u, v] = \bq_u[v] + \bq_v[u]
+\label{random-walk-similarity:eq:rw-sim}
+\end{equation}
+where $\bq_u[v]$ is the Personalized PageRank score of node $v$ with respect to source $u$.
+\end{definition}
+
+\begin{intuition}
+The similarity between $u$ and $v$ is proportional to how likely we are to reach each node from a random walk (with restarts) starting from the other node. This is symmetric by construction.
+\end{intuition}
+
+\subsection{Why Symmetrize?}
+
+Note that $\bq_u[v] \neq \bq_v[u]$ in general---the probability of reaching $v$ from $u$ may differ from reaching $u$ from $v$. The sum $\bq_u[v] + \bq_v[u]$ symmetrizes the measure, which is desirable for many applications where similarity should be a symmetric relation.
+
+\begin{example}
+Consider a directed social network where edges represent ``follows'' relationships. User $u$ might easily reach popular user $v$ (high $\bq_u[v]$), but $v$ might not easily reach $u$ (low $\bq_v[u]$). The symmetric measure captures both directions of reachability.
+\end{example}
+
+%=============================================================================
+\section{Comparison with Path-Counting Methods}
+%=============================================================================
+
+\subsection{Random Walks vs. Katz Index}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Aspect} & \textbf{Katz Index} & \textbf{Random Walk (PPR)} \\
+\midrule
+Basic quantity & Path counts $\bA^k[u,v]$ & Transition probabilities $\bP^k[u,v]$ \\
+Weighting & $\beta^k$ (decay factor) & $c^k$ (damping factor) \\
+Matrix formula & $(\bI - \beta\bA)^{-1}$ & $(1-c)(\bI - c\bP)^{-1}$ \\
+Degree bias & High (favors high-degree nodes) & Normalized (probabilities sum to 1) \\
+Interpretation & Weighted path count & Stationary visit probability \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{keyidea}
+The key difference is that random walk methods use the \textbf{stochastic matrix} $\bP = \bA\bD^{-1}$ rather than the raw adjacency matrix $\bA$. This normalizes by degree, so high-degree nodes don't automatically dominate the similarity scores.
+\end{keyidea}
+
+\subsection{Connection to LHN}
+
+Recall that LHN normalizes path counts by expected counts under a null model:
+\[
+\bS_{\text{LHN}}[u,v] \propto \frac{\bA^k[u,v]}{\E[\bA_{G'}^k[u,v]]}
+\]
+
+Random walk methods achieve a similar effect through a different mechanism: by using transition \emph{probabilities} rather than raw counts, the degree normalization is built into the random walk dynamics itself.
+
+%=============================================================================
+\section{Practical Considerations}
+%=============================================================================
+
+\subsection{Computational Complexity}
+
+Computing $\bq_u$ for a single source node $u$ requires solving a linear system or performing power iteration. For all pairs of nodes:
+\begin{itemize}
+    \item \textbf{Exact computation}: $O(n^3)$ to compute $(\bI - c\bP)^{-1}$ (dense matrix inverse)
+    \item \textbf{Iterative methods}: Power iteration converges quickly due to the spectral gap
+    \item \textbf{Sparse approximations}: For large graphs, use truncated random walks or local push algorithms
+\end{itemize}
+
+\subsection{Choosing the Damping Factor}
+
+The original PageRank paper used $c = 0.85$. Common choices:
+\begin{itemize}
+    \item $c = 0.85$: Standard choice, good balance of local/global
+    \item $c = 0.5$: More emphasis on local neighborhood
+    \item $c = 0.9$: More emphasis on global structure
+\end{itemize}
+
+The optimal choice depends on the application and graph structure.
+
+%=============================================================================
+\section{Summary}
+%=============================================================================
+
+\begin{keyidea}
+\textbf{Random Walk Similarity} defines node similarity based on the stationary probabilities of random walks with restarts (Personalized PageRank).
+
+\textbf{Key equations}:
+\begin{align}
+\text{Stochastic matrix:} \quad & \bP = \bA \bD^{-1} \\[0.5em]
+\text{PPR recurrence:} \quad & \bq_u = c \bP \bq_u + (1 - c) \be_u \\[0.5em]
+\text{Closed form:} \quad & \bq_u = (1 - c)(\bI - c\bP)^{-1} \be_u \\[0.5em]
+\text{Similarity:} \quad & \bS_{\text{RW}}[u, v] = \bq_u[v] + \bq_v[u]
+\end{align}
+
+\textbf{Key insight}: Using transition probabilities ($\bP$) instead of raw adjacency ($\bA$) naturally normalizes for node degree, avoiding the degree bias present in methods like the Katz index.
+\end{keyidea}
+
+%=============================================================================
+\chapterappendix
+\section{Mathematical Background}
+%=============================================================================
+
+This appendix provides rigorous justification for the mathematical claims made in the main text.
+
+\subsection{Spectral Norm}
+\label{random-walk-similarity:app:spectral-norm}
+
+\begin{definition}{Spectral Norm}{spectral-norm}
+The \textbf{spectral norm} (or operator 2-norm) of a matrix $\bA \in \R^{n \times n}$ is:
+\[
+\|\bA\| = \max_{\mathbf{x} \neq \mathbf{0}} \frac{\|\bA \mathbf{x}\|_2}{\|\mathbf{x}\|_2} = \sigma_{\max}(\bA)
+\]
+where $\sigma_{\max}(\bA)$ is the largest singular value of $\bA$.
+\end{definition}
+
+For a square matrix, the spectral norm equals the largest singular value. For a symmetric matrix, this equals the largest absolute eigenvalue: $\|\bA\| = \max_i |\lambda_i|$.
+
+\begin{proposition}{Spectral Norm of Stochastic Matrix}{stochastic-norm}
+If $\bP$ is a column-stochastic matrix (each column sums to 1), then $\|\bP\| \leq 1$.
+\end{proposition}
+
+\begin{proof}
+For any vector $\mathbf{x}$, consider $\|\bP\mathbf{x}\|_1$. Since each column of $\bP$ sums to 1 and has non-negative entries:
+\[
+\|\bP\mathbf{x}\|_1 = \sum_i |(\bP\mathbf{x})_i| \leq \sum_i \sum_j \bP_{ij} |x_j| = \sum_j |x_j| \sum_i \bP_{ij} = \sum_j |x_j| = \|\mathbf{x}\|_1
+\]
+Thus $\|\bP\|_1 \leq 1$. Similarly, $\|\bP^\top\|_1 \leq 1$ (row sums are at most 1 for column-stochastic matrices of undirected graphs). Since $\|\bP\|^2 \leq \|\bP\|_1 \|\bP^\top\|_1$, we have $\|\bP\| \leq 1$.
+\end{proof}
+
+\subsection{Eigenvalues of Stochastic Matrices}
+\label{random-walk-similarity:app:eigenvalues}
+
+\begin{proposition}{Eigenvalue Bound for Stochastic Matrices}{eigenvalue-bound}
+If $\bP$ is a column-stochastic matrix, then all eigenvalues $\lambda$ of $\bP$ satisfy $|\lambda| \leq 1$.
+\end{proposition}
+
+\begin{proof}
+Let $\lambda$ be an eigenvalue of $\bP$ with eigenvector $\mathbf{v}$. Then $\bP\mathbf{v} = \lambda \mathbf{v}$.
+
+By the Gershgorin circle theorem, every eigenvalue lies in at least one Gershgorin disc. For column $j$, the disc is centered at $\bP_{jj}$ with radius $\sum_{i \neq j} \bP_{ij}$. Since $\bP$ is column-stochastic:
+\[
+\bP_{jj} + \sum_{i \neq j} \bP_{ij} = 1
+\]
+So each disc is contained in the closed unit disc $\{z \in \mathbb{C} : |z| \leq 1\}$. Therefore $|\lambda| \leq 1$.
+\end{proof}
+
+\subsection{Invertibility of $(\bI - c\bP)$}
+\label{random-walk-similarity:app:invertibility}
+
+\begin{proposition}{Invertibility}{invertibility}
+For $c \in (0, 1)$ and $\bP$ a column-stochastic matrix, the matrix $(\bI - c\bP)$ is invertible.
+\end{proposition}
+
+\begin{proof}
+The matrix $(\bI - c\bP)$ is invertible if and only if $0$ is not an eigenvalue, i.e., if and only if $\det(\bI - c\bP) \neq 0$.
+
+The eigenvalues of $(\bI - c\bP)$ are $\{1 - c\lambda : \lambda \text{ is an eigenvalue of } \bP\}$.
+
+By \cref{random-walk-similarity:prop:eigenvalue-bound}, $|\lambda| \leq 1$ for all eigenvalues of $\bP$. Therefore:
+\[
+|1 - c\lambda| \geq 1 - c|\lambda| \geq 1 - c > 0
+\]
+since $c < 1$. Thus no eigenvalue of $(\bI - c\bP)$ is zero, so the matrix is invertible.
+\end{proof}
+
+\subsection{Neumann Series}
+\label{random-walk-similarity:app:neumann}
+
+\begin{theorem}{Neumann Series}{neumann}
+If $\bM$ is a square matrix with $\|\bM\| < 1$ (in any submultiplicative norm), then $(\bI - \bM)$ is invertible and:
+\begin{equation}
+(\bI - \bM)^{-1} = \sum_{k=0}^{\infty} \bM^k = \bI + \bM + \bM^2 + \bM^3 + \cdots
+\end{equation}
+The series converges absolutely.
+\end{theorem}
+
+\begin{proof}
+\textbf{Step 1: Convergence.} Since $\|\bM\| < 1$ and the norm is submultiplicative, $\|\bM^k\| \leq \|\bM\|^k$. The series $\sum_{k=0}^{\infty} \|\bM\|^k$ is a geometric series with ratio $< 1$, so it converges. By comparison, $\sum_{k=0}^{\infty} \bM^k$ converges absolutely.
+
+\textbf{Step 2: Verification.} Let $\bS = \sum_{k=0}^{\infty} \bM^k$. Then:
+\begin{align}
+(\bI - \bM) \bS &= (\bI - \bM) \sum_{k=0}^{\infty} \bM^k = \sum_{k=0}^{\infty} \bM^k - \sum_{k=0}^{\infty} \bM^{k+1} \\
+&= \sum_{k=0}^{\infty} \bM^k - \sum_{k=1}^{\infty} \bM^k = \bM^0 = \bI
+\end{align}
+Similarly, $\bS(\bI - \bM) = \bI$. Therefore $\bS = (\bI - \bM)^{-1}$.
+\end{proof}
+
+\begin{intuition}
+The Neumann series is the matrix analogue of the geometric series $\frac{1}{1-x} = 1 + x + x^2 + \cdots$ for $|x| < 1$.
+
+Applying this to $\bM = c\bP$ where $\|c\bP\| = c\|\bP\| \leq c < 1$:
+\[
+(\bI - c\bP)^{-1} = \sum_{k=0}^{\infty} c^k \bP^k
+\]
+This shows that Personalized PageRank weights $k$-step transition probabilities by $c^k$.
+\end{intuition}
+
+\subsection{Convergence of Power Iteration}
+\label{random-walk-similarity:app:power-iteration}
+
+The recurrence $\bq_u^{(t+1)} = c\bP\bq_u^{(t)} + (1-c)\be_u$ converges to the stationary distribution.
+
+\begin{proposition}{Convergence}{convergence}
+For any initial distribution $\bq_u^{(0)}$, the sequence $\bq_u^{(t)}$ converges to $\bq_u = (1-c)(\bI - c\bP)^{-1}\be_u$.
+\end{proposition}
+
+\begin{proof}
+Let $\bT: \mathbf{x} \mapsto c\bP\mathbf{x} + (1-c)\be_u$ be the update operator. The fixed point satisfies $\bq_u = \bT(\bq_u)$.
+
+The error at step $t$ is:
+\begin{align}
+\bq_u^{(t)} - \bq_u &= \bT(\bq_u^{(t-1)}) - \bT(\bq_u) \\
+&= c\bP(\bq_u^{(t-1)} - \bq_u)
+\end{align}
+
+By induction: $\bq_u^{(t)} - \bq_u = (c\bP)^t (\bq_u^{(0)} - \bq_u)$.
+
+Since $\|c\bP\| \leq c < 1$:
+\[
+\|\bq_u^{(t)} - \bq_u\| \leq \|c\bP\|^t \|\bq_u^{(0)} - \bq_u\| \leq c^t \|\bq_u^{(0)} - \bq_u\| \to 0
+\]
+as $t \to \infty$. The convergence is geometric with rate $c$.
+\end{proof}
+
+%=============================================================================
+\section{References}
+%=============================================================================
+
+\begin{itemize}
+    \item Hamilton, W. L. (2020). \emph{Graph Representation Learning}. Morgan \& Claypool.
+    \item Page, L., Brin, S., Motwani, R., \& Winograd, T. (1999). The PageRank citation ranking: Bringing order to the web. Stanford InfoLab.
+    \item Leskovec, J., Rajaraman, A., \& Ullman, J. D. (2020). \emph{Mining of Massive Datasets}. Cambridge University Press.
+\end{itemize}
+\end{notechapter}

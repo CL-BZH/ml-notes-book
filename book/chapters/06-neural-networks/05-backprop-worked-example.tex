@@ -1,0 +1,660 @@
+% Source: backpropagation_example.tex
+\begin{notechapter}
+\chapter{Backpropagation: A Worked Example}\label{ch:backprop-worked-example}
+
+\section{Network Architecture}
+
+Consider a neural network with the following architecture:
+\begin{itemize}
+    \item Input layer: \( \mathbf{x} \in \mathbb{R}^{2 \times 1} \),
+    \item Hidden layer: \( \mathbf{h} \in \mathbb{R}^{3 \times 1} \),
+    \item Output layer: \( \mathbf{y} \in \mathbb{R}^{2 \times 1} \).
+\end{itemize}
+
+The network has the following parameters:
+\begin{itemize}
+    \item Weight matrix \( W_1 \in \mathbb{R}^{3 \times 2} \) for the 
+          input-to-hidden layer,
+    \item Bias vector \( \mathbf{b}_1 \in \mathbb{R}^{3 \times 1} \) 
+          for the hidden layer,
+    \item Weight matrix \( W_2 \in \mathbb{R}^{2 \times 3} \) for the 
+          hidden-to-output layer,
+    \item Bias vector \( \mathbf{b}_2 \in \mathbb{R}^{2 \times 1} \) 
+          for the output layer.
+\end{itemize}
+
+The activation function for the hidden layer is \( \sigma \), 
+applied element-wise.
+
+\section{Forward Pass}
+
+\subsection{Hidden Layer}
+
+The hidden layer activations \( \mathbf{h} \) are computed as:
+\[
+\mathbf{h} = \sigma(W_1 \mathbf{x} + \mathbf{b}_1),
+\]
+where:
+\begin{itemize}
+    \item \( W_1 \mathbf{x} + \mathbf{b}_1 \) is the pre-activation 
+          vector of size \( 3 \times 1 \),
+    \item \( \sigma \) is the activation function (e.g., ReLU, sigmoid), 
+          applied element-wise.
+\end{itemize}
+
+\subsubsection{Explicit Matrices}
+
+Let:
+\[
+W_1 = \begin{bmatrix}
+w_{11} & w_{12} \\
+w_{21} & w_{22} \\
+w_{31} & w_{32}
+\end{bmatrix}, \quad
+\mathbf{x} = \begin{bmatrix}
+x_1 \\
+x_2
+\end{bmatrix}, \quad
+\mathbf{b}_1 = \begin{bmatrix}
+b_{11} \\
+b_{21} \\
+b_{31}
+\end{bmatrix}.
+\]
+
+The pre-activation vector \( \mathbf{z} = W_1 \mathbf{x} + \mathbf{b}_1 \) is:
+\[
+\mathbf{z} = \begin{bmatrix}
+z_1 \\
+z_2 \\
+z_3
+\end{bmatrix} = \begin{bmatrix}
+w_{11}x_1 + w_{12}x_2 + b_{11} \\
+w_{21}x_1 + w_{22}x_2 + b_{21} \\
+w_{31}x_1 + w_{32}x_2 + b_{31}
+\end{bmatrix}.
+\]
+
+After applying the activation function \( \sigma \):
+\[
+\mathbf{h} = \begin{bmatrix}
+\sigma(z_1) \\
+\sigma(z_2) \\
+\sigma(z_3)
+\end{bmatrix}.
+\]
+
+\subsection{Output Layer}
+
+The output \( \mathbf{y} \) is computed as:
+\[
+\mathbf{y} = W_2 \mathbf{h} + \mathbf{b}_2,
+\]
+where:
+\begin{itemize}
+    \item \( W_2 \mathbf{h} + \mathbf{b}_2 \) is the output vector 
+          of size \( 2 \times 1 \).
+\end{itemize}
+
+\subsubsection{Explicit Matrices}
+
+Let:
+\[
+W_2 = \begin{bmatrix}
+w_{11}^{\prime} & w_{12}^{\prime} & w_{13}^{\prime} \\
+w_{21}^{\prime} & w_{22}^{\prime} & w_{23}^{\prime}
+\end{bmatrix}, \quad
+\mathbf{h} = \begin{bmatrix}
+h_1 \\
+h_2 \\
+h_3
+\end{bmatrix}, \quad
+\mathbf{b}_2 = \begin{bmatrix}
+b_{11}^{\prime} \\
+b_{21}^{\prime}
+\end{bmatrix}.
+\]
+
+Then:
+\[
+W_2 \mathbf{h} + \mathbf{b}_2 = \begin{bmatrix}
+w_{11}^{\prime}h_1 + w_{12}^{\prime}h_2 + w_{13}^{\prime}h_3 + b_{11}^{\prime} \\
+w_{21}^{\prime}h_1 + w_{22}^{\prime}h_2 + w_{23}^{\prime}h_3 + b_{21}^{\prime}
+\end{bmatrix}.
+\]
+
+Thus:
+\[
+\mathbf{y} = \begin{bmatrix}
+y_1 \\
+y_2
+\end{bmatrix} = \begin{bmatrix}
+w_{11}^{\prime}h_1 + w_{12}^{\prime}h_2 + w_{13}^{\prime}h_3 + b_{11}^{\prime} \\
+w_{21}^{\prime}h_1 + w_{22}^{\prime}h_2 + w_{23}^{\prime}h_3 + b_{21}^{\prime}
+\end{bmatrix}.
+\]
+
+\section{Loss Function}
+
+Let \( \mathcal{L} \) be the loss function, which is a scalar 
+function of the output \( \mathbf{y} \). For example, for mean 
+squared error (MSE) loss:
+\[
+\mathcal{L} = \frac{1}{2} \|\mathbf{y} - \mathbf{y}_{\text{target}}\|^2,
+\]
+where \( \mathbf{y}_{\text{target}} \) is the target output.
+
+\section{Backward Pass}
+
+The backward pass computes the gradients of the loss \( \mathcal{L} \) 
+with respect to the network parameters \( W_1, \mathbf{b}_1, W_2, \mathbf{b}_2 \) 
+using the chain rule.
+
+\subsection{Gradient with Respect to \( W_2 \)}
+
+The gradient of \( \mathcal{L} \) with respect to \( W_2 \) is:
+\[
+\frac{\partial \mathcal{L}}{\partial W_2} = \frac{\partial \mathcal{L}}{\partial \mathbf{y}} 
+\cdot \frac{\partial \mathbf{y}}{\partial W_2}.
+\]
+
+Here:
+\begin{itemize}
+    \item \( \frac{\partial \mathcal{L}}{\partial \mathbf{y}} \) is a \( 1 \times 2 \) 
+          row vector (gradient of the scalar loss with respect to the output \( \mathbf{y} \)),
+    \item \( \frac{\partial \mathbf{y}}{\partial W_2} \) is a \( 2 \times 2 \times 3 \) 
+          tensor (derivative of the vector \( \mathbf{y} \) with respect to the matrix \( W_2 \)).
+\end{itemize}
+
+\subsubsection{Explicit Tensor \( \frac{\partial \mathbf{y}}{\partial W_2} \)}
+
+The tensor \( \frac{\partial \mathbf{y}}{\partial W_2} \) has dimensions \( 2 \times 2 \times 3 \), 
+where:
+\begin{itemize}
+    \item The first dimension corresponds to the elements of \( \mathbf{y} \) (\( y_1 \) and \( y_2 \)),
+    \item The second dimension corresponds to the rows of \( W_2 \) (\( 2 \) rows),
+    \item The third dimension corresponds to the columns of \( W_2 \) (\( 3 \) columns).
+\end{itemize}
+
+For example:
+\[
+\frac{\partial y_1}{\partial W_2} = \begin{bmatrix}
+\frac{\partial y_1}{\partial w_{11}^{\prime}} & \frac{\partial y_1}{\partial w_{12}^{\prime}} & \frac{\partial y_1}{\partial w_{13}^{\prime}} \\
+\frac{\partial y_1}{\partial w_{21}^{\prime}} & \frac{\partial y_1}{\partial w_{22}^{\prime}} & \frac{\partial y_1}{\partial w_{23}^{\prime}}
+\end{bmatrix} = \begin{bmatrix}
+h_1 & h_2 & h_3 \\
+0 & 0 & 0
+\end{bmatrix},
+\]
+and
+\[
+\frac{\partial y_2}{\partial W_2} = \begin{bmatrix}
+0 & 0 & 0 \\
+h_1 & h_2 & h_3
+\end{bmatrix}.
+\]
+
+Thus, the full tensor \( \frac{\partial \mathbf{y}}{\partial W_2} \) is:
+\[
+\frac{\partial \mathbf{y}}{\partial W_2} = \begin{bmatrix}
+\begin{bmatrix}
+h_1 & h_2 & h_3 \\
+0 & 0 & 0
+\end{bmatrix},
+\begin{bmatrix}
+0 & 0 & 0 \\
+h_1 & h_2 & h_3
+\end{bmatrix}
+\end{bmatrix}.
+\]
+
+\subsection{Gradient with Respect to \( \mathbf{b}_2 \)}
+
+The gradient of \( \mathcal{L} \) with respect to \( \mathbf{b}_2 \) is:
+\[
+\frac{\partial \mathcal{L}}{\partial \mathbf{b}_2} = \frac{\partial \mathcal{L}}{\partial \mathbf{y}}.
+\]
+This is because \( \mathbf{y} = W_2 \mathbf{h} + \mathbf{b}_2 \), so \( \frac{\partial \mathbf{y}}{\partial \mathbf{b}_2} = I \), 
+where \( I \) is the identity matrix.
+
+\subsection{Gradient with Respect to \( \mathbf{h} \)}
+
+The gradient of \( \mathcal{L} \) with respect to \( \mathbf{h} \) is:
+\[
+\frac{\partial \mathcal{L}}{\partial \mathbf{h}} = \frac{\partial \mathcal{L}}{\partial \mathbf{y}} \cdot W_2.
+\]
+Here:
+\begin{itemize}
+    \item \( \frac{\partial \mathcal{L}}{\partial \mathbf{y}} \) is a \( 1 \times 2 \) row vector,
+    \item \( W_2 \) is a \( 2 \times 3 \) matrix,
+    \item The product \( \frac{\partial \mathcal{L}}{\partial \mathbf{y}} \cdot W_2 \) is a \( 1 \times 3 \) 
+          row vector, matching the dimensions of \( \mathbf{h} \).
+\end{itemize}
+
+\subsection{Gradient with Respect to \( W_1 \)}
+
+The gradient of \( \mathcal{L} \) with respect to \( W_1 \) is:
+\[
+\frac{\partial \mathcal{L}}{\partial W_1} = \frac{\partial \mathcal{L}}{\partial \mathbf{h}} 
+\cdot \frac{\partial \mathbf{h}}{\partial W_1}.
+\]
+
+Here:
+\begin{itemize}
+    \item \( \frac{\partial \mathcal{L}}{\partial \mathbf{h}} \) is a \( 1 \times 3 \) row vector,
+    \item \( \frac{\partial \mathbf{h}}{\partial W_1} \) is a \( 3 \times 3 \times 2 \) tensor 
+          (derivative of the vector \( \mathbf{h} \) with respect to the matrix \( W_1 \)).
+\end{itemize}
+
+\subsubsection{Explicit Tensor \( \frac{\partial \mathbf{h}}{\partial W_1} \)}
+
+The tensor \( \frac{\partial \mathbf{h}}{\partial W_1} \) has dimensions \( 3 \times 3 \times 2 \), 
+where:
+\begin{itemize}
+    \item The first dimension corresponds to the elements of \( \mathbf{h} \) (\( h_1, h_2, h_3 \)),
+    \item The second dimension corresponds to the rows of \( W_1 \) (\( 3 \) rows),
+    \item The third dimension corresponds to the columns of \( W_1 \) (\( 2 \) columns).
+\end{itemize}
+
+For example:
+\[
+\frac{\partial h_1}{\partial W_1} = \begin{bmatrix}
+\frac{\partial h_1}{\partial w_{11}} & \frac{\partial h_1}{\partial w_{12}} \\
+\frac{\partial h_1}{\partial w_{21}} & \frac{\partial h_1}{\partial w_{22}} \\
+\frac{\partial h_1}{\partial w_{31}} & \frac{\partial h_1}{\partial w_{32}}
+\end{bmatrix} = \begin{bmatrix}
+\sigma^{\prime}(z_1) x_1 & \sigma^{\prime}(z_1) x_2 \\
+0 & 0 \\
+0 & 0
+\end{bmatrix},
+\]
+where \( z_1 = w_{11}x_1 + w_{12}x_2 + b_{11} \).
+
+Similarly:
+\[
+\frac{\partial h_2}{\partial W_1} = \begin{bmatrix}
+0 & 0 \\
+\sigma^{\prime}(z_2) x_1 & \sigma^{\prime}(z_2) x_2 \\
+0 & 0
+\end{bmatrix}, \quad
+\frac{\partial h_3}{\partial W_1} = \begin{bmatrix}
+0 & 0 \\
+0 & 0 \\
+\sigma^{\prime}(z_3) x_1 & \sigma^{\prime}(z_3) x_2
+\end{bmatrix}.
+\]
+
+Thus, the full tensor \( \frac{\partial \mathbf{h}}{\partial W_1} \) is:
+\[
+\frac{\partial \mathbf{h}}{\partial W_1} = \begin{bmatrix}
+\begin{bmatrix}
+\sigma^{\prime}(z_1) x_1 & \sigma^{\prime}(z_1) x_2 \\
+0 & 0 \\
+0 & 0
+\end{bmatrix},
+\begin{bmatrix}
+0 & 0 \\
+\sigma^{\prime}(z_2) x_1 & \sigma^{\prime}(z_2) x_2 \\
+0 & 0
+\end{bmatrix},
+\begin{bmatrix}
+0 & 0 \\
+0 & 0 \\
+\sigma^{\prime}(z_3) x_1 & \sigma^{\prime}(z_3) x_2
+\end{bmatrix}
+\end{bmatrix}.
+\]
+
+\subsection{Gradient with Respect to \( \mathbf{b}_1 \)}
+
+The gradient of \( \mathcal{L} \) with respect to \( \mathbf{b}_1 \) is:
+\[
+\frac{\partial \mathcal{L}}{\partial \mathbf{b}_1} = \frac{\partial \mathcal{L}}{\partial \mathbf{h}} 
+\odot \sigma^{\prime}(\mathbf{z}),
+\]
+where:
+\begin{itemize}
+    \item \( \frac{\partial \mathcal{L}}{\partial \mathbf{h}} \) is a \( 1 \times 3 \) row vector,
+    \item \( \sigma^{\prime}(\mathbf{z}) \) is a \( 3 \times 1 \) column vector,
+    \item The Hadamard product \( \frac{\partial \mathcal{L}}{\partial \mathbf{h}} \odot \sigma^{\prime}(\mathbf{z}) \) 
+          is a \( 3 \times 1 \) column vector, matching the dimensions of \( \mathbf{b}_1 \).
+\end{itemize}
+
+\subsubsection{Derivation of \( \frac{\partial \mathbf{h}}{\partial \mathbf{b}_1} \)}
+
+The gradient \( \frac{\partial \mathbf{h}}{\partial \mathbf{b}_1} \) is derived using the chain rule:
+\[
+\frac{\partial \mathbf{h}}{\partial \mathbf{b}_1} = \frac{\partial \mathbf{h}}{\partial \mathbf{z}} \cdot \frac{\partial \mathbf{z}}{\partial \mathbf{b}_1}.
+\]
+
+Here:
+\begin{itemize}
+    \item \( \frac{\partial \mathbf{h}}{\partial \mathbf{z}} \) is the derivative of the activation function \( \sigma \) applied element-wise to \( \mathbf{z} \). Since \( \sigma \) is applied element-wise, \( \frac{\partial \mathbf{h}}{\partial \mathbf{z}} \) is a diagonal matrix where each diagonal entry is \( \sigma^{\prime}(z_i) \), the derivative of \( \sigma \) at \( z_i \). 
+
+    To derive this, note that:
+    \[
+    \mathbf{h} = \begin{bmatrix}
+    \sigma(z_1) \\
+    \sigma(z_2) \\
+    \sigma(z_3)
+    \end{bmatrix},
+    \]
+    and the derivative of \( \mathbf{h} \) with respect to \( \mathbf{z} \) is:
+    \[
+    \frac{\partial \mathbf{h}}{\partial \mathbf{z}} = \begin{bmatrix}
+    \frac{\partial \sigma(z_1)}{\partial z_1} & \frac{\partial \sigma(z_1)}{\partial z_2} & \frac{\partial \sigma(z_1)}{\partial z_3} \\
+    \frac{\partial \sigma(z_2)}{\partial z_1} & \frac{\partial \sigma(z_2)}{\partial z_2} & \frac{\partial \sigma(z_2)}{\partial z_3} \\
+    \frac{\partial \sigma(z_3)}{\partial z_1} & \frac{\partial \sigma(z_3)}{\partial z_2} & \frac{\partial \sigma(z_3)}{\partial z_3}
+    \end{bmatrix}.
+    \]
+
+    Since \( \sigma \) is applied element-wise, the off-diagonal terms are zero, and the diagonal terms are \( \sigma^{\prime}(z_i) \). Thus:
+    \[
+    \frac{\partial \mathbf{h}}{\partial \mathbf{z}} = \begin{bmatrix}
+    \sigma^{\prime}(z_1) & 0 & 0 \\
+    0 & \sigma^{\prime}(z_2) & 0 \\
+    0 & 0 & \sigma^{\prime}(z_3)
+    \end{bmatrix}.
+    \]
+
+    \item \( \frac{\partial \mathbf{z}}{\partial \mathbf{b}_1} \) is the derivative of \( \mathbf{z} \) with respect to \( \mathbf{b}_1 \). Since \( \mathbf{z} = W_1 \mathbf{x} + \mathbf{b}_1 \), the derivative of \( \mathbf{z} \) with respect to \( \mathbf{b}_1 \) is the identity matrix \( I \) of size \( 3 \times 3 \). To derive this, note that:
+    \[
+    \mathbf{z} = \begin{bmatrix}
+    z_1 \\
+    z_2 \\
+    z_3
+    \end{bmatrix} = \begin{bmatrix}
+    w_{11}x_1 + w_{12}x_2 + b_{11} \\
+    w_{21}x_1 + w_{22}x_2 + b_{21} \\
+    w_{31}x_1 + w_{32}x_2 + b_{31}
+    \end{bmatrix}.
+    \]
+
+    The derivative of \( \mathbf{z} \) with respect to \( \mathbf{b}_1 \) is:
+    \[
+    \frac{\partial \mathbf{z}}{\partial \mathbf{b}_1} = \begin{bmatrix}
+    \frac{\partial z_1}{\partial b_{11}} & \frac{\partial z_1}{\partial b_{21}} & \frac{\partial z_1}{\partial b_{31}} \\
+    \frac{\partial z_2}{\partial b_{11}} & \frac{\partial z_2}{\partial b_{21}} & \frac{\partial z_2}{\partial b_{31}} \\
+    \frac{\partial z_3}{\partial b_{11}} & \frac{\partial z_3}{\partial b_{21}} & \frac{\partial z_3}{\partial b_{31}}
+    \end{bmatrix}.
+    \]
+
+    Since \( z_i \) depends only on \( b_{i1} \) (e.g., \( z_1 = w_{11}x_1 + w_{12}x_2 + b_{11} \)), the off-diagonal terms are zero, and the diagonal terms are 1. Thus:
+    \[
+    \frac{\partial \mathbf{z}}{\partial \mathbf{b}_1} = \begin{bmatrix}
+    1 & 0 & 0 \\
+    0 & 1 & 0 \\
+    0 & 0 & 1
+    \end{bmatrix} = I.
+    \]
+\end{itemize}
+
+Combining these results, we have:
+\[
+\frac{\partial \mathbf{h}}{\partial \mathbf{b}_1} = \frac{\partial \mathbf{h}}{\partial \mathbf{z}} \cdot \frac{\partial \mathbf{z}}{\partial \mathbf{b}_1} = \begin{bmatrix}
+\sigma^{\prime}(z_1) & 0 & 0 \\
+0 & \sigma^{\prime}(z_2) & 0 \\
+0 & 0 & \sigma^{\prime}(z_3)
+\end{bmatrix} \cdot \begin{bmatrix}
+1 & 0 & 0 \\
+0 & 1 & 0 \\
+0 & 0 & 1
+\end{bmatrix} = 
+\begin{bmatrix}
+\sigma^{\prime}(z_1) & 0 & 0 \\
+0 & \sigma^{\prime}(z_2) & 0 \\
+0 & 0 & \sigma^{\prime}(z_3)
+\end{bmatrix}.
+\]
+
+Thus, \( \frac{\partial \mathbf{h}}{\partial \mathbf{b}_1} \) is a \( 3 \times 3 \) diagonal matrix where each diagonal entry is the derivative of the activation function \( \sigma \) evaluated at the corresponding element of \( \mathbf{z} \).
+
+\section{Summary of Gradients}
+
+\subsection{Output Layer Gradients}
+
+The gradients of the loss \( \mathcal{L} \) with respect to the 
+output layer parameters \( W_2 \) and \( \mathbf{b}_2 \) are:
+
+\begin{itemize}
+    \item Gradient with respect to \( W_2 \):
+    \[
+    \frac{\partial \mathcal{L}}{\partial W_2} = 
+    \left( \frac{\partial \mathcal{L}}{\partial \mathbf{y}} \right)^T 
+    \cdot \mathbf{h}^T.
+    \]
+    This is derived as follows:
+    \begin{itemize}
+        \item The chain rule gives:
+        \[
+        \frac{\partial \mathcal{L}}{\partial W_2} = 
+        \frac{\partial \mathcal{L}}{\partial \mathbf{y}} 
+        \cdot \frac{\partial \mathbf{y}}{\partial W_2}.
+        \]
+        \item Since \( \mathbf{y} = W_2 \mathbf{h} + \mathbf{b}_2 \), the 
+        derivative \( \frac{\partial \mathbf{y}}{\partial W_2} \) is a 
+        \( 2 \times 2 \times 3 \) tensor. To compute it, we first write:
+        \[
+        \frac{\partial \mathcal{L}}{\partial W_2} = 
+        \frac{\partial \mathcal{L}}{\partial y_1} \cdot 
+        \frac{\partial y_1}{\partial W_2} + 
+        \frac{\partial \mathcal{L}}{\partial y_2} \cdot 
+        \frac{\partial y_2}{\partial W_2}.
+        \]
+        \item The partial derivatives \( \frac{\partial y_1}{\partial W_2} \) 
+        and \( \frac{\partial y_2}{\partial W_2} \) are matrices of size 
+        \( 2 \times 3 \), where:
+        \[
+        \frac{\partial y_1}{\partial W_2} = 
+        \begin{bmatrix}
+        h_1 & h_2 & h_3 \\
+        0 & 0 & 0
+        \end{bmatrix}, \quad
+        \frac{\partial y_2}{\partial W_2} = 
+        \begin{bmatrix}
+        0 & 0 & 0 \\
+        h_1 & h_2 & h_3
+        \end{bmatrix}.
+        \]
+        \item Substituting these into the expression for 
+        \( \frac{\partial \mathcal{L}}{\partial W_2} \), we get:
+        \[
+        \frac{\partial \mathcal{L}}{\partial W_2} = 
+        \frac{\partial \mathcal{L}}{\partial y_1} \cdot 
+        \begin{bmatrix}
+        h_1 & h_2 & h_3 \\
+        0 & 0 & 0
+        \end{bmatrix} + 
+        \frac{\partial \mathcal{L}}{\partial y_2} \cdot 
+        \begin{bmatrix}
+        0 & 0 & 0 \\
+        h_1 & h_2 & h_3
+        \end{bmatrix}.
+        \]
+        \item This results in:
+        \[
+        \frac{\partial \mathcal{L}}{\partial W_2} = 
+        \begin{bmatrix}
+        \frac{\partial \mathcal{L}}{\partial y_1} h_1 & 
+        \frac{\partial \mathcal{L}}{\partial y_1} h_2 & 
+        \frac{\partial \mathcal{L}}{\partial y_1} h_3 \\
+        \frac{\partial \mathcal{L}}{\partial y_2} h_1 & 
+        \frac{\partial \mathcal{L}}{\partial y_2} h_2 & 
+        \frac{\partial \mathcal{L}}{\partial y_2} h_3
+        \end{bmatrix}.
+        \]
+        \item This can be written compactly as:
+        \[
+        \frac{\partial \mathcal{L}}{\partial W_2} = 
+        \left( \frac{\partial \mathcal{L}}{\partial \mathbf{y}} \right)^T 
+        \cdot \mathbf{h}^T.
+        \]
+    \end{itemize}
+
+    \item Gradient with respect to \( \mathbf{b}_2 \):
+    \[
+    \frac{\partial \mathcal{L}}{\partial \mathbf{b}_2} = 
+    \frac{\partial \mathcal{L}}{\partial \mathbf{y}}.
+    \]
+    This is because \( \mathbf{y} = W_2 \mathbf{h} + \mathbf{b}_2 \), 
+    so \( \frac{\partial \mathbf{y}}{\partial \mathbf{b}_2} = I \), 
+    where \( I \) is the identity matrix.
+\end{itemize}
+
+\subsection{Hidden Layer Gradients}
+
+The gradients of the loss \( \mathcal{L} \) with respect to the 
+hidden layer parameters \( W_1 \) and \( \mathbf{b}_1 \) are:
+
+\begin{itemize}
+    \item Gradient with respect to \( W_1 \):
+    \[
+    \frac{\partial \mathcal{L}}{\partial W_1} = 
+    \left( \frac{\partial \mathcal{L}}{\partial \mathbf{h}} 
+    \odot \sigma^{\prime}(\mathbf{z}) \right)^T \cdot \mathbf{x}^T.
+    \]
+    This is derived as follows:
+    \begin{itemize}
+        \item The chain rule gives:
+        \[
+        \frac{\partial \mathcal{L}}{\partial W_1} = 
+        \frac{\partial \mathcal{L}}{\partial \mathbf{h}} 
+        \cdot \frac{\partial \mathbf{h}}{\partial W_1}.
+        \]
+        \item Since \( \mathbf{h} = \sigma(\mathbf{z}) \) and 
+        \( \mathbf{z} = W_1 \mathbf{x} + \mathbf{b}_1 \), the 
+        derivative \( \frac{\partial \mathbf{h}}{\partial W_1} \) is a 
+        \( 3 \times 3 \times 2 \) tensor. To compute it, we first write:
+        \[
+        \frac{\partial \mathcal{L}}{\partial W_1} = 
+        \frac{\partial \mathcal{L}}{\partial h_1} \cdot 
+        \frac{\partial h_1}{\partial W_1} + 
+        \frac{\partial \mathcal{L}}{\partial h_2} \cdot 
+        \frac{\partial h_2}{\partial W_1} + 
+        \frac{\partial \mathcal{L}}{\partial h_3} \cdot 
+        \frac{\partial h_3}{\partial W_1}.
+        \]
+        \item The partial derivatives \( \frac{\partial h_1}{\partial W_1} \), 
+        \( \frac{\partial h_2}{\partial W_1} \), and \( \frac{\partial h_3}{\partial W_1} \) 
+        are matrices of size \( 3 \times 2 \), where:
+        \[
+        \frac{\partial h_1}{\partial W_1} = 
+        \begin{bmatrix}
+        \sigma^{\prime}(z_1) x_1 & \sigma^{\prime}(z_1) x_2 \\
+        0 & 0 \\
+        0 & 0
+        \end{bmatrix}, \quad
+        \frac{\partial h_2}{\partial W_1} = 
+        \begin{bmatrix}
+        0 & 0 \\
+        \sigma^{\prime}(z_2) x_1 & \sigma^{\prime}(z_2) x_2 \\
+        0 & 0
+        \end{bmatrix}, \quad
+        \frac{\partial h_3}{\partial W_1} = 
+        \begin{bmatrix}
+        0 & 0 \\
+        0 & 0 \\
+        \sigma^{\prime}(z_3) x_1 & \sigma^{\prime}(z_3) x_2
+        \end{bmatrix}.
+        \]
+        \item Substituting these into the expression for 
+        \( \frac{\partial \mathcal{L}}{\partial W_1} \), we get:
+        \[
+        \frac{\partial \mathcal{L}}{\partial W_1} = 
+        \frac{\partial \mathcal{L}}{\partial h_1} \cdot 
+        \begin{bmatrix}
+        \sigma^{\prime}(z_1) x_1 & \sigma^{\prime}(z_1) x_2 \\
+        0 & 0 \\
+        0 & 0
+        \end{bmatrix} + 
+        \frac{\partial \mathcal{L}}{\partial h_2} \cdot 
+        \begin{bmatrix}
+        0 & 0 \\
+        \sigma^{\prime}(z_2) x_1 & \sigma^{\prime}(z_2) x_2 \\
+        0 & 0
+        \end{bmatrix} + 
+        \frac{\partial \mathcal{L}}{\partial h_3} \cdot 
+        \begin{bmatrix}
+        0 & 0 \\
+        0 & 0 \\
+        \sigma^{\prime}(z_3) x_1 & \sigma^{\prime}(z_3) x_2
+        \end{bmatrix}.
+        \]
+        \item This results in:
+        \[
+        \frac{\partial \mathcal{L}}{\partial W_1} = 
+        \begin{bmatrix}
+        \frac{\partial \mathcal{L}}{\partial h_1} \sigma^{\prime}(z_1) x_1 & 
+        \frac{\partial \mathcal{L}}{\partial h_1} \sigma^{\prime}(z_1) x_2 \\
+        \frac{\partial \mathcal{L}}{\partial h_2} \sigma^{\prime}(z_2) x_1 & 
+        \frac{\partial \mathcal{L}}{\partial h_2} \sigma^{\prime}(z_2) x_2 \\
+        \frac{\partial \mathcal{L}}{\partial h_3} \sigma^{\prime}(z_3) x_1 & 
+        \frac{\partial \mathcal{L}}{\partial h_3} \sigma^{\prime}(z_3) x_2
+        \end{bmatrix}.
+        \]
+        \item This can be written compactly as:
+        \[
+        \frac{\partial \mathcal{L}}{\partial W_1} = 
+        \left( \frac{\partial \mathcal{L}}{\partial \mathbf{h}} 
+        \odot \sigma^{\prime}(\mathbf{z}) \right)^T \cdot \mathbf{x}^T.
+        \]
+    \end{itemize}
+
+    \item Gradient with respect to \( \mathbf{b}_1 \):
+    \[
+    \frac{\partial \mathcal{L}}{\partial \mathbf{b}_1} = 
+    \frac{\partial \mathcal{L}}{\partial \mathbf{h}} \odot \sigma^{\prime}(\mathbf{z}).
+    \]
+    This is derived as follows:
+    \begin{itemize}
+        \item The chain rule gives:
+        \[
+        \frac{\partial \mathcal{L}}{\partial \mathbf{b}_1} = 
+        \frac{\partial \mathcal{L}}{\partial \mathbf{h}} 
+        \cdot \frac{\partial \mathbf{h}}{\partial \mathbf{b}_1}.
+        \]
+        \item Since \( \mathbf{h} = \sigma(\mathbf{z}) \) and 
+        \( \mathbf{z} = W_1 \mathbf{x} + \mathbf{b}_1 \), we have:
+        \[
+        \frac{\partial \mathbf{h}}{\partial \mathbf{b}_1} = 
+        \frac{\partial \mathbf{h}}{\partial \mathbf{z}} \cdot 
+        \frac{\partial \mathbf{z}}{\partial \mathbf{b}_1}.
+        \]
+        \item The derivative \( \frac{\partial \mathbf{h}}{\partial \mathbf{z}} \) 
+        is a diagonal matrix where each diagonal entry is \( \sigma^{\prime}(z_i) \):
+        \[
+        \frac{\partial \mathbf{h}}{\partial \mathbf{z}} = 
+        \begin{bmatrix}
+        \sigma^{\prime}(z_1) & 0 & 0 \\
+        0 & \sigma^{\prime}(z_2) & 0 \\
+        0 & 0 & \sigma^{\prime}(z_3)
+        \end{bmatrix}.
+        \]
+        \item The derivative \( \frac{\partial \mathbf{z}}{\partial \mathbf{b}_1} \) 
+        is the identity matrix \( I \) because \( \mathbf{z} = W_1 \mathbf{x} + \mathbf{b}_1 \):
+        \[
+        \frac{\partial \mathbf{z}}{\partial \mathbf{b}_1} = I.
+        \]
+        \item Thus, the derivative \( \frac{\partial \mathbf{h}}{\partial \mathbf{b}_1} \) 
+        is:
+        \[
+        \frac{\partial \mathbf{h}}{\partial \mathbf{b}_1} = 
+        \frac{\partial \mathbf{h}}{\partial \mathbf{z}} \cdot I = 
+        \begin{bmatrix}
+        \sigma^{\prime}(z_1) & 0 & 0 \\
+        0 & \sigma^{\prime}(z_2) & 0 \\
+        0 & 0 & \sigma^{\prime}(z_3)
+        \end{bmatrix}.
+        \]
+        \item Finally, the gradient \( \frac{\partial \mathcal{L}}{\partial \mathbf{b}_1} \) 
+        is computed as:
+        \[
+        \frac{\partial \mathcal{L}}{\partial \mathbf{b}_1} = 
+        \frac{\partial \mathcal{L}}{\partial \mathbf{h}} \cdot 
+        \frac{\partial \mathbf{h}}{\partial \mathbf{b}_1} = 
+        \frac{\partial \mathcal{L}}{\partial \mathbf{h}} \odot \sigma^{\prime}(\mathbf{z}),
+        \]
+        where \( \odot \) denotes the element-wise (Hadamard) product.
+    \end{itemize}
+\end{itemize}
+\end{notechapter}

@@ -1,0 +1,83 @@
+% Source: svd.tex
+\begin{notechapter}
+\chapter{The Singular Value Decomposition}\label{ch:svd}
+
+\section{SVD as a Sum of Rank-1 Components}
+For any matrix \( A \in \mathbb{R}^{m \times n} \), the SVD decomposes it into:
+\[
+A = U \Sigma V^T = \sum_{i=1}^r \sigma_i \mathbf{u}_i \mathbf{v}_i^T,
+\]
+where:
+\begin{itemize}
+    \item \( \sigma_i \): Singular values (\( \sigma_1 \geq \sigma_2 \geq \dots \geq \sigma_r > 0 \)),
+    \item \( \mathbf{u}_i \): Left singular vectors (orthonormal columns of \( U \in \mathbb{R}^{m \times m} \)),
+    \item \( \mathbf{v}_i \): Right singular vectors (orthonormal columns of \( V \in \mathbb{R}^{n \times n} \)),
+        \item \( r \): Rank of \( A \).
+\end{itemize}
+\( \Sigma \in \mathbb{R}^{m \times n} \) is diagonal with entries \( \sigma_1, \dots, \sigma_r \) followed by zeros. The singular values and vectors are related to two symmetric eigenproblems:
+\[
+A^T A\, \mathbf{v}_i = \sigma_i^2 \mathbf{v}_i, \qquad A A^T \mathbf{u}_i = \sigma_i^2 \mathbf{u}_i, \qquad A \mathbf{v}_i = \sigma_i \mathbf{u}_i .
+\]
+Only the first \( r \) columns of \( U \) and \( V \) appear in the sum; the remaining ones are orthonormal bases of the null spaces of \( A^T \) and \( A \).
+
+\section{Geometric Interpretation}
+Each term \( \sigma_i \mathbf{u}_i \mathbf{v}_i^T \) represents a 1D linear transformation with three stages:
+
+\subsection{Projection onto \( \mathbf{v}_i \)} 
+\begin{itemize}
+    \item \textbf{Goal}: Extract the component of an input vector \( \mathbf{x} \in \mathbb{R}^n \) along \( \mathbf{v}_i \).
+    \item \textbf{Mechanism}: Compute the scalar projection:
+    \[
+    \mathbf{v}_i^T \mathbf{x} = \|\mathbf{x}\| \cos\theta \quad (\theta = \text{angle between } \mathbf{x} \text{ and } \mathbf{v}_i).
+    \]
+    \item \textbf{Matrix Form}: \( \mathbf{v}_i \mathbf{v}_i^T \) is a projection matrix onto the subspace spanned by \( \mathbf{v}_i \).
+\end{itemize}
+
+\subsection{Scaling by \( \sigma_i \)} 
+\begin{itemize}
+    \item Amplify/compress the scalar projection by the singular value \( \sigma_i \).
+    \item This step controls the "importance" of the \( \mathbf{v}_i \)-direction in the output.
+\end{itemize}
+
+\subsection{Alignment with \( \mathbf{u}_i \)} 
+\begin{itemize}
+    \item \textbf{Goal}: Map the scaled scalar to the output space \( \mathbb{R}^m \).
+    \item \textbf{Mechanism}: 
+    \[
+    \sigma_i (\mathbf{v}_i^T \mathbf{x}) \mathbf{u}_i \quad \text{(vector in } \mathbb{R}^m \text{ aligned with } \mathbf{u}_i \text{)}.
+    \]
+    \item \( U \) and \( V \) are orthogonal matrices, preserving angles and lengths during rotation/reflection.
+\end{itemize}
+
+\section{Input Space vs. Output Space}
+\begin{itemize}
+    \item \textbf{Input Space (\( \mathbb{R}^n \))}: 
+    \begin{itemize}
+        \item \( \mathbf{v}_i^T \) projects data onto the \( \mathbf{v}_i \)-axis.
+        \item \( V^T \) rotates/reflects input vectors to align with the right singular vectors.
+    \end{itemize}
+    \item \textbf{Output Space (\( \mathbb{R}^m \))}: 
+    \begin{itemize}
+                \item The scaled coefficient \( \sigma_i \mathbf{v}_i^T\mathbf{x} \) multiplies the unit vector \( \mathbf{u}_i \): the output is the combination \( A\mathbf{x} = \sum_i \sigma_i (\mathbf{v}_i^T\mathbf{x})\, \mathbf{u}_i \).
+        \item \( U \) rotates/reflects the scaled coordinates \( \Sigma V^T \mathbf{x} \) from the canonical basis to the basis of left singular vectors.
+    \end{itemize}
+\end{itemize}
+
+\section{Example: Step-by-Step Transformation}
+For \( A = \sigma \mathbf{u} \mathbf{v}^T \) and input \( \mathbf{x} \):
+\begin{enumerate}
+    \item \textbf{Project}: Compute \( \mathbf{v}^T \mathbf{x} \).
+    \item \textbf{Scale}: Multiply by \( \sigma \).
+        \item \textbf{Embed}: Multiply the resulting scalar by the unit vector \( \mathbf{u} \in \mathbb{R}^m \).
+\end{enumerate}
+
+\section{Summary}
+\[
+\boxed{
+\begin{aligned}
+&A\mathbf{x} = U\,\Sigma\,V^T\mathbf{x}: \text{ rotate/reflect } (V^T),\ \text{scale and change dimension } (\Sigma),\ \text{rotate/reflect } (U), \\
+&\mathbf{v}_i^T\mathbf{x}: \text{coordinates of } \mathbf{x} \text{ along the input directions},\quad \sigma_i\mathbf{u}_i: \text{their images in the output space}.
+\end{aligned}
+}
+\]
+\end{notechapter}

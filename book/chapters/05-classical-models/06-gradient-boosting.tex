@@ -1,0 +1,290 @@
+% Source: Markdown/gradient-boosting-mathematical-justification.md
+\begin{notechapter}
+\chapter{A Mathematical Justification of Gradient Boosting}\label{ch:gradient-boosting}
+
+\section{Problem Formulation}
+
+Let's define the supervised learning problem formally. Consider a
+dataset \(\mathcal{D} = \{(x_i, y_i)\}_{i=1}^n\) where
+\(x_i \in \mathcal{X}\) are input features and \(y_i \in \mathcal{Y}\)
+are target values. Our goal is to find a function
+\(F: \mathcal{X} \rightarrow \mathbb{R}\) that minimizes the expected
+value of some loss function
+\(L: \mathcal{Y} \times \mathbb{R} \rightarrow \mathbb{R}\):
+
+\[F^* = \arg\min_{F} \mathbb{E}_{(x,y)}[L(y, F(x))]\]
+
+In practice, we approximate this using the empirical risk:
+
+\[F^* \approx \arg\min_{F} \frac{1}{n}\sum_{i=1}^n L(y_i, F(x_i))\]
+
+\section{Functional Gradient Descent}
+
+Gradient boosting approaches this minimization problem through
+functional gradient descent. Instead of optimizing over a parameter
+space, we're optimizing in a function space.
+
+\subsection{The Functional Derivative: Comprehensive Treatment}
+
+\subsubsection{Definition of Functional and Gâteaux Derivative}
+
+A functional \(\mathcal{L}\) is a mapping from a function space to the
+real numbers. In our case, we define:
+
+\[\mathcal{L}[F] = \sum_{i=1}^n L(y_i, F(x_i))\]
+
+The Gâteaux derivative (directional derivative) of \(\mathcal{L}\) at
+\(F\) in the direction of a function \(h\) is defined as:
+
+\[\mathcal{L}'[F; h] = \lim_{\epsilon \to 0} \frac{\mathcal{L}[F + \epsilon \cdot h] - \mathcal{L}[F]}{\epsilon}\]
+
+when this limit exists. This represents the rate of change of
+\(\mathcal{L}\) at \(F\) in the direction of \(h\).
+
+\subsubsection{The Functional Derivative as a Distribution}
+
+The functional derivative of \(\mathcal{L}\) at \(F\), denoted
+\(\frac{\delta \mathcal{L}[F]}{\delta F}\), is a distribution
+(generalized function) such that for any test function \(h\) in the
+appropriate space:
+
+\[\left\langle \frac{\delta \mathcal{L}[F]}{\delta F}, h \right\rangle = \mathcal{L}'[F; h]\]
+
+where \(\langle \cdot, \cdot \rangle\) denotes the pairing between a
+distribution and a test function.
+
+For our empirical risk functional:
+
+\[\mathcal{L}'[F; h] = \lim_{\epsilon \to 0} \frac{1}{\epsilon} \left[ \sum_{i=1}^n L(y_i, F(x_i) + \epsilon \cdot h(x_i)) - \sum_{i=1}^n L(y_i, F(x_i)) \right]\]
+
+By the chain rule and assuming sufficient smoothness of \(L\):
+
+\[\mathcal{L}'[F; h] = \sum_{i=1}^n \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \cdot h(x_i)\]
+
+\subsubsection{Representation Using the Dirac Delta Distribution}
+
+The functional derivative can be represented using the Dirac delta
+distribution as:
+
+\[\frac{\delta \mathcal{L}[F]}{\delta F} = \sum_{i=1}^n \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \cdot \delta_{x_i}\]
+
+where \(\delta_{x_i}\) is the Dirac delta distribution centered at
+\(x_i\). This is a distribution, not a function, and should be
+understood in the sense of generalized functions or distributions
+theory.
+
+For any test function \(h\), the pairing gives:
+
+\[\left\langle \frac{\delta \mathcal{L}[F]}{\delta F}, h \right\rangle = \sum_{i=1}^n \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \cdot h(x_i)\]
+
+which matches our previous expression for \(\mathcal{L}'[F; h]\).
+
+\subsubsection{Evaluation at a Point}
+
+For a specific point \(x\) in the input space, the functional derivative
+evaluated at \(x\) is formally given by:
+
+\[\frac{\delta \mathcal{L}[F]}{\delta F(x)} = \sum_{i=1}^n \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \cdot \delta(x - x_i)\]
+
+This is a distribution that, when integrated against a test function,
+yields the directional derivative of \(\mathcal{L}\) at \(F\) in the
+direction specified by the test function.
+
+\subsubsection{Connection to Riesz Representation Theorem}
+
+Under appropriate conditions on the function space (e.g., when working
+in a Hilbert space \(\mathcal{H}\)), the Riesz representation theorem
+implies there exists a unique element
+\(\nabla_F \mathcal{L} \in \mathcal{H}\) such that:
+
+\[\mathcal{L}'[F; h] = \langle \nabla_F \mathcal{L}, h \rangle_{\mathcal{H}}\]
+
+where \(\langle \cdot, \cdot \rangle_{\mathcal{H}}\) is the inner
+product in \(\mathcal{H}\). This element \(\nabla_F \mathcal{L}\) is
+called the gradient of \(\mathcal{L}\) at \(F\).
+
+A caveat: the empirical functional above depends on \(F\) only through its values at the training
+points, so its derivative is a sum of Dirac masses, which is \emph{not} continuous on \(L^2(\mu)\)
+when the input distribution \(\mu\) is continuous: no Riesz representer exists there. It does exist in
+\(L^2(\hat{\mu}_n)\), the space of functions on the training points with the empirical inner product
+\(\langle f, g \rangle_n = \frac{1}{n}\sum_{i} f(x_i) g(x_i)\); there the gradient is the vector of values
+\(n\,\partial L(y_i, F(x_i))/\partial F(x_i)\), \(i = 1,\dots,n\) (the factor \(n\) disappears with the inner
+product \(\sum_i f(x_i)g(x_i)\)). This is why the gradient is only known at the training points and must
+be extended to the whole input space by a weak learner (see below).
+
+\subsubsection{Fréchet Derivative}
+
+When the Gâteaux derivative is linear and continuous in \(h\), it is
+also a Fréchet derivative, which provides stronger properties. The
+Fréchet derivative is essential for establishing convergence results in
+functional optimization.
+
+\subsubsection{Space of Test Functions}
+
+For gradient boosting, we typically work with test functions in the
+hypothesis space \(\mathcal{H}\) (e.g., decision trees of a certain
+depth). The functional derivative must be defined with respect to
+appropriate test functions from this space.
+
+\subsection{Gradient Descent Step}
+
+In functional gradient descent, we update our function in the direction
+of the negative gradient:
+
+\[F_{m+1} = F_m - \rho_m \cdot \nabla_{F_m} \mathcal{L}\]
+
+where \(\rho_m\) is the step size at iteration \(m\) and
+\(\nabla_{F_m} \mathcal{L}\) is the gradient at \(F_m\).
+
+At the training points, this becomes:
+
+\[F_{m+1}(x_i) = F_m(x_i) - \rho_m \cdot \frac{\partial L(y_i, F_m(x_i))}{\partial F_m(x_i)}, \qquad i = 1, \dots, n,\]
+
+(up to the scaling convention of the inner product). At any other point \(x\), the gradient of the
+empirical functional is zero, so this ``pure'' functional gradient step would not change \(F\) away from
+the training data: it would only memorize the training set. (Note that a pairing
+\(\langle \delta \mathcal{L}/\delta F, \delta_x \rangle\) between two distributions is not defined.)
+
+\section{The Steepest Descent Direction}
+
+The steepest descent direction is the negative gradient. In function
+space, this is:
+
+\[h_m = -\nabla_{F_m} \mathcal{L}\]
+
+At each point \(x_i\) in our training set, this equals:
+
+\[h_m(x_i) = -\frac{\partial L(y_i, F_m(x_i))}{\partial F_m(x_i)}\]
+
+These values are often called pseudo-residuals.
+
+\section{Approximating the Gradient}
+
+In practice, we can't directly use \(h_m\) as defined above because: 1.
+It's only defined at training points \(x_i\) 2. It might not be in our
+hypothesis space (e.g., decision trees)
+
+Therefore, we approximate \(h_m\) by fitting a function from our
+hypothesis space to the pseudo-residuals:
+
+\[\tilde{h}_m = \arg\min_{h \in \mathcal{H}} \sum_{i=1}^n \left(h(x_i) - \left(-\frac{\partial L(y_i, F_m(x_i))}{\partial F_m(x_i)}\right)\right)^2\]
+
+which simplifies to:
+
+\[\tilde{h}_m = \arg\min_{h \in \mathcal{H}} \sum_{i=1}^n (h(x_i) - r_{im})^2\]
+
+where \(r_{im} = -\frac{\partial L(y_i, F_m(x_i))}{\partial F_m(x_i)}\)
+are the pseudo-residuals.
+
+\section{Line Search for Optimal Step Size}
+
+After finding the direction \(\tilde{h}_m\), we determine the optimal
+step size \(\rho_m\) by solving:
+
+\[\rho_m = \arg\min_{\rho} \sum_{i=1}^n L(y_i, F_m(x_i) + \rho \cdot \tilde{h}_m(x_i))\]
+
+\section{Final Update Rule}
+
+The final update rule becomes:
+
+\[F_{m+1}(x) = F_m(x) + \rho_m \cdot \tilde{h}_m(x)\]
+
+\section{Mathematical Justification of Convergence}
+
+\subsection{Convergence in the Limit}
+
+Under certain conditions, gradient boosting converges to the global
+optimum (infimum) for convex loss functions. For a loss function \(L\) that is
+convex and smooth with respect to its second argument, and given a rich
+enough hypothesis space \(\mathcal{H}\), there exists a sequence of step
+sizes \(\{\rho_m\}\) such that:
+
+\[\lim_{M \to \infty} \sum_{i=1}^n L(y_i, F_M(x_i)) = \inf_{F} \sum_{i=1}^n L(y_i, F(x_i))\]
+
+\subsection{Convergence Rate}
+
+For \emph{exact} functional gradient descent on a convex and smooth loss whose infimum is attained,
+the classical analysis of gradient descent gives a rate of \(O(1/M)\) after \(M\) iterations. With
+weak learners that only approximate the negative gradient, rates of this type require additional
+assumptions (e.g.\ that each weak learner is sufficiently correlated with the negative gradient), and
+the known guarantees are generally weaker. Schematically:
+
+\[\sum_{i=1}^n L(y_i, F_M(x_i)) - \inf_{F} \sum_{i=1}^n L(y_i, F(x_i)) \leq \frac{C}{M}\]
+
+where \(C\) is a constant dependent on the properties of \(L\) and the
+initial approximation error.
+
+\subsection{Regularization through Early Stopping}
+
+In practice, we often stop before convergence to avoid overfitting
+(early stopping). This can be viewed, informally, as a form of regularization:
+
+\[F_M = \arg\min_{F \in \mathcal{F}_M} \sum_{i=1}^n L(y_i, F(x_i)) + \lambda \cdot \text{complexity}(F)\]
+
+where \(\mathcal{F}_M\) is the space of functions representable by \(M\)
+iterations of gradient boosting, and the complexity penalty is implicit
+in the early stopping procedure.
+
+\section{Connection to Statistical Theory}
+
+\subsection{Consistency}
+
+Under appropriate conditions---in particular a number of iterations that grows with \(n\) but not too
+fast (early stopping), or shrinkage---gradient boosting is consistent: its risk converges to the
+optimal risk,
+\[\mathbb{E}\big[L(Y, F_n(X))\big] \xrightarrow[n\to\infty]{} \mathbb{E}\big[L(Y, F^*(X))\big]\]
+in probability (e.g.\ Zhang and Yu, 2005, \emph{Boosting with early stopping}). Here \(F_n\) is the
+estimator based on \(n\) samples and \(F^*\) the population minimizer. Without early stopping, boosting
+run to convergence on the empirical risk generally overfits. (Uniform convergence
+\(\sup_x |F_n(x) - F^*(x)| \to 0\) is a much stronger requirement and is not what these results state.)
+
+\subsection{Bias-Variance Tradeoff}
+
+Gradient boosting manages the bias-variance tradeoff through:
+\begin{itemize}
+\item reducing bias by adding more weak learners (increasing model complexity);
+\item controlling variance through techniques like shrinkage (step size
+control), subsampling, and early stopping.
+\end{itemize}
+
+\section{Special Cases for Common Loss Functions}
+
+\subsection{Squared Loss (Regression)}
+
+For \(L(y, F(x)) = \frac{1}{2}(y - F(x))^2\):
+\begin{itemize}
+\item the negative gradient is \(r_{im} = y_i - F_m(x_i)\);
+\item these are the traditional residuals;
+\item gradient boosting reduces to repeatedly fitting the residuals.
+\end{itemize}
+
+\subsection{Negative Log-Likelihood (Classification)}
+
+For binary classification with
+\(y \in \{0, 1\}\) and \(L(y, F(x)) = -y \cdot F(x) + \log(1 + e^{F(x)})\) (\(F\) is the log-odds):
+\begin{itemize}
+\item the negative gradient is \(r_{im} = y_i - \frac{1}{1 + e^{-F_m(x_i)}}\);
+\item this equals \(y_i - p_m(x_i)\) where \(p_m(x_i)\) is the predicted probability.
+\end{itemize}
+
+\section{Conclusion}
+
+The mathematical foundation of gradient boosting rests on functional
+gradient descent in function space, where:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  We seek the function that minimizes a loss over the training data
+\item
+  We approximate the negative functional gradient using weak learners
+\item
+  We iteratively update our function by moving in the direction of these
+  approximated gradients
+\end{enumerate}
+
+This framework provides a unified view of many boosting algorithms and
+explains why gradient boosting is effective for a wide range of loss
+functions and prediction tasks.
+\end{notechapter}

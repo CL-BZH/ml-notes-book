@@ -1,0 +1,385 @@
+% Source: bayes_classification_cross-entropy_and_surrogate_losses.tex
+\begin{notechapter}
+% ---- chapter-local definitions ----
+\forgetcs\E\newcommand{\E}{\mathbb{E}}
+\forgetcs\R\newcommand{\R}{\mathbb{R}}
+% -----------------------------------
+\chapter{Bayes Classification and Surrogate Losses}\label{ch:surrogate-losses}
+
+\begin{abstract}
+This document complements the discussion of Bayes risk and Bayes estimators by exploring the practical implementation of classification in machine learning. While the Bayes classifier for 0-1 loss provides the theoretical optimum for both binary and multi-class problems, its direct optimization is infeasible. We examine how surrogate losses like cross-entropy enable practical learning while approximating the Bayes optimal solution, with particular emphasis on the empirical risk minimization framework and Monte Carlo estimation perspective.
+\end{abstract}
+
+\section{Introduction}
+
+In the previous document, we established that for classification with 0-1 loss, the Bayes estimator is:
+\[
+f_{\text{Bayes}}(X) = \arg\max_{y} P(Y=y \mid X)
+\]
+This represents the theoretically optimal classifier that minimizes probability of error, applicable to both binary and multi-class classification. However, in practice, we face two fundamental challenges:
+
+\begin{enumerate}
+    \item We don't know the true distribution $P(Y \mid X)$
+    \item The 0-1 loss is unsuitable for gradient-based optimization
+\end{enumerate}
+
+This document explores how modern machine learning bridges this gap between theoretical optimality and practical learnability through empirical risk minimization with surrogate losses.
+
+\section{Empirical Risk Minimization for Classification}
+
+The empirical risk minimization framework provides the foundation for practical classification:
+
+\begin{itemize}
+    \item \textbf{Target population risk}: $R_{0\text{-}1}(f) = \E_{(X,Y) \sim P(X,Y)}[\mathbb{I}(f(X) \neq Y)]$
+    \item \textbf{Empirical 0-1 risk}: $\hat{R}_{0\text{-}1}(f) = \frac{1}{n}\sum_{i=1}^n \mathbb{I}(f(x_i) \neq y_i)$
+    \item \textbf{Problem}: $\hat{R}_{0\text{-}1}(f)$ is unsuitable for optimization
+    \item \textbf{Solution}: Use surrogate losses within ERM framework over a hypothesis class $\mathcal{H}$
+\end{itemize}
+
+The ERM principle for classification selects from the restricted hypothesis class:
+\[
+\hat{f} = \arg\min_{f \in \mathcal{H}} \hat{R}_{\text{surrogate}}(f)
+\]
+
+\section{The Problem with 0-1 Loss}
+
+The 0-1 loss function is defined identically for both binary and multi-class classification:
+\[
+L_{0\text{-}1}(f(X), Y) = \mathbb{I}(f(X) \neq Y)
+\]
+
+\subsection{Mathematical Limitations}
+
+\begin{itemize}
+    \item \textbf{Non-differentiable}: The gradient is zero almost everywhere and undefined at decision boundaries
+    \item \textbf{Non-convex}: The loss surface has flat regions separated by discontinuous jumps
+    \item \textbf{No gradient signal}: Does not indicate \textit{how wrong} a prediction is, only that it's wrong
+    \item \textbf{Poor empirical estimation}: The empirical risk $\hat{R}_{0\text{-}1}(f)$ has high variance and provides weak learning signals
+\end{itemize}
+
+\subsection{Optimization Challenges}
+
+For a model parameterized by $\theta$, the gradient is:
+\[
+\nabla_\theta \hat{R}_{0\text{-}1}(f_\theta) = 0 \quad \text{almost everywhere}
+\]
+This makes gradient-based optimization impossible for both binary and multi-class problems.
+
+\section{Surrogate Loss Functions in ERM}
+
+Since we cannot optimize the 0-1 loss directly, we use \textbf{surrogate loss functions} within the empirical risk minimization framework.
+
+\subsection{Empirical Risk Minimization with Surrogates}
+
+We face a fundamental mismatch:
+
+\begin{itemize}
+    \item \textbf{Target}: Minimize empirical 0-1 risk $\hat{R}_{0\text{-}1}(f)$ over $\mathcal{H}$
+    \item \textbf{Reality}: We minimize empirical surrogate risk $\hat{R}_{\text{surrogate}}(f)$ over $\mathcal{H}$
+    \item \textbf{Hope}: Minimizing $\hat{R}_{\text{surrogate}}(f)$ leads to small $\hat{R}_{0\text{-}1}(f)$
+\end{itemize}
+
+\subsection{Properties of Good Surrogates}
+
+A good surrogate loss $L_{\text{surrogate}}$ should:
+
+\begin{enumerate}
+    \item Be an \textbf{upper bound} on the 0-1 loss: $L_{0\text{-}1} \leq L_{\text{surrogate}}$
+    \item Be \textbf{convex} and \textbf{differentiable}
+    \item Be \textbf{Fisher consistent} (classification-calibrated): over \emph{all} measurable functions, the minimizer of the population surrogate risk induces the Bayes classifier, e.g.\ $\operatorname{sign}(f^*_{\text{surrogate}}(x)) = \operatorname{sign}(2P(Y=1\mid x) - 1)$ in the binary case. (Requiring $\arg\min_{f \in \mathcal{H}} R_{\text{surrogate}} = \arg\min_{f \in \mathcal{H}} R_{0\text{-}1}$ within a restricted class $\mathcal{H}$ would be much stronger, and is generally false.)
+    \item Have \textbf{efficient empirical risk}: $\hat{R}_{\text{surrogate}}(f)$ should be a good estimator of $R_{\text{surrogate}}(f)$
+\end{enumerate}
+
+\section{Cross-Entropy: The Probabilistic Surrogate}
+
+\subsection{Definition and Monte Carlo Estimation}
+
+Cross-entropy measures the dissimilarity between the true distribution $P(Y|X)$ and our predicted distribution $Q(Y|X)$. The population cross-entropy is:
+
+\[
+H(P,Q) = \E_{(X,Y) \sim P(X,Y)}[-\log Q(Y|X)] = \E_{X}\Big[-\sum_{y} P(Y=y|X) \log Q(Y=y|X)\Big]
+\]
+
+The \textbf{empirical cross-entropy} is the Monte Carlo estimator:
+
+\[
+\hat{H}(P,Q) = -\frac{1}{n}\sum_{i=1}^n \log Q(Y=y_i \mid X=x_i)
+\]
+
+This estimator has desirable properties for ERM:
+\begin{itemize}
+    \item \textbf{Unbiased}: $\E[\hat{H}(P,Q)] = H(P,Q)$
+    \item \textbf{Consistent}: $\hat{H}(P,Q) \xrightarrow[n \to \infty]{\text{a.s.}} H(P,Q)$
+    \item \textbf{Efficient}: $\text{Var}(\hat{H}(P,Q)) = O(1/n)$
+\end{itemize}
+
+\subsection{Specialization to Binary and Multi-class Cases}
+
+\subsubsection{Binary Classification (Sigmoid)}
+
+For \textbf{binary classification} with classes $\{0,1\}$:
+
+\begin{itemize}
+    \item \textbf{Architecture}: Single output neuron
+    \item \textbf{Activation}: Sigmoid function
+    \[
+    Q(Y=1|X) = \sigma(f(X)) = \frac{1}{1+e^{-f(X)}}
+    \]
+    \item \textbf{Empirical risk}: Binary cross-entropy
+    \[
+    \hat{R}_{\text{CE}} = -\frac{1}{n}\sum_{i=1}^n \left[y_i\log(p_i) + (1-y_i)\log(1-p_i)\right]
+    \]
+    where $p_i = \sigma(f(x_i))$
+\end{itemize}
+
+\subsubsection{Multi-class Classification (Softmax)}
+
+For \textbf{multi-class classification} with $K$ classes:
+
+\begin{itemize}
+    \item \textbf{Architecture}: $K$ output neurons
+    \item \textbf{Activation}: Softmax function
+    \[
+    Q(Y=k|X) = \frac{e^{f_k(X)}}{\sum_{j=1}^K e^{f_j(X)}} \quad \text{for } k = 1,\dots,K
+    \]
+    \item \textbf{Empirical risk}: Categorical cross-entropy
+    \[
+    \hat{R}_{\text{CE}} = -\frac{1}{n}\sum_{i=1}^n \sum_{k=1}^K \mathbb{I}(y_i = k) \log(p_{i,k})
+    \]
+    where $p_{i,k} = Q(Y=k|X=x_i)$
+\end{itemize}
+
+\subsection{Connection to Maximum Likelihood and Bayes Optimality}
+
+Minimizing cross-entropy is equivalent to \textbf{maximum likelihood estimation}:
+
+\[
+\arg\min_Q H(P,Q) = \arg\max_Q \E[\log Q(Y|X)]
+\]
+
+This connects to Bayes optimality because the minimizer is $Q(Y|X) = P(Y|X)$, leading to the Bayes classifier when we apply $\arg\max$.
+
+\subsection{The Margin Perspective}
+
+\subsubsection{Binary Case}
+For binary classification, the margin is $m = (2y-1)f(X)$ and the loss becomes:
+\[
+L_{\text{CE}}(m) = \log(1 + e^{-m})
+\]
+
+\subsubsection{Multi-class Case}
+For multi-class, we can define the margin for the true class $y$ as:
+\[
+m = f_y(X) - \max_{j \neq y} f_j(X)
+\]
+The cross-entropy penalizes small or negative margins.
+
+\section{Comparison of Surrogate Losses}
+
+\subsection{Common Surrogate Losses}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llll}
+\toprule
+\textbf{Loss Function} & \textbf{Formula} & \textbf{Binary} & \textbf{Multi-class} \\
+\midrule
+0-1 Loss & $\mathbb{I}(f(X) \neq Y)$ & \checkmark & \checkmark \\
+Hinge Loss & $\max(0, 1 - m)$ & \checkmark & \checkmark* \\
+Cross-Entropy & See below & \checkmark & \checkmark \\
+\bottomrule
+\end{tabular}
+\caption{Comparison of classification loss functions (*Multi-class hinge loss requires special formulation)}
+\end{table}
+
+\subsection{Monte Carlo Efficiency}
+
+Different surrogates have different Monte Carlo estimation properties:
+
+\begin{itemize}
+    \item \textbf{Cross-entropy}: Smooth loss, efficient gradient estimation
+    \item \textbf{Hinge loss}: Piecewise linear, sparser gradients
+    \item \textbf{0-1 loss}: Discontinuous, poor Monte Carlo estimation
+\end{itemize}
+
+\subsection{Gradient Analysis}
+
+The gradients reveal why cross-entropy is particularly well-suited for Monte Carlo estimation:
+
+\subsubsection{Binary Cross-Entropy}
+\[
+\frac{\partial \hat{R}_{\text{CE}}}{\partial f(x_i)} = \frac{1}{n} (p_i - y_i),
+\qquad
+\nabla_\theta \hat{R}_{\text{CE}} = \frac{1}{n}\sum_{i=1}^n (p_i - y_i)\, \nabla_\theta f_\theta(x_i)
+\]
+for a parametric score \( f_\theta \). The gradient with respect to the parameters is an average of per-example terms: an efficient Monte Carlo estimator of the population gradient.
+
+\subsubsection{Categorical Cross-Entropy}
+\[
+\frac{\partial \hat{R}_{\text{CE}}}{\partial f_k(x_i)} = \frac{1}{n} \big(p_{i,k} - \mathbb{I}(y_i = k)\big)
+\]
+
+Cross-entropy provides \textbf{continuous gradient signals} for all examples, with the elegant property that the gradient estimator is simply the average difference between predictions and targets.
+
+\section{From Theory to Practice: The Complete Pipeline}
+
+\subsection{The Deep Learning Workflow}
+
+\subsubsection{Binary Classification}
+\begin{enumerate}
+    \item \textbf{Model}: Neural network with single output $f(X)$ (part of hypothesis class $\mathcal{H}$)
+    \item \textbf{Probability}: Apply sigmoid: $p = \sigma(f(X))$
+    \item \textbf{Training}: Minimize empirical binary cross-entropy: $\hat{R}_{\text{CE}}(f)$ over $\mathcal{H}$
+    \item \textbf{Inference}: Apply Bayes rule: $\hat{y} = \mathbb{I}(p > 0.5)$
+\end{enumerate}
+
+\subsubsection{Multi-class Classification}
+\begin{enumerate}
+    \item \textbf{Model}: Neural network with $K$ outputs $f_1(X),\dots,f_K(X)$ (part of hypothesis class $\mathcal{H}$)
+    \item \textbf{Probability}: Apply softmax: $p_i = \frac{e^{f_i(X)}}{\sum_j e^{f_j(X)}}$
+    \item \textbf{Training}: Minimize empirical categorical cross-entropy: $\hat{R}_{\text{CE}}(f)$ over $\mathcal{H}$
+    \item \textbf{Inference}: Apply Bayes rule: $\hat{y} = \arg\max_i p_i$
+\end{enumerate}
+
+\subsection{Why This Approximates Bayes Optimal}
+
+\begin{theorem}[Fisher Consistency]
+For both binary and categorical cross-entropy loss, the population minimizer satisfies:
+\[
+\arg\min_Q \E[-\log Q(Y|X)] = P(Y|X)
+\]
+Thus, the resulting classifier approaches the Bayes optimal rule asymptotically.
+\end{theorem}
+
+\begin{theorem}[Monte Carlo Consistency]
+The empirical minimizer converges to the population minimizer:
+\[
+\arg\min_Q \hat{H}(P,Q) \xrightarrow[n \to \infty]{\text{a.s.}} \arg\min_Q H(P,Q)
+\]
+under appropriate regularity conditions.
+\end{theorem}
+
+\section{Monte Carlo Estimation Properties}
+
+\subsection{Convergence Guarantees}
+
+\begin{theorem}[Uniform Convergence]
+For a bounded hypothesis class $\mathcal{H}$, the empirical cross-entropy converges uniformly to the population cross-entropy:
+\[
+\sup_{Q \in \mathcal{Q}} |\hat{H}(P,Q) - H(P,Q)| \xrightarrow[n \to \infty]{\text{a.s.}} 0
+\]
+\end{theorem}
+
+\subsection{Generalization Bounds}
+
+The difference between empirical and population performance can be bounded using Rademacher complexity or VC theory:
+
+\[
+H(P,Q) \leq \hat{H}(P,Q) + O\left(\sqrt{\frac{\text{complexity}(\mathcal{Q})}{n}}\right)
+\]
+
+\subsection{Connection to Generalization Risk Framework}
+
+This Monte Carlo perspective directly connects to the generalization risk decomposition from the main document:
+
+\begin{itemize}
+    \item \textbf{Bayes Risk}: $H(P,P)$ - the entropy of $Y|X$
+    \item \textbf{Approximation Risk}: $\min_{Q \in \mathcal{Q}} H(P,Q) - H(P,P)$
+    \item \textbf{Estimation Risk}: $\hat{H}(P,Q) - \min_{Q \in \mathcal{Q}} H(P,Q)$
+\end{itemize}
+
+\section{Beyond Standard Cross-Entropy}
+
+\subsection{Addressing Practical Challenges}
+
+\subsubsection{Class Imbalance: Focal Loss}
+Applicable to both binary and multi-class:
+\[
+L_{\text{focal}} = -(1-p_t)^\gamma \log(p_t)
+\]
+This modifies the Monte Carlo weights to focus on hard examples.
+
+\subsubsection{Overconfidence: Label Smoothing}
+Replace one-hot targets with smoothed versions (multi-class):
+\[
+y_{\text{smooth}} = (1-\epsilon)y + \frac{\epsilon}{K}
+\]
+This improves calibration of the probability estimates.
+
+\subsubsection{Variance Reduction Techniques}
+\begin{itemize}
+    \item \textbf{Importance sampling}: For imbalanced datasets
+    \item \textbf{Stratified sampling}: Preserve class proportions
+    \item \textbf{Batch normalization}: Stabilize gradient estimates
+\end{itemize}
+
+\section{Theoretical Guarantees}
+
+\subsection{Calibration and Consistency}
+
+\begin{definition}[Calibration]
+A loss function is calibrated if for any sequence of models minimizing the surrogate risk over $\mathcal{H}$, the corresponding 0-1 risk converges to the Bayes risk.
+\end{definition}
+
+\begin{theorem}
+Both binary and categorical cross-entropy loss are calibrated for 0-1 loss under mild conditions on the hypothesis class and data distribution.
+\end{theorem}
+
+\subsection{Excess Risk Bounds}
+
+The excess 0-1 risk can be bounded by the excess surrogate risk for both binary and multi-class cases:
+
+\[
+R_{0\text{-}1}(f) - R_{0\text{-}1}^* \leq \psi\left(\hat{H}(P,Q) - \hat{H}(P,P) + O\left(\sqrt{\frac{\text{complexity}(\mathcal{Q})}{n}}\right)\right)
+\]
+where $\psi$ is a calibration function that depends on the loss properties.
+
+\section{Empirical Considerations}
+
+\subsection{Monte Carlo Estimation in Practice}
+
+\subsubsection{Minibatch Estimation}
+In large-scale deep learning, we use minibatch estimators:
+\[
+\hat{H}_{\text{minibatch}} = -\frac{1}{m}\sum_{i=1}^m \log Q(Y=y_i \mid X=x_i)
+\]
+where $m \ll n$. This introduces bias but enables scalable optimization.
+
+\subsubsection{Variance-Bias Tradeoff}
+\begin{itemize}
+    \item \textbf{Large batches}: Lower variance, higher computational cost
+    \item \textbf{Small batches}: Higher variance, better generalization sometimes
+    \item \textbf{Adaptive batch sizes}: Dynamic tradeoff during training
+\end{itemize}
+
+\subsection{When Cross-Entropy Excels}
+
+\begin{itemize}
+        \item \textbf{Probability calibration}: As a proper scoring rule, it is minimized in expectation by the true conditional probabilities, which encourages calibrated estimates (but see the limitations below)
+    \item \textbf{Stable optimization}: Smooth loss surface with meaningful gradients
+    \item \textbf{Efficient estimation}: Good Monte Carlo properties for gradient estimation
+    \item \textbf{Theoretical foundations}: Strong connections to information theory and statistics
+\end{itemize}
+
+\subsection{Potential Limitations}
+
+\begin{itemize}
+    \item \textbf{Sensitivity to outliers}: Can be affected by mislabeled examples
+    \item \textbf{Overconfidence}: Modern neural networks tend to be poorly calibrated without regularization
+    \item \textbf{Monte Carlo variance}: Small batch sizes can lead to noisy gradient estimates
+\end{itemize}
+
+\section{Conclusion}
+
+The empirical risk minimization framework with cross-entropy surrogate loss provides a complete bridge from theoretical Bayes optimality to practical deep learning:
+
+\begin{itemize}
+    \item The \textbf{Bayes classifier} defines the population optimum for 0-1 loss
+    \item \textbf{Empirical Risk Minimization} provides the practical learning framework over hypothesis class $\mathcal{H}$
+    \item \textbf{Cross-entropy} serves as a tractable surrogate loss within ERM
+    \item \textbf{Monte Carlo estimation} explains the statistical properties of empirical risk
+    \item The complete pipeline learns probability estimates then applies Bayes rule
+\end{itemize}
+
+This unified perspective explains the remarkable success of cross-entropy-based learning: it combines Fisher consistency with efficient optimization properties, creating a robust framework that scales from theoretical analysis to practical implementation across diverse classification tasks.
+\end{notechapter}

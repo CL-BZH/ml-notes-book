@@ -1,0 +1,114 @@
+% Source: dropout_as_regularization.tex
+\begin{notechapter}
+\chapter{Dropout as a Regularization Method}\label{ch:dropout-regularization}
+
+\section{Introduction}
+Dropout is a regularization technique commonly used in neural 
+networks to prevent overfitting. This document explains how 
+dropout works, why it is effective, and how it connects to 
+Bayesian model averaging.
+
+\section{Concept of Dropout}
+During training, dropout randomly "drops out" (i.e., sets to 
+zero) a fraction of the neurons in a layer with a specified 
+probability \( p \) (typically 0.5 for hidden layers). This 
+means each neuron has a probability \( p \) of being 
+temporarily removed from the network during each training 
+iteration.
+
+\section{Regularization Effect}
+\begin{itemize}
+    \item \textbf{Preventing Co-Adaptation:} Dropout prevents 
+    neurons from becoming overly reliant on specific other 
+    neurons. By randomly dropping neurons, the network is 
+    forced to learn robust features that are not dependent on 
+    any single neuron or small group of neurons.
+    
+    \item \textbf{Ensemble Effect:} Dropout can be interpreted 
+    as training an ensemble of many different sub-networks 
+    (each with a random subset of neurons) simultaneously. 
+    During inference, the full network approximates averaging 
+    the predictions of all these sub-networks.
+\end{itemize}
+
+\section{Mathematical Interpretation}
+During training, the output of a neuron is scaled by 
+\(\frac{1}{1-p}\) to compensate for the dropped neurons. This 
+ensures the expected value of the neuron's output remains the 
+same during training and inference. For example, if \( p = 0.5 
+\), the output is scaled by 2.
+
+\section{Why Scaling is Necessary}
+Without scaling, the expected output of a neuron during 
+training would be smaller than during inference. Scaling by 
+\(\frac{1}{1-p}\) ensures consistency. Mathematically:
+\[
+E[\text{output}] = p \cdot 0 + (1-p) \cdot \left( \frac{x}{1-p} 
+\right) = x
+\]
+This matches the neuron's output during inference.
+
+\section{Dropout During Training vs. Inference}
+\begin{itemize}
+    \item \textbf{Training:} Dropout is applied to randomly 
+    drop neurons, and outputs are scaled by \(\frac{1}{1-p}\).
+    
+    \item \textbf{Inference:} Dropout is turned off, and the 
+    full network is used. No scaling is applied.
+\end{itemize}
+
+\section{Dropout as Approximate Bayesian Inference}
+Gal and Ghahramani (2016) showed that training a network with dropout
+can be interpreted as approximate \emph{variational} Bayesian inference:
+the random masks define a (very particular) approximate posterior
+distribution over the weights, and the dropout objective is, up to
+constants, the corresponding variational objective. It is an
+approximation: dropout does not sample from the true posterior.
+
+\subsection{Bayesian Model Averaging}
+Under this interpretation, predictions should average over masks,
+which corresponds to (approximate) Bayesian model averaging:
+\[
+\text{Inference Output} \approx \mathbb{E}_{m \sim p(m)}[f(x; 
+\theta, m)]
+\]
+where \( f(x; \theta, m) \) is the output of the network with 
+parameters \( \theta \) and dropout mask \( m \).
+
+\subsection{Why the Full Network Approximates the Expectation}
+The scaling during training ensures that the expected value
+of each neuron's input is preserved. Using the full network at
+inference (the ``weight scaling inference rule'') replaces the
+average of the outputs by the output of the average network:
+\[
+\mathbb{E}_{m \sim p(m)}[f(x; \theta, m)] \approx f(x; \theta, 
+\text{no dropout})
+\]
+This is exact for a linear network, but only an approximation once
+non-linearities are involved, since in general
+\( \mathbb{E}[\phi(Z)] \neq \phi(\mathbb{E}[Z]) \). \emph{Monte Carlo dropout}
+keeps dropout active at test time and averages several stochastic
+forward passes, which estimates the expectation directly and also
+provides an estimate of the predictive uncertainty.
+
+\section{Practical Implementation}
+In deep learning frameworks like PyTorch, dropout is 
+implemented as a layer that behaves differently during 
+training and inference. For example:
+\begin{verbatim}
+dropout_layer = torch.nn.Dropout(p=0.5)  # 50% dropout
+output = dropout_layer(input)  # Training: applies dropout
+dropout_layer.eval()  # Switch to evaluation mode
+output = dropout_layer(input)  # Inference: no dropout
+\end{verbatim}
+
+\section{Conclusion}
+Dropout is a powerful regularization technique used only 
+during training to prevent overfitting. It introduces 
+randomness, prevents co-adaptation, and approximates an 
+ensemble of sub-networks. During inference, dropout is 
+disabled to ensure stable and deterministic predictions. 
+Additionally, dropout can be interpreted as approximate
+variational Bayesian inference; the deterministic full network
+is a cheap approximation of the corresponding model average.
+\end{notechapter}

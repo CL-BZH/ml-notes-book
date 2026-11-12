@@ -1,0 +1,244 @@
+% Source: support_vector_methods.tex
+\begin{notechapter}
+\chapter{Support Vector Methods: SVDD, OCSVM and SVR}\label{ch:support-vector-methods}
+
+\section{Introduction}
+Support Vector Machines (SVMs) are a family of powerful machine learning 
+algorithms used for classification, regression, and outlier detection. 
+This document provides an in-depth exploration of three specialized 
+SVM-based methods:
+\begin{itemize}
+    \item \textbf{Support Vector Data Description (SVDD)}: A method for 
+          outlier detection and one-class classification.
+    \item \textbf{One-Class SVM (OCSVM)}: Another approach for one-class 
+          classification and anomaly detection.
+    \item \textbf{Support Vector Regression (SVR)}: An extension of SVMs 
+          for regression tasks.
+\end{itemize}
+Each method is explained in detail, including its mathematical formulation, 
+key concepts, practical applications, and connections to the standard SVM framework.
+
+\section{The Core Idea of SVM}
+The standard \textbf{Support Vector Machine (SVM)} is a supervised learning algorithm 
+primarily used for \textbf{binary classification}. The key idea is to find a \textbf{hyperplane} 
+that maximizes the \textbf{margin} (the distance between the hyperplane and the nearest 
+data points of each class). The hyperplane is defined by:
+\[
+w^T x + b = 0,
+\]
+where:
+\begin{itemize}
+    \item \( w \) is the weight vector,
+    \item \( x \) is the input feature vector,
+    \item \( b \) is the bias term.
+\end{itemize}
+
+The optimization problem for SVM is:
+\[
+\min_{w, b} \frac{1}{2} \|w\|^2 + C \sum_{i=1}^n \xi_i,
+\]
+subject to:
+\[
+y_i (w^T x_i + b) \geq 1 - \xi_i, \quad \xi_i \geq 0 \quad \forall i,
+\]
+where:
+\begin{itemize}
+    \item \( \xi_i \) are slack variables that allow for soft margins (misclassifications),
+    \item \( C \) is a regularization parameter that controls the trade-off 
+          between maximizing the margin and minimizing classification errors.
+\end{itemize}
+
+The \textbf{kernel trick} is often used to handle nonlinear data by mapping the input 
+space into a higher-dimensional feature space where the data becomes linearly separable.
+
+\section{Support Vector Data Description (SVDD)}
+\subsection{Overview}
+\textbf{Support Vector Data Description (SVDD)} is an adaptation of SVM for \textbf{one-class 
+classification} and \textbf{outlier detection}. Instead of finding a hyperplane to 
+separate two classes, SVDD finds a \textbf{hypersphere} that encloses the majority 
+of the data points. The goal is to minimize the volume of the hypersphere while 
+allowing some data points to lie outside it (outliers).
+
+\subsection{Connection to SVM}
+\begin{itemize}
+    \item \textbf{Objective}: Both SVM and SVDD aim to find a decision boundary that separates 
+          data points. In SVM, the boundary is a hyperplane; in SVDD, it is a hypersphere.
+    \item \textbf{Optimization}: SVDD's optimization problem is similar to SVM's, but it minimizes 
+          the radius of the hypersphere instead of maximizing the margin of the hyperplane.
+    \item \textbf{Kernel Trick}: Like SVM, SVDD uses the kernel trick to handle nonlinear data by 
+          mapping the input space into a higher-dimensional feature space.
+\end{itemize}
+
+\subsection{Mathematical Formulation}
+The SVDD optimization problem is:
+\[
+\min_{R, a, \xi} R^2 + C \sum_{i=1}^n \xi_i,
+\]
+subject to:
+\[
+\|x_i - a\|^2 \leq R^2 + \xi_i, \quad \xi_i \geq 0 \quad \forall i,
+\]
+where:
+\begin{itemize}
+    \item \( R \) is the radius of the hypersphere,
+    \item \( a \) is the center of the hypersphere,
+    \item \( \xi_i \) are slack variables for soft margins,
+    \item \( C \) is a regularization parameter.
+\end{itemize}
+
+\subsection{Kernel Trick in SVDD}
+The kernel trick allows SVDD to handle nonlinear data by mapping the input space 
+into a higher-dimensional feature space. The kernelized formulation of SVDD is:
+\[
+\min_{R, a, \xi} R^2 + C \sum_{i=1}^n \xi_i,
+\]
+subject to:
+\[
+K(x_i, x_i) - 2 \sum_{j=1}^n \alpha_j K(x_i, x_j) + \sum_{k,l=1}^n \alpha_k \alpha_l K(x_k, x_l) \leq R^2 + \xi_i.
+\]
+
+\subsection{Applications of SVDD}
+SVDD is widely used in:
+\begin{itemize}
+    \item \textbf{Anomaly Detection}: Identifying rare events or outliers 
+          in datasets, such as fraud detection, network intrusion detection, 
+          or fault detection in industrial systems.
+    \item \textbf{One-Class Classification}: Training a model when only 
+          one class of data is available, such as in medical diagnosis, 
+          quality control, or novelty detection in image recognition.
+\end{itemize}
+
+\section{One-Class SVM (OCSVM)}
+\subsection{Overview}
+\textbf{One-Class SVM (OCSVM)} is another adaptation of SVM for \textbf{one-class classification} 
+and \textbf{anomaly detection}. Instead of separating two classes, OCSVM finds a 
+hyperplane that separates the data from the \textbf{origin} in a high-dimensional 
+feature space. Data points on one side of the hyperplane are considered inliers, 
+while those on the other side are outliers.
+
+\subsection{Connection to SVM}
+\begin{itemize}
+    \item \textbf{Objective}: Like SVM, OCSVM finds a hyperplane, but the goal is to separate 
+          the data from the origin rather than separating two classes.
+    \item \textbf{Optimization}: The optimization problem of OCSVM is similar to SVM's, but it 
+          \textbf{maximizes} the distance of the hyperplane from the origin while allowing some 
+          data points to lie on the wrong side (outliers).
+    \item \textbf{Kernel Trick}: OCSVM also uses the kernel trick to handle nonlinear data.
+\end{itemize}
+
+\subsection{Mathematical Formulation}
+The OCSVM optimization problem is:
+\[
+\min_{w, \xi, \rho} \frac{1}{2} \|w\|^2 + \frac{1}{\nu n} \sum_{i=1}^n \xi_i - \rho,
+\]
+subject to:
+\[
+w \cdot \phi(x_i) \geq \rho - \xi_i, \quad \xi_i \geq 0 \quad \forall i,
+\]
+where:
+\begin{itemize}
+    \item \( w \) is the weight vector,
+    \item \( \phi(x_i) \) is the feature mapping function, which maps the input 
+          data \( x_i \) into a higher-dimensional feature space,
+    \item \( \rho \) is the offset from the origin,
+    \item \( \xi_i \) are slack variables,
+        \item \( \nu \in (0, 1] \) controls the fraction of outliers: it is an upper bound on the fraction of training points outside the estimated region and a lower bound on the fraction of support vectors (Schölkopf et al., 2001).
+\end{itemize}
+
+\subsection{Kernel Trick in OCSVM}
+The kernel trick allows OCSVM to handle nonlinear data by mapping the input space 
+into a higher-dimensional feature space. The decision function for OCSVM is:
+\[
+f(x) = \text{sgn} \left( \sum_{i=1}^n \alpha_i K(x_i, x) - \rho \right),
+\]
+where \( K(x_i, x) \) is the kernel function, and \( \alpha_i \) are the 
+Lagrange multipliers.
+
+\subsection{Applications of OCSVM}
+OCSVM is commonly used in:
+\begin{itemize}
+    \item \textbf{Anomaly Detection}: Detecting unusual patterns in data, 
+          such as in cybersecurity (e.g., detecting network intrusions), 
+          industrial monitoring (e.g., detecting equipment failures), or 
+          fraud detection.
+    \item \textbf{Novelty Detection}: Identifying new or unseen data points 
+          that differ from the training data, such as in medical diagnosis 
+          (e.g., detecting rare diseases) or fault detection in machinery.
+\end{itemize}
+
+\section{Support Vector Regression (SVR)}
+\subsection{Overview}
+\textbf{Support Vector Regression (SVR)} is an extension of SVM for \textbf{regression tasks}. 
+Instead of finding a hyperplane to separate classes, SVR finds a hyperplane that 
+fits the data while allowing for a \textbf{margin of error} (\( \epsilon \)). The goal 
+is to minimize the deviation of the predicted values from the actual values.
+
+\subsection{Connection to SVM}
+\begin{itemize}
+    \item \textbf{Objective}: Both SVM and SVR aim to find a hyperplane, but in SVR, the hyperplane 
+          is used to predict continuous values rather than separating classes.
+    \item \textbf{Optimization}: SVR's optimization problem is similar to SVM's, but it minimizes 
+          the prediction error while allowing deviations within a margin \( \epsilon \).
+    \item \textbf{Kernel Trick}: Like SVM, SVR uses the kernel trick to handle nonlinear relationships 
+          in the data.
+\end{itemize}
+
+\subsection{Mathematical Formulation}
+The SVR optimization problem is:
+\[
+\min_{w, b, \xi, \xi^*} \frac{1}{2} \|w\|^2 + C \sum_{i=1}^n (\xi_i + \xi_i^*),
+\]
+subject to:
+\[
+y_i - (w \cdot \phi(x_i) + b) \leq \epsilon + \xi_i,
+\]
+\[
+(w \cdot \phi(x_i) + b) - y_i \leq \epsilon + \xi_i^*,
+\]
+\[
+\xi_i, \xi_i^* \geq 0 \quad \forall i,
+\]
+where:
+\begin{itemize}
+    \item \( w \) is the weight vector,
+    \item \( b \) is the bias term,
+    \item \( \phi(x_i) \) is the feature mapping function,
+    \item \( \epsilon \) is the margin of error,
+    \item \( \xi_i \) and \( \xi_i^* \) are slack variables for deviations outside the margin,
+    \item \( C \) is a regularization parameter.
+\end{itemize}
+
+\subsection{Kernel Trick in SVR}
+The kernel trick allows SVR to handle nonlinear relationships in the data. The 
+kernelized form of the SVR decision function is:
+\[
+f(x) = \sum_{i=1}^n (\alpha_i - \alpha_i^*) K(x_i, x) + b,
+\]
+where \( K(x_i, x) \) is the kernel function, and \( \alpha_i \) and \( \alpha_i^* \) 
+are the Lagrange multipliers.
+
+\subsection{Applications of SVR}
+SVR is widely used in:
+\begin{itemize}
+    \item \textbf{Time Series Prediction}: Forecasting future values based 
+          on past data, such as stock prices, weather patterns, or energy 
+          consumption.
+    \item \textbf{Regression Tasks}: Modeling complex relationships between 
+          variables, such as in economics (e.g., predicting GDP growth), 
+          engineering (e.g., predicting material properties), or healthcare 
+          (e.g., predicting patient outcomes).
+\end{itemize}
+
+\section{Conclusion}
+\textbf{Support Vector Data Description (SVDD)}, \textbf{One-Class SVM (OCSVM)}, and \textbf{Support 
+Vector Regression (SVR)} are powerful extensions of the SVM framework. Each 
+method has its unique mathematical formulation and applications:
+\begin{itemize}
+    \item \textbf{SVDD} is ideal for outlier detection and one-class classification.
+    \item \textbf{OCSVM} is effective for anomaly detection and novelty detection.
+    \item \textbf{SVR} is well-suited for regression tasks with complex, 
+          nonlinear relationships.
+\end{itemize}
+By understanding these methods, you can apply them to a wide range of 
+machine learning problems, from anomaly detection to regression analysis.
+\end{notechapter}

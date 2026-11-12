@@ -1,0 +1,277 @@
+% Source: ce_loss_versus_0_1_loss.tex
+\begin{notechapter}
+% ---- chapter-local definitions ----
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\footnotesize\ttfamily,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+\lstset{style=mystyle}
+% -----------------------------------
+\chapter{The 0--1, Cross-Entropy and Hinge Losses}\label{ch:zero-one-vs-ce}
+
+In classification tasks, different loss functions are used depending on 
+the model and optimization requirements. The 0-1 loss, cross-entropy 
+loss, and hinge loss are three commonly used loss functions, each with 
+its own properties and use cases. Let's analyze their definitions, 
+relationships, and differences.
+
+\section{Definitions}
+
+\subsection{0-1 Loss}
+The 0-1 loss is a simple loss function used in classification problems. 
+It assigns a loss of 0 if the prediction is correct (i.e., the predicted 
+class matches the true class) and a loss of 1 if the prediction is 
+incorrect. Mathematically, for a true label \( y \) and a predicted 
+label \( \hat{y} \), the 0-1 loss is:
+
+\[
+L_{0-1}(y, \hat{y}) = 
+\begin{cases} 
+0 & \text{if } y = \hat{y}, \\
+1 & \text{if } y \neq \hat{y}.
+\end{cases}
+\]
+
+\subsection{Cross-Entropy Loss}
+The cross-entropy loss is used when the model outputs a probability 
+distribution over the possible classes. For a true label \( y \) 
+(represented as a one-hot vector) and a predicted probability 
+distribution \( \mathbf{p} \), the cross-entropy loss is:
+
+\[
+L_{\text{CE}}(y, \mathbf{p}) = -\sum_{i} y_i \log(p_i).
+\]
+
+When the true label \( y \) is a one-hot vector (i.e., \( y_i = 1 \) 
+for the correct class and \( y_i = 0 \) for all other classes), the 
+cross-entropy loss simplifies to:
+
+\[
+L_{\text{CE}}(y, \mathbf{p}) = -\log(p_i),
+\]
+
+where \( p_i \) is the predicted probability for the correct class.
+
+\subsection{Hinge Loss}
+The hinge loss is commonly used in Support Vector Machines (SVMs) and 
+some neural networks. For a true label \( y \in \{-1, 1\} \) and a 
+predicted score \( f(x) \), the hinge loss is defined as:
+
+\[
+L_{\text{Hinge}}(y, f(x)) = \max(0, 1 - y \cdot f(x)).
+\]
+
+The hinge loss encourages the model to not only classify correctly 
+but also to ensure that the correct classification is confident (i.e., 
+\( y \cdot f(x) \geq 1 \)).
+
+\section{Relationship Between the Loss Functions}
+
+\subsection{Cross-Entropy Loss vs 0-1 Loss}
+The cross-entropy loss and the 0-1 loss behave differently:
+
+\begin{itemize}
+    \item For \( p_i \geq 0.5 \):
+    \begin{itemize}
+        \item The 0-1 loss is 0.
+        \item The cross-entropy loss is \( -\log(p_i) \), which is 
+              greater than or equal to 0.
+        \item Here, the cross-entropy loss is \textbf{greater than or 
+              equal to} the 0-1 loss.
+    \end{itemize}
+
+    \item For \( p_i < 0.5 \):
+    \begin{itemize}
+        \item The 0-1 loss is 1.
+        \item The cross-entropy loss is \( -\log(p_i) \), which can be 
+              \textbf{less than 1} if \( p_i \) is not too small.
+        \item For example, if \( p_i = 0.45 \), then \( -\log(0.45) 
+              \approx 0.7985 \), which is less than 1.
+    \end{itemize}
+\end{itemize}
+
+Thus, with the natural logarithm, the cross-entropy loss is \textbf{not always an upper bound}
+for the 0-1 loss: it fails exactly for \( 1/e < p_i < 0.5 \) (since \( -\ln p_i \geq 1 \iff p_i \leq 1/e \approx 0.368 \)).
+
+The fix is simply a change of base. With the base-2 logarithm, \( -\log_2 p_i \geq 1 \iff p_i \leq 0.5 \),
+so \( -\log_2 p_i \geq L_{0-1} \) always holds in the binary case. It also holds with any number of classes:
+if the prediction (the class of highest probability) is wrong, some other class has probability at least
+\( p_i \), so \( p_i \leq 1/2 \) and \( -\log_2 p_i \geq 1 \). Since \( -\log_2 p = -\ln p / \ln 2 \), the two versions differ
+only by a constant factor, which does not change the minimizer: cross-entropy is, up to scaling, a
+convex upper bound (surrogate) of the 0-1 loss.
+
+\subsection{Hinge Loss vs 0-1 Loss}
+The hinge loss is designed to be an upper bound on the 0-1 loss. For 
+a correctly classified example (i.e., \( y \cdot f(x) \geq 0 \)), the 
+hinge loss is:
+
+\[
+L_{\text{Hinge}}(y, f(x)) = \max(0, 1 - y \cdot f(x)).
+\]
+
+If the model is confident in its prediction (i.e., \( y \cdot f(x) \geq 1 \)), 
+the hinge loss is 0. Otherwise, it increases linearly with the margin 
+violation. This makes the hinge loss a convex surrogate for the 0-1 
+loss, which is non-convex and harder to optimize directly.
+
+\section{Intuition}
+
+\subsection{Cross-Entropy Loss}
+The cross-entropy loss provides more than just a measure of correctness; 
+it also encodes the model's confidence in its predictions:
+
+\begin{itemize}
+    \item When the model predicts a probability close to 1 for the 
+          correct class, the cross-entropy loss is small, reflecting 
+          high confidence.
+    \item When the model predicts a probability close to 0 for the 
+          correct class, the cross-entropy loss is large, reflecting 
+          low confidence.
+    \item Even for correct predictions, the cross-entropy loss penalizes 
+          uncertainty. For example, if \( p_i = 0.6 \) for the correct 
+          class, the loss is \( -\log(0.6) \approx 0.51 \), which is 
+          greater than 0.
+\end{itemize}
+
+\subsection{Hinge Loss}
+The hinge loss encourages the model to not only classify correctly 
+but also to ensure that the correct classification is confident (i.e., 
+\( y \cdot f(x) \geq 1 \)):
+
+\begin{itemize}
+    \item If the model is very confident (i.e., \( y \cdot f(x) \geq 1 \)), 
+          the hinge loss is 0.
+    \item If the model is less confident (i.e., \( y \cdot f(x) < 1 \)), 
+          the hinge loss increases linearly with the margin violation.
+\end{itemize}
+
+This makes the hinge loss particularly useful for models that aim to 
+maximize the margin between classes, such as SVMs.
+
+\section{Log-Odds and the Inverse Sigmoid}
+
+The hinge loss operates on the raw score \( f(x) \), not the predicted 
+probability \( p \). In binary classification, the score \( f(x) \) is 
+often interpreted as the \textbf{log-odds} of the positive class:
+
+\[
+f(x) = \log\left(\frac{p}{1 - p}\right).
+\]
+
+This is the inverse of the sigmoid (logistic) function, which maps 
+\( f(x) \) to \( p \):
+
+\[
+p = \sigma(f(x)) = \frac{1}{1 + e^{-f(x)}}.
+\]
+
+By using the inverse sigmoid, we ensure that the hinge loss is computed 
+based on the score \( f(x) \), which is consistent with its definition.
+
+\section{Multi-Class Hinge Loss}
+
+The hinge loss can be extended to multi-class classification. The 
+most common extension is the \textbf{multi-class hinge loss} of
+\textbf{Crammer and Singer} (not to be confused with training \( K \) binary
+one-vs-all SVMs, nor with the Weston--Watkins loss \( \sum_{k\neq y}\max(0, 1 - f_y(x) + f_k(x)) \)). 
+For a true label \( y \) and predicted scores \( \mathbf{f}(x) = [f_1(x), 
+f_2(x), \dots, f_K(x)] \) for \( K \) classes, the multi-class hinge 
+loss is defined as:
+
+\[
+L_{\text{Hinge}}(y, \mathbf{f}(x)) = \max\left(0, 1 - f_y(x) + \max_{k \neq y} f_k(x)\right),
+\]
+
+where:
+\begin{itemize}
+    \item \( f_y(x) \) is the predicted score for the true class \( y \).
+    \item \( \max_{k \neq y} f_k(x) \) is the maximum predicted score for all 
+          other classes.
+\end{itemize}
+
+This formulation encourages the model to predict a score for the true 
+class that is at least 1 higher than the scores for all other classes.
+
+\section{Visualization}
+
+Below is Python code to plot the 0-1 loss, cross-entropy loss, and 
+hinge loss for a binary classification problem, where the true label 
+is \( y = 1 \).
+
+\begin{lstlisting}[language=Python]
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Define the true label
+y = 1
+
+# Define the predicted probabilities for class 1
+p = np.linspace(0.01, 1, 100)
+
+# 0-1 loss
+def zero_one_loss(y, p):
+    return 0 if p >= 0.5 else 1
+
+# Cross-entropy loss
+def cross_entropy_loss(y, p):
+    return -y * np.log(p) - (1 - y) * np.log(1 - p)
+
+# Hinge loss
+def hinge_loss(y, f):
+    return max(0, 1 - y * f)
+
+# Map predicted probability p to score f(x)
+def p_to_f(p):
+    return np.log(p / (1 - p))
+
+# Compute losses
+zero_one_losses = [zero_one_loss(y, p_i) for p_i in p]
+ce_losses = [cross_entropy_loss(y, p_i) for p_i in p]
+hinge_losses = [hinge_loss(y, p_to_f(p_i)) for p_i in p]
+
+# Plot
+plt.figure(figsize=(8, 6))
+plt.plot(p, zero_one_losses, label="0-1 Loss", linestyle="--")
+plt.plot(p, ce_losses, label="Cross-Entropy Loss", linestyle="-")
+plt.plot(p, hinge_losses, label="Hinge Loss", linestyle="-.")
+plt.xlabel("Predicted Probability (p)")
+plt.ylabel("Loss")
+plt.title("0-1 Loss, Cross-Entropy Loss, and Hinge Loss (y = 1)")
+plt.legend()
+plt.grid(True)
+plt.savefig("loss_plot.png")  # Save the plot as a file
+plt.close()
+\end{lstlisting}
+
+The plot is generated and saved as \texttt{loss\_plot.png}. Here is 
+the result:
+
+\begin{center}
+\includegraphics[width=0.8\textwidth]{loss_plot.png}
+\end{center}
+
+The plot shows the behavior of the 0-1 loss, cross-entropy loss, and 
+hinge loss as the predicted probability \( p \) varies. The hinge loss 
+is 0 when the model is confident (i.e., \( p \geq 0.5 \)) and increases 
+nonlinearly as the model becomes less confident (i.e., \( p < 0.5 \)). 
+This nonlinearity arises because the hinge loss depends on the score 
+\( f(x) \), which is a nonlinear function of \( p \).
+\end{notechapter}

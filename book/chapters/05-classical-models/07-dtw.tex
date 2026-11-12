@@ -1,0 +1,205 @@
+% Source: dynamic_time_warping.tex
+\begin{notechapter}
+\chapter{Dynamic Time Warping}\label{ch:dtw}
+
+\begin{abstract}
+Dynamic Time Warping (DTW) is a widely used algorithm for
+measuring similarity between temporal sequences that may
+vary in speed or time. This document provides an overview
+of the DTW algorithm, its differentiable variant (Soft-DTW),
+and their applications in fields such as speech recognition,
+bioinformatics, and finance. A Python implementation of DTW
+is also included to illustrate the algorithm's practical usage.
+\end{abstract}
+
+\section{Introduction}
+Dynamic Time Warping (DTW) is a powerful algorithm used to
+measure similarity between two temporal sequences that may
+vary in speed or time. It is widely used in various fields
+such as speech recognition, bioinformatics, and finance.
+
+\section{Problem Definition}
+Given two sequences \( X = (x_1, x_2, \dots, x_n) \) and
+\( Y = (y_1, y_2, \dots, y_m) \), where \( x_i \in \mathbb{R}^d \)
+and \( y_j \in \mathbb{R}^d \) are \( d \)-dimensional vectors,
+DTW aims to find an optimal alignment between them by
+minimizing the cumulative distance between aligned points.
+
+\section{DTW Algorithm}
+The DTW algorithm involves the following steps:
+
+\subsection{Initialization}
+\begin{itemize}
+    \item Create a cost matrix \( D \) of size \( n \times m \),
+    where \( D(i, j) \) represents the distance between
+    \( x_i \) and \( y_j \).
+    \item Initialize \( D(1, 1) = d(x_1, y_1) \), where
+    \( d(x_i, y_j) \) is the local distance between
+    \( x_i \) and \( y_j \).
+    \item Initialize the first row and first column of \( D \):
+    \[
+    D(i, 1) = D(i-1, 1) + d(x_i, y_1) \quad \text{for } i = 2, \dots, n,
+    \]
+    \[
+    D(1, j) = D(1, j-1) + d(x_1, y_j) \quad \text{for } j = 2, \dots, m.
+    \]
+\end{itemize}
+
+\subsection{Recurrence Relation}
+The recurrence relation for DTW is:
+\[
+D(i, j) = d(x_i, y_j) + \min 
+\begin{cases}
+D(i-1, j), \\
+D(i, j-1), \\
+D(i-1, j-1).
+\end{cases}
+\]
+Here, \( d(x_i, y_j) \) is the local distance between
+\( x_i \) and \( y_j \).
+
+\subsection{Path Finding}
+The optimal path is found by backtracking from \( D(n, m) \)
+to \( D(1, 1) \), selecting the minimum cost at each step.
+
+\section{Soft-DTW}
+Soft-DTW is a differentiable variant of DTW that replaces
+the minimum operation with a soft minimum, allowing for
+gradient-based optimization. This makes it particularly
+useful in machine learning applications where
+differentiability is required.
+
+\subsection{Soft Minimum}
+The soft minimum is defined as:
+\[
+\text{softmin}(a, b) = -\gamma \log 
+\left( e^{-a/\gamma} + e^{-b/\gamma} \right),
+\]
+where \( \gamma \) is a smoothing parameter. As \( \gamma \to 0 \),
+the soft minimum converges to the true minimum.
+
+\subsection{Advantages of Soft-DTW}
+\begin{itemize}
+    \item Differentiability: Soft-DTW is differentiable with
+    respect to its inputs, enabling gradient-based optimization.
+    \item Smoothness: The soft minimum provides a smooth
+    approximation to the minimum, which can help avoid local
+    minima in optimization problems.
+    \item Applications: Soft-DTW is widely used in machine
+    learning tasks such as sequence alignment, time series
+    classification, and clustering.
+\end{itemize}
+
+\section{Applications}
+DTW and Soft-DTW have numerous applications, including:
+
+\subsection{Speech Recognition}
+DTW is used to align speech signals with reference
+templates, enabling accurate recognition.
+
+\subsection{Bioinformatics}
+In bioinformatics, DTW helps align DNA sequences and
+analyze time-series gene expression data.
+
+\subsection{Finance}
+DTW is applied to compare financial time series, such as
+stock prices, to identify patterns and trends.
+
+\section{Python Implementation}
+Below is a Python implementation of the DTW algorithm:
+
+\begin{pyblock}
+import numpy as np
+
+def dtw(x, x_prime, q=2):
+    """
+    Compute the Dynamic Time Warping (DTW) distance between
+    two sequences.
+
+    Parameters:
+        x (list): The first sequence.
+        x_prime (list): The second sequence.
+        q (int): The power to raise the distance (default is 2
+        for Euclidean distance).
+
+    Returns:
+        float: The DTW distance between the two sequences.
+        list: The optimal alignment path.
+    """
+    n, m = len(x), len(x_prime)
+    R = np.zeros((n, m))  # Cumulative cost matrix
+    path = []  # To store the optimal alignment path
+
+    # Fill the cumulative cost matrix
+    for i in range(n):
+        for j in range(m):
+            R[i, j] = d(x[i], x_prime[j]) ** q
+            if i > 0 or j > 0:
+                R[i, j] += min(
+                    R[i-1, j] if i > 0 else np.inf,
+                    R[i, j-1] if j > 0 else np.inf,
+                    R[i-1, j-1] if (i > 0 and j > 0) else np.inf
+                )
+
+    # Backtracking to find the optimal path
+    i, j = n-1, m-1
+    while i > 0 or j > 0:
+        path.append((i, j))  # Add current cell to the path
+        if i > 0 and j > 0:
+            min_cost = min(R[i-1, j], R[i, j-1], R[i-1, j-1])
+            if min_cost == R[i-1, j-1]:
+                i, j = i-1, j-1
+            elif min_cost == R[i-1, j]:
+                i -= 1
+            else:
+                j -= 1
+        elif i > 0:
+            i -= 1
+        elif j > 0:
+            j -= 1
+
+    path.append((0, 0))  # Add the starting cell
+    path.reverse()  # Reverse to get the path from start to end
+
+    return R[-1, -1] ** (1. / q), path
+
+# Example local distance function (Euclidean distance)
+def d(a, b):
+    """
+    Compute the Euclidean distance between two points.
+
+    Parameters:
+        a (list): The first point.
+        b (list): The second point.
+
+    Returns:
+        float: The Euclidean distance between the two points.
+    """
+    return np.linalg.norm(np.array(a) - np.array(b))
+
+# Example usage
+x = [[1], [2], [3], [4]]
+x_prime = [[1], [1], [2], [3], [4]]
+distance, alignment_path = dtw(x, x_prime)
+print("DTW Distance:", distance)
+print("Alignment Path:", alignment_path)
+
+for (i, j) in alignment_path:
+    print(f"x[{i}] = {x[i]} is aligned with x_prime[{j}] = {x_prime[j]}")
+\end{pyblock}
+
+\section{Conclusion}
+Dynamic Time Warping (DTW) and its differentiable variant,
+Soft-DTW, are powerful tools for analyzing temporal data.
+DTW provides a robust method for aligning sequences and
+measuring similarity, while Soft-DTW enables gradient-based
+optimization, making it suitable for machine learning
+applications. These algorithms have proven invaluable in
+fields such as speech recognition, bioinformatics, and
+finance, where temporal data plays a crucial role.
+
+\begin{thebibliography}{9}
+\bibitem{dtw:tavenard.blog.dtw} R.~Tavenard, \emph{An introduction to Dynamic Time Warping}, 2021. \url{https://rtavenar.github.io/blog/dtw.html}
+\bibitem{dtw:tavenard.blog.softdtw} R.~Tavenard, \emph{Differentiability of DTW and the case of soft-DTW}, 2021. \url{https://rtavenar.github.io/blog/softdtw.html}
+\end{thebibliography}
+\end{notechapter}

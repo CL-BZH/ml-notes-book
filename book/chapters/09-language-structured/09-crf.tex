@@ -1,0 +1,154 @@
+% Source: conditional_random_fields.tex
+\begin{notechapter}
+\chapter{Conditional Random Fields for Part-of-Speech Tagging}\label{ch:crf}
+
+\section{Introduction}
+Conditional Random Fields (CRFs) are a type of 
+discriminative probabilistic model used for sequence 
+labeling tasks, such as Part-of-Speech (POS) tagging, 
+named entity recognition (NER), and more. Unlike Hidden 
+Markov Models (HMMs), which model the joint probability 
+\( P(x, y) \), CRFs directly model the conditional 
+probability \( P(y | x) \), making them more flexible 
+and powerful for many tasks.
+
+\section{Key Components of CRFs}
+\begin{itemize}
+    \item Observations: A sequence of input features 
+          (e.g., words in a sentence).
+    \item Labels: A sequence of output labels 
+          (e.g., POS tags).
+    \item Feature Functions: Functions that capture 
+          relationships between observations and labels.
+    \item Parameters: Weights associated with feature 
+          functions, learned during training.
+\end{itemize}
+
+\section{Mathematical Formulation}
+A CRF defines the conditional probability of a label 
+sequence \( \mathbf{y} = (y_1, y_2, \dots, y_T) \) given 
+an observation sequence \( \mathbf{x} = (x_1, x_2, \dots, 
+x_T) \) as:
+\[
+P(\mathbf{y} | \mathbf{x}) = \frac{1}{Z(\mathbf{x})} 
+\exp\left( \sum_{t=1}^T \sum_{k=1}^K \lambda_k f_k(y_{t-1}, 
+y_t, \mathbf{x}, t) \right),
+\]
+where:
+\begin{itemize}
+    \item \( f_k(y_{t-1}, y_t, \mathbf{x}, t) \): A 
+          feature function that captures dependencies 
+          between labels and observations.
+    \item \( \lambda_k \): The weight associated with 
+          the \( k \)-th feature function.
+    \item \( Z(\mathbf{x}) \): The partition function, 
+          ensuring the probabilities sum to 1.
+\end{itemize}
+
+\section{Feature Functions}
+Feature functions in CRFs can capture a wide range of 
+dependencies, such as:
+\begin{itemize}
+    \item Transition Features: Dependencies between 
+          adjacent labels (e.g., \( y_{t-1} = \text{Det} \) 
+          and \( y_t = \text{Noun} \)).
+    \item Emission Features: Dependencies between a 
+          label and the current observation (e.g., 
+          \( y_t = \text{Noun} \) and \( x_t = \text{"cat"} \)).
+    \item Contextual Features: Dependencies between a 
+          label and the surrounding observations (e.g., 
+          \( y_t = \text{Verb} \) and \( x_{t-1} = \text{"the"} \)).
+\end{itemize}
+
+\section{Graphical Representation}
+CRFs are typically represented as an undirected graph, 
+where nodes represent labels and edges represent 
+dependencies between them. Below is an example of a 
+linear-chain CRF for POS tagging:
+
+\begin{center}
+\begin{tikzpicture}[
+    > = Stealth, % Arrow head style
+    shorten > = 1pt, % Don't touch arrow head to node
+    auto,
+    node distance = 2cm, % Distance between nodes
+    semithick, % Line style
+]
+
+    % Nodes for labels
+    \node[state, color=blue] (y1) {\( y_1 \)};
+    \node[state, color=blue] (y2) [right of=y1] {\( y_2 \)};
+    \node[state, color=blue] (y3) [right of=y2] {\( y_3 \)};
+    \node[state, color=blue] (y4) [right of=y3] {\( y_4 \)};
+
+    % Edges for dependencies
+    \path[-, color=blue] (y1) edge node {} (y2);
+    \path[-, color=blue] (y2) edge node {} (y3);
+    \path[-, color=blue] (y3) edge node {} (y4);
+
+    % Nodes for observations
+    \node[state, color=red] (x1) [below of=y1, yshift=-0.1cm] {\( x_1 \)};
+    \node[state, color=red] (x2) [below of=y2, yshift=-0.1cm] {\( x_2 \)};
+    \node[state, color=red] (x3) [below of=y3, yshift=-0.1cm] {\( x_3 \)};
+    \node[state, color=red] (x4) [below of=y4, yshift=-0.1cm] {\( x_4 \)};
+
+    % Edges for emission features
+    \path[-, color=red] (y1) edge node {} (x1);
+    \path[-, color=red] (y2) edge node {} (x2);
+    \path[-, color=red] (y3) edge node {} (x3);
+    \path[-, color=red] (y4) edge node {} (x4);
+\end{tikzpicture}
+\end{center}
+
+\section{Comparison with HMMs}
+\begin{itemize}
+    \item Generative vs. Discriminative: HMMs are 
+          generative models that model \( P(x, y) \), 
+          while CRFs are discriminative models that 
+          directly model \( P(y | x) \).
+    \item Feature Flexibility: CRFs can incorporate 
+          arbitrary features of the input sequence, 
+          while HMMs are limited to emission and 
+          transition probabilities.
+    \item Training: CRFs are trained using maximum 
+          likelihood estimation (MLE) or gradient-based 
+          methods, while HMMs use the Baum-Welch 
+          algorithm (a variant of EM).
+\end{itemize}
+
+\section{Example: POS Tagging with CRFs}
+Consider the sentence: \textit{"The cat sat on the floor"}. 
+The goal is to predict the POS tags for each word.
+
+\subsection{Feature Functions}
+\begin{itemize}
+    \item Transition Features:
+        \begin{itemize}
+            \item \( f_1(y_{t-1} = \text{Det}, y_t = \text{Noun}) = 1 \)
+            \item \( f_2(y_{t-1} = \text{Noun}, y_t = \text{Verb}) = 1 \)
+        \end{itemize}
+    \item Emission Features:
+        \begin{itemize}
+            \item \( f_3(y_t = \text{Det}, x_t = \text{"The"}) = 1 \)
+            \item \( f_4(y_t = \text{Noun}, x_t = \text{"cat"}) = 1 \)
+        \end{itemize}
+\end{itemize}
+
+\subsection{Inference}
+Inference in CRFs involves finding the most likely 
+label sequence \( \mathbf{y}^* \) given the 
+observations \( \mathbf{x} \):
+\[
+\mathbf{y}^* = \arg\max_{\mathbf{y}} P(\mathbf{y} | \mathbf{x}).
+\]
+This is typically done using the Viterbi algorithm, 
+adapted for CRFs.
+
+\section{Conclusion}
+Conditional Random Fields are a powerful and flexible 
+model for sequence labeling tasks. By directly modeling 
+\( P(y | x) \) and incorporating rich feature functions, 
+CRFs often outperform generative models like HMMs in 
+practice. Their ability to handle arbitrary dependencies 
+makes them a popular choice for NLP tasks.
+\end{notechapter}

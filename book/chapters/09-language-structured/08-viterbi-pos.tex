@@ -1,0 +1,281 @@
+% Source: part_of_speech.tex
+\begin{notechapter}
+\chapter{The Viterbi Algorithm for Part-of-Speech Tagging}\label{ch:viterbi-pos}
+
+\section{Introduction}
+The Viterbi algorithm is a dynamic programming algorithm 
+used to find the most likely sequence of hidden states 
+(e.g., POS tags) given a sequence of observations (e.g., 
+words) in a Hidden Markov Model (HMM).
+
+\section{Key Components of an HMM}
+\begin{itemize}
+    \item Observations: Words in a sentence (e.g., "The cat 
+          sat on the floor").
+    \item Hidden States: POS tags (e.g., Det, Noun, Verb, 
+          Prep).
+    \item Transition Probabilities: \( P(s_i | s_{i-1}) \).
+    \item Emission Probabilities: \( P(w_i | s_i) \).
+    \item Initial Probabilities: \( P(s_1 | \text{start}) \).
+\end{itemize}
+
+\section{Probability Tables}
+\subsection{Transition Probabilities}
+\[
+\begin{array}{|c|c|c|c|c|}
+\hline
+ & \text{Det} & \text{Noun} & \text{Verb} & \text{Prep} \\
+\hline
+\text{Start} & 0.5 & 0.3 & 0.1 & 0.1 \\
+\text{Det} & 0.0 & 0.75 & 0.0 & 0.25 \\
+\text{Noun} & 0.0 & 0.0 & 0.55 & 0.45 \\
+\text{Verb} & 0.4 & 0.0 & 0.0 & 0.6 \\
+\text{Prep} & 0.7 & 0.3 & 0.0 & 0.0 \\
+\hline
+\end{array}
+\]
+
+\subsection{Emission Probabilities}
+\[
+\begin{array}{|c|c|c|c|c|c|c|}
+\hline
+ & \text{"The"} & \text{"cat"} & \text{"sat"} & \text{"on"} & \text{"the"} & \text{"floor"} \\
+\hline
+\text{Det} & 0.6 & 0.0 & 0.0 & 0.0 & 0.4 & 0.0 \\
+\text{Noun} & 0.0 & 0.5 & 0.0 & 0.0 & 0.0 & 0.4 \\
+\text{Verb} & 0.0 & 0.0 & 0.7 & 0.0 & 0.0 & 0.3 \\
+\text{Prep} & 0.0 & 0.0 & 0.0 & 0.8 & 0.0 & 0.0 \\
+\hline
+\end{array}
+\]
+
+\section{HMM Graph}
+Below is the graph of the HMM showing transitions (blue arrows) and 
+emissions (red arrows):
+
+\begin{center}
+\begin{tikzpicture}[
+    > = Stealth, % Arrow head style
+    shorten > = 1pt, % Don't touch arrow head to node
+    auto,
+    node distance = 3cm, % Distance between nodes
+    semithick, % Line style
+]
+
+    % Nodes for states
+    \node[state, color=green] (start) {Start};
+    \node[state, color=blue] (Det) [below of=start, yshift=-1.5cm][left of=start, xshift=-1.5cm] {Det};
+    \node[state, color=blue] (Noun) [right of=Det] {Noun};
+    \node[state, color=blue] (Verb) [right of=Noun] {Verb};
+    \node[state, color=blue] (Prep) [right of=Verb] {Prep};
+
+    % Transitions
+    \path[->, color=green] (start) edge node {0.5} (Det);
+    \path[->, color=green] (start) edge node {0.3} (Noun);
+    \path[->, color=green] (start) edge node {0.1} (Verb);
+    \path[->, color=green] (start) edge node {0.1} (Prep);
+    \path[->, color=blue] (Det) edge node {0.75} (Noun);
+    \path[->, color=blue] (Det) edge [bend right] node {0.25} (Prep); 
+    \path[->, color=blue] (Noun) edge node {0.55} (Verb); 
+    \path[->, color=blue] (Noun) edge [bend right] node {0.45} (Prep);
+    \path[->, color=blue] (Verb) edge [bend right] node {0.4} (Det);
+    \path[->, color=blue] (Verb) edge node {0.6} (Prep);
+    \path[->, color=blue] (Prep) edge [bend right] node {0.7} (Det);
+    \path[->, color=blue] (Prep) edge [bend right] node {0.3} (Noun);
+
+    % Emissions
+    \node[state, color=red] (The) [below of=Det, yshift=-1cm][left of=Det] {"The"};
+    \path[->, color=red] (Det) edge node {0.6} (The);
+    \node[state, color=red] (the) [below of=Det, yshift=-1cm] {"the"};
+    \path[->, color=red] (Det) edge node {0.4} (the);
+    \node[state, color=red] (cat) [below of=Noun, xshift=-1cm, yshift=-1cm] {"cat"};
+    \path[->, color=red] (Noun) edge node {0.5} (cat);
+    \node[state, color=red] (sat) [below of=Verb, xshift=1cm, yshift=-1cm] {"sat"};
+    \path[->, color=red] (Verb) edge node {0.7} (sat);
+    \node[state, color=red] (on) [below of=Prep, yshift=-1cm] {"on"};
+    \path[->, color=red] (Prep) edge node {0.8} (on);
+    \node[state, color=red] (floor) [below of=Noun, xshift=2cm, yshift=-1cm] {"floor"};
+    \path[->, color=red] (Noun) edge node {0.4} (floor);
+    \path[->, color=red] (Verb) edge node {0.3} (floor);
+\end{tikzpicture}
+\end{center}
+
+\section{Why the Viterbi Algorithm Works}
+The Viterbi algorithm works because it leverages the 
+\textbf{optimal substructure} and \textbf{overlapping subproblems} 
+properties of dynamic programming. Here's why:
+
+\subsection{Optimal Substructure}
+The problem of finding the most likely sequence of hidden 
+states can be broken down into smaller subproblems. For 
+example, the most likely path to a state \( s \) at time \( t \) 
+depends only on:
+\begin{itemize}
+    \item The most likely path to each possible state at 
+          time \( t-1 \).
+    \item The transition probability from those states to 
+          \( s \).
+    \item The emission probability of the observation at 
+          time \( t \) given \( s \).
+\end{itemize}
+
+This means that the optimal solution to the problem can be 
+constructed from optimal solutions to its subproblems.
+
+\subsection{Overlapping Subproblems}
+The Viterbi algorithm avoids redundant computations by 
+storing intermediate results in a table (the trellis). For 
+example, the probability \( \delta_t(s) \) is computed once 
+and reused for all future steps. This makes the algorithm 
+efficient, with a time complexity of \( O(T \cdot N^2) \), 
+where \( T \) is the number of observations and \( N \) is the 
+number of states.
+
+\subsection{Backtracking}
+Once the trellis is filled, the algorithm backtracks to 
+reconstruct the most likely sequence of states. This is 
+possible because the trellis stores not only the maximum 
+probabilities but also the states that led to them.
+
+\section{Complete Trellis with Arrows and Probabilities}
+The trellis is a table where rows represent states (tags) 
+and columns represent words. Each cell stores the 
+probability of the most likely path to that state at that 
+step.
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.3cm,
+    every node/.style={rectangle, draw, minimum width=1.2cm, 
+    minimum height=0.9cm, align=center},
+    arrow/.style={->, >=Stealth, thick}
+]
+
+    % Words (Observations)
+    \node (The) {The};
+    \node (cat) [right=of The] {cat};
+    \node (sat) [right=of cat] {sat};
+    \node (on) [right=of sat] {on};
+    \node (the) [right=of on] {the};
+    \node (floor) [right=of the] {floor};
+
+    % States (Tags)
+    \node (Det1) [below=of The] {Det \\ 0.3};
+    \node (Noun1) [below=of Det1] {Noun \\ 0.0};
+    \node (Verb1) [below=of Noun1] {Verb \\ 0.0};
+    \node (Prep1) [below=of Verb1] {Prep \\ 0.0};
+
+    \node (Det2) [below=of cat] {Det \\ 0.0};
+    \node (Noun2) [below=of Det2] {Noun \\ 0.1125};
+    \node (Verb2) [below=of Noun2] {Verb \\ 0.0};
+    \node (Prep2) [below=of Verb2] {Prep \\ 0.0};
+
+    \node (Det3) [below=of sat] {Det \\ 0.0};
+    \node (Noun3) [below=of Det3] {Noun \\ 0.0};
+    \node (Verb3) [below=of Noun3] {Verb \\ 0.0433};
+    \node (Prep3) [below=of Verb3] {Prep \\ 0.0};
+
+    \node (Det4) [below=of on] {Det \\ 0.0};
+    \node (Noun4) [below=of Det4] {Noun \\ 0.0};
+    \node (Verb4) [below=of Noun4] {Verb \\ 0.0};
+    \node (Prep4) [below=of Verb4] {Prep \\ 0.02079};
+
+    \node (Det5) [below=of the] {Det \\ 0.005821};
+    \node (Noun5) [below=of Det5] {Noun \\ 0.0};
+    \node (Verb5) [below=of Noun5] {Verb \\ 0.0};
+    \node (Prep5) [below=of Verb5] {Prep \\ 0.0};
+
+    \node (Det6) [below=of floor] {Det \\ 0.0};
+    \node (Noun6) [below=of Det6] {Noun \\ 0.0017};
+    \node (Verb6) [below=of Noun6] {Verb \\ 0.0};
+    \node (Prep6) [below=of Verb6] {Prep \\ 0.0};
+
+    % Arrows for paths
+    \draw[arrow] (Det1) -- (Noun2);
+    \draw[arrow] (Noun2) -- (Verb3);
+    \draw[arrow] (Verb3) -- (Prep4);
+    \draw[arrow] (Prep4) -- (Det5);
+    \draw[arrow] (Det5) -- (Noun6);
+
+    % Labels for states
+    \node[left=of Det1] {Det};
+    \node[left=of Noun1] {Noun};
+    \node[left=of Verb1] {Verb};
+    \node[left=of Prep1] {Prep};
+\end{tikzpicture}
+\end{center}
+
+\section{Step-by-Step Computations}
+\subsection{General Formula for \(\delta_t(s)\)}
+\[
+\delta_t(s) = \max_{s'} \left( \delta_{t-1}(s') \cdot P(s | s') \cdot P(w_t | s) \right)
+\]
+where:
+\begin{itemize}
+    \item \(\delta_t(s)\): Probability of the most likely path to state \(s\) at time \(t\).
+    \item \(P(s | s')\): Transition probability from state \(s'\) to \(s\).
+    \item \(P(w_t | s)\): Emission probability of word \(w_t\) given state \(s\).
+\end{itemize}
+
+\subsubsection{Step 1: Initialization}
+For \( w_1 = \text{"The"} \):
+\[
+\delta_1(\text{Det}) = 0.5 \cdot 0.6 = 0.3
+\]
+\[
+\delta_1(\text{Noun}) = 0.3 \cdot 0.0 = 0.0
+\]
+\[
+\delta_1(\text{Verb}) = 0.1 \cdot 0.0 = 0.0
+\]
+\[
+\delta_1(\text{Prep}) = 0.1 \cdot 0.0 = 0.0
+\]
+
+\subsubsection{Step 2: Recursion for \( w_2 = \text{"cat"} \)}
+For \( s = \text{Noun} \):
+\[
+\delta_2(\text{Noun}) = 0.3 \cdot 0.75 \cdot 0.5 = 0.1125
+\]
+
+\subsubsection{Step 3: Recursion for \( w_3 = \text{"sat"} \)}
+For \( s = \text{Verb} \):
+\[
+\delta_3(\text{Verb}) = 0.1125 \cdot 0.55 \cdot 0.7 = 0.0433
+\]
+
+\subsubsection{Step 4: Recursion for \( w_4 = \text{"on"} \)}
+For \( s = \text{Prep} \):
+\[
+\delta_4(\text{Prep}) = 0.0433 \cdot 0.6 \cdot 0.8 = 0.02079
+\]
+
+\subsubsection{Step 5: Recursion for \( w_5 = \text{"the"} \)}
+For \( s = \text{Det} \):
+\[
+\delta_5(\text{Det}) = 0.02079 \cdot 0.7 \cdot 0.4 = 0.005821
+\]
+
+\subsubsection{Step 6: Recursion for \( w_6 = \text{"floor"} \)}
+For \( s = \text{Noun} \):
+\[
+\delta_6(\text{Noun}) = 0.005821 \cdot 0.75 \cdot 0.4 \approx 0.001746
+\]
+
+\subsubsection{Step 7: Termination}
+The best path probability is \( \max(0.001746, 0.0) \approx 0.001746 \) (\( \delta_6(\text{Verb}) = 0 \) since \( P(\text{Verb} \mid \text{Det}) = 0 \)).
+
+\subsubsection{Step 8: Backtracking}
+Trace back the most likely sequence:
+\[
+\text{Det} \rightarrow \text{Noun} \rightarrow \text{Verb} 
+\rightarrow \text{Prep} \rightarrow \text{Det} \rightarrow 
+\text{Noun}
+\]
+
+\section{Conclusion}
+The Viterbi algorithm efficiently computes the most likely 
+sequence of hidden states using dynamic programming and 
+backtracking. The HMM graph and trellis visualization 
+clearly show the transitions and the most likely path.
+\end{notechapter}

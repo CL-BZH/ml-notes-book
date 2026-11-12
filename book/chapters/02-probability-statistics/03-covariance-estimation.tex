@@ -1,0 +1,356 @@
+% Source: statistics.tex
+\begin{notechapter}
+% ---- chapter-local definitions ----
+\tikzset{%
+    myarrow/.style = {-Stealth, shorten >=5pt}
+}
+\forgetcs\mypoint\newcommand{\mypoint}[2]{\tikz[remember picture]{\node[inner sep=0, anchor=base](#1){$#2$};}}
+\forgetcs\framedtext\newcommand{\framedtext}[1]{%
+\par%
+\noindent\fbox{%
+    \parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{#1}%
+}%
+}
+\forgetcs\horzbar\newcommand*{\horzbar}{\rule[.5ex]{5.5ex}{0.5pt}}
+\forgetcs\vertbar\newcommand*{\vertbar}{\rule[-1ex]{0.5pt}{5.5ex}}
+% -----------------------------------
+\chapter{Covariance and Estimation}\label{ch:covariance-estimation}
+
+\section{Covariance}
+(Cross-)Covariance is a measure of linear dependency between random variables.
+\\
+Given two random variables $X$ and $Y$ the (cross-)covariance is defined by 
+\begin{align*}
+Cov(X, Y) = \mathbb{E}[(X - \mathbb{E}[X])(Y - \mathbb{E}[Y])^T]
+\end{align*}
+The covariance of $X$ with itself is the variance.
+\begin{align*}
+    \sigma_{XX} =Cov(X, X) = \mathbb{E}[(X - \mathbb{E}[X])(X - \mathbb{E}[X])^T]
+\end{align*}
+If $X$ is one-dimensional random variable then the variance is usually written as $\sigma_{X}^2$:
+\begin{align*}
+    \sigma_{X}^2 =\sigma_{XX} =Cov(X, X) = \mathbb{E}[(X - \mathbb{E}[X])^2]
+\end{align*}
+
+If $X$ is p-dimensional multivariate, e.g. $X = \begin{bmatrix*}X_1\\X_2\\ \vdots \\X_p \end{bmatrix*}$
+and  $Y$ is l-dimensional multivariate, e.g. $Y = \begin{bmatrix*}Y_1\\Y_2\\ \vdots \\Y_l \end{bmatrix*}$  
+, Then
+
+\begin{align*}
+    (X - \mathbb{E}[X])(Y- \mathbb{E}[Y])^T &=
+    \begin{bmatrix*} 
+        (X_1 - \mathbb{E}[X_1])\\
+        (X_2 - \mathbb{E}[X_2])\\
+        \vdots \\
+        (X_p - \mathbb{E}[X_p])
+    \end{bmatrix*}
+    \begin{bmatrix*} 
+        (Y_1 - \mathbb{E}[Y_1]) \; (Y_2 - \mathbb{E}[Y_2]) \; \cdots \; (Y_l - \mathbb{E}[Y_l])
+    \end{bmatrix*}\\
+    &=
+    \begin{bmatrix*} 
+        (X_1 - \mathbb{E}[X_1])(Y_1 - \mathbb{E}[Y_1])& \quad (X_1 - \mathbb{E}[X_1])(Y_2 - \mathbb{E}[Y_2])&  \quad \cdots  \quad &(X_1 - \mathbb{E}[X_1])(Y_l - \mathbb{E}[Y_l])\\
+        (X_2 - \mathbb{E}[X_2])(Y_1 - \mathbb{E}[Y_1])& \quad (X_2 - \mathbb{E}[X_2])(Y_2 - \mathbb{E}[Y_2])&  \quad \cdots  \quad &(X_2 - \mathbb{E}[X_2])(Y_l - \mathbb{E}[Y_l])\\
+        \vdots& \quad \vdots& \quad \ddots  \quad &\vdots \\
+        (X_p - \mathbb{E}[X_p])(Y_1 - \mathbb{E}[Y_1])& \quad (X_p - \mathbb{E}[X_p])(Y_2 - \mathbb{E}[Y_2])&  \quad \cdots  \quad &(X_p - \mathbb{E}[X_p])(Y_l - \mathbb{E}[Y_l])
+    \end{bmatrix*}\\
+\end{align*}
+
+\begin{align*}
+    Cov(X, Y) &=
+    \begin{bmatrix*} 
+        \mathbb{E}[(X_1 - \mathbb{E}[X_1])(Y_1 - \mathbb{E}[Y_1])]& \quad \mathbb{E}[(X_1 - \mathbb{E}[X_1])(Y_2 - \mathbb{E}[Y_2])]&  \quad \cdots  \quad &\mathbb{E}[(X_1 - \mathbb{E}[X_1])(Y_l - \mathbb{E}[Y_l])]\\
+        \mathbb{E}[(X_2 - \mathbb{E}[X_2])(Y_1 - \mathbb{E}[Y_1])]& \quad \mathbb{E}[(X_2 - \mathbb{E}[X_2])(Y_2 - \mathbb{E}[Y_2])]&  \quad \cdots  \quad &\mathbb{E}[(X_2 - \mathbb{E}[X_2])(Y_l - \mathbb{E}[Y_l])]\\
+        \vdots& \quad \vdots& \quad \ddots  \quad &\vdots \\
+        \mathbb{E}[(X_p - \mathbb{E}[X_p])(Y_1 - \mathbb{E}[Y_1])]& \quad \mathbb{E}[(X_p - \mathbb{E}[X_p])(Y_2 - \mathbb{E}[Y_2])]&  \quad \cdots  \quad &\mathbb{E}[(X_p - \mathbb{E}[X_p])(Y_l - \mathbb{E}[Y_l])]
+    \end{bmatrix*}\\
+    &=
+    \begin{bmatrix*} 
+        \sigma_{X_1Y_1}& \quad \sigma_{X_1Y_2}&  \quad \cdots  \quad &\sigma_{X_1Y_l}\\
+        \sigma_{X_2Y_1}& \quad \sigma_{X_2Y_2}&  \quad \cdots  \quad &\sigma_{X_2Y_l}\\
+        \vdots& \quad \vdots& \quad \ddots  \quad &\vdots \\
+        \sigma_{X_pY_1}& \quad \sigma_{X_pY_2}&  \quad \cdots  \quad &\sigma_{X_pY_l}
+    \end{bmatrix*}
+\end{align*}
+and,
+\begin{align*}
+    Cov(X, X) &=
+    \begin{bmatrix*} 
+        \sigma_{X_1}^{2}& \quad \sigma_{X_1X_2}&  \quad \cdots  \quad &\sigma_{X_1X_p}\\
+        \sigma_{X_2X_1}& \quad \sigma_{X_2}^{2}&  \quad \cdots  \quad &\sigma_{X_2X_p}\\
+        \vdots& \quad \vdots& \quad \ddots  \quad &\vdots \\
+        \sigma_{X_pX_1}& \quad \sigma_{X_pX_2}&  \quad \cdots  \quad &\sigma_{X_p}^{2}
+    \end{bmatrix*}
+\end{align*}
+
+\section{Estimation}
+The empirical cross-covariance matrix is computed from samples $\textbf{X} \in \mathbb{R}^{n\times p}$ 
+and samples $\textbf{Y} \in \mathbb{R}^{n\times l}$.\\
+That is, we have $n$ observations of the p-dimensional random variable $X$ and 
+$n$ observations of the l-dimensional random variable $Y$. With each line of the matrices being an observation.
+\begin{align*}
+\end{align*}
+
+\begin{align*}
+    \textbf{X} &=
+    \begin{bmatrix*}
+        \tikzmarknode[circle]{left1}{x_{{1}{1}}}& \; x_{{1}{2}}&  \cdots \cdots  \quad &
+        \tikzmarknode[circle]{right1}{x_{{1}{p}}} \mypoint{here1}{}\\
+        x_{{2}{1}}& \; x_{{2}{2}}&  \cdots \cdots  \quad &x_{{2}{p}}\\
+        \vdots& \; \vdots& \cdots \cdots  \quad &\vdots \\
+        x_{{n}{1}}& \; x_{{n}{2}}&  \cdots \cdots  \quad &x_{{n}{p}}
+    \end{bmatrix*}
+\end{align*}
+
+\begin{tikzpicture}[remember picture, overlay]
+    \node[right=30pt of here1](textofhere1){One observation of $X = \begin{bmatrix*}X_1\\X_2\\ \vdots \\X_p \end{bmatrix*}$};
+    \draw[myarrow] (textofhere1) -- (here1);
+\end{tikzpicture}
+
+\AddToShipoutPictureBG*{%
+\begin{tikzpicture}[overlay,remember picture]
+  \draw let  \p1=($(left1.north)-(left1.center)$),
+  \p2=($(right1.north)-(right1.center)$), \n1={2*max(\y1,\y2)-2pt} in
+  [opacity=.3,line width=\n1,line cap=round,
+  shorten >=-\y2/3,shorten <=-\y1/3] (left1.center) -- (right1.center);
+\end{tikzpicture}}
+
+
+\begin{align*}
+    \textbf{Y} &=
+    \begin{bmatrix*}
+        \tikzmarknode[circle]{left2}{y_{{1}{1}}}& \; y_{{1}{2}}&  \; \cdots  \quad &
+        \tikzmarknode[circle]{right2}{y_{{1}{l}}} \mypoint{here2}{}\\
+        y_{{2}{1}}& \; y_{{2}{2}}&  \; \cdots  \quad &y_{{2}{l}}\\
+        \vdots& \; \vdots& \; \cdots  \quad &\vdots \\
+        y_{{n}{1}}& \; y_{{n}{2}}&  \; \cdots  \quad & y_{{n}{l}}
+    \end{bmatrix*}
+\end{align*}
+
+\begin{tikzpicture}[remember picture, overlay]
+    \node[right=30pt of here2](textofhere2){One observation of $Y = \begin{bmatrix*}Y_1\\Y_2\\ \vdots \\Y_l \end{bmatrix*}$};
+    \draw[myarrow] (textofhere2) -- (here2);
+\end{tikzpicture}
+
+\AddToShipoutPictureBG*{%
+\begin{tikzpicture}[overlay,remember picture]
+  \draw let  \p1=($(left2.north)-(left2.center)$),
+  \p2=($(right2.north)-(right2.center)$), \n1={2*max(\y1,\y2)-2pt} in
+  [opacity=.3,line width=\n1,line cap=round,
+  shorten >=-\y2/3,shorten <=-\y1/3] (left2.center) -- (right2.center);
+\end{tikzpicture}}
+
+To get the centered data, we use the operator $A = \textbf{I} - \frac{1}{n}\textbf{1}\textbf{1}^T$.\\
+
+That is $\textbf{A}$ is the $n\times n$ matrix:
+\begin{align*}
+    \textbf{A} &=
+    \begin{bmatrix*}
+        1-\frac{1}{n}& \; -\frac{1}{n}& \cdots & -\frac{1}{n} \\  
+        -\frac{1}{n}& 1-\frac{1}{n}& \; \cdots & -\frac{1}{n} \\
+        \vdots& \; \quad& \; \ddots  \quad &\vdots \\  
+        -\frac{1}{n}& -\frac{1}{n}& \; \cdots & 1-\frac{1}{n}
+    \end{bmatrix*}
+\end{align*}
+
+\begin{align*}
+\end{align*}
+
+Indeed, we have:
+\begin{align*}
+    \frac{1}{n}\textbf{1}\textbf{1}^{T}\textbf{X} &=
+    \begin{bmatrix*}
+        \frac{1}{n}\\
+        \vdots\\
+        \frac{1}{n}
+    \end{bmatrix*}
+    \begin{bmatrix*}
+        1 \cdots 1
+    \end{bmatrix*}
+    \begin{bmatrix*}
+        x_{{1}{1}}& \; x_{{1}{2}}&  \cdots \cdots  \quad & x_{{1}{p}}\\
+        x_{{2}{1}}& \; x_{{2}{2}}&  \cdots \cdots  \quad &x_{{2}{p}}\\
+        \vdots& \; \vdots& \cdots \cdots  \quad &\vdots \\
+        x_{{n}{1}}& \; x_{{n}{2}}&  \cdots \cdots  \quad & x_{{n}{p}}
+    \end{bmatrix*} \\
+    &= 
+    \begin{bmatrix*}
+        \frac{1}{n}\\
+        \vdots\\
+        \frac{1}{n}
+    \end{bmatrix*}
+    \begin{bmatrix*}
+        \sum\limits_{i=1}^{n}x_{i1} \; \sum\limits_{i=1}^{n}x_{i2} \;\cdots \; \sum\limits_{i=1}^{n}x_{ip} 
+    \end{bmatrix*}\\
+    &=
+    \begin{bmatrix*}
+        \frac{1}{n}\sum\limits_{i=1}^{n}x_{i1}& \; \frac{1}{n}\sum\limits_{i=1}^{n}x_{i2}& \;\cdots \; &\frac{1}{n}\sum\limits_{i=1}^{n}x_{ip} \\
+        \frac{1}{n}\sum\limits_{i=1}^{n}x_{i1}& \; \frac{1}{n}\sum\limits_{i=1}^{n}x_{i2}& \;\cdots \; &\frac{1}{n}\sum\limits_{i=1}^{n}x_{ip} \\
+        \vdots& \vdots& \cdots &\vdots \\
+        \frac{1}{n}\sum\limits_{i=1}^{n}x_{i1}& \; \frac{1}{n}\sum\limits_{i=1}^{n}x_{i2}& \;\cdots \; &\frac{1}{n}\sum\limits_{i=1}^{n}x_{ip}
+    \end{bmatrix*}\\
+    &=
+    \begin{bmatrix*}
+        \overline{x_{1}}& \; \overline{x_{2}}& \;\cdots \; &\overline{x_{p}} \\
+        \overline{x_{1}}& \; \overline{x_{2}}& \;\cdots \; &\overline{x_{p}} \\
+        \vdots& \vdots& \cdots &\vdots \\
+        \overline{x_{1}}& \; \overline{x_{2}}& \;\cdots \; &\overline{x_{p}}
+    \end{bmatrix*}
+    \text{where }\; \overline{x_{k}}=\frac{1}{n}\sum\limits_{i=1}^{n}x_{ik}\:, \; k \in \{1,\dots,p\},\; \text{is the estimate of } \mathbb{E}[X_{k}].
+\end{align*}
+
+\begin{align*}
+\end{align*}
+
+Then the empirical cross-covariance matrix is given by:
+
+\begin{align*}
+    \mathlarger{\boldsymbol{\Sigma}}_{XY} = \frac{1}{n}\textbf{X}_{c}^T \textbf{Y}_{c}
+    \; \text{with}\; \textbf{X}_{c} = \textbf{A}\textbf{X} \; \text{and } \textbf{Y}_{c} = \textbf{A}\textbf{Y}
+\end{align*}
+
+\begin{align*}
+    \textbf{X}_{c} = \textbf{A}\textbf{X}
+    = 
+        \begin{bmatrix*}
+            \dot{x}_{{1}{1}}& \cdots &\tikzmarknode[circle]{top3}{\dot{x}_{{1}{k}}}&  \cdots  \quad & \dot{x}_{{1}{p}} \\
+            \dot{x}_{{2}{1}}& \cdots &\dot{x}_{{2}{k}}&  \cdots \quad &\dot{x}_{{2}{p}}\\
+            \vdots &  \cdots  &\vdots &\vdots \\
+            \mypoint{}{\tikzmarknode[circle]{}{\dot{x}_{{n}{1}}}}& \mypoint{here3}{\tikzmarknode[circle]{bottom3}{\cdots}}&  \mypoint{here3}{\tikzmarknode[circle]{bottom3}{\dot{x}_{{n}{k}}}}&  \mypoint{}{\tikzmarknode[circle]{}{\cdots}}  \quad & \mypoint{}{\tikzmarknode[circle]{}{\dot{x}_{{n}{p}}}}
+        \end{bmatrix*}
+\end{align*}
+\begin{tikzpicture}[remember picture, overlay]
+    \node[below=15pt of here3](textofhere3){$\dot{X_k}$};
+    \draw[myarrow] (textofhere3) -- (here3);
+\end{tikzpicture}
+
+\AddToShipoutPictureBG*{%
+    \begin{tikzpicture}[overlay,remember picture]
+      \draw let  \p1=($(top3.north)-(top3.center)$),
+      \p2=($(bottom3.north)-(bottom3.center)$), \n1={2*max(\y1,\y2)-2pt} in
+      [opacity=.3,line width=\n1,line cap=round,
+      shorten >=-\y2/3,shorten <=-\y1/3] (top3.center) -- (bottom3.center);
+    \end{tikzpicture}}
+Where
+\*
+$
+\dot{X_k} = \begin{bmatrix*}x_{1k}\\x_{2k}\\ \vdots \\x_{nk}\end{bmatrix*}
+- \begin{bmatrix*}\overline{x_{k}}\\\overline{x_{k}}\\ \vdots \\\overline{x_{k}} \end{bmatrix*}
+$.\\
+
+That is, $\dot{X_k}$ is the vector of the n centered observations for the random variable $X_k$ of the 
+p-dimensional random variable
+
+$X = \begin{bmatrix*}X_1\\X_2\\ \vdots \\X_k\\ \vdots\\X_p \end{bmatrix*}$.
+
+We have the similar developments for $\textbf{Y}_{c}$.
+
+Therefore,
+\begin{align*}
+    \mathlarger{\boldsymbol{\Sigma}}_{XY} &= \frac{1}{n}\textbf{X}_{c}^T \textbf{Y}_{c} \\
+    &= \frac{1}{n}
+            \begin{bmatrix*}
+                \dot{x}_{{1}{1}}& \cdots &\dot{x}_{{i}{1}}&  \cdots \quad &\dot{x}_{{n}{1}}\\
+                \vdots &  \cdots  &\vdots &\cdots &\vdots\\
+                \dot{x}_{{1}{k}}& \cdots &\dot{x}_{{i}{k}}&  \cdots \quad &\dot{x}_{{n}{k}}\\
+                \vdots &  \cdots  &\vdots &\cdots &\vdots\\
+                \dot{x}_{{1}{p}}& \cdots &\dot{x}_{{i}{p}}&  \cdots \quad &\dot{x}_{{n}{p}}
+            \end{bmatrix*}
+            \begin{bmatrix*}
+                \dot{y}_{{1}{1}}& \cdots &\dot{y}_{{1}{j}}&  \cdots &\dot{y}_{{1}{l}}\\
+                \vdots &  \cdots  &\vdots &\cdots &\vdots\\
+                \vdots &  \cdots  &\vdots &\cdots &\vdots\\
+                \vdots &  \cdots  &\vdots &\cdots &\vdots\\
+                \dot{y}_{{n}{1}}& \cdots &\dot{y}_{{n}{j}}&  \cdots &\dot{y}_{{n}{l}}
+            \end{bmatrix*} \\
+    &= \frac{1}{n}
+            \begin{bmatrix*}
+                \horzbar &\dot{X_{1}}^T& \horzbar\\
+                &\vdots&\\
+                \horzbar &\dot{X_{k}}^T& \horzbar\\
+                &\vdots&\\
+                \horzbar &\dot{X_{p}}^T& \horzbar
+            \end{bmatrix*}
+            \begin{bmatrix*}
+                \vertbar & \cdots & \vertbar & \cdots & \vertbar\\
+                \dot{Y}_{1} & \cdots & \dot{Y}_{j} & \cdots & \dot{Y}_{l}\\
+                \vertbar & \cdots & \vertbar & \cdots & \vertbar
+            \end{bmatrix*}
+\end{align*}
+
+$
+    \big[\mathlarger{\boldsymbol{\Sigma}}_{XY}\big]_{ij} = \textbf{s}\strut_{X_iY_j} =
+    \frac{1}{n}\dot{X_{i}}^T \dot{Y}_{j}
+    =
+    \frac{1}{n}\sum\limits_{k=1}^{n}(\dot{x_{ik}})(\dot{y_{kj}}) 
+    =
+    \frac{1}{n}\sum\limits_{k=1}^{n}(x_{ik} - \overline{x_{i}})(y_{kj} - \overline{y_{j}})
+    \; , i \in \{1,\dots, p\} \; \text{and} \; j \in \{1,\dots, l\}.
+$\\
+
+Which is an estimate of $\mathbb{E}[(X_i - \mathbb{E}[X_i])(Y_j - \mathbb{E}[Y_j])]$.\\
+
+If we consider the empirical covariance of $X$ (also named the sample covariance), then we have:
+\begin{align*}
+    \big[\mathlarger{\boldsymbol{\Sigma}}_{X}\big]_{ij} = \textbf{s}\strut_{X_iX_j} = 
+    \frac{1}{n} \dot{X_{i}}^T \dot{X}_{j} =
+    \frac{1}{n} \sum\limits_{k=1}^{n}(x_{ik} - \overline{x_{i}})(x_{kj} - \overline{x_{j}})
+    \; , \quad i, j \in \{1,\dots, p\} \;, \; i \neq j.
+\end{align*}
+\begin{align*}
+    \big[\mathlarger{\boldsymbol{\Sigma}}_{X}\big]_{ii} = \textbf{s}\strut_{X_iX_i} = 
+    \frac{1}{n} \dot{X_{i}}^T \dot{X}_{i} =
+    \frac{1}{n} \sum\limits_{k=1}^{n}(x_{ik} - \overline{x_{i}})^2
+    \; , \quad i \in \{1,\dots, p\}.
+\end{align*}
+
+\begin{align*}
+    \mathlarger{\boldsymbol{\Sigma}}_{X} &= \frac{1}{n}\textbf{X}_{c}^T \textbf{X}_{c} \\
+    &=
+    \begin{bmatrix*}
+        \textbf{s}\strut_{X_1X_1}& \cdots &\textbf{s}\strut_{X_1X_j}&  \cdots \quad &\textbf{s}\strut_{X_1X_p}\\
+        \vdots &  \cdots  &\vdots &\cdots &\vdots\\
+        \textbf{s}\strut_{X_iX_1}& \cdots &\textbf{s}\strut_{X_iX_j}&  \cdots \quad &\textbf{s}\strut_{X_iX_p}\\
+        \vdots &  \cdots  &\vdots &\cdots &\vdots\\
+        \textbf{s}\strut_{X_pX_1}& \cdots &\textbf{s}\strut_{X_pX_j}&  \cdots \quad &\textbf{s}\strut_{X_pX_p}
+    \end{bmatrix*}
+\end{align*}  
+
+Note that
+$
+\mathlarger{\boldsymbol{\Sigma}}_{X} = \frac{1}{n}\textbf{X}_{c}^T \textbf{X}_{c}
+= \frac{1}{n}\textbf{X}^T\textbf{A}^T \textbf{A}\textbf{X}
+= \frac{1}{n}\textbf{X}^T \textbf{A}\textbf{X}
+$.\\
+
+Indeed,
+\begin{align*}
+    \textbf{A}^{T}\textbf{A} &= (\textbf{I} - \frac{1}{n}\textbf{1}\textbf{1}^T)^T(\textbf{I} - \frac{1}{n}\textbf{1}\textbf{1}^T)\\
+    &= (\textbf{I} - \frac{1}{n}\textbf{1}\textbf{1}^T)(\textbf{I} - \frac{1}{n}\textbf{1}\textbf{1}^T)\\
+    &= \textbf{I} - \frac{1}{n}\textbf{1}\textbf{1}^T - \frac{1}{n}\textbf{1}\textbf{1}^T + 
+    (- \frac{1}{n}\textbf{1}\textbf{1}^T)(- \frac{1}{n}\textbf{1}\textbf{1}^T)\\
+    &= \textbf{I} - \frac{1}{n}\textbf{1}\textbf{1}^T - \frac{1}{n}\textbf{1}\textbf{1}^T + 
+    \frac{1}{n^2}\textbf{1} (\underbrace{\textbf{1}^T \textbf{1}}_{= n}) \textbf{1}^T\\
+    &= \textbf{I} - \frac{1}{n}\textbf{1}\textbf{1}^T \\
+    &= \textbf{A}
+\end{align*} 
+
+Letting $\textbf{D} = diag \big( \big[\textbf{s}\strut_{X_1X_1}^{\frac{1}{2}}\;, \textbf{s}\strut_{X_2X_2}^{\frac{1}{2}}\;, \dots, \textbf{s}\strut_{X_kX_k}^{\frac{1}{2}}\;, \dots, \textbf{s}\strut_{X_pX_p}^{\frac{1}{2}}\; \big] \big) = 
+\begin{bmatrix*}
+    \quad \textbf{s}\strut_{X_1X_1}^{\frac{1}{2}} & 0                                 & \cdots  & \cdots                                  & 0      & \cdots & 0      \\
+                                                0 & \textbf{s}\strut_{X_2X_2}^{\frac{1}{2}} & 0       & \cdots                                  & \cdots & \cdots & 0      \\
+                                           \vdots & \ddots                                  & \ddots  & \ddots                                  & \ddots & \ddots & \vdots \\
+                                                0 & \cdots                                  & \ddots  & \textbf{s}\strut_{X_kX_k}^{\frac{1}{2}} & \ddots & \cdots & 0      \\
+                                           \vdots & \ddots                                  & \ddots  & \ddots                                  & \ddots & \ddots & \vdots \\
+                                           \vdots & \ddots                                  & \ddots  & \ddots                                  & \ddots & \ddots & 0      \\
+                                                0 & \cdots                                  & \cdots  & \cdots                                  & \cdots & 0      & \textbf{s}\strut_{X_pX_p}^{\frac{1}{2}}
+\end{bmatrix*}$,\\
+the empirical correlation matrix is $\mathlarger{\mathbf{R}}_{X} = \textbf{D}^{-1} \mathlarger{\boldsymbol{\Sigma}}_{X} \textbf{D}^{-1}$, i.e.\ $[\mathbf{R}_X]_{ij} = \textbf{s}\strut_{X_iX_j} / \sqrt{\textbf{s}\strut_{X_iX_i}\textbf{s}\strut_{X_jX_j}}$.\\
+
+In other words, the correlation matrix of $\textbf{X}$ is the covariance matrix of the standardized (centered and scaled) data $\textbf{X}_c\textbf{D}^{-1}$.
+
+\begin{remark}[Biased and unbiased estimators]
+The estimator $\frac{1}{n}\textbf{X}_{c}^T \textbf{X}_{c}$ is the maximum-likelihood estimator of the covariance under a Gaussian model, but it is biased: $\mathbb{E}\big[\frac{1}{n}\textbf{X}_{c}^T \textbf{X}_{c}\big] = \frac{n-1}{n}\,\mathrm{Cov}(X,X)$, because one degree of freedom is used to estimate the mean. The unbiased sample covariance is $\frac{1}{n-1}\textbf{X}_{c}^T \textbf{X}_{c}$ (the default of \texttt{numpy.cov}). The same remark applies to the cross-covariance.
+\end{remark}
+
+\end{notechapter}

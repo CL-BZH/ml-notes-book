@@ -1,0 +1,152 @@
+% Source: activation_functions.tex
+\begin{notechapter}
+\chapter{Desirable Properties of Activation Functions}\label{ch:activation-properties}
+
+In neural networks, activation functions play a crucial 
+role in introducing non-linearity, enabling the network 
+to learn complex patterns. The properties an activation 
+function should ideally have include:
+
+\section{Non-linearity}
+The activation function should be non-linear to allow 
+the network to model complex relationships between 
+inputs and outputs. Without non-linearity, a neural 
+network would simply be a linear transformation, no 
+matter how many layers it has.
+
+\section{Differentiability}
+The activation function should be differentiable (at 
+least piecewise) to support gradient-based optimization 
+methods like backpropagation. This allows the network 
+to compute gradients and update weights during training.
+
+\section{Continuity}
+The activation function should be continuous to ensure 
+smooth gradient descent optimization. Discontinuities 
+can cause instability during training.
+
+\section{Monotonicity}
+A monotonic activation function ensures that the 
+gradient has a consistent sign, which can help in 
+convergence during training. However, this is not 
+strictly necessary (e.g., Swish and GELU are non-
+monotonic but effective).
+
+\section{Bounded Output (Optional)}
+Some activation functions (e.g., sigmoid, tanh) have 
+bounded outputs, which can help prevent the network's 
+outputs from exploding. However, unbounded functions 
+(e.g., ReLU) are also widely used.
+
+\section{Zero-Centered (Optional)}
+Activation functions like tanh are zero-centered, 
+which can help speed up convergence during training 
+by reducing the likelihood of zig-zagging updates in 
+gradient descent. However, this is not a strict 
+requirement (e.g., ReLU is not zero-centered but 
+still effective).
+
+\section{Computational Efficiency}
+The activation function should be computationally 
+efficient to evaluate, as it is applied to every 
+neuron in the network during both forward and 
+backward passes.
+
+\section{Avoidance of Vanishing Gradients}
+The activation function should not saturate too 
+quickly (e.g., sigmoid or tanh for large inputs), 
+as this can lead to vanishing gradients, making 
+training slow or ineffective. ReLU and its variants 
+address this issue.
+
+\section{Avoidance of Exploding Gradients}
+The activation function should not produce outputs 
+that are too large, as this can lead to exploding 
+gradients, causing instability during training.
+
+\section{Common Activation Functions and Their Properties}
+\begin{itemize}
+    \item \textbf{ReLU (Rectified Linear Unit)}: 
+          \( f(x) = \max(0, x) \)
+          \begin{itemize}
+              \item Non-linear, computationally efficient, 
+                    avoids vanishing gradients (for positive 
+                    inputs), but not zero-centered and can 
+                    cause "dying ReLU" issues.
+          \end{itemize}
+    \item \textbf{Sigmoid}: 
+          \( f(x) = \frac{1}{1 + e^{-x}} \)
+          \begin{itemize}
+              \item Smooth, bounded, but suffers from 
+                    vanishing gradients and is not zero-
+                    centered.
+          \end{itemize}
+    \item \textbf{Tanh}: 
+          \( f(x) = \tanh(x) \)
+          \begin{itemize}
+              \item Zero-centered, bounded, but can suffer 
+                    from vanishing gradients.
+          \end{itemize}
+    \item \textbf{Leaky ReLU}: 
+          \( f(x) = \max(0.01x, x) \)
+          \begin{itemize}
+              \item Addresses the "dying ReLU" problem by 
+                    allowing small negative outputs.
+          \end{itemize}
+    \item \textbf{Softmax}: Used in the output layer for 
+          classification tasks to produce probability 
+          distributions.
+\end{itemize}
+
+Choosing the right activation function depends on the 
+specific problem, network architecture, and training 
+dynamics.
+
+\chapterappendix
+\section{Appendix: The Problem of Non-Zero-Centered Activation Functions}
+
+Non-zero-centered activation functions (e.g., sigmoid, ReLU) can lead to 
+inefficient training and zig-zagging updates in gradient descent. This 
+appendix explains why this happens and how zero-centered activations 
+can help.
+
+\subsection{Non-Zero-Centered Activations}
+A non-zero-centered activation function produces outputs that are 
+biased in one direction (e.g., always positive for ReLU or always in 
+the range \( (0, 1) \) for sigmoid). For example:
+\begin{itemize}
+    \item \textbf{ReLU}: \( f(x) = \max(0, x) \) (outputs are \( \geq 0 \)),
+    \item \textbf{Sigmoid}: \( f(x) = \frac{1}{1 + e^{-x}} \) (outputs are \( \in (0, 1) \)).
+\end{itemize}
+
+\subsection{Impact on Gradients}
+During backpropagation, the gradient of the loss \( L \) with respect 
+to a weight \( w_i \) is:
+\[
+\frac{\partial L}{\partial w_i} = \frac{\partial L}{\partial a_l} \cdot \frac{\partial a_l}{\partial z} \cdot \frac{\partial z}{\partial w_i},
+\]
+where:
+\begin{itemize}
+    \item \( \frac{\partial z}{\partial w_i} = a_{l-1,i} \) (the activation of the previous layer),
+    \item \( a_{l-1,i} \) is the input to the current neuron.
+\end{itemize}
+
+If the activations \( a_{l-1,i} \) are all positive (due to a non-zero-centered 
+activation function), the gradients \( \frac{\partial L}{\partial w_i} \) will 
+tend to have the same sign. This causes all weight updates to move in the 
+same direction, leading to inefficient, zig-zagging updates.
+
+\subsection{Why Zero-Centered Activations Help}
+Zero-centered activation functions (e.g., tanh) produce outputs that are 
+symmetrically distributed around zero (both positive and negative). This 
+ensures that the activations \( a_{l-1,i} \) can be both positive and negative, 
+allowing the gradients \( \frac{\partial L}{\partial w_i} \) to have both 
+positive and negative values. As a result, weight updates can move in 
+different directions, leading to smoother and more efficient optimization.
+
+\subsection{Practical Implications}
+While zero-centered activations like tanh can improve convergence, non-zero-centered 
+activations like ReLU are still widely used due to their simplicity and effectiveness. 
+Techniques like batch normalization can mitigate the issues caused by non-zero-centered 
+activations by normalizing the inputs to each layer.
+\end{notechapter}

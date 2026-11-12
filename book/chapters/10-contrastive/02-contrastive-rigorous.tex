@@ -1,0 +1,1685 @@
+% Source: contrastive_learning_tutorial.tex
+\begin{notechapter}
+% ---- chapter-local definitions ----
+\forgetcs\E\newcommand{\E}{\mathbb{E}}
+\forgetcs\R\newcommand{\R}{\mathbb{R}}
+\forgetcs\Prob\newcommand{\Prob}{\mathbb{P}}
+\forgetcs\KL\newcommand{\KL}{\mathrm{KL}}
+\forgetcs\MI\newcommand{\MI}{\mathrm{I}}
+\forgetcs\Hent\newcommand{\Hent}{\mathrm{H}}
+\forgetcs\ind\newcommand{\ind}{\mathbf{1}}
+\forgetcs\sigmoid\newcommand{\sigmoid}{\sigma}
+\forgetcs\softmax\newcommand{\softmax}{\mathrm{softmax}}
+\forgetcs\loss\newcommand{\loss}{\mathcal{L}}
+\forgetcs\data\newcommand{\data}{\mathcal{D}}
+\forgetcs\normal\newcommand{\normal}{\mathcal{N}}
+\forgetcs\vocab\newcommand{\vocab}{\mathcal{V}}
+\forgetcs\argmax\newcommand{\argmax}{\operatorname*{arg\,max}}
+\forgetcs\argmin\newcommand{\argmin}{\operatorname*{arg\,min}}
+\forgetenv{keyresult}\newtcolorbox{keyresult}[1][]{
+  colback=blue!5!white,
+  colframe=blue!75!black,
+  fonttitle=\bfseries,
+  title=#1
+}
+\forgetenv{intuition}\newtcolorbox{intuition}[1][]{
+  colback=green!5!white,
+  colframe=green!50!black,
+  fonttitle=\bfseries,
+  title=#1
+}
+% -----------------------------------
+\chapter{Contrastive Learning: A Mathematical Treatment}\label{ch:contrastive-rigorous}
+\chaptersubtitle{From information theory to modern self-supervised learning}
+
+\begin{abstract}
+This tutorial provides a comprehensive mathematical treatment of contrastive learning, from its information-theoretic foundations to modern self-supervised methods. We derive all key results rigorously, including the connection between Noise Contrastive Estimation (NCE) and maximum likelihood, the InfoNCE loss as a lower bound on mutual information, and the transition from population losses to empirical objectives. The presentation emphasizes mathematical clarity while maintaining pedagogical accessibility.
+\end{abstract}
+
+% ============================================================
+\section{Introduction and Motivation}
+% ============================================================
+
+Contrastive learning is a paradigm for learning representations by comparing data points. The fundamental principle is elegantly simple: \emph{similar items should have similar representations, while dissimilar items should have dissimilar representations}. This section establishes the mathematical framework that makes this intuition precise.
+
+\subsection{The Representation Learning Problem}
+
+Consider a data space $\mathcal{X}$ (e.g., images, text, audio) and let $p_{\text{data}}(x)$ denote the data distribution. Our goal is to learn an encoder function:
+\begin{equation}
+f_\theta : \mathcal{X} \to \R^d
+\end{equation}
+that maps inputs to a $d$-dimensional representation space such that the learned representations capture meaningful semantic structure.
+
+\begin{definition}[Good Representation]
+A representation $\bm{z} = f_\theta(x)$ is considered ``good'' if it:
+\begin{enumerate}[label=(\roman*)]
+    \item Preserves relevant information about $x$ for downstream tasks
+    \item Discards irrelevant variations (noise, nuisance factors)
+    \item Exhibits useful geometric structure (similar items nearby)
+\end{enumerate}
+\end{definition}
+
+The challenge is that we typically lack labels indicating which information is ``relevant.'' Contrastive learning addresses this by exploiting \emph{self-supervision}: using the structure of the data itself to define a learning signal.
+
+\subsection{The Contrastive Framework}
+
+The contrastive framework requires:
+\begin{enumerate}
+    \item A notion of \textbf{positive pairs} $(x, x^+)$: samples that should have similar representations
+    \item A notion of \textbf{negative pairs} $(x, x^-)$: samples that should have dissimilar representations
+    \item A \textbf{similarity measure} $s: \R^d \times \R^d \to \R$ in representation space
+\end{enumerate}
+
+\begin{example}[Common Positive Pair Constructions]
+\leavevmode
+\begin{itemize}
+    \item \textbf{Data augmentation}: $x^+$ is an augmented view of $x$ (crop, rotation, color jitter)
+    \item \textbf{Temporal proximity}: In video/audio, $x^+$ is temporally adjacent to $x$
+    \item \textbf{Co-occurrence}: In NLP, $x^+$ co-occurs with $x$ in context windows
+    \item \textbf{Multi-view}: $x^+$ is a different modality of the same entity (image-text pairs)
+\end{itemize}
+\end{example}
+
+% ============================================================
+\section{Information-Theoretic Foundations}
+% ============================================================
+
+Contrastive learning has deep connections to information theory. Understanding these connections illuminates why contrastive methods work and guides principled algorithm design.
+
+\subsection{Mutual Information}
+
+\begin{definition}[Mutual Information]
+For random variables $X$ and $Y$ with joint distribution $p(x,y)$ and marginals $p(x)$, $p(y)$, the mutual information is:
+\begin{equation}
+\MI(X; Y) = \E_{p(x,y)}\left[\log \frac{p(x,y)}{p(x)p(y)}\right] = \KL(p(x,y) \| p(x)p(y))
+\end{equation}
+\end{definition}
+
+Mutual information quantifies the statistical dependence between $X$ and $Y$. Equivalently:
+\begin{equation}
+\MI(X; Y) = \Hent(X) - \Hent(X|Y) = \Hent(Y) - \Hent(Y|X)
+\end{equation}
+where $\Hent(\cdot)$ denotes entropy and $\Hent(\cdot|\cdot)$ conditional entropy.
+
+\begin{intuition}[Why Mutual Information?]
+If $X$ represents an input and $Y$ represents its augmented view, maximizing $\MI(f(X); f(Y))$ encourages the encoder to capture information that is \emph{shared} between views---precisely the semantically meaningful content that augmentations preserve.
+\end{intuition}
+
+\subsection{The Density Ratio Estimation Problem}
+
+A crucial insight is that mutual information depends on the \textbf{density ratio}:
+\begin{equation}
+r(x, y) = \frac{p(x, y)}{p(x)p(y)}
+\end{equation}
+
+This ratio has a natural interpretation:
+\begin{itemize}
+    \item $r(x,y) > 1$: $x$ and $y$ co-occur more often than expected under independence
+    \item $r(x,y) < 1$: $x$ and $y$ co-occur less often than expected
+    \item $r(x,y) = 1$: $x$ and $y$ are independent
+\end{itemize}
+
+\begin{proposition}[Mutual Information via Density Ratio]
+\begin{equation}
+\MI(X; Y) = \E_{p(x,y)}[\log r(X, Y)]
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Direct application of the definition:
+\begin{equation}
+\MI(X;Y) = \E_{p(x,y)}\left[\log \frac{p(x,y)}{p(x)p(y)}\right] = \E_{p(x,y)}[\log r(X,Y)]
+\end{equation}
+\end{proof}
+
+The density ratio $r(x,y)$ is generally intractable to compute directly. Contrastive learning provides a way to \emph{estimate} it from samples.
+
+% ============================================================
+\section{Noise Contrastive Estimation (NCE)}
+% ============================================================
+
+Noise Contrastive Estimation, introduced by Gutmann and Hyvärinen (2010), is a powerful technique for estimating unnormalized probability models. It forms the theoretical foundation of modern contrastive learning.
+
+\subsection{The Normalization Problem}
+
+Consider estimating a probability distribution over a discrete vocabulary $\vocab = \{1, 2, \ldots, V\}$ from samples.
+
+\begin{definition}[Energy-Based Model]
+An \textbf{energy-based model} (EBM) defines a probability distribution through an energy function $E_\theta: \mathcal{X} \to \R$:
+\begin{equation}
+p_\theta(x) = \frac{\exp(-E_\theta(x))}{Z_\theta}
+\end{equation}
+where:
+\begin{itemize}
+    \item $E_\theta(x)$ is the \textbf{energy} of state $x$ (lower energy = higher probability)
+    \item $Z_\theta = \sum_{x' \in \mathcal{X}} \exp(-E_\theta(x'))$ is the \textbf{partition function}
+\end{itemize}
+The model is ``energy-based'' because it borrows from statistical physics: states with lower energy are exponentially more likely, following the Boltzmann distribution.
+\end{definition}
+
+\begin{remark}[Score Function Convention]
+It is often convenient to define a \textbf{score function} $s_\theta(x) = -E_\theta(x)$, so that higher scores correspond to higher probabilities:
+\begin{equation}
+p_\theta(x) = \frac{\exp(s_\theta(x))}{Z_\theta}
+\end{equation}
+We adopt this convention throughout, which gives the familiar softmax form.
+\end{remark}
+
+\begin{definition}[Softmax Distribution]
+Given a score function $s_\theta: \vocab \to \R$, the softmax distribution is:
+\begin{equation}
+p_\theta(x) = \frac{\exp(s_\theta(x))}{Z_\theta}
+\end{equation}
+where the \textbf{partition function} (normalizing constant) is:
+\begin{equation}
+Z_\theta = \sum_{x' \in \vocab} \exp(s_\theta(x'))
+\end{equation}
+\end{definition}
+
+\begin{remark}[Continuous Case]
+For continuous $x \in \R^d$, the sum becomes an integral:
+\begin{equation}
+Z_\theta = \int_{\R^d} \exp(s_\theta(x')) \, dx'
+\end{equation}
+The analysis proceeds analogously, but computing $\nabla_\theta Z_\theta$ requires exchanging differentiation and integration (see Remark~\ref{contrastive-rigorous:rmk:regularity} below).
+\end{remark}
+
+\subsubsection{Maximum Likelihood Estimation}
+
+Given i.i.d.\ samples $\{x_1, \ldots, x_n\}$ from the true data distribution $p_d$, the maximum likelihood objective is:
+\begin{equation}
+\loss_{\text{MLE}}(\theta) = -\frac{1}{n}\sum_{i=1}^{n} \log p_\theta(x_i)
+\end{equation}
+
+Substituting the softmax form:
+\begin{align}
+\loss_{\text{MLE}}(\theta) &= -\frac{1}{n}\sum_{i=1}^{n} \log \frac{\exp(s_\theta(x_i))}{Z_\theta} \\
+&= -\frac{1}{n}\sum_{i=1}^{n} \left[s_\theta(x_i) - \log Z_\theta\right] \\
+&= -\frac{1}{n}\sum_{i=1}^{n} s_\theta(x_i) + \log Z_\theta
+\end{align}
+
+\subsubsection{The Gradient Computation Problem}
+
+\begin{theorem}[MLE Gradient]
+\label{contrastive-rigorous:thm:mle_gradient}
+The gradient of the MLE loss involves an expectation under the model distribution:
+\begin{equation}
+\nabla_\theta \loss_{\text{MLE}} = -\frac{1}{n}\sum_{i=1}^{n} \nabla_\theta s_\theta(x_i) + \E_{x \sim p_\theta}\left[\nabla_\theta s_\theta(x)\right]
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+We need to compute $\nabla_\theta \log Z_\theta$. Starting from the definition:
+\begin{align}
+\nabla_\theta \log Z_\theta &= \frac{1}{Z_\theta} \nabla_\theta Z_\theta \\
+&= \frac{1}{Z_\theta} \nabla_\theta \sum_{x' \in \vocab} \exp(s_\theta(x')) \\
+&= \frac{1}{Z_\theta} \sum_{x' \in \vocab} \exp(s_\theta(x')) \cdot \nabla_\theta s_\theta(x') \\
+&= \sum_{x' \in \vocab} \frac{\exp(s_\theta(x'))}{Z_\theta} \cdot \nabla_\theta s_\theta(x') \\
+&= \sum_{x' \in \vocab} p_\theta(x') \cdot \nabla_\theta s_\theta(x') \\
+&= \E_{x \sim p_\theta}\left[\nabla_\theta s_\theta(x)\right]
+\end{align}
+
+Therefore:
+\begin{equation}
+\nabla_\theta \loss_{\text{MLE}} = -\frac{1}{n}\sum_{i=1}^{n} \nabla_\theta s_\theta(x_i) + \nabla_\theta \log Z_\theta = -\frac{1}{n}\sum_{i=1}^{n} \nabla_\theta s_\theta(x_i) + \E_{x \sim p_\theta}\left[\nabla_\theta s_\theta(x)\right]
+\end{equation}
+\end{proof}
+
+\begin{remark}[Regularity Conditions for the Continuous Case]
+\label{contrastive-rigorous:rmk:regularity}
+In the continuous case, the proof requires exchanging differentiation and integration:
+\begin{equation}
+\nabla_\theta Z_\theta = \nabla_\theta \int_{\R^d} \exp(s_\theta(x)) \, dx \stackrel{?}{=} \int_{\R^d} \nabla_\theta \exp(s_\theta(x)) \, dx
+\end{equation}
+This exchange is justified by the \textbf{Leibniz integral rule} (or dominated convergence theorem) under the following sufficient conditions:
+\begin{enumerate}[label=(\roman*)]
+    \item $\exp(s_\theta(x))$ is measurable in $x$ for each $\theta$
+    \item $\nabla_\theta \exp(s_\theta(x)) = \exp(s_\theta(x)) \cdot \nabla_\theta s_\theta(x)$ exists for all $\theta$ in a neighborhood
+    \item There exists an integrable dominating function $g(x)$ such that:
+    \begin{equation}
+    \left\| \exp(s_\theta(x)) \cdot \nabla_\theta s_\theta(x) \right\| \leq g(x) \quad \text{for all } \theta, \text{ with } \int_{\R^d} g(x) \, dx < \infty
+    \end{equation}
+\end{enumerate}
+These conditions are typically satisfied when $s_\theta(x)$ is smooth in $\theta$ and decays sufficiently fast as $\|x\| \to \infty$ (e.g., when $s_\theta$ is a neural network with bounded weights applied to bounded or Gaussian inputs).
+\end{remark}
+
+\begin{intuition}[Gradient Interpretation]
+The MLE gradient has two opposing terms:
+\begin{enumerate}
+    \item \textbf{Positive phase}: $-\frac{1}{n}\sum_i \nabla_\theta s_\theta(x_i)$ increases the score of observed data
+    \item \textbf{Negative phase}: $\E_{p_\theta}[\nabla_\theta s_\theta(x)]$ decreases scores on average (under the model)
+\end{enumerate}
+At equilibrium, the model assigns high scores to data and low scores elsewhere.
+\end{intuition}
+
+\subsubsection{Detailed Gradient Analysis}
+
+Let us examine the gradient more carefully to understand the learning dynamics.
+
+\begin{proposition}[Gradient of Log-Probability]
+For a single observation $x$, the gradient of the log-probability is:
+\begin{equation}
+\nabla_\theta \log p_\theta(x) = \nabla_\theta s_\theta(x) - \E_{x' \sim p_\theta}\left[\nabla_\theta s_\theta(x')\right]
+\end{equation}
+\end{proposition}
+
+This can be rewritten to highlight the contrastive nature:
+\begin{equation}
+\nabla_\theta \log p_\theta(x) = \nabla_\theta s_\theta(x) - \sum_{x' \in \vocab} p_\theta(x') \nabla_\theta s_\theta(x')
+\end{equation}
+
+\begin{proposition}[Score Increase and Decrease]
+\label{contrastive-rigorous:prop:score_dynamics}
+Consider a gradient ascent step on $\log p_\theta(x)$ with learning rate $\eta$:
+\begin{equation}
+\theta \leftarrow \theta + \eta \nabla_\theta \log p_\theta(x) \label{contrastive-rigorous:eq:step}
+\end{equation}
+The effect on the score of any item $x'$ (to first order) is:
+\begin{equation}
+\Delta s_\theta(x') \approx \eta \left(\nabla_\theta s_\theta(x')^\top \nabla_\theta s_\theta(x) - \sum_{x'' \in \vocab} p_\theta(x'') \nabla_\theta s_\theta(x')^\top \nabla_\theta s_\theta(x'')\right)
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+By Taylor expansion:
+\begin{align*}
+\Delta s_\theta(x') = s_{\theta + \Delta\theta}(x') - s_\theta(x')
+&\approx \nabla_\theta s_\theta(x')^\top \Delta\theta
+\end{align*}
+\text{which, using the step definition (\ref{contrastive-rigorous:eq:step}), gives:}
+\begin{align*}
+\Delta s_\theta(x') \approx \eta \nabla_\theta s_\theta(x')^\top \nabla_\theta \log p_\theta(x) 
+= \eta \nabla_\theta s_\theta(x')^\top \left(\nabla_\theta s_\theta(x) - \E_{p_\theta}[\nabla_\theta s_\theta]\right)
+\end{align*}
+\end{proof}
+
+\begin{intuition}[What the Gradient Does]
+Let $\bm{g}_{x'} = \nabla_\theta s_\theta(x')$ denote the score gradient for item $x'$, and let $\bar{\bm{g}} = \E_{p_\theta}[\bm{g}] = \sum_{x''} p_\theta(x'') \bm{g}_{x''}$ be the \emph{average gradient} under the current model.
+
+The score change for any item $x'$ can be written as:
+\begin{equation}
+\Delta s_\theta(x') \approx \eta \, \bm{g}_{x'}^\top \underbrace{\left(\bm{g}_x - \bar{\bm{g}}\right)}_{\text{``contrastive direction''}}
+\end{equation}
+
+This has a clear geometric interpretation: the parameter update moves in the direction $\bm{g}_x - \bar{\bm{g}}$, and each item's score changes according to its alignment with this direction.
+
+\medskip
+\textbf{1. The observed sample $x$ gets a score boost.}
+
+For the observed sample itself ($x' = x$):
+\begin{equation}
+\Delta s_\theta(x) \approx \eta \, \bm{g}_x^\top (\bm{g}_x - \bar{\bm{g}}) = \eta \left(\|\bm{g}_x\|^2 - \bm{g}_x^\top \bar{\bm{g}}\right)
+\end{equation}
+This is positive whenever $\bm{g}_x$ is not perfectly aligned with $\bar{\bm{g}}$, which is the typical case. Intuitively: the observed data gets pulled \emph{above} the average.
+
+\medskip
+\textbf{2. Items ``similar'' to $x$ also get a score boost.}
+
+An item $x'$ benefits ($\Delta s_\theta(x') > 0$) when:
+\begin{equation}
+\bm{g}_{x'}^\top \bm{g}_x > \bm{g}_{x'}^\top \bar{\bm{g}}
+\end{equation}
+In words: $x'$ gains probability if its gradient is more aligned with the observed sample's gradient than with the population average. Such items are ``similar'' to $x$ in the sense that changing parameters to favor $x$ also favors them.
+
+\medskip
+\textbf{3. Items ``different'' from $x$ get suppressed.}
+
+Conversely, $x'$ loses probability ($\Delta s_\theta(x') < 0$) when:
+\begin{equation}
+\bm{g}_{x'}^\top \bm{g}_x < \bm{g}_{x'}^\top \bar{\bm{g}}
+\end{equation}
+These are items more aligned with the average than with the observation---they get ``pushed down'' to make room for $x$.
+
+\medskip
+\textbf{4. Probability is automatically conserved.}
+
+One can verify that $\sum_{x'} p_\theta(x') \Delta s_\theta(x') = 0$ to first order, ensuring that as some probabilities increase, others must decrease. The negative phase term $-\bar{\bm{g}}$ is precisely what enforces this constraint.
+\end{intuition}
+
+\begin{example}[Word Embedding Gradients]
+In Skip-gram, $s_\theta(w_c | w_t) = \bm{v}_{w_t}^\top \bm{u}_{w_c}$ where $\bm{v}_{w_t}$ is the target embedding and $\bm{u}_{w_c}$ is the context embedding.
+
+The gradients are:
+\begin{align}
+\nabla_{\bm{v}_{w_t}} s_\theta(w_c | w_t) &= \bm{u}_{w_c} \\
+\nabla_{\bm{u}_{w_c}} s_\theta(w_c | w_t) &= \bm{v}_{w_t}
+\end{align}
+
+The MLE gradient update for observing context $w_c$ given target $w_t$:
+\begin{align}
+\Delta \bm{v}_{w_t} &\propto \bm{u}_{w_c} - \sum_{w \in \vocab} p_\theta(w|w_t) \bm{u}_w = \bm{u}_{w_c} - \E_{p_\theta}[\bm{u}] \\
+\Delta \bm{u}_{w_c} &\propto \bm{v}_{w_t} - \text{(contribution from negative phase)}
+\end{align}
+
+\textbf{Interpretation}: The target embedding $\bm{v}_{w_t}$ moves toward the observed context embedding $\bm{u}_{w_c}$ and away from the expected context embedding under the model.
+\end{example}
+
+\begin{keyresult}[The Contrastive Structure of MLE]
+Even standard MLE has an inherently \textbf{contrastive} structure:
+\begin{equation}
+\nabla_\theta \log p_\theta(x) = \underbrace{\nabla_\theta s_\theta(x)}_{\text{pull toward } x} - \underbrace{\E_{p_\theta}[\nabla_\theta s_\theta]}_{\text{push from expected}}
+\end{equation}
+NCE and Negative Sampling replace the intractable expectation $\E_{p_\theta}[\cdot]$ with a tractable sample average over noise samples, preserving this contrastive structure while enabling efficient computation.
+\end{keyresult}
+
+\subsubsection{Why This Is Intractable}
+
+\begin{proposition}[Computational Complexity]
+Computing the MLE gradient requires:
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Partition function}: Summing over all $|\vocab|$ items to compute $Z_\theta$
+    \item \textbf{Expected gradient}: Summing over all $|\vocab|$ items for $\E_{p_\theta}[\nabla_\theta s_\theta(x)]$
+\end{enumerate}
+For vocabulary sizes $|\vocab| \sim 10^5$ to $10^6$ (typical in NLP), this is prohibitively expensive.
+\end{proposition}
+
+\begin{example}[Word Embeddings]
+In Word2Vec with vocabulary $|\vocab| = 100{,}000$:
+\begin{itemize}
+    \item Each gradient step requires summing 100,000 terms
+    \item With embedding dimension $d = 300$, this means $100{,}000 \times 300 = 3 \times 10^7$ operations per word
+    \item For a corpus of $10^9$ words, training becomes infeasible
+\end{itemize}
+\end{example}
+
+\begin{keyresult}[The Core Problem]
+MLE for softmax models requires computing:
+\begin{equation}
+\E_{x \sim p_\theta}\left[\nabla_\theta s_\theta(x)\right] = \sum_{x \in \vocab} p_\theta(x) \nabla_\theta s_\theta(x)
+\end{equation}
+This sum over the entire vocabulary makes exact MLE intractable for large vocabularies. NCE and Negative Sampling provide efficient alternatives by replacing this sum with a small number of sampled terms.
+\end{keyresult}
+
+\subsection{NCE: Converting Estimation to Classification}
+
+The key idea of NCE is to convert density estimation into binary classification. We introduce:
+\begin{itemize}
+    \item \textbf{Data distribution} $p_d(x)$: the true distribution we want to model
+    \item \textbf{Noise distribution} $p_n(x)$: a known distribution we can sample from
+\end{itemize}
+
+We create a classification dataset:
+\begin{itemize}
+    \item Draw positive samples $x \sim p_d(x)$ with label $D = 1$
+    \item Draw negative samples $x \sim p_n(x)$ with label $D = 0$
+    \item Use $k$ noise samples per data sample
+\end{itemize}
+
+\begin{definition}[NCE Setup]
+The joint distribution over samples and labels is:
+\begin{align}
+\Prob(D = 1) &= \frac{1}{1+k}, \quad \Prob(D = 0) = \frac{k}{1+k} \\
+p(x | D = 1) &= p_d(x), \quad p(x | D = 0) = p_n(x)
+\end{align}
+\end{definition}
+
+\subsection{Deriving the Optimal Classifier}
+
+Using Bayes' theorem, the posterior probability that a sample came from the data distribution is:
+
+\begin{theorem}[Optimal NCE Classifier]
+\label{contrastive-rigorous:thm:nce_optimal}
+The optimal classifier satisfies:
+\begin{equation}
+\Prob(D = 1 | x) = \frac{p_d(x)}{p_d(x) + k \cdot p_n(x)} = \sigmoid\left(\log \frac{p_d(x)}{k \cdot p_n(x)}\right)
+\end{equation}
+where $\sigmoid(z) = 1/(1 + e^{-z})$ is the sigmoid function.
+\end{theorem}
+
+\begin{proof}
+By Bayes' theorem:
+\begin{align}
+\Prob(D = 1 | x) &= \frac{\Prob(D=1) \cdot p(x|D=1)}{\Prob(D=1) \cdot p(x|D=1) + \Prob(D=0) \cdot p(x|D=0)} \\
+&= \frac{\frac{1}{1+k} \cdot p_d(x)}{\frac{1}{1+k} \cdot p_d(x) + \frac{k}{1+k} \cdot p_n(x)} \\
+&= \frac{p_d(x)}{p_d(x) + k \cdot p_n(x)}
+\end{align}
+
+For the sigmoid form, let $h(x) = \log \frac{p_d(x)}{k \cdot p_n(x)}$. Then:
+\begin{equation}
+\sigmoid(h(x)) = \frac{1}{1 + \exp(-h(x))} = \frac{1}{1 + \frac{k \cdot p_n(x)}{p_d(x)}} = \frac{p_d(x)}{p_d(x) + k \cdot p_n(x)}
+\end{equation}
+\end{proof}
+
+\subsection{The NCE Objective}
+
+From Theorem~\ref{contrastive-rigorous:thm:nce_optimal}, the optimal classifier uses the log-ratio:
+\begin{equation}
+h^*(x) = \log \frac{p_d(x)}{k \cdot p_n(x)} = \log p_d(x) - \log k - \log p_n(x)
+\end{equation}
+
+We want to \emph{learn} this quantity. Since we don't know $p_d(x)$, we replace it with our model $p_\theta(x)$.
+
+\subsubsection{Parameterizing the Log-Density Ratio}
+
+Recall that our model has the form $p_\theta(x) = \frac{\exp(s_\theta(x))}{Z_\theta}$, so:
+\begin{equation}
+\log p_\theta(x) = s_\theta(x) - \log Z_\theta
+\end{equation}
+
+Substituting into the log-ratio:
+\begin{align}
+h_\theta(x) &= \log p_\theta(x) - \log k - \log p_n(x) \\
+&= s_\theta(x) - \log Z_\theta - \log k - \log p_n(x) \\
+&= s_\theta(x) - \log p_n(x) - (\log Z_\theta + \log k)
+\end{align}
+
+The term $(\log Z_\theta + \log k)$ is a constant (independent of $x$). Since $Z_\theta$ is unknown, NCE introduces a \textbf{learnable parameter} $c$ to represent this constant:
+\begin{equation}
+\boxed{h_\theta(x) = s_\theta(x) - \log p_n(x) + c}
+\end{equation}
+where we expect $c^* = -\log Z_\theta - \log k$ at the optimum.
+
+\begin{remark}[Role of $c$]
+The parameter $c$ simultaneously learns:
+\begin{itemize}
+    \item The unknown partition function $Z_\theta$
+    \item The ratio adjustment factor $k$ (number of noise samples)
+\end{itemize}
+This is why NCE can estimate unnormalized models: the normalization is learned implicitly.
+\end{remark}
+
+\subsubsection{From Binary Classification to NCE Loss}
+
+We train our parameterized classifier $\sigma(h_\theta(x))$ using binary cross-entropy. For a sample $x$ with label $D \in \{0, 1\}$:
+\begin{equation}
+\ell(x, D) = -D \log \sigma(h_\theta(x)) - (1-D) \log(1 - \sigma(h_\theta(x)))
+\end{equation}
+
+Using $1 - \sigma(z) = \sigma(-z)$:
+\begin{equation}
+\ell(x, D) = -D \log \sigma(h_\theta(x)) - (1-D) \log \sigma(-h_\theta(x))
+\end{equation}
+
+Now we compute the expectation over the NCE sampling scheme. The joint distribution over $(x, D)$ is:
+\begin{align}
+\Prob(D=1) &= \frac{1}{1+k}, \quad p(x|D=1) = p_d(x) \\
+\Prob(D=0) &= \frac{k}{1+k}, \quad p(x|D=0) = p_n(x)
+\end{align}
+
+By the law of total expectation:
+\begin{align}
+\E_{(x,D)}[\ell(x, D)] &= \E_{(x,D)}\left[-D \log \sigma(h_\theta(x)) - (1-D) \log \sigma(-h_\theta(x))\right] \\[0.5em]
+&= \Prob(D=1) \cdot \E_{x|D=1}\left[\ell(x, 1)\right] + \Prob(D=0) \cdot \E_{x|D=0}\left[\ell(x, 0)\right]
+\end{align}
+
+For $D=1$: the loss becomes $\ell(x, 1) = -1 \cdot \log \sigma(h_\theta(x)) - 0 \cdot \log \sigma(-h_\theta(x)) = -\log \sigma(h_\theta(x))$
+
+For $D=0$: the loss becomes $\ell(x, 0) = -0 \cdot \log \sigma(h_\theta(x)) - 1 \cdot \log \sigma(-h_\theta(x)) = -\log \sigma(-h_\theta(x))$
+
+Substituting:
+\begin{align}
+\E[\ell(x, D)] &= \frac{1}{1+k} \cdot \E_{x \sim p_d}\left[-\log \sigma(h_\theta(x))\right] + \frac{k}{1+k} \cdot \E_{x \sim p_n}\left[-\log \sigma(-h_\theta(x))\right]
+\end{align}
+
+Multiplying by $(1+k)$ gives an equivalent optimization problem (same minimizer):
+
+\begin{definition}[NCE Loss]
+\begin{equation}
+\boxed{\loss_{\text{NCE}}(\theta, c) = -\E_{x \sim p_d}\left[\log \sigma(h_\theta(x))\right] - k \cdot \E_{x \sim p_n}\left[\log \sigma(-h_\theta(x))\right]}
+\end{equation}
+where $h_\theta(x) = s_\theta(x) - \log p_n(x) + c$.
+\end{definition}
+
+\begin{remark}[Interpretation of the Two Terms]
+Let us analyze each term to understand its role.
+
+\textbf{First term}: $-\E_{x \sim p_d}\left[\log \sigma(h_\theta(x))\right]$
+
+Recall that $\sigma(h_\theta(x)) = \Prob_\theta(D=1|x)$ is the model's predicted probability that $x$ came from the data distribution. Since $-\log$ is a decreasing function:
+\begin{itemize}
+    \item If $\sigma(h_\theta(x)) \approx 1$ (model confident $x$ is real data): $-\log \sigma(h_\theta(x)) \approx 0$ (small loss)
+    \item If $\sigma(h_\theta(x)) \approx 0$ (model thinks $x$ is noise): $-\log \sigma(h_\theta(x)) \to +\infty$ (large loss)
+\end{itemize}
+Since we average over $x \sim p_d$ (real data), this term penalizes the model when it fails to recognize real data as real---i.e., \textbf{false negatives}.
+
+\textbf{Second term}: $-k \cdot \E_{x \sim p_n}\left[\log \sigma(-h_\theta(x))\right]$
+
+Note that $\sigma(-h_\theta(x)) = 1 - \sigma(h_\theta(x)) = \Prob_\theta(D=0|x)$ is the model's predicted probability that $x$ is noise. Similarly:
+\begin{itemize}
+    \item If $\sigma(-h_\theta(x)) \approx 1$ (model confident $x$ is noise): $-\log \sigma(-h_\theta(x)) \approx 0$ (small loss)
+    \item If $\sigma(-h_\theta(x)) \approx 0$ (model thinks noise is real): $-\log \sigma(-h_\theta(x)) \to +\infty$ (large loss)
+\end{itemize}
+Since we average over $x \sim p_n$ (noise samples), this term penalizes the model when it mistakes noise for real data---i.e., \textbf{false positives}.
+
+\textbf{Factor $k$}: The weight $k$ reflects that we draw $k$ noise samples per data sample. This ensures the loss gives appropriate weight to both types of errors according to the sampling ratio.
+\end{remark}
+
+\subsection{NCE Consistency}
+
+\begin{theorem}[NCE Consistency]
+\label{contrastive-rigorous:thm:nce_consistency}
+At the global optimum of the NCE objective:
+\begin{enumerate}[label=(\roman*)]
+    \item $p_\theta(x) = p_d(x)$ for all $x$ in the support
+    \item $c^* = -\log Z_\theta - \log k$ (recovering both the partition function and the $k$ factor)
+\end{enumerate}
+This holds asymptotically as the number of samples approaches infinity.
+\end{theorem}
+
+\begin{proof}
+The NCE loss is the (scaled) cross-entropy for binary classification:
+\begin{equation}
+\loss_{\text{NCE}} = -\E_{p_d}[\log \Prob_\theta(D=1|x)] - k \cdot \E_{p_n}[\log \Prob_\theta(D=0|x)]
+\end{equation}
+where $\Prob_\theta(D=1|x) = \sigma(h_\theta(x))$.
+
+Cross-entropy is minimized when the predicted probabilities match the true posterior. From Theorem~\ref{contrastive-rigorous:thm:nce_optimal}, the true posterior is:
+\begin{equation}
+\Prob(D = 1 | x) = \sigma\left(\log p_d(x) - \log k - \log p_n(x)\right)
+\end{equation}
+
+The optimum is achieved when $h_\theta(x) = \log p_d(x) - \log k - \log p_n(x)$, i.e.:
+\begin{equation}
+s_\theta(x) - \log p_n(x) + c = \log p_d(x) - \log k - \log p_n(x)
+\end{equation}
+
+Simplifying (the $\log p_n(x)$ terms cancel):
+\begin{equation}
+s_\theta(x) + c = \log p_d(x) - \log k
+\end{equation}
+
+For this to hold for all $x$, we need:
+\begin{equation}
+s_\theta(x) = \log p_d(x) + \text{const}
+\end{equation}
+
+Since $p_\theta(x) = \frac{\exp(s_\theta(x))}{Z_\theta}$, if $s_\theta(x) = \log p_d(x) + \log Z_\theta$, then:
+\begin{equation}
+p_\theta(x) = \frac{\exp(\log p_d(x) + \log Z_\theta)}{Z_\theta} = \frac{p_d(x) \cdot Z_\theta}{Z_\theta} = p_d(x)
+\end{equation}
+
+And the optimal $c$ satisfies:
+\begin{equation}
+\log p_d(x) + \log Z_\theta + c = \log p_d(x) - \log k \implies c^* = -\log Z_\theta - \log k
+\end{equation}
+\end{proof}
+
+\begin{remark}[Finite $k$]
+For finite $k$, NCE provides a consistent estimator but with higher variance for small $k$. As $k \to \infty$, NCE approaches maximum likelihood estimation.
+\end{remark}
+
+% ============================================================
+\section{Negative Sampling: A Practical Simplification}
+% ============================================================
+
+Negative Sampling, introduced by Mikolov et al.\ (2013) for Word2Vec, is a computationally efficient simplification of NCE. It has become one of the most widely used contrastive objectives in practice.
+
+\subsection{From NCE to Negative Sampling}
+
+Recall the NCE objective requires computing:
+\begin{equation}
+h_\theta(x) = s_\theta(x) + c - \log p_n(x)
+\end{equation}
+
+This involves the noise distribution $p_n(x)$ explicitly. Negative Sampling makes two key simplifications:
+
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Drop the normalization correction}: Ignore $c - \log p_n(x)$ and use $h_\theta(x) \approx s_\theta(x)$ directly
+    \item \textbf{Focus on discrimination}: Rather than estimating the full density, focus only on distinguishing positive from negative samples
+\end{enumerate}
+
+\subsection{The Skip-gram Context}
+
+In the Skip-gram model for word embeddings, we have:
+\begin{itemize}
+    \item Target word $w_t$ with embedding $\bm{v}_{w_t} \in \R^d$
+    \item Context word $w_c$ with embedding $\bm{u}_{w_c} \in \R^d$
+    \item Score function: $s(w_t, w_c) = \bm{v}_{w_t}^\top \bm{u}_{w_c}$
+\end{itemize}
+
+The original Skip-gram objective uses a softmax over the entire vocabulary $\vocab$:
+\begin{equation}
+P(w_c | w_t) = \frac{\exp(\bm{v}_{w_t}^\top \bm{u}_{w_c})}{\sum_{w \in \vocab} \exp(\bm{v}_{w_t}^\top \bm{u}_w)}
+\end{equation}
+
+The partition function $Z = \sum_{w \in \vocab} \exp(\bm{v}_{w_t}^\top \bm{u}_w)$ requires summing over all words (typically $|\vocab| \sim 10^5$ to $10^6$), making this intractable.
+
+\subsection{Derivation of the Negative Sampling Loss}
+
+\begin{definition}[Negative Sampling Objective]
+For an observed pair $(w_t, w_c)$ and $k$ negative samples $\{w_1^-, \ldots, w_k^-\}$ drawn from noise distribution $p_n$, the Negative Sampling loss is:
+\begin{equation}
+\boxed{
+\loss_{\text{NS}}(w_t, w_c) = -\log \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_c}) - \sum_{i=1}^{k} \log \sigmoid(-\bm{v}_{w_t}^\top \bm{u}_{w_i^-})
+}
+\end{equation}
+\end{definition}
+
+\begin{theorem}[Negative Sampling as Simplified NCE]
+\label{contrastive-rigorous:thm:ns_nce}
+The Negative Sampling objective is obtained from NCE by:
+\begin{enumerate}[label=(\roman*)]
+    \item Setting $h_\theta(w_t, w_c) = \bm{v}_{w_t}^\top \bm{u}_{w_c}$ (dropping the $\log p_n$ correction)
+    \item Using Monte Carlo estimation for the expectation over noise
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+Starting from the NCE loss with $k$ noise samples per data point:
+\begin{equation}
+\loss_{\text{NCE}} = -\E_{(w_t, w_c) \sim p_d}\left[\log \sigmoid(h_\theta)\right] - k \cdot \E_{w^- \sim p_n}\left[\log \sigmoid(-h_\theta)\right]
+\end{equation}
+
+\textbf{Step 1: Simplify the score function.} 
+In full NCE: $h_\theta(w_t, w) = \bm{v}_{w_t}^\top \bm{u}_w - \log(k \cdot p_n(w))$.
+
+In Negative Sampling, we drop the correction: $h_\theta(w_t, w) \approx \bm{v}_{w_t}^\top \bm{u}_w$.
+
+\textbf{Step 2: Monte Carlo estimation.}
+Replace expectations with sample averages. For one positive pair $(w_t, w_c)$ and $k$ sampled negatives:
+\begin{equation}
+\loss_{\text{NS}} = -\log \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_c}) - \sum_{i=1}^{k} \log \sigmoid(-\bm{v}_{w_t}^\top \bm{u}_{w_i^-})
+\end{equation}
+\end{proof}
+
+\subsection{Interpreting the Loss Terms}
+
+The Negative Sampling loss has an elegant interpretation as binary logistic regression:
+
+\begin{proposition}[Binary Classification Interpretation]
+Define the probability that $(w_t, w)$ is a genuine context pair:
+\begin{equation}
+P(D = 1 | w_t, w) = \sigmoid(\bm{v}_{w_t}^\top \bm{u}_w)
+\end{equation}
+Then the Negative Sampling loss is the negative log-likelihood of observing:
+\begin{itemize}
+    \item $D = 1$ for the positive pair $(w_t, w_c)$
+    \item $D = 0$ for each negative pair $(w_t, w_i^-)$
+\end{itemize}
+\end{proposition}
+
+\begin{proof}
+The log-likelihood is:
+\begin{align}
+\log P(D=1 | w_t, w_c) + \sum_{i=1}^k \log P(D=0 | w_t, w_i^-) &= \log \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_c}) + \sum_{i=1}^k \log(1 - \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_i^-})) \\
+&= \log \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_c}) + \sum_{i=1}^k \log \sigmoid(-\bm{v}_{w_t}^\top \bm{u}_{w_i^-})
+\end{align}
+where we used $1 - \sigmoid(x) = \sigmoid(-x)$. Negating gives the loss.
+\end{proof}
+
+\subsection{Gradient Derivation}
+
+\begin{proposition}[Negative Sampling Gradients]
+\label{contrastive-rigorous:prop:ns_gradients}
+The gradients of the Negative Sampling loss are:
+\begin{align}
+\frac{\partial \loss_{\text{NS}}}{\partial \bm{v}_{w_t}} &= -\left(1 - \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_c})\right) \bm{u}_{w_c} + \sum_{i=1}^{k} \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_i^-}) \bm{u}_{w_i^-} \\[1em]
+\frac{\partial \loss_{\text{NS}}}{\partial \bm{u}_{w_c}} &= -\left(1 - \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_c})\right) \bm{v}_{w_t} \\[1em]
+\frac{\partial \loss_{\text{NS}}}{\partial \bm{u}_{w_i^-}} &= \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_i^-}) \bm{v}_{w_t}
+\end{align}
+\end{proposition}
+
+\begin{proof}
+Using $\frac{d}{dx}\log \sigmoid(x) = 1 - \sigmoid(x)$ and $\frac{d}{dx}\log \sigmoid(-x) = -\sigmoid(x)$:
+
+For the positive term:
+\begin{equation}
+\frac{\partial}{\partial \bm{v}_{w_t}}\left(-\log \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_c})\right) = -(1 - \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_c})) \bm{u}_{w_c}
+\end{equation}
+
+For each negative term:
+\begin{equation}
+\frac{\partial}{\partial \bm{v}_{w_t}}\left(-\log \sigmoid(-\bm{v}_{w_t}^\top \bm{u}_{w_i^-})\right) = \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_i^-}) \bm{u}_{w_i^-}
+\end{equation}
+
+The gradients with respect to context embeddings follow similarly.
+\end{proof}
+
+\begin{intuition}[Gradient Dynamics]
+Let $p^+ = \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_c})$ and $p_i^- = \sigmoid(\bm{v}_{w_t}^\top \bm{u}_{w_i^-})$.
+
+\textbf{Positive pair gradient}: The term $(1 - p^+)$ acts as an adaptive learning rate:
+\begin{itemize}
+    \item If $p^+ \approx 0$ (model incorrectly thinks it's negative): large gradient, strong pull together
+    \item If $p^+ \approx 1$ (model correctly identifies as positive): small gradient, minimal update
+\end{itemize}
+
+\textbf{Negative pair gradient}: The term $p_i^-$ similarly adapts:
+\begin{itemize}
+    \item If $p_i^- \approx 1$ (false positive---model thinks negative is positive): large gradient, strong push apart
+    \item If $p_i^- \approx 0$ (correctly identified as negative): small gradient, minimal update
+\end{itemize}
+\end{intuition}
+
+\subsection{The Noise Distribution}
+
+\begin{definition}[Unigram Noise Distribution]
+The standard noise distribution for word embeddings is:
+\begin{equation}
+p_n(w) = \frac{\text{count}(w)^\alpha}{\sum_{w' \in \vocab} \text{count}(w')^\alpha}
+\end{equation}
+where $\alpha = 3/4$ is used in practice.
+\end{definition}
+
+\begin{proposition}[Why $\alpha = 3/4$?]
+The exponent $\alpha = 3/4$ balances two considerations:
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Frequency awareness} ($\alpha = 1$): Sample proportionally to word frequency
+    \item \textbf{Uniformity} ($\alpha = 0$): Sample all words equally
+\end{enumerate}
+\end{proposition}
+
+\begin{example}[Effect of $\alpha$]
+Consider ``the'' appearing $10^6$ times and ``zebra'' appearing $10^2$ times:
+\begin{itemize}
+    \item $\alpha = 1$: Ratio = $10^6 / 10^2 = 10^4$ (``the'' sampled 10,000$\times$ more often)
+    \item $\alpha = 3/4$: Ratio = $(10^6)^{0.75} / (10^2)^{0.75} = 10^{4.5} / 10^{1.5} = 10^3$ 
+    \item $\alpha = 0$: Ratio = $1$ (equal sampling)
+\end{itemize}
+The $\alpha = 3/4$ choice reduces the dominance of frequent words while maintaining some frequency weighting, ensuring rare words contribute meaningfully to training.
+\end{example}
+
+\subsection{What Does Negative Sampling Learn?}
+
+\begin{theorem}[Implicit Factorization]
+\label{contrastive-rigorous:thm:ns_pmi}
+At the global optimum of the Negative Sampling objective (with sufficient data), the learned embeddings satisfy:
+\begin{equation}
+\bm{v}_w^\top \bm{u}_c = \text{PMI}(w, c) - \log k
+\end{equation}
+where $\text{PMI}(w, c) = \log \frac{P(w, c)}{P(w)P(c)}$ is the pointwise mutual information.
+\end{theorem}
+
+\begin{proof}
+Consider the population Negative Sampling objective. For a fixed word pair $(w, c)$, the contribution to the loss is:
+\begin{equation}
+\E\left[-\log \sigmoid(\bm{v}_w^\top \bm{u}_c)\right] \cdot P(w, c) + k \cdot \E_{w' \sim p_n}\left[-\log \sigmoid(-\bm{v}_w^\top \bm{u}_{w'})\right] \cdot P(c)
+\end{equation}
+
+Taking the derivative with respect to $\bm{v}_w^\top \bm{u}_c$ and setting to zero:
+\begin{equation}
+P(w, c) \cdot (1 - \sigmoid(\bm{v}_w^\top \bm{u}_c)) = k \cdot P(c) \cdot p_n(w) \cdot \sigmoid(\bm{v}_w^\top \bm{u}_c)
+\end{equation}
+
+With $p_n(w) \approx P(w)$ (unigram distribution), let $s = \bm{v}_w^\top \bm{u}_c$:
+\begin{align}
+P(w, c)(1 - \sigmoid(s)) &= k \cdot P(w) P(c) \cdot \sigmoid(s) \\
+\frac{1 - \sigmoid(s)}{\sigmoid(s)} &= \frac{k \cdot P(w) P(c)}{P(w, c)} \\
+e^{-s} &= \frac{k \cdot P(w) P(c)}{P(w, c)} \\
+s &= \log \frac{P(w, c)}{P(w) P(c)} - \log k = \text{PMI}(w, c) - \log k
+\end{align}
+\end{proof}
+
+\begin{keyresult}[Negative Sampling and Matrix Factorization]
+Theorem~\ref{contrastive-rigorous:thm:ns_pmi} reveals that Skip-gram with Negative Sampling implicitly factorizes a shifted PMI matrix:
+\begin{equation}
+\bm{V}^\top \bm{U} \approx \bm{M}_{\text{PMI}} - \log k \cdot \bm{1}\bm{1}^\top
+\end{equation}
+where $(\bm{M}_{\text{PMI}})_{wc} = \text{PMI}(w, c)$. This connects neural word embeddings to classical distributional semantics.
+\end{keyresult}
+
+\subsection{Negative Sampling vs.\ NCE: Key Differences}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Property} & \textbf{NCE} & \textbf{Negative Sampling} \\
+\midrule
+Learns $p_\theta(x)$ & Yes (asymptotically) & No \\
+Requires $\log p_n(x)$ & Yes & No \\
+Computational cost & Higher & Lower \\
+Theoretical guarantee & Consistent & Approximation \\
+Practical performance & Similar & Similar \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{remark}[When to Use Which]
+\leavevmode
+\begin{itemize}
+    \item \textbf{NCE}: When you need proper density estimation or theoretical guarantees
+    \item \textbf{Negative Sampling}: When you only need good representations (most practical applications)
+\end{itemize}
+For representation learning, the loss of theoretical guarantees rarely matters in practice.
+\end{remark}
+
+% ============================================================
+\section{InfoNCE: The Contrastive Loss}
+% ============================================================
+
+InfoNCE (Information Noise Contrastive Estimation) adapts NCE to the contrastive learning setting, where we compare a query against multiple candidates.
+
+\subsection{Problem Setup}
+
+Consider a query $x$ and a set of $N$ candidates $\{y_0, y_1, \ldots, y_{N-1}\}$ where:
+\begin{itemize}
+    \item $y_0 \sim p(y|x)$ is the positive sample (matched with $x$)
+    \item $y_1, \ldots, y_{N-1} \sim p(y)$ are negative samples (independent of $x$)
+\end{itemize}
+
+The task is to identify which candidate is the positive sample.
+
+\subsection{Deriving InfoNCE}
+
+We model the similarity between $x$ and $y$ using a score function:
+\begin{equation}
+f(x, y) = \text{similarity between representations of } x \text{ and } y
+\end{equation}
+
+In practice, this is often the dot product of normalized embeddings:
+\begin{equation}
+f(x, y) = \frac{g_\theta(x)^\top g_\phi(y)}{\|g_\theta(x)\| \|g_\phi(y)\|}
+\end{equation}
+
+\begin{theorem}[InfoNCE Loss]
+\label{contrastive-rigorous:thm:infonce}
+The InfoNCE loss for identifying the positive sample among $N$ candidates is:
+\begin{equation}
+\loss_{\text{InfoNCE}} = -\E\left[\log \frac{\exp(f(x, y_0))}{\sum_{j=0}^{N-1} \exp(f(x, y_j))}\right]
+\end{equation}
+where the expectation is over $x \sim p(x)$, $y_0 \sim p(y|x)$, and $y_1, \ldots, y_{N-1} \sim p(y)$.
+\end{theorem}
+
+\begin{proof}
+We frame this as an $N$-way classification problem. Given $x$ and the candidates, what is the probability that $y_0$ is the positive sample?
+
+By Bayes' theorem, the posterior for candidate $j$ being positive is:
+\begin{equation}
+\Prob(\text{positive} = j | x, \{y_i\}) = \frac{p(y_j | x) \prod_{i \neq j} p(y_i)}{p(\{y_i\} | x)}
+\end{equation}
+
+For the positive sample ($j = 0$):
+\begin{align}
+\Prob(\text{positive} = 0 | x, \{y_i\}) &\propto p(y_0 | x) \prod_{i=1}^{N-1} p(y_i) \\
+&\propto \frac{p(y_0 | x)}{p(y_0)} = \frac{p(x, y_0)}{p(x)p(y_0)}
+\end{align}
+
+For a negative sample ($j > 0$):
+\begin{align}
+\Prob(\text{positive} = j | x, \{y_i\}) &\propto p(y_j | x) \prod_{i \neq j} p(y_i) \\
+&\propto \frac{p(y_j | x)}{p(y_j)} \cdot p(y_0)  \\
+&\propto 1 \quad \text{(since } p(y_j|x) = p(y_j) \text{ for negatives)}
+\end{align}
+
+Normalizing:
+\begin{equation}
+\Prob(\text{positive} = 0 | x, \{y_i\}) = \frac{p(x, y_0) / (p(x)p(y_0))}{\sum_{j=0}^{N-1} p(x, y_j) / (p(x)p(y_j))}
+\end{equation}
+
+If we model the density ratio with our score function: $f(x, y) \approx \log \frac{p(x,y)}{p(x)p(y)}$, then:
+\begin{equation}
+\Prob(\text{positive} = 0 | x, \{y_i\}) = \frac{\exp(f(x, y_0))}{\sum_{j=0}^{N-1} \exp(f(x, y_j))}
+\end{equation}
+
+The InfoNCE loss is the negative log-likelihood of this classification:
+\begin{equation}
+\loss_{\text{InfoNCE}} = -\log \Prob(\text{positive} = 0 | x, \{y_i\})
+\end{equation}
+\end{proof}
+
+\subsection{InfoNCE as a Mutual Information Bound}
+
+\begin{theorem}[InfoNCE Lower Bounds Mutual Information]
+\label{contrastive-rigorous:thm:infonce_mi}
+\begin{equation}
+\MI(X; Y) \geq \log N - \loss_{\text{InfoNCE}}
+\end{equation}
+Equivalently:
+\begin{equation}
+\loss_{\text{InfoNCE}} \geq \log N - \MI(X; Y)
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+Throughout, $(x, y_0) \sim p(x,y)$ is the positive pair and $y_1, \dots, y_{N-1}$ are drawn i.i.d.\ from the
+marginal $p(y)$, independently of $(x, y_0)$; the InfoNCE loss of a critic $f$ is
+\begin{equation}
+\loss_{\text{InfoNCE}} = \E\left[-\log \frac{\exp(f(x, y_0))}{\sum_{j=0}^{N-1} \exp(f(x, y_j))}\right].
+\end{equation}
+
+\textbf{Step 1: a variational lower bound on MI.} For any distributions $P$, $Q$ and any function $T$,
+$D_{KL}(P \,\|\, Q) \geq \E_P[T] - \E_Q[e^{T-1}]$ (the Nguyen--Wainwright--Jordan bound, a consequence of the convex duality of the Kullback--Leibler divergence).
+With $P = p(x,\mathbf{y})$ and $Q = p(x)p(\mathbf{y})$ this gives, for any critic $g$,
+\begin{equation}
+\label{contrastive-rigorous:eq:nwj}
+\MI(X; \mathbf{Y}) \geq \E_{p(x,\mathbf{y})}[g(x,\mathbf{y})] - e^{-1}\,\E_{p(x)p(\mathbf{y})}\big[e^{g(x,\mathbf{y})}\big].
+\end{equation}
+
+\textbf{Step 2: apply it to the whole batch.} Take $\mathbf{Y} = (y_0, y_1, \dots, y_{N-1})$. Since the negatives
+are independent of $(x, y_0)$, $\MI(X; \mathbf{Y}) = \MI(X; Y)$. Choose
+\[
+g(x, \mathbf{y}) = 1 + \log \frac{e^{f(x, y_0)}}{m(x, \mathbf{y})},
+\qquad m(x, \mathbf{y}) = \frac{1}{N}\sum_{j=0}^{N-1} e^{f(x, y_j)} .
+\]
+Under the product distribution $p(x)p(\mathbf{y})$, all the $y_j$ are i.i.d.\ from $p(y)$ and independent of
+$x$, so by symmetry the $N$ terms $\E\big[e^{f(x, y_k)}/m(x,\mathbf{y})\big]$, $k = 0,\dots,N-1$, are equal; their
+average is $\E[m/m] = 1$. Hence
+\[
+e^{-1}\,\E_{p(x)p(\mathbf{y})}\big[e^{g}\big] = \E_{p(x)p(\mathbf{y})}\left[\frac{e^{f(x, y_0)}}{m(x, \mathbf{y})}\right] = 1 .
+\]
+
+\textbf{Step 3: conclude.} Plugging into \eqref{contrastive-rigorous:eq:nwj}:
+\[
+\MI(X; Y) \geq 1 + \E\left[\log \frac{e^{f(x, y_0)}}{\frac{1}{N}\sum_{j} e^{f(x, y_j)}}\right] - 1
+= \log N + \E\left[\log \frac{e^{f(x, y_0)}}{\sum_{j} e^{f(x, y_j)}}\right]
+= \log N - \loss_{\text{InfoNCE}} .
+\]
+This holds for \emph{every} critic $f$, which is what makes InfoNCE usable as a training objective:
+minimizing the loss maximizes a lower bound on the mutual information.
+\end{proof}
+
+\begin{remark}[A tempting but incorrect argument]
+One often sees the following ``proof'': plug in the optimal critic $f^*(x,y) = \log \frac{p(x,y)}{p(x)p(y)}$,
+claim that $\frac{p(x,y_j)}{p(x)p(y_j)} = 1$ for the negatives ``since $y_j \perp x$'', and use
+$\E_{p(x,y)}\big[\frac{p(x,y)}{p(x)p(y)}\big] = 1$. Both claims are false: independence of the random
+variables does not make the density ratio equal to $1$ at the sampled points (only its expectation under
+$p(x)p(y)$ is $1$), and under the joint distribution $\E_{p(x,y)}\big[\frac{p(x,y)}{p(x)p(y)}\big] =
+\int \frac{p(x,y)^2}{p(x)p(y)} \geq 1$. Moreover, an upper bound on the loss of the \emph{optimal} critic cannot
+yield a lower bound on $\MI$ valid for an arbitrary critic. The proof above avoids these pitfalls.
+\end{remark}
+
+
+\begin{keyresult}[InfoNCE Interpretation]
+\begin{itemize}
+    \item Minimizing InfoNCE \emph{maximizes a lower bound} on mutual information
+    \item The bound is tight when $f(x,y) = \log \frac{p(x,y)}{p(x)p(y)} + c$
+    \item The bound saturates at $\log N$: we can estimate at most $\log N$ nats of MI
+    \item To estimate more MI, we need more negative samples
+\end{itemize}
+\end{keyresult}
+
+% ============================================================
+\section{Temperature Scaling}
+% ============================================================
+
+In practice, InfoNCE includes a temperature parameter $\tau > 0$:
+
+\begin{equation}
+\loss_{\text{InfoNCE}}^\tau = -\E\left[\log \frac{\exp(f(x, y_0)/\tau)}{\sum_{j=0}^{N-1} \exp(f(x, y_j)/\tau)}\right]
+\end{equation}
+
+\subsection{Effect of Temperature}
+
+\begin{proposition}[Temperature Behavior]
+\label{contrastive-rigorous:prop:temperature}
+Let $f_i = f(x, y_i)$ and assume $f_0 > f_j$ for all $j > 0$ (positive has highest score). Then:
+\begin{enumerate}[label=(\roman*)]
+    \item As $\tau \to 0^+$: The softmax becomes a hard argmax, $\loss \to 0$
+    \item As $\tau \to \infty$: The softmax becomes uniform, $\loss \to \log N$
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(i) For $\tau \to 0^+$:
+\begin{equation}
+\lim_{\tau \to 0^+} \frac{\exp(f_0/\tau)}{\sum_j \exp(f_j/\tau)} = \lim_{\tau \to 0^+} \frac{1}{1 + \sum_{j>0} \exp((f_j - f_0)/\tau)} = 1
+\end{equation}
+since $f_j - f_0 < 0$ and $\exp(\text{negative}/\tau) \to 0$.
+
+(ii) For $\tau \to \infty$: All $\exp(f_j/\tau) \to 1$, so:
+\begin{equation}
+\lim_{\tau \to \infty} \frac{\exp(f_0/\tau)}{\sum_j \exp(f_j/\tau)} = \frac{1}{N}
+\end{equation}
+\end{proof}
+
+\subsection{Gradient Analysis}
+
+The gradient of InfoNCE with temperature reveals its learning dynamics:
+
+\begin{proposition}[InfoNCE Gradient]
+\begin{equation}
+\nabla_\theta \loss_{\text{InfoNCE}}^\tau = -\frac{1}{\tau}\E\left[\nabla_\theta f(x, y_0) - \sum_{j=0}^{N-1} p_j \nabla_\theta f(x, y_j)\right]
+\end{equation}
+where $p_j = \frac{\exp(f(x,y_j)/\tau)}{\sum_k \exp(f(x,y_k)/\tau)}$ is the softmax probability.
+\end{proposition}
+
+\begin{proof}
+Let $L = -\frac{f_0}{\tau} + \log \sum_j \exp(f_j/\tau)$. Then:
+\begin{align}
+\nabla_\theta L &= -\frac{1}{\tau}\nabla_\theta f_0 + \frac{1}{\sum_k \exp(f_k/\tau)} \sum_j \frac{1}{\tau}\exp(f_j/\tau) \nabla_\theta f_j \\
+&= -\frac{1}{\tau}\nabla_\theta f_0 + \frac{1}{\tau}\sum_j p_j \nabla_\theta f_j \\
+&= \frac{1}{\tau}\left(\sum_j p_j \nabla_\theta f_j - \nabla_\theta f_0\right)
+\end{align}
+\end{proof}
+
+\begin{intuition}[Gradient Interpretation]
+The gradient has two components:
+\begin{enumerate}
+    \item \textbf{Attraction}: $-\nabla_\theta f_0$ increases similarity with the positive
+    \item \textbf{Repulsion}: $\sum_j p_j \nabla_\theta f_j$ is a weighted average pushing away from all samples, weighted by current softmax probabilities
+\end{enumerate}
+
+Low temperature ($\tau \to 0$): Hard negatives (those with high $f_j$) dominate the gradient.
+
+High temperature ($\tau \to \infty$): All samples contribute equally to the gradient.
+\end{intuition}
+
+\subsection{Choosing Temperature}
+
+\begin{itemize}
+    \item \textbf{Low $\tau$ ($\approx 0.07$ in SimCLR)}: Focuses on hard negatives, encourages tight clusters, but risks mode collapse
+    \item \textbf{High $\tau$}: More uniform training, but weaker contrastive signal
+    \item \textbf{Adaptive $\tau$}: Some methods learn temperature during training
+\end{itemize}
+
+% ============================================================
+\section{From Population Loss to Empirical Loss}
+% ============================================================
+
+The theoretical analysis uses expectations over distributions. In practice, we work with finite samples.
+
+\subsection{Population Loss}
+
+The population InfoNCE loss is:
+\begin{equation}
+\loss_{\text{pop}} = \E_{x \sim p(x)} \E_{y_0 \sim p(y|x)} \E_{y_{1:N-1} \sim p(y)^{N-1}} \left[-\log \frac{\exp(f(x,y_0)/\tau)}{\sum_{j=0}^{N-1} \exp(f(x,y_j)/\tau)}\right]
+\end{equation}
+
+\subsection{Empirical Loss with a Batch}
+
+Given a batch of $B$ pairs $\{(x_i, y_i)\}_{i=1}^B$ where $y_i$ is the positive for $x_i$:
+
+\begin{definition}[Empirical InfoNCE (SimCLR-style)]
+\begin{equation}
+\loss_{\text{emp}} = -\frac{1}{B} \sum_{i=1}^{B} \log \frac{\exp(f(x_i, y_i)/\tau)}{\sum_{j=1}^{B} \exp(f(x_i, y_j)/\tau)}
+\end{equation}
+\end{definition}
+
+\begin{remark}[In-Batch Negatives]
+This formulation uses other samples in the batch as negatives. For sample $i$:
+\begin{itemize}
+    \item Positive: $(x_i, y_i)$
+    \item Negatives: $\{(x_i, y_j)\}_{j \neq i}$
+\end{itemize}
+This is computationally efficient but introduces bias.
+\end{remark}
+
+\subsection{Symmetrized Loss}
+
+Many methods use a symmetrized loss, treating both views equally:
+
+\begin{definition}[Symmetric InfoNCE]
+Let $(x_i, x_i')$ be two augmented views of sample $i$. Define:
+\begin{align}
+\ell_i^{(1)} &= -\log \frac{\exp(f(x_i, x_i')/\tau)}{\sum_{j=1}^{B} \exp(f(x_i, x_j')/\tau)} \\
+\ell_i^{(2)} &= -\log \frac{\exp(f(x_i', x_i)/\tau)}{\sum_{j=1}^{B} \exp(f(x_i', x_j)/\tau)}
+\end{align}
+
+The symmetric loss is:
+\begin{equation}
+\loss_{\text{sym}} = \frac{1}{2B} \sum_{i=1}^{B} \left(\ell_i^{(1)} + \ell_i^{(2)}\right)
+\end{equation}
+\end{definition}
+
+\subsection{Sampling Bias in Empirical Loss}
+
+\begin{proposition}[Negative Sampling Bias]
+The empirical loss with in-batch negatives is a biased estimator of the population loss. Specifically:
+\begin{enumerate}[label=(\roman*)]
+    \item False negatives: Some ``negatives'' may actually be semantically similar to the query
+    \item Class collision: In large batches, probability of sampling same-class negatives increases
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}[Intuition]
+Consider an image dataset. With probability $p_{\text{collision}}$, two random images share the same semantic class. For batch size $B$:
+\begin{equation}
+\E[\text{false negatives per sample}] \approx (B-1) \cdot p_{\text{collision}}
+\end{equation}
+
+For ImageNet with 1000 classes and uniform distribution: $p_{\text{collision}} \approx 0.001$. With $B = 4096$: $\E[\text{false negatives}] \approx 4$.
+\end{proof}
+
+\subsection{Monte Carlo Estimation of Expectations}
+
+The transition from population loss to empirical loss fundamentally relies on Monte Carlo estimation. This section provides a rigorous treatment.
+
+\subsubsection{The General Principle}
+
+\begin{definition}[Monte Carlo Estimator]
+For an expectation $\mu = \E_{x \sim p}[g(x)]$, the Monte Carlo estimator based on i.i.d.\ samples $x_1, \ldots, x_n \sim p$ is:
+\begin{equation}
+\hat{\mu}_n = \frac{1}{n} \sum_{i=1}^{n} g(x_i)
+\end{equation}
+\end{definition}
+
+\begin{theorem}[Properties of Monte Carlo Estimator]
+The Monte Carlo estimator satisfies:
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Unbiasedness}: $\E[\hat{\mu}_n] = \mu$
+    \item \textbf{Consistency}: $\hat{\mu}_n \xrightarrow{a.s.} \mu$ as $n \to \infty$ (Law of Large Numbers)
+    \item \textbf{Variance}: $\text{Var}(\hat{\mu}_n) = \frac{\sigma^2}{n}$ where $\sigma^2 = \text{Var}(g(x))$
+    \item \textbf{CLT}: $\sqrt{n}(\hat{\mu}_n - \mu) \xrightarrow{d} \normal(0, \sigma^2)$ (asymptotic normality)
+\end{enumerate}
+\end{theorem}
+
+\subsubsection{Application to Contrastive Losses}
+
+Consider the NCE population loss:
+\begin{equation}
+\loss_{\text{NCE}} = -\E_{x \sim p_d}\left[\log \sigmoid(h_\theta(x))\right] - k \cdot \E_{x \sim p_n}\left[\log \sigmoid(-h_\theta(x))\right]
+\end{equation}
+
+\begin{proposition}[Monte Carlo NCE Loss]
+Given $m$ data samples $\{x_i^+\}_{i=1}^m \sim p_d$ and $mk$ noise samples $\{x_{ij}^-\}_{i=1,j=1}^{m,k} \sim p_n$, the Monte Carlo estimate is:
+\begin{equation}
+\hat{\loss}_{\text{NCE}} = -\frac{1}{m} \sum_{i=1}^{m} \log \sigmoid(h_\theta(x_i^+)) - \frac{1}{m} \sum_{i=1}^{m} \sum_{j=1}^{k} \log \sigmoid(-h_\theta(x_{ij}^-))
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+We apply Monte Carlo estimation to each expectation separately.
+
+\textbf{First expectation} (positive term): Using $m$ samples from $p_d$:
+\begin{equation}
+\E_{x \sim p_d}[\log \sigmoid(h_\theta(x))] \approx \frac{1}{m} \sum_{i=1}^{m} \log \sigmoid(h_\theta(x_i^+))
+\end{equation}
+
+\textbf{Second expectation} (negative term): We have the factor $k$ multiplying the expectation. If we use $n$ samples from $p_n$:
+\begin{equation}
+k \cdot \E_{x \sim p_n}[\log \sigmoid(-h_\theta(x))] \approx k \cdot \frac{1}{n} \sum_{j=1}^{n} \log \sigmoid(-h_\theta(x_j^-)) = \frac{k}{n} \sum_{j=1}^{n} \log \sigmoid(-h_\theta(x_j^-))
+\end{equation}
+
+\textbf{The standard choice $n = k$}: When we draw exactly $k$ noise samples per positive sample, the factor $k/n = k/k = 1$ cancels:
+\begin{equation}
+k \cdot \E_{x \sim p_n}[\log \sigmoid(-h_\theta(x))] \approx \sum_{j=1}^{k} \log \sigmoid(-h_\theta(x_j^-))
+\end{equation}
+
+For $m$ positive samples, each with $k$ associated negatives (total $mk$ noise samples):
+\begin{equation}
+k \cdot \E_{x \sim p_n}[\log \sigmoid(-h_\theta(x))] \approx \frac{1}{m} \sum_{i=1}^{m} \sum_{j=1}^{k} \log \sigmoid(-h_\theta(x_{ij}^-))
+\end{equation}
+\end{proof}
+
+\begin{remark}[Special Case: Single Positive Sample ($m = 1$)]
+\label{contrastive-rigorous:rmk:single_sample}
+For a single positive sample $x^+$ with $k$ noise samples $\{x_1^-, \ldots, x_k^-\}$, the empirical NCE loss is:
+\begin{equation}
+\hat{\loss}_{\text{NCE}} = -\log \sigmoid(h_\theta(x^+)) - \sum_{j=1}^{k} \log \sigmoid(-h_\theta(x_j^-))
+\end{equation}
+This is precisely the \textbf{Negative Sampling loss} from Section~\ref{contrastive-rigorous:thm:ns_nce}.
+
+This estimator is \textbf{unbiased} for the NCE loss:
+\begin{equation}
+\E_{x^+ \sim p_d, \, x_1^-, \ldots, x_k^- \sim p_n}\left[\hat{\loss}_{\text{NCE}}\right] = \loss_{\text{NCE}}
+\end{equation}
+Each term is an unbiased estimator of its corresponding expectation.
+\end{remark}
+
+\begin{remark}[What If $n \neq k$?]
+If we use $n$ noise samples instead of $k$:
+\begin{equation}
+\hat{\loss}_{\text{NCE}}^{(n)} = -\log \sigmoid(h_\theta(x^+)) - \frac{k}{n}\sum_{j=1}^{n} \log \sigmoid(-h_\theta(x_j^-))
+\end{equation}
+This remains unbiased for the population NCE loss, but:
+\begin{itemize}
+    \item $n < k$: Higher variance (fewer samples), factor $k/n > 1$ upweights the negative term
+    \item $n > k$: Lower variance (more samples), factor $k/n < 1$ downweights the negative term
+\end{itemize}
+The standard choice $n = k$ is conventional but not mandatory.
+\end{remark}
+
+\subsubsection{Bias in Nonlinear Functions of Expectations}
+
+\begin{proposition}[Jensen's Inequality and Bias]
+\label{contrastive-rigorous:prop:jensen_bias}
+While the Monte Carlo estimator is unbiased for expectations, it becomes \textbf{biased} for nonlinear functions of expectations. For a concave function $g$:
+\begin{equation}
+\E[g(\hat{\mu})] \leq g(\E[\hat{\mu}]) = g(\mu) \quad \text{(Jensen's inequality)}
+\end{equation}
+\end{proposition}
+
+\begin{example}[Bias in InfoNCE]
+The InfoNCE loss involves $\log \sum_j \exp(\cdot)$, which is convex. Consider estimating:
+\begin{equation}
+\loss = -\E\left[\log \frac{e^{f_0}}{\sum_{j=0}^{N-1} e^{f_j}}\right] = \E\left[\log \sum_{j=0}^{N-1} e^{f_j}\right] - \E[f_0]
+\end{equation}
+
+For the log-sum-exp term with finite samples, Jensen's inequality gives:
+\begin{equation}
+\E\left[\log \sum_{j=0}^{N-1} e^{f_j}\right] \leq \log \E\left[\sum_{j=0}^{N-1} e^{f_j}\right]
+\end{equation}
+
+However, in typical InfoNCE implementations where we sample negatives \emph{inside} the log-sum-exp, the estimator \emph{is} unbiased for the empirical loss (which itself is a biased estimator of the population loss with infinitely many negatives).
+\end{example}
+
+\subsubsection{Variance Analysis}
+
+\begin{proposition}[Variance of Monte Carlo Gradient]
+\label{contrastive-rigorous:prop:mc_variance}
+For the gradient estimator $\hat{g} = \frac{1}{n}\sum_{i=1}^n \nabla_\theta \ell(x_i; \theta)$:
+\begin{equation}
+\text{Var}(\hat{g}) = \frac{1}{n} \text{Var}(\nabla_\theta \ell(x; \theta))
+\end{equation}
+The variance decreases as $O(1/n)$ with sample size.
+\end{proposition}
+
+\begin{intuition}[Variance-Computation Tradeoff]
+\begin{itemize}
+    \item \textbf{More samples} ($n \uparrow$): Lower variance, higher computation per step
+    \item \textbf{Fewer samples} ($n \downarrow$): Higher variance, faster steps
+    \item \textbf{Optimal batch size}: Balances variance reduction against wall-clock time
+\end{itemize}
+In contrastive learning, larger batches also provide more negatives, creating a dual benefit.
+\end{intuition}
+
+\subsubsection{Importance Sampling for Negatives}
+
+When the noise distribution $p_n$ differs from our sampling distribution $q$, we use importance sampling:
+
+\begin{definition}[Importance Sampling]
+For expectation $\E_{x \sim p}[g(x)]$ with samples from $q$:
+\begin{equation}
+\E_{x \sim p}[g(x)] = \E_{x \sim q}\left[\frac{p(x)}{q(x)} g(x)\right] \approx \frac{1}{n} \sum_{i=1}^{n} \frac{p(x_i)}{q(x_i)} g(x_i)
+\end{equation}
+where $w(x) = p(x)/q(x)$ are importance weights.
+\end{definition}
+
+\begin{proposition}[Importance-Weighted NCE]
+If negative samples are drawn from $q \neq p_n$:
+\begin{equation}
+k \cdot \E_{x \sim p_n}[\log \sigmoid(-h_\theta(x))] \approx \frac{k}{n} \sum_{i=1}^{n} \frac{p_n(x_i)}{q(x_i)} \log \sigmoid(-h_\theta(x_i))
+\end{equation}
+\end{proposition}
+
+\begin{remark}[Self-Normalized Importance Sampling]
+In practice, we often use self-normalized weights to reduce variance:
+\begin{equation}
+\hat{\mu} = \frac{\sum_{i=1}^n w(x_i) g(x_i)}{\sum_{i=1}^n w(x_i)}
+\end{equation}
+This is biased but often has lower variance than standard importance sampling.
+\end{remark}
+
+\subsubsection{Mini-batch Gradient Estimation}
+
+\begin{definition}[Stochastic Gradient]
+The mini-batch gradient estimator for batch $\mathcal{B} = \{(x_i, y_i)\}_{i=1}^B$ is:
+\begin{equation}
+\hat{g}_{\mathcal{B}} = \frac{1}{B} \sum_{i=1}^{B} \nabla_\theta \ell_i
+\end{equation}
+where $\ell_i = -\log \frac{\exp(f(x_i, y_i)/\tau)}{\sum_{j=1}^{B} \exp(f(x_i, y_j)/\tau)}$.
+\end{definition}
+
+\begin{proposition}[InfoNCE Gradient Decomposition]
+The gradient for sample $i$ decomposes as:
+\begin{equation}
+\nabla_\theta \ell_i = \frac{1}{\tau}\left(\sum_{j=1}^{B} p_{ij} \nabla_\theta f(x_i, y_j) - \nabla_\theta f(x_i, y_i)\right)
+\end{equation}
+where $p_{ij} = \softmax_j(f(x_i, y_j)/\tau)$ is the softmax probability.
+\end{proposition}
+
+\begin{proof}
+Let $s_j = f(x_i, y_j)/\tau$ and $Z = \sum_k e^{s_k}$. Then $\ell_i = -s_{\text{pos}} + \log Z$ where $s_{\text{pos}} = f(x_i, y_i)/\tau$.
+
+\begin{align}
+\nabla_\theta \ell_i &= -\nabla_\theta s_{\text{pos}} + \nabla_\theta \log Z \\
+&= -\frac{1}{\tau}\nabla_\theta f(x_i, y_i) + \frac{1}{Z} \sum_j e^{s_j} \nabla_\theta s_j \\
+&= -\frac{1}{\tau}\nabla_\theta f(x_i, y_i) + \frac{1}{\tau}\sum_j \frac{e^{s_j}}{Z} \nabla_\theta f(x_i, y_j) \\
+&= \frac{1}{\tau}\left(\sum_j p_{ij} \nabla_\theta f(x_i, y_j) - \nabla_\theta f(x_i, y_i)\right)
+\end{align}
+\end{proof}
+
+\subsubsection{Bias-Variance Tradeoff with Batch Size}
+
+\begin{theorem}[Batch Size Effects]
+\label{contrastive-rigorous:thm:batch_effects}
+Let $\hat{\loss}_B$ be the empirical InfoNCE loss with batch size $B$. Then:
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Bias}: $\E[\hat{\loss}_B] = \loss_{\text{pop}} + O(1/B)$ for the in-batch negative scheme
+    \item \textbf{Variance}: $\text{Var}(\hat{\loss}_B) = O(1/B)$
+    \item \textbf{MI bound}: The estimable mutual information is bounded by $\log B$
+\end{enumerate}
+\end{theorem}
+
+\begin{keyresult}[Practical Implications]
+\begin{itemize}
+    \item Small $B$: High variance, loose MI bound, fast iterations
+    \item Large $B$: Low variance, tight MI bound, but memory-intensive
+    \item Typical choices: $B \in \{256, 512, 1024, 4096\}$ depending on GPU memory
+    \item Alternative: Use memory banks (MoCo) to decouple batch size from negative count
+\end{itemize}
+\end{keyresult}
+
+% ============================================================
+\section{Connection to Other Losses}
+% ============================================================
+
+\subsection{Triplet Loss}
+
+\begin{definition}[Triplet Loss]
+Given anchor $a$, positive $p$, and negative $n$:
+\begin{equation}
+\loss_{\text{triplet}} = \max(0, d(a,p) - d(a,n) + m)
+\end{equation}
+where $d$ is a distance function and $m > 0$ is a margin.
+\end{definition}
+
+\begin{proposition}[Connection to InfoNCE]
+With $f(x,y) = -\|x - y\|^2$, temperature $\tau$, and one negative:
+\begin{equation}
+\loss_{\text{InfoNCE}} = \log\left(1 + \exp\left(\frac{d(a,p)^2 - d(a,n)^2}{\tau}\right)\right)
+\end{equation}
+This is a soft version of triplet loss.
+\end{proposition}
+
+\subsection{N-pair Loss}
+
+\begin{definition}[N-pair Loss]
+With $N-1$ negatives:
+\begin{equation}
+\loss_{\text{N-pair}} = \log\left(1 + \sum_{j=1}^{N-1} \exp(f(a, n_j) - f(a, p))\right)
+\end{equation}
+\end{definition}
+
+\begin{proposition}
+N-pair loss equals InfoNCE with temperature $\tau = 1$:
+\begin{equation}
+\loss_{\text{N-pair}} = -\log \frac{\exp(f(a,p))}{\exp(f(a,p)) + \sum_j \exp(f(a,n_j))}
+\end{equation}
+\end{proposition}
+
+\subsection{Cross-Entropy and Supervised Contrastive Loss}
+
+When labels are available:
+
+\begin{definition}[Supervised Contrastive Loss]
+For sample $i$ with label $y_i$, let $P(i) = \{j : y_j = y_i, j \neq i\}$ be other samples with same label:
+\begin{equation}
+\loss_{\text{SupCon}} = -\frac{1}{|P(i)|} \sum_{p \in P(i)} \log \frac{\exp(f(x_i, x_p)/\tau)}{\sum_{j \neq i} \exp(f(x_i, x_j)/\tau)}
+\end{equation}
+\end{definition}
+
+% ============================================================
+\section{Modern Contrastive Learning Frameworks}
+% ============================================================
+
+\subsection{SimCLR}
+
+SimCLR (Simple Framework for Contrastive Learning) implements the ideas we've developed:
+
+\begin{algorithm}
+\caption{SimCLR Training}
+\begin{algorithmic}[1]
+\Require Batch size $B$, temperature $\tau$, augmentation distribution $\mathcal{T}$
+\For{each minibatch $\{x_k\}_{k=1}^{B}$}
+    \For{$k = 1$ to $B$}
+        \State $\tilde{x}_{2k-1} \gets t \sim \mathcal{T}$, applied to $x_k$ \Comment{First augmentation}
+        \State $\tilde{x}_{2k} \gets t' \sim \mathcal{T}$, applied to $x_k$ \Comment{Second augmentation}
+    \EndFor
+    \For{$i = 1$ to $2B$}
+        \State $h_i \gets f(\tilde{x}_i)$ \Comment{Base encoder}
+        \State $z_i \gets g(h_i)$ \Comment{Projection head}
+    \EndFor
+    \State $s_{ij} \gets z_i^\top z_j / (\|z_i\| \|z_j\|)$ for all $i, j$ \Comment{Cosine similarity}
+    \State Define $\ell(i, j) = -\log \frac{\exp(s_{ij}/\tau)}{\sum_{k=1}^{2B} \ind_{k \neq i} \exp(s_{ik}/\tau)}$
+    \State $\loss \gets \frac{1}{2B} \sum_{k=1}^{B} [\ell(2k-1, 2k) + \ell(2k, 2k-1)]$
+    \State Update networks to minimize $\loss$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{Key components}:
+\begin{itemize}
+    \item Strong data augmentation (critical for performance)
+    \item Projection head $g$ (representations before projection transfer better)
+    \item Large batch sizes (more negatives improve the bound)
+    \item Cosine similarity with low temperature
+\end{itemize}
+
+\subsection{MoCo (Momentum Contrast)}
+
+MoCo addresses the batch size limitation by maintaining a queue of representations:
+
+\begin{definition}[MoCo Objective]
+With query encoder $f_q$, key encoder $f_k$, and queue $\{k_i\}_{i=1}^{K}$:
+\begin{equation}
+\loss_{\text{MoCo}} = -\log \frac{\exp(q \cdot k_+ / \tau)}{\exp(q \cdot k_+ / \tau) + \sum_{i=1}^{K} \exp(q \cdot k_i / \tau)}
+\end{equation}
+where $q = f_q(x)$, $k_+ = f_k(x^+)$, and the queue contains keys from previous batches.
+\end{definition}
+
+\textbf{Momentum update} for the key encoder:
+\begin{equation}
+\theta_k \gets m \theta_k + (1-m) \theta_q
+\end{equation}
+where $m \in [0.99, 0.999]$ ensures consistency of keys in the queue.
+
+\subsection{CLIP (Contrastive Language-Image Pre-training)}
+
+CLIP extends contrastive learning to multi-modal data (images and text):
+
+\begin{definition}[CLIP Objective]
+Given batch of image-text pairs $\{(I_i, T_i)\}_{i=1}^{B}$:
+\begin{align}
+\loss_{\text{CLIP}} = \frac{1}{2}\Bigg(&-\frac{1}{B}\sum_{i=1}^{B} \log \frac{\exp(f_I(I_i)^\top f_T(T_i)/\tau)}{\sum_{j=1}^{B} \exp(f_I(I_i)^\top f_T(T_j)/\tau)} \\
+&-\frac{1}{B}\sum_{i=1}^{B} \log \frac{\exp(f_T(T_i)^\top f_I(I_i)/\tau)}{\sum_{j=1}^{B} \exp(f_T(T_i)^\top f_I(I_j)/\tau)}\Bigg)
+\end{align}
+\end{definition}
+
+This is a symmetric InfoNCE loss across modalities, aligning paired images and texts.
+
+% ============================================================
+\section{Theoretical Analysis}
+% ============================================================
+
+\subsection{What Does Contrastive Learning Learn?}
+
+\begin{theorem}[Optimal Representations]
+Under the InfoNCE objective with $f(x,y) = g(x)^\top h(y)$, the optimal encoder satisfies:
+\begin{equation}
+g^*(x)^\top h^*(y) = \log \frac{p(y|x)}{p(y)} + c(x)
+\end{equation}
+for some function $c$ that depends only on $x$.
+\end{theorem}
+
+\begin{corollary}
+At optimality, the learned representation encodes the \textbf{pointwise mutual information}:
+\begin{equation}
+\text{PMI}(x, y) = \log \frac{p(x, y)}{p(x)p(y)}
+\end{equation}
+\end{corollary}
+
+\subsection{Uniformity and Alignment}
+
+Wang \& Isola (2020) identified two key properties of good contrastive representations:
+
+\begin{definition}[Alignment]
+How close positive pairs are in representation space:
+\begin{equation}
+\loss_{\text{align}} = \E_{(x, x^+) \sim p_{\text{pos}}} \|f(x) - f(x^+)\|^2
+\end{equation}
+\end{definition}
+
+\begin{definition}[Uniformity]
+How uniformly representations are distributed on the hypersphere:
+\begin{equation}
+\loss_{\text{uniform}} = \log \E_{x, y \sim p_{\text{data}}} \exp\left(-2\|f(x) - f(y)\|^2\right)
+\end{equation}
+\end{definition}
+
+\begin{theorem}[InfoNCE Decomposition]
+InfoNCE implicitly optimizes both properties:
+\begin{equation}
+\loss_{\text{InfoNCE}} \approx \loss_{\text{align}} + \lambda \loss_{\text{uniform}} + \text{const}
+\end{equation}
+\end{theorem}
+
+\subsection{Dimensional Collapse}
+
+A failure mode where representations occupy a lower-dimensional subspace:
+
+\begin{definition}[Dimensional Collapse]
+Let $\Sigma = \E[f(x)f(x)^\top]$ be the covariance of representations. Dimensional collapse occurs when $\text{rank}(\Sigma) \ll d$.
+\end{definition}
+
+\begin{proposition}[Preventing Collapse]
+InfoNCE prevents collapse through the uniformity term. Without negatives (or with too few), representations collapse to a constant.
+\end{proposition}
+
+% ============================================================
+\section{Practical Considerations}
+% ============================================================
+
+\subsection{Batch Size and Number of Negatives}
+
+\begin{itemize}
+    \item \textbf{More negatives = tighter MI bound}: Recall $\MI(X;Y) \geq \log N - \loss_{\text{InfoNCE}}$; since the loss is non-negative, the bound can never exceed $\log N$, so estimating a large mutual information requires many negatives
+    \item \textbf{Diminishing returns}: Doubling batch size doesn't double performance
+    \item \textbf{Memory constraints}: Large batches require distributed training or memory banks
+\end{itemize}
+
+\subsection{Hard Negative Mining}
+
+\begin{definition}[Hard Negatives]
+Negatives with high similarity scores: $\{y_j : f(x, y_j) \text{ is large but } y_j \text{ is negative}\}$
+\end{definition}
+
+Hard negatives provide more informative gradients but risk:
+\begin{itemize}
+    \item False negatives (actually similar samples)
+    \item Training instability
+\end{itemize}
+
+\subsection{Projection Head}
+
+Empirically, using a nonlinear projection head $g$ after the encoder $f$ improves downstream performance:
+\begin{equation}
+z = g(f(x)) = W_2 \cdot \text{ReLU}(W_1 \cdot f(x))
+\end{equation}
+
+\begin{intuition}[Why Projection Helps]
+The contrastive objective may discard information useful for downstream tasks. The projection head allows $f$ to preserve more information while $g$ discards task-irrelevant details for the contrastive objective.
+\end{intuition}
+
+% ============================================================
+\section{Summary and Connections}
+% ============================================================
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=2cm,
+    box/.style={rectangle, draw, rounded corners, minimum width=3cm, minimum height=1cm, align=center},
+    arrow/.style={-{Stealth[length=3mm]}, thick}
+]
+
+\node[box] (mi) {Mutual Information\\$\MI(X;Y)$};
+\node[box, below left=2cm and 0.5cm of mi] (nce) {NCE\\Density Ratio\\Estimation};
+\node[box, below right=2cm and 0.5cm of mi] (infonce) {InfoNCE\\Multi-class\\Classification};
+\node[box, below=3.5cm of mi] (loss) {Contrastive Loss\\$-\log \frac{e^{f(x,y^+)/\tau}}{\sum_j e^{f(x,y_j)/\tau}}$};
+\node[box, below left=1.5cm and -1cm of loss] (simclr) {SimCLR\\In-batch negatives};
+\node[box, below right=1.5cm and -1cm of loss] (moco) {MoCo\\Memory bank};
+
+\draw[arrow] (mi) -- node[left] {lower bound} (nce);
+\draw[arrow] (mi) -- node[right] {lower bound} (infonce);
+\draw[arrow] (nce) -- (loss);
+\draw[arrow] (infonce) -- (loss);
+\draw[arrow] (loss) -- (simclr);
+\draw[arrow] (loss) -- (moco);
+
+\end{tikzpicture}
+\end{center}
+
+\subsection{Key Takeaways}
+
+\begin{enumerate}
+    \item \textbf{Contrastive learning estimates mutual information} via density ratio estimation
+    
+    \item \textbf{InfoNCE provides a tractable lower bound}: $\MI(X;Y) \geq \log N - \loss_{\text{InfoNCE}}$
+    
+    \item \textbf{Temperature controls the hardness} of the contrastive task
+    
+    \item \textbf{More negatives improve estimation} but with diminishing returns
+    
+    \item \textbf{Good representations balance alignment and uniformity}
+    
+    \item \textbf{The empirical loss introduces biases} (false negatives, class collision)
+    
+    \item \textbf{Practical innovations} (projection heads, momentum encoders, strong augmentation) are crucial for performance
+\end{enumerate}
+
+% ============================================================
+% APPENDICES
+% ============================================================
+\chapterappendix
+
+\section{Mathematical Background}
+
+\subsection{Kullback-Leibler Divergence}
+
+\begin{definition}[KL Divergence]
+For distributions $p$ and $q$:
+\begin{equation}
+\KL(p \| q) = \E_{x \sim p}\left[\log \frac{p(x)}{q(x)}\right] = \int p(x) \log \frac{p(x)}{q(x)} dx
+\end{equation}
+\end{definition}
+
+Properties:
+\begin{itemize}
+    \item $\KL(p \| q) \geq 0$ with equality iff $p = q$ (Gibbs' inequality)
+    \item Asymmetric: $\KL(p \| q) \neq \KL(q \| p)$ in general
+    \item Not a true metric (no triangle inequality)
+\end{itemize}
+
+\subsection{Softmax and Cross-Entropy}
+
+\begin{definition}[Softmax]
+For logits $\bm{z} \in \R^N$:
+\begin{equation}
+\softmax(\bm{z})_i = \frac{\exp(z_i)}{\sum_{j=1}^{N} \exp(z_j)}
+\end{equation}
+\end{definition}
+
+\begin{definition}[Cross-Entropy Loss]
+For true distribution $\bm{p}$ and predicted distribution $\bm{q}$:
+\begin{equation}
+\Hent(\bm{p}, \bm{q}) = -\sum_{i=1}^{N} p_i \log q_i
+\end{equation}
+\end{definition}
+
+\subsection{Sigmoid Function}
+
+\begin{definition}[Sigmoid]
+\begin{equation}
+\sigmoid(z) = \frac{1}{1 + e^{-z}} = \frac{e^z}{1 + e^z}
+\end{equation}
+\end{definition}
+
+Properties:
+\begin{itemize}
+    \item $\sigmoid(-z) = 1 - \sigmoid(z)$
+    \item $\frac{d}{dz}\sigmoid(z) = \sigmoid(z)(1 - \sigmoid(z))$
+    \item $\log \sigmoid(z) = -\log(1 + e^{-z})$ (numerically stable form)
+\end{itemize}
+
+\section{Proofs of Additional Results}
+
+\subsection{Self-Normalizing Property of Density Ratios}
+
+\begin{lemma}[Expectation of Density Ratio under Product Distribution]
+\label{contrastive-rigorous:lem:density_ratio_product}
+The density ratio has unit expectation under the product of marginals:
+\begin{equation}
+\E_{p(x)p(y)}\left[\frac{p(x,y)}{p(x)p(y)}\right] = 1
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+\begin{align}
+\E_{p(x)p(y)}\left[\frac{p(x,y)}{p(x)p(y)}\right] &= \int \int p(x)p(y) \cdot \frac{p(x,y)}{p(x)p(y)} \, dx \, dy \\
+&= \int \int p(x,y) \, dx \, dy \\
+&= 1
+\end{align}
+since $p(x,y)$ is a valid probability density.
+\end{proof}
+
+\begin{lemma}[Expectation of Density Ratio under Joint Distribution]
+\label{contrastive-rigorous:lem:density_ratio_joint}
+Under the joint distribution, the expected density ratio equals the exponential of mutual information... but is \textbf{not} equal to 1 in general:
+\begin{equation}
+\E_{p(x,y)}\left[\frac{p(x,y)}{p(x)p(y)}\right] = \int \int \frac{p(x,y)^2}{p(x)p(y)} \, dx \, dy \geq 1
+\end{equation}
+with equality if and only if $X$ and $Y$ are independent.
+\end{lemma}
+
+\begin{proof}
+The integral $\int \int \frac{p(x,y)^2}{p(x)p(y)} dx\, dy$ is the $\chi^2$-divergence plus one:
+\begin{equation}
+\E_{p(x,y)}\left[\frac{p(x,y)}{p(x)p(y)}\right] = 1 + \chi^2(p(x,y) \| p(x)p(y))
+\end{equation}
+where $\chi^2(p \| q) = \int \frac{(p-q)^2}{q} \geq 0$. This is minimized (equals 1) when $p(x,y) = p(x)p(y)$.
+\end{proof}
+
+\begin{remark}
+Lemma~\ref{contrastive-rigorous:lem:density_ratio_product} is the relevant property for importance sampling: it confirms that $\frac{p(x,y)}{p(x)p(y)}$ is a valid importance weight when sampling from the product distribution $p(x)p(y)$ to estimate expectations under the joint $p(x,y)$.
+\end{remark}
+\end{notechapter}

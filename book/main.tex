@@ -1,0 +1,26 @@
+% =====================================================================
+%  Notes on Machine Learning -- main file
+%  Build:  latexmk -pdf main.tex      (or: make)
+% =====================================================================
+\documentclass[11pt,a4paper,openany]{book}
+\input{preamble/packages}
+\input{preamble/common}
+
+% Build only some chapters, e.g.  make chapter CH=chapters/07-cnn-vision/02-convolution-in-cnns
+\InputIfFileExists{includeonly.tex}{}{}
+
+\title{\Huge\bfseries Notes on Machine Learning\\[1em]
+  \Large From Statistical Foundations to Graph Neural Networks}
+\author{Christophe Louargant}
+\date{\today}
+
+\begin{document}
+\frontmatter
+\maketitle
+\input{frontmatter/preface}
+\tableofcontents
+
+\mainmatter
+\input{chapters}
+
+\end{document}

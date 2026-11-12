@@ -1,0 +1,477 @@
+% Source: batch_normalization.tex
+\begin{notechapter}
+\chapter{Normalization in Neural Networks}\label{ch:normalization}
+
+\section{Introduction}
+Normalization is a critical technique in training deep neural networks.
+It stabilizes the training process by addressing issues like internal
+covariate shift, vanishing gradients, and saturation. This document
+provides a detailed overview of normalization techniques, focusing on
+batch normalization, and explains their mathematical foundations,
+advantages, and practical implications.
+
+\section{Batch Normalization}
+Batch normalization (BatchNorm) is one of the most widely used
+normalization techniques. It normalizes the \textbf{pre-activations}
+of each layer (i.e., the outputs of the linear transformation before
+applying the activation function) to have zero mean and unit variance.
+This improves training stability and convergence speed.
+
+\subsection{Mathematical Formulation}
+For a layer with pre-activations \(z_i = W_i \cdot x + b_i\) (where \(z_i\)
+is the pre-activation of the \(i\)-th neuron), batch normalization
+is applied \textbf{per neuron} as follows:
+
+\begin{enumerate}[leftmargin=*]
+    \item Compute the mean (\(\mu_B\)) and variance (\(\sigma_B^2\)) of \(z_i\)
+    over the mini-batch for each neuron:
+    \[
+    \mu_B = \frac{1}{m} \sum_{j=1}^m z_{ij},
+    \]
+    \[
+    \sigma_B^2 = \frac{1}{m} \sum_{j=1}^m (z_{ij} - \mu_B)^2,
+    \]
+    where:
+    \begin{itemize}
+        \item \(m\) is the number of examples in the mini-batch,
+        \item \(z_{ij}\) is the pre-activation of the \(i\)-th neuron for the \(j\)-th example.
+    \end{itemize}
+
+    \item Normalize \(z_i\) to have zero mean and unit variance for each neuron:
+    \[
+    \hat{z}_i = \frac{z_i - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}},
+    \]
+    where \(\epsilon\) is a small constant for numerical stability.
+
+    \item Scale and shift the normalized values using learnable parameters
+    \(\gamma_i\) (scale) and \(\beta_i\) (shift) for each neuron:
+    \[
+    y_i = \gamma_i \hat{z}_i + \beta_i.
+    \]
+\end{enumerate}
+
+\subsection{Internal Covariate Shift and Smoothness of the Loss Landscape}
+BatchNorm was originally motivated by the problem of \textbf{internal covariate shift},
+but later research suggests that its benefits are more closely tied to the
+\textbf{smoothness of the loss landscape}.
+
+\subsubsection{Internal Covariate Shift}
+Internal covariate shift refers to the change in the distribution of
+inputs to a layer during training. This occurs because the parameters
+of previous layers are updated, causing the inputs to subsequent layers
+to change. This shift slows down training because each layer must
+continuously adapt to the new input distribution.
+
+\subsubsection{Root Cause: Changing Loss Function}
+The root cause of internal covariate shift is the fact that the \textbf{loss function changes at each iteration} due to updates to the network's parameters. As the parameters of earlier layers are updated, the outputs of those layers (which are inputs to subsequent layers) change, causing the distribution of inputs to shift. This creates a feedback loop where each layer must continuously adapt to the new input distribution, slowing down training.
+
+\subsubsection{Connection to Gradient Computation}
+The gradient computation assumes that the parameters of other layers remain fixed when computing the gradient for a specific layer. However, in reality, all layers are updated simultaneously during training. This assumption ignores the fact that the loss function changes at each iteration due to parameter updates, which contributes to the internal covariate shift. As a result, the gradients computed for one layer may not accurately reflect the true optimization landscape because the inputs to that layer are constantly changing.
+
+\subsubsection{How BatchNorm Addresses Covariate Shift}
+BatchNorm reduces internal covariate shift by normalizing the inputs
+to each layer. This ensures that the distribution of inputs remains
+stable during training, even as the parameters of earlier layers are
+updated. By stabilizing the input distribution, BatchNorm allows each
+layer to focus on learning its task without having to continuously
+adapt to changing inputs. This improves training stability and
+convergence speed.
+
+\subsubsection{Smoothness of the Loss Landscape}
+While internal covariate shift was the original motivation for BatchNorm,
+later research (Santurkar et al., 2018) suggests that the benefits of
+BatchNorm are more closely tied to its impact on the \textbf{smoothness of the
+loss landscape}:
+
+\begin{itemize}
+    \item \textbf{Smoother Loss Landscape}:
+    BatchNorm reparametrizes the optimization problem, making the loss
+    function more Lipschitz continuous (i.e., smoother). This smoothness
+    allows for larger learning rates and faster convergence, as gradients
+    become more stable and predictable.
+
+    \item \textbf{Improved Optimization}:
+    By making the loss landscape smoother, BatchNorm improves the flow
+    of gradients through the network. This reduces the risk of vanishing
+    or exploding gradients and allows for more aggressive optimization
+    strategies.
+
+    \item \textbf{Regularization Effect}:
+    The noise introduced by mini-batch statistics acts as a mild form
+    of regularization, further improving generalization.
+\end{itemize}
+
+\subsubsection{Key Insight}
+While BatchNorm was originally motivated by addressing internal covariate
+shift, its success is now understood to be more closely tied to its impact
+on the optimization process. By making the loss landscape smoother,
+BatchNorm improves training stability and convergence, even in the absence
+of significant covariate shift.
+
+\subsection{Noise in Batch Normalization}
+BatchNorm introduces noise during training in two ways:
+\begin{itemize}
+    \item \textbf{Additive Noise}: This comes from the use of mini-batch
+    statistics (\(\mu_B\) and \(\sigma_B^2\)), which are noisy estimates
+    of the true population mean and variance. This noise shifts the
+    normalized values (\(\hat{z}_i\)) randomly.
+
+    \item \textbf{Multiplicative Noise}: This arises from the learned
+    scaling (\(\gamma_i\)) and shifting (\(\beta_i\)) parameters, which
+    introduce a multiplicative effect on the normalized values.
+\end{itemize}
+
+\subsubsection{Regularization Effect of Noise}
+The noise introduced by BatchNorm has a regularizing effect:
+\begin{itemize}
+    \item It makes the network less sensitive to small changes in the
+    input distribution, reducing overfitting.
+    \item It encourages the network to learn robust features by reducing
+    reliance on any single neuron or feature.
+    \item In some cases, this noise can make dropout unnecessary, as
+    BatchNorm already provides implicit regularization.
+\end{itemize}
+
+\subsection{Relationship Between BatchNorm and Dropout}
+\begin{itemize}
+    \item \textbf{Historically}: BatchNorm was often used as a replacement
+    for dropout because it provided similar regularization benefits while
+    also improving optimization (e.g., faster convergence, higher learning
+    rates).
+    \item \textbf{Modern Practice}: In many architectures, BatchNorm and
+    dropout are used together, but their combined use depends on the task,
+    dataset, and architecture:
+    \begin{itemize}
+        \item \textbf{Use Both}: In very deep networks (e.g., ResNets,
+        Transformers) or when training on small datasets.
+        \item \textbf{Avoid Both}: In simpler architectures or when BatchNorm
+        alone provides sufficient regularization.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Why Normalize Pre-Activations?}
+Normalization is applied to the \textbf{pre-activations} (\(z_i\)) rather
+than the activations (\(a_i\)) for several reasons:
+
+\begin{itemize}
+    \item \textbf{Preventing Saturation}:
+    Activation functions like sigmoid and tanh saturate for extreme
+    inputs, causing small gradients. Normalizing \(z_i\) ensures that
+    the inputs to the activation function are in a range where gradients
+    are larger.
+
+    \item \textbf{Stabilizing Training}:
+    By normalizing \(z_i\), we reduce the internal covariate shift, which
+    stabilizes the training process and allows for higher learning rates.
+
+    \item \textbf{Improving Gradient Flow}:
+    Normalization ensures that the gradients flowing through the network
+    are well-behaved, reducing the risk of vanishing or exploding
+    gradients.
+\end{itemize}
+
+\subsection{Why Use \(\gamma_i\) and \(\beta_i\)?}
+After normalization, the pre-activations (\(\hat{z}_i\)) are constrained
+to have zero mean and unit variance. However, this constraint may not
+be optimal for learning. The parameters \(\gamma_i\) and \(\beta_i\) allow
+the network to:
+
+\begin{itemize}
+    \item \textbf{Recover the Original Distribution}:
+    If the normalized pre-activations are not optimal, \(\gamma_i\) and
+    \(\beta_i\) can scale and shift them to recover the original
+    distribution. This ensures that the network retains its full
+    expressive power.
+
+    \item \textbf{Introduce Non-Linearity}:
+    While normalization itself is a linear transformation, the
+    combination of normalization followed by scaling and shifting with
+    \(\gamma_i\) and \(\beta_i\) introduces non-linearity. This allows the
+    network to model more complex, non-linear relationships.
+
+    \item \textbf{Learn Optimal Scaling and Shifting}:
+    \(\gamma_i\) and \(\beta_i\) are learned during training, allowing the
+    network to adapt the normalization to the specific needs of each
+    neuron.
+\end{itemize}
+
+\subsubsection{Why Does Scaling and Shifting Introduce Non-Linearity?}
+Normalization itself is a linear transformation because it involves
+only subtraction (shifting) and division (scaling), which are linear
+operations. However, the combination of normalization followed by
+scaling and shifting with \(\gamma_i\) and \(\beta_i\) introduces
+non-linearity for the following reasons:
+
+\begin{itemize}
+    \item \textbf{Per-Neuron Parameters}:
+    \(\gamma_i\) and \(\beta_i\) are learned independently for each neuron,
+    allowing the network to adapt the normalization to the specific needs
+    of each neuron. This makes the transformation \textbf{data-dependent} and
+    \textbf{non-linear}.
+
+    \item \textbf{Learned Parameters}:
+    The values of \(\gamma_i\) and \(\beta_i\) are optimized during training,
+    meaning they depend on the data and the task. This makes the transformation
+    \textbf{adaptive} and \textbf{non-linear}.
+
+    \item \textbf{Interaction with Activation Functions}:
+    The scaled and shifted outputs (\(y_i = \gamma_i \hat{z}_i + \beta_i\))
+    are passed through a \textbf{non-linear activation function} (e.g., ReLU, sigmoid).
+    The interaction between the learned scaling/shifting and the activation
+    function further enhances the non-linearity of the overall transformation.
+\end{itemize}
+
+\subsection{Test-Time Behavior of Batch Normalization}
+During training, BatchNorm uses mini-batch statistics (mean and variance)
+to normalize the pre-activations. However, at test time, we no longer
+have access to mini-batches, and the behavior of BatchNorm changes.
+
+\subsubsection{Running Averages}
+To handle test-time normalization, BatchNorm maintains
+\textbf{running averages}
+of the mean and variance during training. These running averages are
+updated at each training step using an exponential moving average (EMA):
+
+\[
+\mu_{\text{running}} = \alpha \mu_{\text{running}} + (1 - \alpha) \mu_B,
+\]
+\[
+\sigma^2_{\text{running}} = \alpha \sigma^2_{\text{running}} + (1 - \alpha) \sigma_B^2,
+\]
+
+where:
+\begin{itemize}
+    \item \(\mu_B\) and \(\sigma_B^2\) are the mean and variance of the current mini-batch,
+    \item \(\alpha\) is the momentum term (typically close to 1, e.g., 0.9),
+    \item \(\mu_{\text{running}}\) and \(\sigma^2_{\text{running}}\) are the running averages.
+\end{itemize}
+
+\subsubsection{Normalization at Test Time}
+At test time, BatchNorm uses the running averages \(\mu_{\text{running}}\) and
+\(\sigma^2_{\text{running}}\) to normalize the pre-activations:
+
+\[
+\hat{z}_i = \frac{z_i - \mu_{\text{running}}}{\sqrt{\sigma^2_{\text{running}} + \epsilon}},
+\]
+\[
+y_i = \gamma_i \hat{z}_i + \beta_i.
+\]
+
+This ensures that the network behaves consistently during training and testing.
+
+\subsubsection{Why Use Running Averages?}
+Using running averages at test time has several advantages:
+\begin{itemize}
+    \item \textbf{Consistency}:
+    The network behaves consistently during training and testing, as the
+    same normalization parameters are used.
+
+    \item \textbf{Stability}:
+    Running averages provide a stable estimate of the mean and variance,
+    reducing the impact of noisy mini-batch statistics.
+
+    \item \textbf{No Dependence on Batch Size}:
+    Since running averages are computed during training, BatchNorm does
+    not depend on the batch size at test time.
+\end{itemize}
+
+\section{Advantages of Batch Normalization}
+Batch normalization offers several benefits:
+
+\begin{itemize}
+    \item \textbf{Stabilized Training}:
+    Normalization reduces internal covariate shift, allowing for higher
+    learning rates and faster convergence.
+
+    \item \textbf{Reduced Sensitivity to Initialization}:
+    Normalization makes the network less sensitive to the initial values
+    of weights, simplifying weight initialization.
+
+    \item \textbf{Regularization Effect}:
+    The noise introduced by mini-batch statistics acts as a mild form
+    of regularization, reducing overfitting.
+
+    \item \textbf{Improved Gradient Flow}:
+    Normalization ensures that gradients are well-behaved, reducing the
+    risk of vanishing or exploding gradients.
+\end{itemize}
+
+\section{Limitations of Batch Normalization}
+Despite its advantages, batch normalization has some limitations:
+
+\begin{itemize}
+    \item \textbf{Dependence on Batch Size}:
+    BatchNorm relies on mini-batch statistics, so its effectiveness
+    diminishes with very small batch sizes.
+
+    \item \textbf{Increased Computational Cost}:
+    Normalization introduces additional computations during training
+    and inference.
+
+    \item \textbf{Not Suitable for All Architectures}:
+    BatchNorm may not work well in certain architectures, such as
+    recurrent neural networks (RNNs).
+\end{itemize}
+
+\section{Alternatives to Batch Normalization}
+In cases where batch normalization is not suitable, alternatives
+include:
+
+\subsection{Layer Normalization}
+Layer normalization (LayerNorm) normalizes the activations across
+features for each data point, rather than across the batch. This makes
+it suitable for tasks where batch size is small or variable, such as
+recurrent neural networks (RNNs) and transformers.
+
+\subsubsection{How It Works}
+Layer normalization computes the mean and variance across the features
+of each data point:
+\[
+\mu_L = \frac{1}{H} \sum_{i=1}^H z_i,
+\]
+\[
+\sigma_L^2 = \frac{1}{H} \sum_{i=1}^H (z_i - \mu_L)^2,
+\]
+where \(H\) is the number of features (neurons) in the layer. The
+normalized activations are then scaled and shifted using learnable
+parameters \(\gamma\) and \(\beta\):
+\[
+\hat{z}_i = \frac{z_i - \mu_L}{\sqrt{\sigma_L^2 + \epsilon}},
+\]
+\[
+y_i = \gamma \hat{z}_i + \beta.
+\]
+
+\subsubsection{Advantages}
+\begin{itemize}
+    \item \textbf{Independent of Batch Size}:
+    LayerNorm does not depend on the batch size, making it suitable for
+    small or variable batch sizes.
+
+    \item \textbf{Effective for RNNs}:
+    LayerNorm is particularly effective for recurrent neural networks
+    (RNNs) and transformers, where batch normalization is less effective.
+
+    \item \textbf{Stable Training}:
+    LayerNorm stabilizes training by normalizing across features, reducing
+    internal covariate shift.
+\end{itemize}
+
+\subsubsection{Disadvantages}
+\begin{itemize}
+    \item \textbf{Less Effective for CNNs}:
+    LayerNorm is less effective for convolutional neural networks (CNNs)
+    compared to batch normalization.
+
+    \item \textbf{Computationally Expensive}:
+    LayerNorm can be computationally expensive for large feature spaces.
+\end{itemize}
+
+\subsection{Instance Normalization}
+Instance normalization (InstanceNorm) normalizes each data point
+independently, making it particularly useful for style transfer tasks
+and generative models.
+
+\subsubsection{How It Works}
+Instance normalization computes the mean and variance for each data
+point and each feature:
+\[
+\mu_I = \frac{1}{H} \sum_{i=1}^H z_i,
+\]
+\[
+\sigma_I^2 = \frac{1}{H} \sum_{i=1}^H (z_i - \mu_I)^2,
+\]
+where \(H\) is the number of features (neurons) in the layer. The
+normalized activations are then scaled and shifted using learnable
+parameters \(\gamma\) and \(\beta\):
+\[
+\hat{z}_i = \frac{z_i - \mu_I}{\sqrt{\sigma_I^2 + \epsilon}},
+\]
+\[
+y_i = \gamma \hat{z}_i + \beta.
+\]
+
+\subsubsection{Advantages}
+\begin{itemize}
+    \item \textbf{Effective for Style Transfer}:
+    InstanceNorm is particularly effective for style transfer tasks,
+    where it helps preserve the style of the input image.
+
+    \item \textbf{Independent of Batch Size}:
+    InstanceNorm does not depend on the batch size, making it suitable
+    for small or variable batch sizes.
+
+    \item \textbf{Stable Training}:
+    InstanceNorm stabilizes training by normalizing each data point
+    independently.
+\end{itemize}
+
+\subsubsection{Disadvantages}
+\begin{itemize}
+    \item \textbf{Less Effective for General Tasks}:
+    InstanceNorm is less effective for general tasks compared to batch
+    normalization.
+
+    \item \textbf{Computationally Expensive}:
+    InstanceNorm can be computationally expensive for large feature spaces.
+\end{itemize}
+
+\subsection{Group Normalization}
+Group normalization (GroupNorm) divides the channels into groups and
+normalizes within each group. This offers a balance between batch
+normalization and layer normalization, making it suitable for a wide
+range of tasks.
+
+\subsubsection{How It Works}
+Group normalization divides the channels into \(G\) groups and computes
+the mean and variance for each group:
+\[
+\mu_G = \frac{1}{H/G} \sum_{i=1}^{H/G} z_i,
+\]
+\[
+\sigma_G^2 = \frac{1}{H/G} \sum_{i=1}^{H/G} (z_i - \mu_G)^2,
+\]
+where \(H\) is the number of features (neurons) in the layer. The
+normalized activations are then scaled and shifted using learnable
+parameters \(\gamma\) and \(\beta\):
+\[
+\hat{z}_i = \frac{z_i - \mu_G}{\sqrt{\sigma_G^2 + \epsilon}},
+\]
+\[
+y_i = \gamma \hat{z}_i + \beta.
+\]
+
+\subsubsection{Advantages}
+\begin{itemize}
+    \item \textbf{Flexible}:
+    GroupNorm is flexible and can be applied to a wide range of tasks,
+    including CNNs and RNNs.
+
+    \item \textbf{Independent of Batch Size}:
+    GroupNorm does not depend on the batch size, making it suitable for
+    small or variable batch sizes.
+
+    \item \textbf{Stable Training}:
+    GroupNorm stabilizes training by normalizing within groups, reducing
+    internal covariate shift.
+\end{itemize}
+
+\subsubsection{Disadvantages}
+\begin{itemize}
+    \item \textbf{Choice of Group Size}:
+    The choice of group size can affect performance, and finding the
+    optimal group size may require experimentation.
+
+    \item \textbf{Computationally Expensive}:
+    GroupNorm can be computationally expensive for large feature spaces.
+\end{itemize}
+
+\section{Conclusion}
+Normalization is a powerful technique for stabilizing and accelerating
+the training of deep neural networks. Batch normalization, in
+particular, has become a standard tool in modern deep learning.
+However, it is important to understand its limitations and consider
+alternatives when necessary. By carefully applying normalization
+techniques, we can improve the performance and robustness of neural
+networks.
+\end{notechapter}

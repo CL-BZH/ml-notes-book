@@ -1,0 +1,246 @@
+% Source: time_series_multiplicative_seasonality.tex
+\begin{notechapter}
+% ---- chapter-local definitions ----
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{white},
+    commentstyle=\color{green},
+    keywordstyle=\color{blue},
+    numberstyle=\tiny\color{gray},
+    stringstyle=\color{purple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=4
+}
+\lstset{style=mystyle}
+% -----------------------------------
+\chapter{Time Series with Multiplicative Seasonality}\label{ch:multiplicative-seasonality}
+
+\section{Time Series with Multiplicative Seasonality}
+
+A time series with multiplicative seasonality can be modeled as:
+\[
+Y_t = T_t \times S_t \times \epsilon_t
+\]
+where:
+\begin{itemize}
+    \item \( Y_t \) is the observed value at time \( t \),
+    \item \( T_t \) is the trend component,
+    \item \( S_t \) is the seasonal component,
+    \item \( \epsilon_t \) is the random error (assumed negligible).
+\end{itemize}
+
+For additive seasonality, the model is:
+\[
+Y_t = T_t + S_t + \epsilon_t
+\]
+
+\section{Constructing the Time Series}
+
+\subsection{Trend Component (\( T_t \))}
+The trend component represents the long-term growth or decline in the data.
+In this example, we assume a linear trend:
+\[
+T_t = 100 + 4t
+\]
+where \( t \) is the time period (in months).
+This means the sales increase by 4 units every month.
+
+\subsection{Seasonal Component (\( S_t \))}
+The seasonal component captures periodic fluctuations.
+For multiplicative seasonality, we use a sinusoidal function scaled
+to create a multiplicative effect:
+\[
+S_t = 1 + 0.5 \sin\left(\frac{2\pi t}{12}\right)
+\]
+This creates a seasonal pattern that repeats every 12 months (1 year).
+Because $S_t$ multiplies the trend, the seasonal swings ($\pm 50\%$ of the trend here, since the amplitude is $0.5$) grow proportionally with the level of the series. Note also that $S_t$ averages to $1$ over a full period.
+
+\subsection{Observed Series (\( Y_t \))}
+The observed series is obtained by multiplying the trend and seasonal
+components:
+\[
+Y_t = T_t \times S_t
+\]
+Substituting the expressions for \( T_t \) and \( S_t \):
+\[
+Y_t = (100 + 4t) \times \left(1 + 0.5 \sin\left(\frac{2\pi t}{12}\right)\right)
+\]
+
+\subsection{Example Data}
+The table below shows the observed data \( Y_t \) for 36 months (3 years), with $t=1$ in January of year 1 (values rounded to one decimal). Note how the seasonal swings grow with the level of the series: this is the signature of multiplicative seasonality.
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+Month & Year 1 Sales & Year 2 Sales & Year 3 Sales \\
+\hline
+January & 130.0 & 190.0 & 250.0 \\
+February & 154.8 & 223.5 & 292.3 \\
+March & 168.0 & 240.0 & 312.0 \\
+April & 166.2 & 235.0 & 303.8 \\
+May & 150.0 & 210.0 & 270.0 \\
+June & 124.0 & 172.0 & 220.0 \\
+July & 96.0 & 132.0 & 168.0 \\
+August & 74.8 & 102.1 & 129.3 \\
+September & 68.0 & 92.0 & 116.0 \\
+October & 79.4 & 106.6 & 133.8 \\
+November & 108.0 & 144.0 & 180.0 \\
+December & 148.0 & 196.0 & 244.0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Isolating the Trend Using Moving Averages}
+
+To isolate the trend from the observed series \( Y_t \), we can use a
+moving average. A moving average smooths out short-term fluctuations
+and highlights the long-term trend. For monthly data with a 12-month
+seasonality, a 12-month moving average is appropriate.
+
+The moving average \( \text{MA}_t \) at time \( t \) is calculated as:
+\[
+\text{MA}_t = \frac{1}{12} \sum_{k=t-6}^{t+5} Y_k
+\]
+which is the convention used in the code below. Since the window length is even, this average is centered at $t - \tfrac{1}{2}$ rather than at $t$. Classical decomposition therefore uses the \emph{centered} $2\times 12$ moving average
+\[
+\text{MA}_t = \frac{1}{24}\Big(Y_{t-6} + 2\sum_{k=t-5}^{t+5} Y_k + Y_{t+6}\Big),
+\]
+which is exactly centered at $t$ and still removes a seasonal pattern of period 12.
+
+\subsection{Convolution for Moving Average}
+The moving average is computed efficiently using \textbf{convolution}.
+Convolution is a mathematical operation that combines two sequences to
+produce a third sequence. In this case, we convolve the time series
+\( Y_t \) with a kernel of weights.
+
+For a 12-month moving average, the kernel is:
+\[
+\text{kernel} = \left[\frac{1}{12}, \frac{1}{12}, \dots, \frac{1}{12}\right]
+\]
+This kernel is applied to the time series \( Y_t \) using the
+`np.convolve` function. The convolution operation is performed as
+follows:
+\[
+\text{moving\_avg} = Y_t \ast \text{kernel}
+\]
+where \( \ast \) denotes the convolution operation.
+
+The `mode='valid'` argument ensures that the convolution is computed
+only where the kernel fully overlaps with the time series.
+This avoids edge effects and results in a smoothed series of
+length \( N - 11 \), where \( N \) is the length of \( Y_t \).
+
+\section{Removing the Trend}
+
+Once the trend \( \text{MA}_t \) is isolated, we can remove it from
+the observed series \( Y_t \) to analyze the seasonal and residual
+components. For multiplicative seasonality, this is done by dividing
+the observed series by the trend:
+\[
+\text{Detrended Series} = \frac{Y_t}{\text{MA}_t}
+\]
+
+\section{Python Code for Trend Isolation and Visualization}
+
+The following Python code generates the time series, isolates the trend
+using a moving average, removes the trend, and plots the results.
+
+\begin{pyblock}
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Time periods (36 months)
+t = np.arange(1, 37)
+
+# Trend component (T_t)
+T_t = 100 + 4 * t
+
+# Seasonal component (S_t)
+S_t = 1 + 0.5 * np.sin(2 * np.pi * t / 12)
+
+# Observed series (Y_t)
+Y_t = T_t * S_t
+
+# Calculate the 12-month moving average to isolate the trend
+window_size = 12
+moving_avg = np.convolve(Y_t, np.ones(window_size)/window_size, mode='valid')
+
+# Adjust the time axis for the moving average
+t_moving_avg = t[window_size//2 : len(t) - window_size//2 + 1]
+
+# Remove the trend by dividing Y_t by the moving average
+detrended_series = Y_t[window_size//2 : len(t) - window_size//2 + 1] / moving_avg
+
+# Plot 1: Time series and moving average
+plt.figure(figsize=(10, 6))
+plt.plot(t, Y_t, marker='o', label="Observed Data")
+plt.plot(t_moving_avg, moving_avg, linestyle='--', label="12-Month Moving Average (Trend)")
+plt.title("Time Series with Multiplicative Seasonality and Trend Isolation")
+plt.xlabel("Months")
+plt.ylabel("Sales")
+plt.xticks(np.arange(1, 37, 3), 
+           ["Jan Y1", "Apr Y1", "Jul Y1", "Oct Y1", 
+            "Jan Y2", "Apr Y2", "Jul Y2", "Oct Y2", 
+            "Jan Y3", "Apr Y3", "Jul Y3", "Oct Y3"])
+plt.grid(True)
+plt.legend()
+plt.savefig("time_series_with_trend.png")  # Save the plot
+plt.close()  # Close the figure
+
+# Plot 2: Detrended series
+plt.figure(figsize=(10, 6))
+plt.plot(t_moving_avg, detrended_series, marker='o', label="Detrended Data")
+plt.title("Detrended Time Series (Seasonal and Residual Components)")
+plt.xlabel("Months")
+plt.ylabel("Sales (Detrended)")
+plt.xticks(np.arange(1, 37, 3), 
+           ["Jan Y1", "Apr Y1", "Jul Y1", "Oct Y1", 
+            "Jan Y2", "Apr Y2", "Jul Y2", "Oct Y2", 
+            "Jan Y3", "Apr Y3", "Jul Y3", "Oct Y3"])
+plt.grid(True)
+plt.legend()
+plt.savefig("detrended_series.png")  # Save the plot
+plt.close()  # Close the figure
+\end{pyblock}
+
+\section{Generated Plots}
+
+\subsection{Plot 1: Time Series with Trend Isolation}
+The first plot shows the observed data \( Y_t \) and the 12-month
+moving average (trend).
+
+\begin{figure}[!h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{time_series_with_trend.png}
+    \caption{Time Series with Multiplicative Seasonality and Trend Isolation}
+\end{figure}
+
+\subsection{Plot 2: Detrended Time Series}
+The second plot shows the detrended series, which represents the
+seasonal and residual components after removing the trend.
+
+\begin{figure}[!h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{detrended_series.png}
+    \caption{Detrended Time Series (Seasonal and Residual Components)}
+\end{figure}
+
+\section{Explanation of the Detrended Series}
+
+The detrended series is obtained by dividing the observed series
+\( Y_t \) by the moving average \( \text{MA}_t \). This removes the
+trend component, leaving behind the seasonal and residual components:
+\[
+\text{Detrended Series} = \frac{Y_t}{\text{MA}_t}
+\]
+The detrended series highlights the seasonal patterns and any remaining
+random fluctuations.
+\end{notechapter}

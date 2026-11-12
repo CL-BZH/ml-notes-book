@@ -1,0 +1,266 @@
+% Source: computational_graph_and _backpropagation.tex
+\begin{notechapter}
+\chapter{Backpropagation in a Network with Two Hidden Layers}\label{ch:backprop-two-hidden}
+
+\section{Introduction}
+This document explains the forward pass, backward pass, and gradient
+computations for a neural network with 2 hidden layers. We use row
+vectors for inputs and outputs, as this is the convention in most deep
+learning frameworks. Additionally, we introduce \textbf{computational
+graphs} to visualize the flow of computations and gradients during
+backpropagation.
+
+\section{Network Architecture}
+Consider a neural network with:
+\begin{itemize}[leftmargin=*]
+    \item Input layer: 2 neurons (\(x_1, x_2\))
+    \item First hidden layer: 3 neurons
+    \item Second hidden layer: 4 neurons
+    \item Output layer: 1 neuron
+\end{itemize}
+
+The weights and biases for each layer are:
+\begin{itemize}[leftmargin=*]
+    \item First hidden layer: \(\bm{W}_1\) (shape \(2 \times 3\)),
+    \(\bm{b}_1\) (shape \(1 \times 3\))
+    \item Second hidden layer: \(\bm{W}_2\) (shape \(3 \times 4\)),
+    \(\bm{b}_2\) (shape \(1 \times 4\))
+    \item Output layer: \(\bm{W}_3\) (shape \(4 \times 1\)),
+    \(\bm{b}_3\) (shape \(1 \times 1\))
+\end{itemize}
+
+\section{Computational Graphs}
+A computational graph is a directed acyclic graph (DAG) where:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Nodes} represent variables (inputs, weights, biases,
+    intermediate values, outputs).
+    \item \textbf{Edges} represent operations (e.g., matrix
+    multiplication, addition, activation functions).
+\end{itemize}
+
+Computational graphs are used to:
+\begin{itemize}[leftmargin=*]
+    \item Visualize the flow of computations during the forward pass.
+    \item Track dependencies between variables for gradient computation
+    during the backward pass.
+\end{itemize}
+
+\section{Forward Pass}
+The forward pass computes the output of each layer step by step.
+
+\subsection{First Hidden Layer}
+\begin{align*}
+    \bm{z}_1 &= \bm{x} \cdot \bm{W}_1 + \bm{b}_1 \quad
+    \text{(shape } 1 \times 3\text{)} \\
+    \bm{a}_1 &= \text{ReLU}(\bm{z}_1) \quad
+    \text{(shape } 1 \times 3\text{)}
+\end{align*}
+Here:
+\begin{itemize}[leftmargin=*]
+    \item \(\bm{x}\) is the input row vector (\(1 \times 2\)).
+    \item \(\bm{W}_1\) is the weight matrix (\(2 \times 3\)).
+    \item \(\bm{b}_1\) is the bias row vector (\(1 \times 3\)).
+    \item \(\bm{z}_1\) is the pre-activation output (\(1 \times 3\)).
+    \item \(\bm{a}_1\) is the activation output (\(1 \times 3\)),
+    computed using the ReLU function:
+    \[
+    \text{ReLU}(\bm{z}) = \max(0, \bm{z})
+    \]
+\end{itemize}
+
+\subsection{Second Hidden Layer}
+\begin{align*}
+    \bm{z}_2 &= \bm{a}_1 \cdot \bm{W}_2 + \bm{b}_2 \quad
+    \text{(shape } 1 \times 4\text{)} \\
+    \bm{a}_2 &= \text{ReLU}(\bm{z}_2) \quad
+    \text{(shape } 1 \times 4\text{)}
+\end{align*}
+Here:
+\begin{itemize}[leftmargin=*]
+    \item \(\bm{W}_2\) is the weight matrix (\(3 \times 4\)).
+    \item \(\bm{b}_2\) is the bias row vector (\(1 \times 4\)).
+    \item \(\bm{z}_2\) is the pre-activation output (\(1 \times 4\)).
+    \item \(\bm{a}_2\) is the activation output (\(1 \times 4\)),
+    computed using the ReLU function.
+\end{itemize}
+
+\subsection{Output Layer}
+\begin{align*}
+    \bm{z}_3 &= \bm{a}_2 \cdot \bm{W}_3 + \bm{b}_3 \quad
+    \text{(shape } 1 \times 1\text{)} \\
+    \hat{y} &= \sigma(\bm{z}_3) \quad
+    \text{(shape } 1 \times 1\text{)}
+\end{align*}
+Here:
+\begin{itemize}[leftmargin=*]
+    \item \(\bm{W}_3\) is the weight matrix (\(4 \times 1\)).
+    \item \(\bm{b}_3\) is the bias scalar (\(1 \times 1\)).
+    \item \(\bm{z}_3\) is the pre-activation output (\(1 \times 1\)).
+    \item \(\hat{y}\) is the final output (\(1 \times 1\)), computed
+    using the sigmoid function:
+    \[
+    \sigma(\bm{z}) = \frac{1}{1 + e^{-\bm{z}}}
+    \]
+\end{itemize}
+
+\section{Loss Computation}
+The loss \(L\) is computed using binary cross-entropy loss:
+\[
+L = -\left( y \log(\hat{y}) + (1 - y) \log(1 - \hat{y}) \right)
+\]
+where \(y\) is the true label and \(\hat{y}\) is the predicted output.
+
+\section{Backward Pass (Gradient Computation)}
+The backward pass computes the gradients of the loss \(L\) with respect
+to all weights and biases using the chain rule. Computational graphs
+are used to track the flow of gradients.
+
+\subsection{Gradient of the Loss with Respect to the Output Layer}
+The gradient \(\frac{\partial L}{\partial \bm{z}_3}\) is computed as:
+\begin{align*}
+    L &= -\left( y \log(\hat{y}) + (1 - y) \log(1 - \hat{y}) \right) \\
+    \hat{y} &= \sigma(\bm{z}_3) = \frac{1}{1 + e^{-\bm{z}_3}} \\
+    \frac{\partial L}{\partial \hat{y}} &= -\frac{y}{\hat{y}} +
+    \frac{1 - y}{1 - \hat{y}} \\
+    \frac{\partial \hat{y}}{\partial \bm{z}_3} &= \hat{y} (1 - \hat{y}) \\
+    \frac{\partial L}{\partial \bm{z}_3} &= \frac{\partial L}{\partial \hat{y}}
+    \cdot \frac{\partial \hat{y}}{\partial \bm{z}_3} \\
+    &= \left( -\frac{y}{\hat{y}} + \frac{1 - y}{1 - \hat{y}} \right)
+    \cdot \hat{y} (1 - \hat{y}) \\
+    &= \hat{y} - y
+\end{align*}
+Thus:
+\[
+\frac{\partial L}{\partial \bm{z}_3} = \hat{y} - y \quad
+\text{(shape } 1 \times 1\text{)}
+\]
+
+\begin{center}
+\begin{tikzpicture}[node distance=2cm, auto]
+    \node (L) {\(L\)};
+    \node (yhat) [above of=L] {\(\hat{y}\)};
+    \node (z3) [above of=yhat] {\(\bm{z}_3\)};
+    \node (a2) [left of=z3] {\(\bm{a}_2\)};
+    \node (W3) [above of=a2] {\(\bm{W}_3\)};
+    \node (b3) [right of=W3] {\(\bm{b}_3\)};
+
+    \draw[->] (yhat) -- (L);
+    \draw[->] (z3) -- (yhat);
+    \draw[->] (a2) -- (z3);
+    \draw[->] (W3) -- (z3);
+    \draw[->] (b3) -- (z3);
+\end{tikzpicture}
+\end{center}
+
+The gradients for \(\bm{W}_3\) and \(\bm{b}_3\) are:
+\begin{align*}
+    \frac{\partial L}{\partial \bm{W}_3} &= \bm{a}_2^T \cdot
+    \frac{\partial L}{\partial \bm{z}_3} \quad
+    \text{(shape } 4 \times 1\text{)} \\
+    \frac{\partial L}{\partial \bm{b}_3} &= \frac{\partial L}{\partial \bm{z}_3}
+    \quad \text{(shape } 1 \times 1\text{)}
+\end{align*}
+
+\subsection{Gradient of the Loss with Respect to the Second Hidden Layer}
+The gradient \(\frac{\partial L}{\partial \bm{z}_2}\) is computed as:
+\begin{align*}
+    \frac{\partial L}{\partial \bm{a}_2} &= \frac{\partial L}{\partial \bm{z}_3}
+    \cdot \bm{W}_3^T \quad \text{(shape } 1 \times 4\text{)} \\
+    \frac{\partial L}{\partial \bm{z}_2} &= \frac{\partial L}{\partial \bm{a}_2}
+    \odot \text{ReLU}'(\bm{z}_2) \quad \text{(shape } 1 \times 4\text{)}
+\end{align*}
+Here, \(\text{ReLU}'(\bm{z}_2)\) is the derivative of the ReLU function:
+\[
+\text{ReLU}'(\bm{z}_2) = \begin{cases}
+    1 & \text{if } \bm{z}_2 > 0 \\
+    0 & \text{otherwise}
+\end{cases}
+\]
+
+\begin{center}
+\begin{tikzpicture}[node distance=2cm, auto]
+    \node (L) {\(L\)};
+    \node (z3) [above of=L] {\(\bm{z}_3\)};
+    \node (a2) [above of=z3] {\(\bm{a}_2\)};
+    \node (z2) [above of=a2] {\(\bm{z}_2\)};
+    \node (a1) [left of=z2] {\(\bm{a}_1\)};
+    \node (W2) [above of=a1] {\(\bm{W}_2\)};
+    \node (b2) [right of=W2] {\(\bm{b}_2\)};
+
+    \draw[->] (z3) -- (L);
+    \draw[->] (a2) -- (z3);
+    \draw[->] (z2) -- (a2);
+    \draw[->] (a1) -- (z2);
+    \draw[->] (W2) -- (z2);
+    \draw[->] (b2) -- (z2);
+\end{tikzpicture}
+\end{center}
+
+The gradients for \(\bm{W}_2\) and \(\bm{b}_2\) are:
+\begin{align*}
+    \frac{\partial L}{\partial \bm{W}_2} &= \bm{a}_1^T \cdot
+    \frac{\partial L}{\partial \bm{z}_2} \quad
+    \text{(shape } 3 \times 4\text{)} \\
+    \frac{\partial L}{\partial \bm{b}_2} &= \frac{\partial L}{\partial \bm{z}_2}
+    \quad \text{(shape } 1 \times 4\text{)}
+\end{align*}
+
+\subsection{Gradient of the Loss with Respect to the First Hidden Layer}
+The gradient \(\frac{\partial L}{\partial \bm{z}_1}\) is computed as:
+\begin{align*}
+    \frac{\partial L}{\partial \bm{a}_1} &= \frac{\partial L}{\partial \bm{z}_2}
+    \cdot \bm{W}_2^T \quad \text{(shape } 1 \times 3\text{)} \\
+    \frac{\partial L}{\partial \bm{z}_1} &= \frac{\partial L}{\partial \bm{a}_1}
+    \odot \text{ReLU}'(\bm{z}_1) \quad \text{(shape } 1 \times 3\text{)}
+\end{align*}
+Here, \(\text{ReLU}'(\bm{z}_1)\) is the derivative of the ReLU function.
+
+\begin{center}
+\begin{tikzpicture}[node distance=2cm, auto]
+    \node (L) {\(L\)};
+    \node (z2) [above of=L] {\(\bm{z}_2\)};
+    \node (a1) [above of=z2] {\(\bm{a}_1\)};
+    \node (z1) [above of=a1] {\(\bm{z}_1\)};
+    \node (x) [left of=z1] {\(\bm{x}\)};
+    \node (W1) [above of=x] {\(\bm{W}_1\)};
+    \node (b1) [right of=W1] {\(\bm{b}_1\)};
+
+    \draw[->] (z2) -- (L);
+    \draw[->] (a1) -- (z2);
+    \draw[->] (z1) -- (a1);
+    \draw[->] (x) -- (z1);
+    \draw[->] (W1) -- (z1);
+    \draw[->] (b1) -- (z1);
+\end{tikzpicture}
+\end{center}
+
+The gradients for \(\bm{W}_1\) and \(\bm{b}_1\) are:
+\begin{align*}
+    \frac{\partial L}{\partial \bm{W}_1} &= \bm{x}^T \cdot
+    \frac{\partial L}{\partial \bm{z}_1} \quad
+    \text{(shape } 2 \times 3\text{)} \\
+    \frac{\partial L}{\partial \bm{b}_1} &= \frac{\partial L}{\partial \bm{z}_1}
+    \quad \text{(shape } 1 \times 3\text{)}
+\end{align*}
+
+\section{Weight Updates}
+After computing the gradients, update the weights and biases using
+gradient descent:
+\begin{align*}
+    \bm{W}_1 &= \bm{W}_1 - \eta \frac{\partial L}{\partial \bm{W}_1} \\
+    \bm{b}_1 &= \bm{b}_1 - \eta \frac{\partial L}{\partial \bm{b}_1} \\
+    \bm{W}_2 &= \bm{W}_2 - \eta \frac{\partial L}{\partial \bm{W}_2} \\
+    \bm{b}_2 &= \bm{b}_2 - \eta \frac{\partial L}{\partial \bm{b}_2} \\
+    \bm{W}_3 &= \bm{W}_3 - \eta \frac{\partial L}{\partial \bm{W}_3} \\
+    \bm{b}_3 &= \bm{b}_3 - \eta \frac{\partial L}{\partial \bm{b}_3}
+\end{align*}
+where \(\eta\) is the learning rate.
+
+\section{Conclusion}
+This document provides a step-by-step explanation of forward
+propagation, backward propagation, and gradient computations for a
+neural network with 2 hidden layers. The use of row vectors simplifies
+the notation and aligns with the conventions used in deep learning
+frameworks. Computational graphs are introduced to visualize the flow
+of computations and gradients, making the process more intuitive.
+\end{notechapter}

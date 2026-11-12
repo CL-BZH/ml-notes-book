@@ -1,0 +1,561 @@
+% Source: Graph_ML/LHN_Similarity/lhn_similarity.tex
+\begin{notechapter}
+% ---- chapter-local definitions ----
+\forgetcs\E\newcommand{\E}{\mathbb{E}}
+\forgetcs\R\newcommand{\R}{\mathbb{R}}
+\forgetcs\bA\newcommand{\bA}{\mathbf{A}}
+\forgetcs\bD\newcommand{\bD}{\mathbf{D}}
+\forgetcs\bI\newcommand{\bI}{\mathbf{I}}
+\forgetcs\bS\newcommand{\bS}{\mathbf{S}}
+\forgetcs\bp\newcommand{\bp}{\mathbf{p}}
+\forgetenv{keyidea}\newtcolorbox{keyidea}{
+    colback=blue!5!white,
+    colframe=blue!75!black,
+    fonttitle=\bfseries,
+    title=Key Idea,
+    breakable
+}
+\forgetenv{intuition}\newtcolorbox{intuition}{
+    colback=green!5!white,
+    colframe=green!50!black,
+    fonttitle=\bfseries,
+    title=Intuition,
+    breakable
+}
+\forgetenv{warning}\newtcolorbox{warning}{
+    colback=red!5!white,
+    colframe=red!75!black,
+    fonttitle=\bfseries,
+    title=Important Note,
+    breakable
+}
+% -----------------------------------
+\chapter{The Leicht--Holme--Newman Similarity}\label{ch:lhn-similarity}
+\chaptersubtitle{A degree-normalized global node similarity}
+
+\begin{abstract}
+This document provides a detailed explanation of the Leicht, Holme, and Newman (LHN) similarity measure for graphs. We begin with the motivation behind LHN, explain its relationship to the Katz index, and then carefully define the \emph{null model} (the configuration model) and the probability distribution it induces. We clarify the distinction between the observed adjacency matrix and the random adjacency matrices over which expectations are computed. Finally, we derive the expected path counts and present the closed-form solution. The goal is to build rigorous intuition for why degree normalization matters and how spectral approximations enable tractable computation.
+\end{abstract}
+
+%=============================================================================
+\section{Motivation: The Problem with the Katz Index}
+%=============================================================================
+
+\subsection{Background: Counting Paths for Similarity}
+
+A fundamental idea in graph-based similarity is that \textbf{nodes connected by many paths should be considered similar}. The Katz index formalizes this intuition.
+
+\begin{definition}[Katz Index]
+Given a graph $G = (V, E)$ with adjacency matrix $\bA$, the \textbf{Katz index} between nodes $u$ and $v$ is:
+\begin{equation}
+S_{\text{Katz}}[u,v] = \sum_{i=1}^{\infty} \beta^i \bA^i[u,v]
+\label{lhn-similarity:eq:katz}
+\end{equation}
+where $\beta \in (0, 1/\lambda_1)$ is a decay parameter and $\bA^i[u,v]$ counts the number of length-$i$ paths from $u$ to $v$.
+\end{definition}
+
+The parameter $\beta < 1/\lambda_1$ (where $\lambda_1$ is the largest eigenvalue of $\bA$) ensures convergence and down-weights longer paths.
+
+\begin{theorem}[Closed-Form Solution for Katz Index]
+\label{lhn-similarity:thm:katz-closed}
+The Katz index has the closed-form solution:
+\begin{equation}
+\bS_{\text{Katz}} = (\bI - \beta\bA)^{-1} - \bI
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+Using the geometric series for matrices: if $\lambda_1(\beta\bA) < 1$, then
+\[
+(\bI - \beta\bA)^{-1} = \sum_{i=0}^{\infty} (\beta\bA)^i = \bI + \sum_{i=1}^{\infty} \beta^i \bA^i
+\]
+Subtracting $\bI$ from both sides gives the result.
+\end{proof}
+
+\subsection{The Degree Bias Problem}
+
+\begin{warning}
+The Katz index is \textbf{strongly biased by node degree}. High-degree nodes naturally participate in more paths, leading to inflated similarity scores regardless of any special relationship between nodes.
+\end{warning}
+
+\begin{example}[Degree Bias Illustration]
+Consider a social network where:
+\begin{itemize}
+    \item Node $u$ is a celebrity with 10,000 followers
+    \item Node $v$ is a regular user with 50 connections
+    \item Node $w$ is another regular user with 50 connections
+\end{itemize}
+The Katz index will likely give $S_{\text{Katz}}[u, w] > S_{\text{Katz}}[v, w]$ simply because $u$ has more connections, even if $v$ and $w$ share a genuine community membership that $u$ does not share.
+\end{example}
+
+\begin{intuition}
+The question we should ask is not ``How many paths exist between $u$ and $v$?'' but rather ``\textbf{Do more paths exist than we would expect by chance?}''
+\end{intuition}
+
+%=============================================================================
+\section{The LHN Solution: Normalizing by Expected Paths}
+%=============================================================================
+
+\subsection{Core Idea}
+
+Leicht, Holme, and Newman (2006) proposed normalizing the observed path count by the \textbf{expected} path count under a null model:
+
+\begin{equation}
+\text{Normalized similarity} \propto \frac{\bA^i[u,v]}{\E[\bA_{G'}^i[u,v]]}
+\label{lhn-similarity:eq:lhn-ratio}
+\end{equation}
+
+\begin{keyidea}
+If two nodes have \textbf{more paths than expected}, they are genuinely similar. If they have paths only because they're both high-degree, the ratio in \cref{lhn-similarity:eq:lhn-ratio} will be close to 1, indicating no special relationship.
+\end{keyidea}
+
+\subsection{What is a Null Model?}
+
+A \textbf{null model} is a baseline random model representing ``what we would expect if there is nothing special going on.'' It serves as a statistical control group.
+
+\begin{keyidea}
+In the LHN context, the null model answers: \emph{``If edges formed randomly (but preserving node degrees), how many paths would we expect between nodes $u$ and $v$?''}
+
+If the \emph{observed} path count is much higher than this null expectation, then $u$ and $v$ have a genuine structural relationship beyond what their degrees alone would predict.
+\end{keyidea}
+
+\subsection{The Configuration Model}
+
+LHN uses the \textbf{configuration model} as its null model. This is both:
+\begin{enumerate}
+    \item A \textbf{generative procedure} for creating random graphs, and
+    \item A \textbf{probability distribution} over the space of graphs with a given degree sequence.
+\end{enumerate}
+
+\begin{definition}[Configuration Model]
+The configuration model generates random graphs with a \textbf{prescribed degree sequence} $(d_1, d_2, \ldots, d_n)$---typically extracted from the observed graph. The generative procedure is:
+\begin{enumerate}
+    \item \textbf{Create stubs}: Assign to each node $u$ exactly $d_u$ ``stubs'' (half-edges).
+    \item \textbf{Pair randomly}: Repeatedly select two unpaired stubs uniformly at random and connect them to form an edge. Continue until no unpaired stubs remain.
+\end{enumerate}
+The result is a random graph where each node has exactly the same degree as in the original graph, but the \emph{wiring pattern} is randomized.
+\end{definition}
+
+\begin{intuition}
+The configuration model preserves degrees but randomizes structure. This is crucial: if we used a simpler null model (like Erd\H{o}s-R\'enyi random graphs with uniform edge probability), high-degree nodes would appear ``special'' just for having high degree. By \emph{fixing} degrees, we isolate the question: ``Given their degrees, do these nodes connect more than expected?''
+\end{intuition}
+
+Under this model, the probability that a random stub from node $u$ connects to node $v$ is proportional to how many stubs $v$ has:
+\[
+P(\text{stub from } u \text{ connects to } v) = \frac{d_v}{2m - 1} \approx \frac{d_v}{2m}
+\]
+where $m = |E|$ is the total number of edges (so $2m$ is the total number of stubs).
+
+\subsection{Clarifying the Expectation and the Two Adjacency Matrices}
+
+There is a subtle but important distinction that must be made explicit.
+
+\begin{warning}
+In the LHN formula, there are \textbf{two different adjacency matrices} playing different roles:
+\begin{enumerate}
+    \item $\bA$ \textbf{(the observed graph)}: The adjacency matrix of your actual, fixed graph $G$. The term $\bA^i[u,v]$ counts the actual number of length-$i$ paths in your real data.
+    \item $\bA_{G'}$ \textbf{(random graphs from the null model)}: Adjacency matrices of hypothetical random graphs $G'$ sampled from the configuration model. These are \emph{random variables}.
+\end{enumerate}
+\end{warning}
+
+The expectation is computed over the probability distribution induced by the configuration model. To be fully explicit, we write $\bA_{G'}$ for the adjacency matrix of a random graph $G'$ sampled from this distribution:
+\begin{equation}
+\E[\bA_{G'}^i[u,v]] = \sum_{G' \in \mathcal{G}} P(G') \cdot \bA_{G'}^i[u,v]
+\label{lhn-similarity:eq:expectation-formal}
+\end{equation}
+where:
+\begin{itemize}
+    \item $\mathcal{G}$ is the set of all graphs that can be generated by the configuration model (i.e., all graphs with the same degree sequence as $G$),
+    \item $P(G')$ is the probability of generating graph $G'$ via the random stub-pairing process,
+    \item $\bA_{G'}^i[u,v]$ is the number of length-$i$ paths from $u$ to $v$ \emph{in the random graph $G'$}.
+\end{itemize}
+
+\begin{keyidea}
+The LHN ratio compares:
+\[
+\frac{\bA^i[u,v]}{\E[\bA_{G'}^i[u,v]]} = \frac{\text{actual paths in your observed graph } G}{\text{expected paths in random graphs with the same degrees}}
+\]
+This ratio is $>1$ when nodes $u$ and $v$ are more connected than their degrees alone would predict, indicating genuine structural similarity.
+\end{keyidea}
+
+%=============================================================================
+\section{Deriving Expected Path Counts}
+%=============================================================================
+
+\subsection{Expected Number of Edges: $\E[\bA_{G'}[u,v]]$}
+
+\begin{proposition}[Expected Edge Count]
+\label{lhn-similarity:prop:expected-edge}
+Under the configuration model, the expected number of edges between nodes $u$ and $v$ is:
+\begin{equation}
+\E[\bA_{G'}[u,v]] = \frac{d_u d_v}{2m}
+\label{lhn-similarity:eq:expected-edge}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Recall the formal definition of the expectation from \cref{lhn-similarity:eq:expectation-formal}:
+\[
+\E[\bA_{G'}[u,v]] = \sum_{G' \in \mathcal{G}} P(G') \cdot \bA_{G'}[u,v]
+\]
+Rather than enumerate all graphs in $\mathcal{G}$, we use \textbf{linearity of expectation} by decomposing $\bA_{G'}[u,v]$ into indicator random variables.
+
+\textbf{Step 1: Decompose into indicator variables.} 
+In any graph $G'$, the entry $\bA_{G'}[u,v]$ counts how many edges exist between $u$ and $v$. Let stub $s$ of node $u$ (for $s = 1, \ldots, d_u$) and stub $t$ of node $v$ (for $t = 1, \ldots, d_v$) be the half-edges. Define the indicator random variable:
+\[
+X_{s,t} = \mathbf{1}[\text{stub } s \text{ of } u \text{ is paired with stub } t \text{ of } v]
+\]
+Then:
+\[
+\bA_{G'}[u,v] = \sum_{s=1}^{d_u} \sum_{t=1}^{d_v} X_{s,t}
+\]
+
+\textbf{Step 2: Apply linearity of expectation.}
+\[
+\E[\bA_{G'}[u,v]] = \E\left[\sum_{s=1}^{d_u} \sum_{t=1}^{d_v} X_{s,t}\right] = \sum_{s=1}^{d_u} \sum_{t=1}^{d_v} \E[X_{s,t}]
+\]
+
+\textbf{Step 3: Compute each indicator's expectation.}
+For an indicator random variable, $\E[X_{s,t}] = P(X_{s,t} = 1)$.\footnote{This follows from the definition: $\E[X] = 1 \cdot P(X=1) + 0 \cdot P(X=0) = P(X=1)$.} In the configuration model with $2m$ total stubs, the probability that any specific stub from $u$ is paired with any specific stub from $v$ is:\footnote{We use the approximation $\frac{1}{2m-1} \approx \frac{1}{2m}$ for large $m$.}
+\[
+P(X_{s,t} = 1) = \frac{1}{2m-1} \approx \frac{1}{2m}
+\]
+
+\textbf{Step 4: Sum over all stub pairs.}
+\[
+\E[\bA_{G'}[u,v]] = \sum_{s=1}^{d_u} \sum_{t=1}^{d_v} \frac{1}{2m} = d_u \cdot d_v \cdot \frac{1}{2m} = \frac{d_u d_v}{2m}
+\]
+\end{proof}
+
+\begin{intuition}
+\Cref{lhn-similarity:eq:expected-edge} says that high-degree nodes are more likely to be connected simply because they have more ``opportunities'' to connect. This is the baseline we must correct for.
+\end{intuition}
+
+\subsection{Expected Number of Length-2 Paths: $\E[\bA_{G'}^2[u,v]]$}
+
+\begin{proposition}[Expected Length-2 Path Count]
+\label{lhn-similarity:prop:expected-path2}
+The expected number of length-2 paths between $u$ and $v$ is:
+\begin{equation}
+\E[\bA_{G'}^2[u,v]] = \frac{d_u d_v}{(2m)^2} \sum_{w \in V} d_w(d_w - 1)
+\label{lhn-similarity:eq:expected-path2}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+A length-2 path from $u$ to $v$ passes through some intermediate node $w$. We can write:
+\[
+\bA_{G'}^2[u,v] = \sum_{w \in V} \bA_{G'}[u,w] \cdot \bA_{G'}[w,v]
+\]
+
+By linearity of expectation:
+\[
+\E[\bA_{G'}^2[u,v]] = \sum_{w \in V} \E[\bA_{G'}[u,w] \cdot \bA_{G'}[w,v]]
+\]
+
+For each intermediate node $w$, we count paths $u \to w \to v$ using indicator variables. Let stub $s$ of $u$ (for $s = 1, \ldots, d_u$), stub $r$ of $w$ (for $r = 1, \ldots, d_w$), and stub $t$ of $v$ (for $t = 1, \ldots, d_v$) denote the half-edges. A length-2 path through $w$ requires:
+\begin{itemize}
+    \item Stub $s$ of $u$ paired with stub $r$ of $w$ (probability $\frac{1}{2m}$)
+    \item A \emph{different} stub $r'$ of $w$ paired with stub $t$ of $v$ (probability $\frac{1}{2m}$)
+\end{itemize}
+
+For a fixed $w$, the number of ways to choose the stubs involved is:
+\begin{itemize}
+    \item $d_u$ choices for stub $s$ of $u$
+    \item $d_w$ choices for stub $r$ of $w$ (for the $u$--$w$ edge)
+    \item $d_w - 1$ remaining choices for stub $r'$ of $w$ (for the $w$--$v$ edge)
+    \item $d_v$ choices for stub $t$ of $v$
+\end{itemize}
+
+Each such configuration has probability $\frac{1}{2m} \cdot \frac{1}{2m} = \frac{1}{(2m)^2}$. Thus:
+\[
+\E[\text{paths through } w] = d_u \cdot d_w \cdot (d_w - 1) \cdot d_v \cdot \frac{1}{(2m)^2} = \frac{d_u d_v \cdot d_w(d_w-1)}{(2m)^2}
+\]
+
+Summing over all possible intermediate nodes $w$:
+\[
+\E[\bA_{G'}^2[u,v]] = \sum_{w \in V} \frac{d_u d_v \cdot d_w(d_w-1)}{(2m)^2} = \frac{d_u d_v}{(2m)^2} \sum_{w \in V} d_w(d_w - 1)
+\]
+\end{proof}
+
+\subsection{The Intractability of Longer Paths}
+
+For paths of length $i \geq 3$, the exact computation of $\E[\bA_{G'}^i[u,v]]$ becomes combinatorially complex. We would need to account for all possible intermediate paths, their correlations, and the fact that edges may be reused.
+
+\begin{warning}
+Direct analytical computation of $\E[\bA_{G'}^i[u,v]]$ for $i > 2$ is \textbf{intractable}.
+\end{warning}
+
+%=============================================================================
+\section{Spectral Approximation for Long Paths}
+%=============================================================================
+
+\subsection{Path Growth and the Dominant Eigenvalue}
+
+LHN circumvents the intractability by using a spectral approximation based on the dominant eigenvalue.
+
+\begin{definition}[Path Count Vector]
+Let $\bp_i \in \R^{|V|}$ be the vector where $\bp_i[v]$ counts the number of length-$i$ paths from a fixed source node $u$ to each node $v$.
+\end{definition}
+
+We have the recurrence:
+\[
+\bp_i = \bA \bp_{i-1}
+\]
+
+\begin{intuition}
+Why does this recurrence hold? The number of length-$i$ paths from $u$ to $v$ equals the sum over all neighbors $w$ of $v$ of the number of length-$(i-1)$ paths from $u$ to $w$:
+\[
+\bp_i[v] = \sum_{w : (w,v) \in E} \bp_{i-1}[w] = \sum_{w=1}^{n} \bA[v,w] \cdot \bp_{i-1}[w] = (\bA \bp_{i-1})[v]
+\]
+In other words, to reach $v$ in $i$ steps, you must reach some neighbor $w$ in $i-1$ steps, then take the edge $(w,v)$.
+\end{intuition}
+
+\begin{example}[Path Count Recurrence]
+Consider a simple triangle graph with nodes $\{1, 2, 3\}$ where all pairs are connected:
+\[
+\bA = \begin{pmatrix} 0 & 1 & 1 \\ 1 & 0 & 1 \\ 1 & 1 & 0 \end{pmatrix}
+\]
+Starting from node 1, the initial vector $\bp_0 = (1, 0, 0)^\top$ (we are at node 1). Then:
+\[
+\bp_1 = \bA \bp_0 = \begin{pmatrix} 0 \\ 1 \\ 1 \end{pmatrix}
+\]
+This says: from node 1, there are 0 length-1 paths to node 1, and 1 length-1 path each to nodes 2 and 3. Next:
+\[
+\bp_2 = \bA \bp_1 = \begin{pmatrix} 2 \\ 1 \\ 1 \end{pmatrix}
+\]
+From node 1, there are 2 length-2 paths back to node 1 (via $1 \to 2 \to 1$ and $1 \to 3 \to 1$), and 1 length-2 path each to nodes 2 and 3.
+\end{example}
+
+\begin{theorem}[Asymptotic Path Growth]
+\label{lhn-similarity:thm:path-growth}
+For large $i$, the number of paths grows geometrically:
+\begin{equation}
+\bp_i \approx \lambda_1 \cdot \bp_{i-1}
+\label{lhn-similarity:eq:path-growth}
+\end{equation}
+where $\lambda_1$ is the largest eigenvalue of $\bA$. More precisely, the ratio $\|\bp_i\| / \|\bp_{i-1}\|$ converges to $\lambda_1$ as $i \to \infty$.
+\end{theorem}
+
+\begin{proof}[Sketch]
+Any vector can be decomposed in the eigenbasis of $\bA$:
+\[
+\bp_0 = \sum_{j=1}^{n} c_j \mathbf{v}_j
+\]
+where $\mathbf{v}_j$ is the eigenvector for eigenvalue $\lambda_j$. After $i$ iterations, using $\bA \mathbf{v}_j = \lambda_j \mathbf{v}_j$:
+\[
+\bp_i = \bA^i \bp_0 = \sum_{j=1}^{n} c_j \lambda_j^i \mathbf{v}_j
+\]
+For large $i$, the dominant term is $c_1 \lambda_1^i \mathbf{v}_1$ (assuming $|\lambda_1| > |\lambda_j|$ for $j > 1$):
+\[
+\bp_i \approx c_1 \lambda_1^i \mathbf{v}_1
+\]
+Similarly:
+\[
+\bp_{i-1} \approx c_1 \lambda_1^{i-1} \mathbf{v}_1
+\]
+Therefore:
+\[
+\bp_i \approx \lambda_1 \cdot \bp_{i-1}
+\]
+This shows that asymptotically, each multiplication by $\bA$ scales the path count vector by approximately $\lambda_1$.
+\end{proof}
+
+\begin{intuition}
+The number of paths between any two nodes grows \textbf{geometrically} with factor $\lambda_1$ as path length increases. This is a fundamental property of adjacency matrices.
+\end{intuition}
+
+\subsection{Approximation for Expected Path Counts}
+
+Using \cref{lhn-similarity:thm:path-growth} and the exact result for $i=1$ from \cref{lhn-similarity:prop:expected-edge}:
+
+\begin{proposition}[Approximate Expected Path Count]
+\label{lhn-similarity:prop:expected-path-approx}
+For all path lengths $i \geq 1$:
+\begin{equation}
+\E[\bA_{G'}^i[u,v]] \approx \frac{d_u d_v \lambda_1^{i-1}}{2m}
+\label{lhn-similarity:eq:expected-path-approx}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Base case ($i=1$): From \cref{lhn-similarity:prop:expected-edge}, $\E[\bA_{G'}[u,v]] = \dfrac{d_u d_v}{2m}$, which matches \cref{lhn-similarity:eq:expected-path-approx} with $\lambda_1^0 = 1$.
+
+Inductive step: By \cref{lhn-similarity:thm:path-growth}, the expected number of paths grows by factor $\lambda_1$ at each step:
+\[
+\E[\bA_{G'}^i[u,v]] \approx \lambda_1 \cdot \E[\bA_{G'}^{i-1}[u,v]] = \lambda_1 \cdot \frac{d_u d_v \lambda_1^{i-2}}{2m} = \frac{d_u d_v \lambda_1^{i-1}}{2m}
+\]
+\end{proof}
+
+%=============================================================================
+\section{The LHN Similarity Index}
+%=============================================================================
+
+\subsection{Definition}
+
+Combining the Katz index structure with the expected path normalization:
+
+\begin{definition}[LHN Similarity Index]
+The \textbf{Leicht-Holme-Newman (LHN) similarity} between nodes $u$ and $v$ is:
+\begin{equation}
+\boxed{
+S_{\text{LHN}}[u,v] = \bI[u,v] + \frac{2m}{d_u d_v} \sum_{i=1}^{\infty} \beta^i \lambda_1^{1-i} \bA^i[u,v]
+}
+\label{lhn-similarity:eq:lhn-definition}
+\end{equation}
+where $\bI$ is the identity matrix.
+\end{definition}
+
+\subsection{Derivation}
+
+Starting from the ratio of observed to expected paths (using our notational convention where $\bA$ without subscript refers to the observed graph):
+\[
+\frac{\bA^i[u,v]}{\E[\bA_{G'}^i[u,v]]} = \frac{\bA^i[u,v]}{\frac{d_u d_v \lambda_1^{i-1}}{2m}} = \frac{2m}{d_u d_v} \lambda_1^{1-i} \bA^i[u,v]
+\]
+
+Applying the Katz-style weighting with decay parameter $\beta$:
+\[
+S_{\text{LHN}}[u,v] = \frac{2m}{d_u d_v} \sum_{i=0}^{\infty} \beta^i \lambda_1^{1-i} \bA^i[u,v]
+\]
+
+The $i=0$ term gives $\frac{2m}{d_u d_v} \cdot \beta^0 \cdot \lambda_1^1 \cdot \bI[u,v] = \frac{2m\lambda_1}{d_u d_v}\bI[u,v]$. After appropriate rescaling and including the identity term:
+
+\begin{equation}
+S_{\text{LHN}}[u,v] = \bI[u,v] + \frac{2m}{d_u d_v} \sum_{i=1}^{\infty} \beta^i \lambda_1^{1-i} \bA^i[u,v]
+\end{equation}
+
+\subsection{Closed-Form Matrix Solution}
+
+\begin{theorem}[Closed-Form LHN]
+The LHN similarity matrix can be computed as:
+\begin{equation}
+\boxed{
+\bS_{\text{LHN}} = 2 m \lambda_1 \bD^{-1} \left(\bI - \frac{\beta}{\lambda_1}\bA\right)^{-1} \bD^{-1}
+}
+\label{lhn-similarity:eq:lhn-closed}
+\end{equation}
+where $\bD = \text{diag}(d_1, d_2, \ldots, d_n)$ is the diagonal degree matrix.
+\end{theorem}
+
+\begin{remark}
+This closed form corresponds to the sum starting at $i = 0$. The boxed definition above, with the identity
+term $\bI[u,v]$ and the sum starting at $i = 1$, differs from it only on the diagonal ($u = v$), which is
+irrelevant for ranking pairs of distinct nodes. Likewise, a global multiplicative constant does not change
+rankings: Hamilton's \emph{Graph Representation Learning} writes this formula with an additional constant
+factor in front.
+\end{remark}
+
+\begin{proof}
+Rewrite the sum (including the $i = 0$ term, as in the derivation above), using
+$\beta^i \lambda_1^{1-i} = \lambda_1 \left(\frac{\beta}{\lambda_1}\right)^{i}$:
+\begin{align*}
+\sum_{i=0}^{\infty} \beta^i \lambda_1^{1-i} \bA^i
+&= \lambda_1 \sum_{i=0}^{\infty} \left(\frac{\beta}{\lambda_1}\bA\right)^{i}.
+\end{align*}
+
+For convergence, we need the spectral radius of $\frac{\beta}{\lambda_1}\bA$, which is $\frac{\beta}{\lambda_1}\lambda_1 = \beta$ (for a connected graph, $\lambda_1$ is the spectral radius of $\bA$), to be smaller than $1$: the condition is $\beta < 1$ (and not merely $\beta/\lambda_1 < 1$). Using the geometric series:
+\[
+\sum_{j=0}^{\infty} \left(\frac{\beta}{\lambda_1}\bA\right)^{j} = \left(\bI - \frac{\beta}{\lambda_1}\bA\right)^{-1}
+\]
+
+The normalization factor $\frac{2m}{d_u d_v}$ becomes $\bD^{-1}(\cdot)\bD^{-1}$ in matrix form:
+\[
+S_{\text{LHN}}[u,v] = \left[\bD^{-1} \cdot \lambda_1 \left(\bI - \frac{\beta}{\lambda_1}\bA\right)^{-1} \cdot \bD^{-1}\right]_{uv} \cdot 2m
+\]
+
+In matrix form:
+\[
+\bS_{\text{LHN}} = 2 m \lambda_1 \bD^{-1} \left(\bI - \frac{\beta}{\lambda_1}\bA\right)^{-1} \bD^{-1}
+\]
+\end{proof}
+
+%=============================================================================
+\section{Comparison: Katz vs. LHN}
+%=============================================================================
+
+\begin{center}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Property} & \textbf{Katz Index} & \textbf{LHN Index} \\
+\midrule
+Basic formula & $\sum_i \beta^i \bA^i[u,v]$ & $\frac{2m}{d_u d_v}\sum_i \beta^i \lambda_1^{1-i} \bA^i[u,v]$ \\[1em]
+Normalization & None & Degree-based \\[0.5em]
+Bias towards high-degree & Strong & Corrected \\[0.5em]
+Interpretation & Raw path count & Excess paths vs.\ expected \\[0.5em]
+Closed form & $(\bI - \beta\bA)^{-1} - \bI$ & $2m\lambda_1 \bD^{-1}(\bI - \frac{\beta}{\lambda_1}\bA)^{-1}\bD^{-1}$ \\[0.5em]
+Convergence condition & $\beta < 1/\lambda_1$ & $\beta < 1$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{keyidea}
+The LHN index asks: ``Given the degrees of $u$ and $v$, do they share more paths than random chance would predict?'' A high LHN score indicates genuine structural similarity, not just high connectivity.
+\end{keyidea}
+
+%=============================================================================
+\section{Practical Considerations}
+%=============================================================================
+
+\subsection{Computational Complexity}
+
+Computing $\bS_{\text{LHN}}$ requires:
+\begin{enumerate}
+    \item Computing $\lambda_1$: Power iteration, $O(|E| \cdot k)$ where $k$ is iterations to convergence
+    \item Matrix inversion: $O(|V|^3)$ naively, but sparse methods can help
+    \item Degree matrix operations: $O(|V|)$
+\end{enumerate}
+
+For large graphs, approximations or iterative methods are often used.
+
+\subsection{Choice of $\beta$}
+
+\begin{itemize}
+    \item \textbf{Convergence}: Must have $\beta < 1$ (the series is in powers of $\frac{\beta}{\lambda_1}\bA$, whose spectral radius is $\beta$)
+    \item \textbf{Small $\beta$}: Emphasizes shorter paths (local structure)
+    \item \textbf{Larger $\beta$}: Includes contribution from longer paths (global structure)
+    \item \textbf{Common choice}: $\beta = 0.8\lambda_1$ or similar
+\end{itemize}
+
+\subsection{When to Use LHN vs.\ Katz}
+
+\begin{itemize}
+    \item \textbf{Use Katz}: When degree is informative (e.g., popularity metrics)
+    \item \textbf{Use LHN}: When you want similarity independent of degree (e.g., community detection, finding hidden connections between low-degree nodes)
+\end{itemize}
+
+%=============================================================================
+\section{Summary}
+%=============================================================================
+
+\begin{tcolorbox}[colback=gray!10, colframe=gray!50!black, title=\textbf{Key Takeaways}]
+\begin{enumerate}
+    \item The \textbf{Katz index} counts weighted paths but is biased toward high-degree nodes.
+    
+    \item \textbf{LHN similarity} corrects this by normalizing observed paths by expected paths under the configuration model.
+    
+    \item The \textbf{expected edge count} under the configuration model is $\E[\bA_{G'}[u,v]] = \frac{d_u d_v}{2m}$, where $\bA_{G'}$ is the adjacency matrix of a random graph sampled from the configuration model.
+    
+    \item For longer paths, \textbf{spectral approximation} gives $\E[\bA_{G'}^i[u,v]] \approx \frac{d_u d_v \lambda_1^{i-1}}{2m}$.
+    
+    \item The \textbf{closed-form solution} is:
+    \[
+    \bS_{\text{LHN}} = 2 m \lambda_1 \bD^{-1} \left(\bI - \frac{\beta}{\lambda_1}\bA\right)^{-1} \bD^{-1}
+    \]
+    where $\bA$ here is the adjacency matrix of the \emph{observed} graph.
+    
+    \item LHN is particularly useful when you want \textbf{degree-invariant} similarity measures.
+\end{enumerate}
+\end{tcolorbox}
+
+%=============================================================================
+\section*{References}
+%=============================================================================
+
+\begin{itemize}
+    \item Leicht, E., Holme, P., \& Newman, M.E.J. (2006). Vertex similarity in networks. \textit{Physical Review E}, 73(2), 026120.
+    
+    \item Hamilton, W.L. (2020). \textit{Graph Representation Learning}. Morgan \& Claypool Publishers.
+    
+    \item Lü, L., \& Zhou, T. (2011). Link prediction in complex networks: A survey. \textit{Physica A}, 390(6), 1150-1170.
+\end{itemize}
+\end{notechapter}

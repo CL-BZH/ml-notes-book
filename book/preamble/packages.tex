@@ -1,0 +1,66 @@
+% =====================================================================
+%  packages.tex -- every package needed by the chapters
+% =====================================================================
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[english]{babel}
+\usepackage{microtype}
+\usepackage[a4paper,margin=2.5cm,headheight=14pt]{geometry}
+
+% --- mathematics -----------------------------------------------------
+\usepackage{amsmath,amssymb,amsfonts,amsthm,amsbsy}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+\usepackage{bm}
+\usepackage{nicematrix}
+\usepackage{witharrows}
+\usepackage{siunitx}
+\usepackage{relsize}
+
+% --- tables, lists, layout ---------------------------------------------
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{longtable}
+\usepackage{multicol}
+\usepackage{paracol}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{footnote}
+\usepackage{pifont}
+\usepackage{eso-pic}
+\usepackage{fancyhdr}
+\usepackage{emptypage}
+
+% --- graphics ----------------------------------------------------------
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{tikz-3dplot}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage{forest}
+\usetikzlibrary{arrows,arrows.meta,automata,backgrounds,calc,fit,matrix,
+  positioning,patterns,shapes,shapes.geometric,shapes.misc,
+  decorations.pathreplacing,decorations.pathmorphing,decorations.markings,
+  tikzmark,trees,intersections,shadows,3d}
+
+% --- boxes -------------------------------------------------------------
+\usepackage[most]{tcolorbox}
+\usepackage[framemethod=default]{mdframed}
+
+% --- code and algorithms -----------------------------------------------
+\usepackage{listings}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+% --- cross references (load last) ----------------------------------------
+\usepackage[hidelinks,bookmarksnumbered]{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue!50!black,citecolor=green!40!black,urlcolor=blue!60!black}
+\usepackage[nameinlink,capitalise]{cleveref}
+\usepackage{bookmark}

@@ -1,0 +1,120 @@
+% Source: transpose_convolution.tex
+\begin{notechapter}
+\chapter{Transpose Convolution}\label{ch:transpose-convolution}
+
+\section{Introduction}
+Transpose convolution, also known as deconvolution or
+fractionally-strided convolution, is used to upsample
+feature maps in neural networks. It increases the spatial
+dimensions of the input, making it useful for tasks like
+image segmentation and super-resolution.
+
+\section{Input and Kernel}
+Let’s start by defining the input and the kernel.
+
+\subsection{Input \( x \) (size \( 2 \times 2 \))}
+The input \( x \) is a \( 2 \times 2 \) matrix:
+\[
+x = \begin{bmatrix}
+a & b \\
+c & d
+\end{bmatrix}
+\]
+
+\subsection{Kernel \( W \) (size \( 3 \times 3 \))}
+The kernel \( W \) is a \( 3 \times 3 \) matrix:
+\[
+W = \begin{bmatrix}
+w_{11} & w_{12} & w_{13} \\
+w_{21} & w_{22} & w_{23} \\
+w_{31} & w_{32} & w_{33}
+\end{bmatrix}
+\]
+
+\section{Transpose Convolution as a ``Scatter'' Operation}
+
+We take a stride \( s = 2 \) and a padding \( p = 1 \), as in
+\texttt{torch.nn.ConvTranspose2d(1, 1, kernel\_size=3, stride=2, padding=1)}.
+Where an ordinary convolution \emph{gathers} a weighted sum of a window of the
+input into one output value, a transpose convolution \emph{scatters} each input
+value into a window of the output:
+\begin{enumerate}
+    \item each input element \( x_{ij} \) is multiplied by the whole kernel \( W \);
+    \item the resulting \( 3 \times 3 \) block is added to the output at position
+          \( (s\,i, s\,j) \) (0-indexed), i.e.\ the blocks are placed \( s = 2 \) pixels apart,
+          and overlapping contributions are summed;
+    \item finally \( p = 1 \) row/column is cropped from each border of the result.
+\end{enumerate}
+
+\subsection{Output Size Formula}
+Before cropping, the output has size \( (I - 1)s + K \); after cropping \( p \) on
+each side, the output size \( O \) is:
+\[
+O = (I - 1) \times s + K - 2p
+\]
+where:
+\begin{itemize}
+    \item \( I \): Input size
+    \item \( s \): Stride
+    \item \( K \): Kernel size
+    \item \( p \): Padding
+\end{itemize}
+(Frameworks add an optional \texttt{output\_padding} term to disambiguate the output size when
+\( s > 1 \).) For \( I = 2 \), \( s = 2 \), \( K = 3 \), and \( p = 1 \):
+\[
+O = (2 - 1) \times 2 + 3 - 2 \times 1 = 3
+\]
+Thus, \( y \) is a \( 3 \times 3 \) feature map.
+
+\subsection{Step-by-Step Computation}
+Before cropping, the \( 5 \times 5 \) intermediate result is the sum of four shifted, scaled copies of
+the kernel (with \( a \) at offset \( (0,0) \), \( b \) at \( (0,2) \), \( c \) at \( (2,0) \), \( d \) at \( (2,2) \)):
+\[
+Y_{\text{full}} =
+\begin{bmatrix}
+a w_{11} & a w_{12} & a w_{13} + b w_{11} & b w_{12} & b w_{13} \\
+a w_{21} & a w_{22} & a w_{23} + b w_{21} & b w_{22} & b w_{23} \\
+a w_{31} + c w_{11} & a w_{32} + c w_{12} & a w_{33} + b w_{31} + c w_{13} + d w_{11} & b w_{32} + d w_{12} & b w_{33} + d w_{13} \\
+c w_{21} & c w_{22} & c w_{23} + d w_{21} & d w_{22} & d w_{23} \\
+c w_{31} & c w_{32} & c w_{33} + d w_{31} & d w_{32} & d w_{33}
+\end{bmatrix}.
+\]
+The overlaps (the third row and the third column) are where neighbouring input pixels both contribute.
+
+\section{Full Output Matrix}
+Cropping one row/column on each side gives the \( 3 \times 3 \) output:
+\[
+y = \begin{bmatrix}
+w_{22}a & w_{23}a + w_{21}b & w_{22}b \\
+w_{32}a + w_{12}c & w_{33}a + w_{31}b + w_{13}c + w_{11}d & w_{32}b + w_{12}d \\
+w_{22}c & w_{23}c + w_{21}d & w_{22}d
+\end{bmatrix}
+\]
+(This result was checked numerically against the equivalent formulation below.)
+
+\section{Equivalent Formulation: Zero Insertion and Ordinary Convolution}
+The same output is obtained with an ordinary (stride-1) convolution:
+\begin{enumerate}
+    \item insert \( s - 1 = 1 \) zero between neighbouring input elements:
+    \[
+    \begin{bmatrix} a & 0 & b \\ 0 & 0 & 0 \\ c & 0 & d \end{bmatrix};
+    \]
+    \item pad with \( K - 1 - p = 1 \) zero on each side (giving a \( 5 \times 5 \) matrix);
+    \item slide the \emph{flipped} kernel (rotated by 180\(^\circ\)) with stride 1, computing sums of
+          element-wise products (a cross-correlation), which gives a \( 3 \times 3 \) output.
+\end{enumerate}
+The zeros inserted between input values are the reason for the name
+``fractionally-strided convolution''. Note that a transpose convolution is \emph{not} the inverse of a
+convolution: it has the shape of the transpose of the convolution matrix (it maps a
+\( 2 \times 2 \) map back to a \( 3 \times 3 \) map when the corresponding convolution maps \( 3 \times 3 \) to
+\( 2 \times 2 \)), but not its values. This is also how the gradient of a strided convolution with respect to its
+input is computed during backpropagation.
+
+\section{Conclusion}
+Transpose convolution is a powerful tool for upsampling.
+By scattering each input value through a learnable kernel onto a finer grid
+(equivalently, by inserting zeros and applying an ordinary convolution),
+it produces larger feature maps, enabling tasks like
+image generation and segmentation. When the stride does not divide the kernel size,
+the uneven overlaps can produce ``checkerboard'' artifacts.
+\end{notechapter}

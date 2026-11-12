@@ -1,0 +1,248 @@
+% Source: conv_net_evolutions.tex
+\begin{notechapter}
+\chapter{The Evolution of CNNs}\label{ch:cnn-evolution}
+\chaptersubtitle{From LeNet to R-CNN}
+
+\section{LeNet (1998)}
+\begin{itemize}
+  \item \textbf{Key Contribution}: Introduced by Yann LeCun, LeNet was 
+    one of the first successful CNNs, designed for handwritten digit 
+    recognition (e.g., MNIST dataset).
+  \item \textbf{Architecture}:
+    \begin{itemize}
+      \item Convolutional layers followed by subsampling (pooling) 
+        layers.
+      \item Fully connected layers for classification.
+    \end{itemize}
+  \item \textbf{Impact}: Demonstrated the effectiveness of CNNs for 
+    image recognition, though limited by computational resources and 
+    small datasets at the time.
+\end{itemize}
+
+\section{AlexNet (2012)}
+\begin{itemize}
+  \item \textbf{Key Contribution}: Developed by Alex Krizhevsky, Ilya 
+    Sutskever, and Geoffrey Hinton, AlexNet revolutionized deep 
+    learning by winning the ILSVRC with a significant margin.
+  \item \textbf{Architecture}:
+    \begin{itemize}
+      \item Deeper network with 5 convolutional layers and 3 fully 
+        connected layers.
+      \item Introduced \textbf{ReLU activation} for faster training.
+      \item Used \textbf{dropout} to reduce overfitting.
+      \item Employed \textbf{data augmentation} and \textbf{GPU 
+        acceleration} for training.
+    \end{itemize}
+  \item \textbf{Impact}: Popularized deep learning and CNNs, showcasing 
+    their potential for large-scale image classification.
+\end{itemize}
+
+\section{VGG (2014)}
+\begin{itemize}
+  \item \textbf{Key Contribution}: Developed by the Visual Geometry 
+    Group at Oxford, VGG emphasized the importance of depth in CNNs 
+    using small 3x3 filters.
+  \item \textbf{Architecture}:
+    \begin{itemize}
+      \item Stacked multiple 3x3 convolutional layers to increase 
+        depth.
+      \item Used 2x2 max-pooling layers for downsampling.
+      \item Popular variants: VGG-16 and VGG-19 (16 and 19 layers).
+    \end{itemize}
+  \item \textbf{Impact}: Formalized CNN design with a simple, modular 
+    structure, demonstrating that depth improves performance. It set a 
+    benchmark for CNNs and influenced future architectures.
+\end{itemize}
+
+\section{Inception (GoogLeNet, 2014)}
+\begin{itemize}
+  \item \textbf{Key Contribution}: Introduced by Google, the Inception 
+    network (GoogLeNet) won the ILSVRC 2014 with a focus on efficiency 
+    and reducing computational cost.
+  \item \textbf{Architecture}:
+    \begin{itemize}
+      \item Introduced the \textbf{Inception module}, which uses 
+        multiple filter sizes (1x1, 3x3, 5x5) in parallel to capture 
+        features at different scales.
+      \item Used \textbf{1x1 convolutions} for dimensionality reduction 
+        and computational efficiency.
+      \item Implemented \textbf{auxiliary classifiers} to combat 
+        vanishing gradients.
+    \end{itemize}
+  \item \textbf{Impact}: Demonstrated the importance of network 
+    efficiency and multi-scale feature extraction. Later versions 
+    (e.g., Inception-v2) incorporated \textbf{Batch Normalization}
+    \footnote{Batch Normalization is a technique that normalizes the 
+    inputs of each neuron in a layer across a mini-batch of data. It 
+    stabilizes and accelerates training by reducing internal covariate 
+    shift and allowing higher learning rates. Covariate shift refers 
+    to the change in the distribution of inputs to a model during 
+    training. Batch Normalization mitigates this by ensuring that the 
+    distribution of activations remains stable, allowing for faster 
+    convergence and improved generalization.} to stabilize training.
+\end{itemize}
+
+\section{ResNet (2015)}
+\begin{itemize}
+  \item \textbf{Key Contribution}: Developed by Kaiming He et al., 
+    ResNet (Residual Network) won the ILSVRC 2015 and introduced the 
+    concept of \textbf{residual learning} to enable training of very 
+    deep networks.
+  \item \textbf{Architecture}:
+    \begin{itemize}
+      \item Introduced \textbf{skip connections} (or residual 
+        connections) that allow gradients to flow directly through the 
+        network, mitigating the vanishing gradient problem.
+      \item Enabled the training of networks with hundreds of layers 
+        (e.g., ResNet-152).
+      \item Used \textbf{Batch Normalization} to stabilize and 
+        accelerate training.
+    \end{itemize}
+  \item \textbf{Residual Function}:
+    \begin{itemize}
+      \item In a residual layer, the output \( \mathbf{y} \) is:
+        \[
+        \mathbf{y} = f(\mathbf{x}, \mathbf{W}) + \mathbf{x},
+        \]
+        where:
+        \begin{itemize}
+          \item \( \mathbf{x} \) is the input to the layer,
+          \item \( f(\mathbf{x}, \mathbf{W}) \) is the residual 
+            function, which learns the difference between the input and 
+            the desired output,
+          \item \( \mathbf{W} \) represents the weights of the layer.
+        \end{itemize}
+      \item The residual function \( f(\mathbf{x}, \mathbf{W}) \) 
+        typically consists of multiple layers, such as:
+        \[
+        f(\mathbf{x}, \mathbf{W}) = \text{Conv2}(\text{ReLU}(
+        \text{Conv1}(\mathbf{x}, \mathbf{W}_1)), \mathbf{W}_2),
+        \]
+        where \( \text{Conv1} \) and \( \text{Conv2} \) are 
+        convolutional layers, and \( \text{ReLU} \) is the activation 
+        function.
+    \end{itemize}
+  \item \textbf{Why Residual Connections Help}:
+    \begin{itemize}
+      \item \textbf{Gradient Flow}:
+        \begin{itemize}
+          \item During backpropagation, the gradient of the loss \( 
+            \mathcal{L} \) with respect to \( \mathbf{x} \) is:
+            \[
+            \frac{\partial \mathcal{L}}{\partial \mathbf{x}} = 
+            \frac{\partial \mathcal{L}}{\partial \mathbf{y}} \cdot 
+            \left( \frac{\partial f(\mathbf{x}, \mathbf{W})}{
+            \partial \mathbf{x}} + \mathbf{I} \right),
+            \]
+            where \( \mathbf{I} \) is the identity matrix.
+          \item The term \( \mathbf{I} \) ensures that gradients can 
+            flow directly through the skip connection, preventing them 
+            from vanishing in very deep networks.
+        \end{itemize}
+      \item \textbf{Degradation Problem}:
+        \begin{itemize}
+          \item In very deep networks, adding more layers can sometimes 
+            degrade performance. Residual connections address this by 
+            allowing the network to learn small perturbations 
+            (residuals) rather than full transformations.
+        \end{itemize}
+      \item \textbf{Easier Optimization}:
+        \begin{itemize}
+          \item By learning residuals, the network can focus on 
+            refining the input rather than learning the entire 
+            transformation from scratch, making optimization easier.
+        \end{itemize}
+    \end{itemize}
+  \item \textbf{Impact}: Revolutionized deep learning by making it 
+    possible to train extremely deep networks, achieving 
+    state-of-the-art performance on many tasks.
+\end{itemize}
+
+\section{R-CNN Family (2014--2017)}
+\begin{itemize}
+  \item \textbf{Key Contribution}: A family of models for object 
+    detection and instance segmentation, combining region proposals 
+    with CNNs.
+  \item \textbf{Deep Features}:
+    \begin{itemize}
+      \item R-CNNs rely on \textbf{deep features}\footnote{Deep 
+        features are high-level representations of an image learned by 
+        a CNN. They capture semantic information about objects, such as 
+        edges, textures, shapes, and object parts, and are used for 
+        tasks like classification, bounding box regression, and 
+        instance segmentation.} extracted from CNNs to represent 
+        region proposals.
+      \item These deep features capture high-level semantic information 
+        about objects, enabling accurate classification, bounding box 
+        regression, and instance segmentation.
+    \end{itemize}
+  \item \textbf{R-CNN (2014)}:
+    \begin{itemize}
+      \item Uses an external algorithm (e.g., Selective Search) to 
+        generate region proposals.
+      \item Extracts deep features from each region proposal using a 
+        pre-trained CNN (e.g., AlexNet).
+      \item Classifies objects using an SVM and refines bounding boxes 
+        using regression.
+      \item \textbf{Limitation}: Computationally expensive due to 
+        independent processing of region proposals.
+    \end{itemize}
+  \item \textbf{Fast R-CNN (2015)}:
+    \begin{itemize}
+      \item Processes the entire image through a CNN to generate a 
+        feature map.
+      \item Uses RoI pooling to extract deep features for each region 
+        proposal from the feature map.
+      \item Enables end-to-end training, improving efficiency.
+    \end{itemize}
+  \item \textbf{Faster R-CNN (2016)}:
+    \begin{itemize}
+      \item Replaces external region proposal algorithms with a 
+        \textbf{Region Proposal Network (RPN)}.
+      \item The RPN generates region proposals directly from the 
+        feature map, using deep features to predict \textbf{objectness 
+        scores}\footnote{The objectness score is a measure of how 
+        likely a region proposal contains an object of interest (as 
+        opposed to background). It is predicted by the RPN and used to 
+        rank region proposals. This is distinct from \textbf{IoU 
+        (Intersection over Union)}, which measures the overlap between 
+        a predicted bounding box and a ground truth box.} and refine 
+        bounding boxes.
+      \item Trains the RPN end-to-end with the rest of the network, 
+        further improving speed and accuracy.
+    \end{itemize}
+  \item \textbf{Mask R-CNN (2017)}:
+    \begin{itemize}
+      \item Extends Faster R-CNN to perform \textbf{instance 
+        segmentation}\footnote{Instance segmentation is a computer 
+        vision task that combines object detection and semantic 
+        segmentation. It identifies and delineates each distinct object 
+        of interest in an image at the pixel level, assigning a unique 
+        label to each instance of an object.} by adding a mask 
+        prediction branch.
+      \item Uses RoI Align to extract deep features more accurately, 
+        preserving spatial information.
+      \item The mask branch uses deep features to predict pixel-level 
+        masks for each object.
+    \end{itemize}
+  \item \textbf{Impact}: Revolutionized object detection and instance 
+    segmentation, setting new benchmarks for accuracy and efficiency.
+\end{itemize}
+
+\section{Summary of Evolution}
+\begin{itemize}
+  \item \textbf{LeNet}: Proved CNNs could work for image recognition.
+  \item \textbf{AlexNet}: Scaled CNNs to deeper architectures and large 
+    datasets, using GPUs and ReLU.
+  \item \textbf{VGG}: Formalized CNN design with small 3x3 filters and 
+    emphasized depth, setting a benchmark for CNNs.
+  \item \textbf{Inception}: Improved efficiency and multi-scale feature 
+    extraction with the Inception module, later adopting BatchNorm.
+  \item \textbf{ResNet}: Enabled training of very deep networks through 
+    residual connections and BatchNorm, achieving groundbreaking 
+    performance.
+  \item \textbf{R-CNN Family}: Revolutionized object detection and 
+    instance segmentation by combining region proposals with CNNs and 
+    leveraging deep features.
+\end{itemize}
+\end{notechapter}

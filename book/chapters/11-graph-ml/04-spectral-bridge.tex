@@ -1,0 +1,55 @@
+% Source: Graph_ML/Spectral_bridge/spectral_bridge.tex
+\begin{notechapter}
+\chapter{A Unified View of Spectral Decomposition}\label{ch:spectral-bridge}
+\chaptersubtitle{Matrices, graphs and signal processing}
+
+\section{Introduction}
+To a student of linear algebra, \textbf{Spectral Theory} is the study of eigenvalues; to a graph theorist, it is the study of connectivity; to a signal processor, it is the study of frequencies. This document proves that these are not merely three different perspectives, but a single mathematical framework governed by the \textbf{Laplacian Operator}.
+
+\section{The Algebraic Core: Matrix Spectral Theory}
+The foundation is the \textbf{Spectral Theorem} for symmetric operators. Let $\mathbf{M} \in \mathbb{R}^{n \times n}$ be a symmetric matrix. It can be decomposed as $\mathbf{M} = \mathbf{U} \bm{\Lambda} \mathbf{U}^\top$, where $\mathbf{U}$ is an orthonormal basis of eigenvectors. 
+
+In this abstract setting, the spectrum $\bm{\Lambda}$ represents the \textit{intrinsic resonances} of the system. If $\mathbf{M}$ represents a physical structure, its eigenvalues tell us how the structure naturally responds to external stimuli.
+
+\section{The Hidden Laplacian in Classical Signal Processing}
+One of the most profound realizations in modern analysis is that the \textbf{Fourier Transform} is actually a spectral decomposition of a specific differential operator.
+
+\subsection{The Continuous Case}
+In 1D signal processing, we define the Laplacian operator as the second derivative: $\Delta = \frac{d^2}{dt^2}$. If we solve the eigenvalue problem for this operator:
+\begin{equation}
+    \Delta f(t) = \lambda f(t) \implies \frac{d^2}{dt^2} f(t) = \lambda f(t)
+\end{equation}
+The solutions are the complex exponentials $f(t) = e^{j\omega t}$ with eigenvalues $\lambda = -\omega^2$.
+\begin{itemize}
+    \item \textbf{Why it is "Hidden":} In classical DSP, we use these exponentials as a fixed basis. Because the time domain is \textit{perfectly regular} and translation-invariant, the eigenfunctions of the Laplacian are always the same. Consequently, we often use the Fourier Transform without ever naming the Laplacian operator that generated it.
+\end{itemize}
+
+\section{The Explicit Laplacian in Graph Theory}
+In Graph Spectral Theory, we deal with \textbf{irregular domains}. A social network or a sensor array does not have the uniform "neighborhood" structure of a time-axis.
+
+\subsection{The Combinatorial Laplacian}
+To measure how a signal $\mathbf{x}$ changes across a graph $G$, we define the Laplacian matrix $\mathbf{L} = \mathbf{D} - \mathbf{A}$, where $\mathbf{D}$ is the degree matrix and $\mathbf{A}$ is the adjacency matrix. 
+\begin{itemize}
+    \item \textbf{Why it is "Explicit":} Because every graph has a unique topology, the "sines and cosines" (eigenvectors) of $\mathbf{L}$ change for every graph. We cannot jump to a pre-defined Fourier basis; we must explicitly diagonalize $\mathbf{L}$ to find the \textbf{Graph Fourier Basis}.
+\end{itemize}
+
+\section{Frequencies as Rates of Variation}
+The link between the three fields is cemented by the concept of \textbf{Dirichlet Energy}. For a signal $\mathbf{x}$ on a graph, the energy is defined as:
+\begin{equation}
+    E_{dir}(\mathbf{x}) = \mathbf{x}^\top \mathbf{L} \mathbf{x} = \sum_{(i,j) \in E} (x_i - x_j)^2
+\end{equation}
+The eigenvalues $\lambda$ of the Laplacian directly quantify this variation:
+\begin{enumerate}
+    \item \textbf{Low Frequencies ($\lambda \to 0$):} These correspond to eigenvectors where $x_i \approx x_j$ for connected nodes. These represent global trends, smooth gradients, or community-wide consensus.
+    \item \textbf{High Frequencies ($\lambda \to \lambda_{max}$):} These correspond to eigenvectors that oscillate rapidly, where $x_i$ and $x_j$ are highly dissimilar. These represent sharp edges, localized noise, or signals that violate the graph's underlying structure.
+\end{enumerate}
+
+\section{Synthesis: Graph Signal Processing (GSP)}
+The synthesis of these ideas leads to the \textbf{Graph Fourier Transform (GFT)}. By projecting any discrete signal $\mathbf{s}$ onto the eigenvectors $\mathbf{u}_l$ of the graph Laplacian, we perform an analysis identical to the classical Fourier Transform, but customized for the graph's geometry:
+\begin{equation}
+    \hat{s}(\lambda_l) = \sum_{i=1}^n s(i) u_l^*(i)
+\end{equation}
+
+\section{Conclusion}
+The "link" is the realization that \textbf{frequency is simply the eigenvalue of a Laplacian operator.} In classical signals, the Laplacian is a second derivative; in graphs, it is a difference matrix; in matrix theory, it is a symmetric operator. They all describe the same physical reality: how information flows and varies across a domain.
+\end{notechapter}

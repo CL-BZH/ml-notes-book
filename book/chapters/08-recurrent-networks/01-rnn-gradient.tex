@@ -1,0 +1,417 @@
+% Source: rnn_gradient.tex
+\begin{notechapter}
+\chapter{Gradient Computation in RNNs}\label{ch:rnn-gradient}
+
+\section{Introduction}
+This document provides a detailed explanation of gradient computation in 
+Recurrent Neural Networks (RNNs) using Backpropagation Through Time 
+(BPTT). We start by defining the equations of the RNN, including the roles 
+of the weight matrices and biases. We then split the general case into 
+computations for the final step and computations for non-final steps, and 
+illustrate the concepts with a concrete example of an RNN with \(\tau = 3\) 
+time steps, fully developing all equations. We also include a detailed 
+derivation of the gradient of the Negative Log-Likelihood Loss with respect 
+to the output \(\mathbf{o}^{(t)}\), including all computational steps for 
+the derivative of the softmax function.
+
+\section{RNN Equations}
+An RNN processes a sequence of inputs \(\mathbf{x}^{(1)}, \mathbf{x}^{(2)}, \ldots, \mathbf{x}^{(\tau)}\) 
+and produces a sequence of hidden states \(\mathbf{h}^{(1)}, \mathbf{h}^{(2)}, \ldots, \mathbf{h}^{(\tau)}\) 
+and outputs \(\mathbf{o}^{(1)}, \mathbf{o}^{(2)}, \ldots, \mathbf{o}^{(\tau)}\). The equations 
+governing the RNN are as follows:
+
+\subsection{Hidden State Update}
+The hidden state \(\mathbf{h}^{(t)}\) at time step \(t\) is computed as:
+\[
+\mathbf{h}^{(t)} = \sigma(\mathbf{W}_{hh} \mathbf{h}^{(t-1)} + \mathbf{W}_{xh} \mathbf{x}^{(t)} + \mathbf{b}_h)
+\]
+where:
+\begin{itemize}
+    \item \(\mathbf{W}_{hh}\) is the hidden-to-hidden weight matrix.
+    \item \(\mathbf{W}_{xh}\) is the input-to-hidden weight matrix.
+    \item \(\mathbf{b}_h\) is the hidden state bias vector.
+    \item \(\sigma\) is the activation function (e.g., \(\tanh\)).
+\end{itemize}
+
+\subsection{Output Computation}
+The output \(\mathbf{o}^{(t)}\) at time step \(t\) is computed as:
+\[
+\mathbf{o}^{(t)} = \mathbf{W}_{ho} \mathbf{h}^{(t)} + \mathbf{b}_o
+\]
+where:
+\begin{itemize}
+    \item \(\mathbf{W}_{ho}\) is the hidden-to-output weight matrix.
+    \item \(\mathbf{b}_o\) is the output bias vector.
+\end{itemize}
+
+\subsection{Loss Function}
+The loss \(L\) is the sum of the losses at each time step:
+\[
+L = \sum_{t=1}^{\tau} L^{(t)}
+\]
+For classification tasks, the loss at each time step \(L^{(t)}\) is often the 
+negative log-likelihood (cross-entropy) loss:
+\[
+L^{(t)} = -\sum_{i=1}^C y_i^{(t)} \log(\hat{y}_i^{(t)})
+\]
+where:
+\begin{itemize}
+    \item \(C\) is the number of classes.
+    \item \(y_i^{(t)}\) is the true label (one-hot encoded).
+    \item \(\hat{y}_i^{(t)}\) is the predicted probability for class \(i\).
+\end{itemize}
+
+\section{General Case: Gradient Computation in RNNs}
+In an RNN, the hidden state \(\mathbf{h}^{(t)}\) at time step \(t\) 
+influences the loss \(L\) in two ways:
+\begin{enumerate}
+    \item \textbf{Directly}: Through the current output \(\mathbf{o}^{(t)}\), 
+          which contributes to the current loss \(L^{(t)}\).
+    \item \textbf{Indirectly}: Through the next hidden state 
+          \(\mathbf{h}^{(t+1)}\), which affects all future losses 
+          \(L^{(t+1)}, L^{(t+2)}, \ldots\).
+\end{enumerate}
+
+The gradient computation differs for the final time step and non-final 
+time steps. We address each case separately.
+
+\subsection{Final Time Step (\(t = \tau\))}
+At the final time step \(\tau\), the hidden state \(\mathbf{h}^{(\tau)}\) 
+only affects the current loss \(L^{(\tau)}\). There is no future hidden 
+state to consider. Thus, the gradient of the loss \(L\) with respect to 
+\(\mathbf{h}^{(\tau)}\) is:
+\[
+\nabla_{\mathbf{h}^{(\tau)}} L = 
+\left( \frac{\partial \mathbf{o}^{(\tau)}}{\partial \mathbf{h}^{(\tau)}} \right)^\top 
+\left( \nabla_{\mathbf{o}^{(\tau)}} L \right)
+\]
+Here:
+\begin{itemize}
+    \item \(\frac{\partial \mathbf{o}^{(\tau)}}{\partial \mathbf{h}^{(\tau)}}\) 
+          is the Jacobian matrix of the output with respect to the hidden 
+          state. For a linear output layer, this is \(\mathbf{W}_{ho}\), so its transpose \(\mathbf{W}_{ho}^\top\) appears in the formula.
+    \item \(\nabla_{\mathbf{o}^{(\tau)}} L\) is the gradient of the loss 
+          with respect to the output \(\mathbf{o}^{(\tau)}\). For negative 
+          log-likelihood loss, this is \(\hat{\mathbf{y}}^{(\tau)} - \mathbf{y}^{(\tau)}\).
+\end{itemize}
+
+\subsection{Non-Final Time Steps (\(t < \tau\))}
+For non-final time steps (\(t < \tau\)), the hidden state \(\mathbf{h}^{(t)}\) 
+affects both the current loss \(L^{(t)}\) and the next hidden state 
+\(\mathbf{h}^{(t+1)}\). Thus, the gradient of the loss \(L\) with respect to 
+\(\mathbf{h}^{(t)}\) is:
+\[
+\nabla_{\mathbf{h}^{(t)}} L = 
+\left( \frac{\partial \mathbf{h}^{(t+1)}}{\partial \mathbf{h}^{(t)}} \right)^\top 
+\left( \nabla_{\mathbf{h}^{(t+1)}} L \right) + 
+\left( \frac{\partial \mathbf{o}^{(t)}}{\partial \mathbf{h}^{(t)}} \right)^\top 
+\left( \nabla_{\mathbf{o}^{(t)}} L \right)
+\]
+Here:
+\begin{itemize}
+    \item \(\frac{\partial \mathbf{h}^{(t+1)}}{\partial \mathbf{h}^{(t)}}\) 
+          is the Jacobian matrix of the hidden state transition. It describes 
+          how \(\mathbf{h}^{(t+1)}\) changes with respect to \(\mathbf{h}^{(t)}\).
+    \item \(\nabla_{\mathbf{h}^{(t+1)}} L\) is the gradient of the loss 
+          with respect to \(\mathbf{h}^{(t+1)}\). It is computed recursively 
+          during backpropagation.
+    \item \(\frac{\partial \mathbf{o}^{(t)}}{\partial \mathbf{h}^{(t)}}\) 
+          is the Jacobian matrix of the output with respect to the hidden 
+          state. For a linear output layer, this is \(\mathbf{W}_{ho}\), so its transpose \(\mathbf{W}_{ho}^\top\) appears in the formula.
+    \item \(\nabla_{\mathbf{o}^{(t)}} L\) is the gradient of the loss 
+          with respect to the output \(\mathbf{o}^{(t)}\). For negative 
+          log-likelihood loss, this is \(\hat{\mathbf{y}}^{(t)} - \mathbf{y}^{(t)}\).
+\end{itemize}
+
+\section{Negative Log-Likelihood Loss}
+The negative log-likelihood loss is commonly used for classification tasks. 
+It measures the discrepancy between the predicted output \(\hat{\mathbf{y}}^{(t)}\) 
+and the true target \(\mathbf{y}^{(t)}\).
+
+\subsection{Definition}
+The negative log-likelihood loss for a single example is given by:
+\[
+L^{(t)} = -\sum_{i=1}^C y_i^{(t)} \log(\hat{y}_i^{(t)})
+\]
+where:
+\begin{itemize}
+    \item \( C \) is the number of classes.
+    \item \( y_i^{(t)} \) is the true label (one-hot encoded).
+    \item \( \hat{y}_i^{(t)} \) is the predicted probability for class \( i \).
+\end{itemize}
+
+\subsection{Simplification for One-Hot Encoded Labels}
+Assume the true label \(\mathbf{y}^{(t)}\) is one-hot encoded, meaning:
+\[
+y_i^{(t)} = 
+\begin{cases}
+1 & \text{if } i = k, \\
+0 & \text{otherwise},
+\end{cases}
+\]
+where \( k \) is the index of the correct class.
+
+Substitute \( y_i^{(t)} \) into the loss function:
+\[
+L^{(t)} = -\sum_{i=1}^C y_i^{(t)} \log(\hat{y}_i^{(t)})
+\]
+Since \( y_i^{(t)} = 0 \) for all \( i \neq k \), all terms in the sum where 
+\( i \neq k \) vanish. Only the term corresponding to the correct class \( k \) 
+remains:
+\[
+L^{(t)} = -y_k^{(t)} \log(\hat{y}_k^{(t)})
+\]
+But \( y_k^{(t)} = 1 \) (because \( k \) is the correct class), so:
+\[
+L^{(t)} = -\log(\hat{y}_k^{(t)})
+\]
+
+\subsection{Derivative of the Softmax Function}
+The predicted output \(\hat{\mathbf{y}}^{(t)}\) is computed using the softmax 
+function:
+\[
+\hat{y}_i^{(t)} = \frac{\exp(o_i^{(t)})}{\sum_{j=1}^C \exp(o_j^{(t)})}
+\]
+where \( o_i^{(t)} \) is the \( i \)-th element of the output vector \(\mathbf{o}^{(t)}\).
+
+We need to compute the derivative of \(\hat{y}_k^{(t)}\) with respect to each 
+element \(o_i^{(t)}\) of the output vector \(\mathbf{o}^{(t)}\).
+
+\subsubsection{Case 1: \(i = k\) (Derivative with Respect to the Correct Class)}
+When \(i = k\), we compute \(\frac{\partial \hat{y}_k^{(t)}}{\partial o_k^{(t)}}\). 
+Using the quotient rule, we have:
+\[
+\frac{\partial \hat{y}_k^{(t)}}{\partial o_k^{(t)}} = 
+\frac{\exp(o_k^{(t)}) \cdot \left( \sum_{j=1}^C \exp(o_j^{(t)}) \right) - \exp(o_k^{(t)}) \cdot \exp(o_k^{(t)})}{\left( \sum_{j=1}^C \exp(o_j^{(t)}) \right)^2}
+\]
+Simplify the numerator:
+\[
+\exp(o_k^{(t)}) \cdot \left( \sum_{j=1}^C \exp(o_j^{(t)}) - \exp(o_k^{(t)}) \right)
+\]
+Thus:
+\[
+\frac{\partial \hat{y}_k^{(t)}}{\partial o_k^{(t)}} = 
+\frac{\exp(o_k^{(t)}) \cdot \left( \sum_{j=1}^C \exp(o_j^{(t)}) - \exp(o_k^{(t)}) \right)}{\left( \sum_{j=1}^C \exp(o_j^{(t)}) \right)^2}
+\]
+Factor out \(\exp(o_k^{(t)})\):
+\[
+\frac{\partial \hat{y}_k^{(t)}}{\partial o_k^{(t)}} = 
+\frac{\exp(o_k^{(t)})}{\sum_{j=1}^C \exp(o_j^{(t)})} \cdot 
+\frac{\sum_{j=1}^C \exp(o_j^{(t)}) - \exp(o_k^{(t)})}{\sum_{j=1}^C \exp(o_j^{(t)})}
+\]
+Recognize that:
+\[
+\frac{\exp(o_k^{(t)})}{\sum_{j=1}^C \exp(o_j^{(t)})} = \hat{y}_k^{(t)}
+\]
+and:
+\[
+\frac{\sum_{j=1}^C \exp(o_j^{(t)}) - \exp(o_k^{(t)})}{\sum_{j=1}^C \exp(o_j^{(t)})} = 1 - \hat{y}_k^{(t)}
+\]
+Thus:
+\[
+\frac{\partial \hat{y}_k^{(t)}}{\partial o_k^{(t)}} = \hat{y}_k^{(t)} (1 - \hat{y}_k^{(t)})
+\]
+
+\subsubsection{Case 2: \(i \neq k\) (Derivative with Respect to an Incorrect Class)}
+When \(i \neq k\), we compute \(\frac{\partial \hat{y}_k^{(t)}}{\partial o_i^{(t)}}\). 
+Using the quotient rule, we have:
+\[
+\frac{\partial \hat{y}_k^{(t)}}{\partial o_i^{(t)}} = 
+\frac{0 \cdot \left( \sum_{j=1}^C \exp(o_j^{(t)}) \right) - \exp(o_k^{(t)}) \cdot \exp(o_i^{(t)})}{\left( \sum_{j=1}^C \exp(o_j^{(t)}) \right)^2}
+\]
+Simplify the numerator:
+\[
+-\exp(o_k^{(t)}) \cdot \exp(o_i^{(t)})
+\]
+Thus:
+\[
+\frac{\partial \hat{y}_k^{(t)}}{\partial o_i^{(t)}} = 
+-\frac{\exp(o_k^{(t)}) \cdot \exp(o_i^{(t)})}{\left( \sum_{j=1}^C \exp(o_j^{(t)}) \right)^2}
+\]
+Factor out \(\exp(o_k^{(t)})\) and \(\exp(o_i^{(t)})\):
+\[
+\frac{\partial \hat{y}_k^{(t)}}{\partial o_i^{(t)}} = 
+-\frac{\exp(o_k^{(t)})}{\sum_{j=1}^C \exp(o_j^{(t)})} \cdot 
+\frac{\exp(o_i^{(t)})}{\sum_{j=1}^C \exp(o_j^{(t)})}
+\]
+Recognize that:
+\[
+\frac{\exp(o_k^{(t)})}{\sum_{j=1}^C \exp(o_j^{(t)})} = \hat{y}_k^{(t)}
+\]
+and:
+\[
+\frac{\exp(o_i^{(t)})}{\sum_{j=1}^C \exp(o_j^{(t)})} = \hat{y}_i^{(t)}
+\]
+Thus:
+\[
+\frac{\partial \hat{y}_k^{(t)}}{\partial o_i^{(t)}} = -\hat{y}_k^{(t)} \hat{y}_i^{(t)}
+\]
+
+\subsubsection{Summary of Softmax Derivatives}
+Combining the two cases, the derivative of \(\hat{y}_k^{(t)}\) with respect to 
+\(o_i^{(t)}\) is:
+\[
+\frac{\partial \hat{y}_k^{(t)}}{\partial o_i^{(t)}} = 
+\begin{cases}
+\hat{y}_k^{(t)} (1 - \hat{y}_k^{(t)}) & \text{if } i = k, \\
+-\hat{y}_k^{(t)} \hat{y}_i^{(t)} & \text{if } i \neq k.
+\end{cases}
+\]
+
+\subsection{Gradient of the Negative Log-Likelihood Loss}
+Using the chain rule, the gradient of the loss \(L^{(t)}\) with respect to 
+\(o_i^{(t)}\) is:
+\[
+\frac{\partial L^{(t)}}{\partial o_i^{(t)}} = 
+\frac{\partial L^{(t)}}{\partial \hat{y}_k^{(t)}} 
+\frac{\partial \hat{y}_k^{(t)}}{\partial o_i^{(t)}}
+\]
+From the negative log-likelihood loss:
+\[
+L^{(t)} = -\log(\hat{y}_k^{(t)})
+\]
+we have:
+\[
+\frac{\partial L^{(t)}}{\partial \hat{y}_k^{(t)}} = 
+-\frac{1}{\hat{y}_k^{(t)}}
+\]
+
+Thus, the gradient is:
+\[
+\frac{\partial L^{(t)}}{\partial o_i^{(t)}} = 
+\begin{cases}
+\hat{y}_k^{(t)} - 1 & \text{if } i = k, \\
+\hat{y}_i^{(t)} & \text{if } i \neq k.
+\end{cases}
+\]
+
+In vector form, this can be written as:
+\[
+\nabla_{\mathbf{o}^{(t)}} L = \hat{\mathbf{y}}^{(t)} - \mathbf{y}^{(t)}
+\]
+where \(\mathbf{y}^{(t)}\) is the one-hot encoded true label.
+
+\section{Example: \(\tau = 3\)}
+We now illustrate the gradient computation with a concrete example of an 
+RNN with \(\tau = 3\) time steps. We fully develop all equations for each 
+time step.
+
+\subsection{At \(t = 3\) (Final Time Step)}
+At the last time step, \(\mathbf{h}^{(3)}\) only affects the current loss 
+\(L^{(3)}\). Thus:
+\[
+\nabla_{\mathbf{h}^{(3)}} L = 
+\left( \frac{\partial \mathbf{o}^{(3)}}{\partial \mathbf{h}^{(3)}} \right)^\top 
+\left( \nabla_{\mathbf{o}^{(3)}} L \right)
+\]
+For a linear output layer:
+\[
+\frac{\partial \mathbf{o}^{(3)}}{\partial \mathbf{h}^{(3)}} = \mathbf{W}_{ho}
+\]
+Thus:
+\[
+\nabla_{\mathbf{h}^{(3)}} L = 
+\mathbf{W}_{ho}^\top \left( \nabla_{\mathbf{o}^{(3)}} L \right)
+\]
+For negative log-likelihood loss:
+\[
+\nabla_{\mathbf{o}^{(3)}} L = \hat{\mathbf{y}}^{(3)} - \mathbf{y}^{(3)}
+\]
+
+\subsection{At \(t = 2\) (Non-Final Time Step)}
+At \(t = 2\), \(\mathbf{h}^{(2)}\) affects both the current loss \(L^{(2)}\) 
+and the next hidden state \(\mathbf{h}^{(3)}\). Thus:
+\[
+\nabla_{\mathbf{h}^{(2)}} L = 
+\left( \frac{\partial \mathbf{h}^{(3)}}{\partial \mathbf{h}^{(2)}} \right)^\top 
+\left( \nabla_{\mathbf{h}^{(3)}} L \right) + 
+\left( \frac{\partial \mathbf{o}^{(2)}}{\partial \mathbf{h}^{(2)}} \right)^\top 
+\left( \nabla_{\mathbf{o}^{(2)}} L \right)
+\]
+First, compute \(\left( \frac{\partial \mathbf{o}^{(2)}}{\partial \mathbf{h}^{(2)}} \right)^\top 
+\left( \nabla_{\mathbf{o}^{(2)}} L \right)\):
+\[
+\frac{\partial \mathbf{o}^{(2)}}{\partial \mathbf{h}^{(2)}} = \mathbf{W}_{ho}
+\]
+Thus:
+\[
+\left( \frac{\partial \mathbf{o}^{(2)}}{\partial \mathbf{h}^{(2)}} \right)^\top 
+\left( \nabla_{\mathbf{o}^{(2)}} L \right) = 
+\mathbf{W}_{ho}^\top \left( \nabla_{\mathbf{o}^{(2)}} L \right)
+\]
+For negative log-likelihood loss:
+\[
+\nabla_{\mathbf{o}^{(2)}} L = \hat{\mathbf{y}}^{(2)} - \mathbf{y}^{(2)}
+\]
+Next, compute \(\left( \frac{\partial \mathbf{h}^{(3)}}{\partial \mathbf{h}^{(2)}} \right)^\top 
+\left( \nabla_{\mathbf{h}^{(3)}} L \right)\):
+\[
+\frac{\partial \mathbf{h}^{(3)}}{\partial \mathbf{h}^{(2)}} = 
+\operatorname{diag}\big(\sigma'(\mathbf{z}^{(3)})\big)\, \mathbf{W}_{hh}
+\]
+where \(\mathbf{z}^{(3)} = \mathbf{W}_{hh} \mathbf{h}^{(2)} + 
+\mathbf{W}_{xh} \mathbf{x}^{(3)} + \mathbf{b}_h\), and \(\sigma'\) is the 
+derivative of the activation function.
+
+Thus:
+\[
+\nabla_{\mathbf{h}^{(2)}} L = 
+\mathbf{W}_{hh}^\top \operatorname{diag}\big(\sigma'(\mathbf{z}^{(3)})\big) 
+\left( \nabla_{\mathbf{h}^{(3)}} L \right) + 
+\mathbf{W}_{ho}^\top \left( \nabla_{\mathbf{o}^{(2)}} L \right)
+\]
+
+\subsection{At \(t = 1\) (Non-Final Time Step)}
+At \(t = 1\), \(\mathbf{h}^{(1)}\) affects both the current loss \(L^{(1)}\) 
+and the next hidden state \(\mathbf{h}^{(2)}\). Thus:
+\[
+\nabla_{\mathbf{h}^{(1)}} L = 
+\left( \frac{\partial \mathbf{h}^{(2)}}{\partial \mathbf{h}^{(1)}} \right)^\top 
+\left( \nabla_{\mathbf{h}^{(2)}} L \right) + 
+\left( \frac{\partial \mathbf{o}^{(1)}}{\partial \mathbf{h}^{(1)}} \right)^\top 
+\left( \nabla_{\mathbf{o}^{(1)}} L \right)
+\]
+First, compute \(\left( \frac{\partial \mathbf{o}^{(1)}}{\partial \mathbf{h}^{(1)}} \right)^\top 
+\left( \nabla_{\mathbf{o}^{(1)}} L \right)\):
+\[
+\frac{\partial \mathbf{o}^{(1)}}{\partial \mathbf{h}^{(1)}} = \mathbf{W}_{ho}
+\]
+Thus:
+\[
+\left( \frac{\partial \mathbf{o}^{(1)}}{\partial \mathbf{h}^{(1)}} \right)^\top 
+\left( \nabla_{\mathbf{o}^{(1)}} L \right) = 
+\mathbf{W}_{ho}^\top \left( \nabla_{\mathbf{o}^{(1)}} L \right)
+\]
+For negative log-likelihood loss:
+\[
+\nabla_{\mathbf{o}^{(1)}} L = \hat{\mathbf{y}}^{(1)} - \mathbf{y}^{(1)}
+\]
+Next, compute \(\left( \frac{\partial \mathbf{h}^{(2)}}{\partial \mathbf{h}^{(1)}} \right)^\top 
+\left( \nabla_{\mathbf{h}^{(2)}} L \right)\):
+\[
+\frac{\partial \mathbf{h}^{(2)}}{\partial \mathbf{h}^{(1)}} = 
+\operatorname{diag}\big(\sigma'(\mathbf{z}^{(2)})\big)\, \mathbf{W}_{hh}
+\]
+where \(\mathbf{z}^{(2)} = \mathbf{W}_{hh} \mathbf{h}^{(1)} + 
+\mathbf{W}_{xh} \mathbf{x}^{(2)} + \mathbf{b}_h\), and \(\sigma'\) is the 
+derivative of the activation function.
+
+Thus:
+\[
+\nabla_{\mathbf{h}^{(1)}} L = 
+\mathbf{W}_{hh}^\top \operatorname{diag}\big(\sigma'(\mathbf{z}^{(2)})\big) 
+\left( \nabla_{\mathbf{h}^{(2)}} L \right) + 
+\mathbf{W}_{ho}^\top \left( \nabla_{\mathbf{o}^{(1)}} L \right)
+\]
+
+\section{Conclusion}
+The gradient computation in RNNs involves both direct and indirect 
+effects of hidden states on the loss. The recursive nature of the 
+gradient equation ensures that all paths of influence are accounted for. 
+This document provides a detailed explanation of the general case, 
+splitting the computations for the final step and non-final steps, and 
+fully develops all equations for a concrete example with \(\tau = 3\). 
+It also includes a detailed derivation of the Negative Log-Likelihood 
+Loss and its gradient, including all computational steps for the derivative 
+of the softmax function.
+\end{notechapter}

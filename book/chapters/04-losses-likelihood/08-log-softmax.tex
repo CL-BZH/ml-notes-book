@@ -1,0 +1,159 @@
+% Source: log-softmax_trick.tex
+\begin{notechapter}
+\chapter{The Softmax Function and its Numerical Stability}\label{ch:log-softmax}
+\chaptersubtitle{The log-sum-exp trick}
+
+\section{Introduction}
+The softmax function is a fundamental component of many machine learning 
+models, particularly in classification tasks. It converts a vector of raw 
+scores (logits) into a probability distribution. However, computing the 
+softmax directly can lead to numerical instability. This document provides 
+a detailed explanation of the softmax function, its challenges, and how to 
+stabilize it using the log-softmax trick. Additionally, it explores the 
+connection between softmax and cross-entropy loss, along with practical 
+implementations in deep learning frameworks.
+
+\section{The Softmax Function}
+The softmax function takes a vector of logits \( x = [x_1, x_2, \dots, x_n] \) 
+and converts it into a probability distribution \( p = [p_1, p_2, \dots, p_n] \), 
+where:
+\[
+p_i = \text{softmax}(x_i) = \frac{e^{x_i}}{\sum_{j=1}^n e^{x_j}}
+\]
+The output \( p_i \) represents the probability of the \( i \)-th class. The 
+softmax function ensures that:
+\begin{itemize}
+    \item All outputs are non-negative: \( p_i \geq 0 \).
+    \item The outputs sum to 1: \( \sum_{i=1}^n p_i = 1 \).
+\end{itemize}
+
+\section{Numerical Instability in Softmax}
+Direct computation of the softmax can lead to numerical instability due to:
+\begin{itemize}
+    \item \textbf{Overflow:} If \( x_i \) is very large, \( e^{x_i} \) can 
+    exceed the range of floating-point numbers, resulting in infinity.
+    \item \textbf{Underflow:} If \( x_i \) is very small, \( e^{x_i} \) can 
+    round to zero, leading to division by zero or undefined behavior.
+\end{itemize}
+For example, consider the logits \( x = [1000, 1001, 1002] \). Directly 
+computing \( e^{1000} \) would result in overflow.
+
+\section{Stabilizing Softmax with the Log-Sum-Exp Trick}
+To address these issues, we use the \textbf{log-sum-exp trick}, which 
+stabilizes the computation by subtracting the maximum logit \( c = \max(x_1, x_2, \dots, x_n) \).
+
+\subsection{Stabilized Softmax}
+The stabilized softmax is computed as:
+\[
+\text{softmax}(x_i) = \frac{e^{x_i - c}}{\sum_{j=1}^n e^{x_j - c}}
+\]
+Subtracting \( c \) ensures that the largest exponent is \( e^{c - c} = 1 \), 
+and all other exponents are \( e^{x_i - c} \leq 1 \), preventing overflow.
+Very negative \( x_i - c \) can still underflow to \( 0 \), but this is harmless:
+the denominator is at least \( 1 \), so there is no division by zero, and the
+corresponding probabilities are genuinely negligible.
+
+\subsection{Log-Softmax}
+For additional numerical stability, we often compute the \textbf{log-softmax} 
+directly:
+\[
+\log(\text{softmax}(x_i)) = x_i - c - \log\left(\sum_{j=1}^n e^{x_j - c}\right)
+\]
+This avoids taking the logarithm of a probability that has underflowed to
+\( 0 \) (which would give \( -\infty \)): the log-probability \( x_i - c - \log\sum_j e^{x_j - c} \)
+remains finite and accurate even when \( p_i \) itself is not representable. It is
+also cheaper and better conditioned for gradient computations.
+
+\subsection{Why the Log-Sum-Exp Trick Works}
+The log-sum-exp trick works because:
+\begin{itemize}
+    \item Subtracting \( c \) ensures that the largest exponent is 1, 
+    preventing overflow.
+        \item All other exponents are bounded between 0 and 1; some may
+    underflow to 0, but the sum is at least 1, so the division and the
+    logarithm of the sum are always well defined.
+    \item The final result is mathematically equivalent to the original 
+    softmax, as the subtraction cancels out in the numerator and denominator.
+\end{itemize}
+
+\section{Example: Stabilizing Softmax}
+Consider the logits \( x = [1000, 1001, 1002] \):
+\begin{enumerate}
+    \item Compute \( c = \max(1000, 1001, 1002) = 1002 \).
+    \item Subtract \( c \) from each logit:
+    \[
+    x' = [1000 - 1002, 1001 - 1002, 1002 - 1002] = [-2, -1, 0]
+    \]
+    \item Compute the stabilized softmax:
+    \[
+    \text{softmax}(x_i) = \frac{e^{x_i'}}{e^{-2} + e^{-1} + e^{0}}
+    \]
+    \[
+    = \frac{e^{x_i'}}{0.1353 + 0.3679 + 1} = \frac{e^{x_i'}}{1.5032}
+    \]
+    \item Compute the probabilities:
+    \[
+    \text{softmax}(x_1) = \frac{e^{-2}}{1.5032} \approx 0.0900
+    \]
+    \[
+    \text{softmax}(x_2) = \frac{e^{-1}}{1.5032} \approx 0.2447
+    \]
+    \[
+    \text{softmax}(x_3) = \frac{e^{0}}{1.5032} \approx 0.6652
+    \]
+\end{enumerate}
+
+\section{Cross-Entropy Loss with Log-Softmax}
+The cross-entropy loss measures the difference between the true label 
+distribution \( y_i \) and the predicted distribution \( p_i \):
+\[
+\text{Cross-Entropy} = -\sum_{i=1}^n y_i \log(p_i)
+\]
+When using log-softmax, the loss is computed as:
+\[
+\text{Cross-Entropy} = -\sum_{i=1}^n y_i \cdot \log(\text{softmax}(x_i))
+\]
+Substituting the log-softmax:
+\[
+\text{Cross-Entropy} = -x_k + c + \log\left(\sum_{j=1}^n e^{x_j - c}\right)
+\]
+where \( k \) is the index of the true class.
+
+\section{Practical Implementation}
+Deep learning frameworks like PyTorch and TensorFlow provide built-in 
+functions for log-softmax and cross-entropy loss.
+
+\subsection{PyTorch Example}
+\begin{verbatim}
+import torch
+import torch.nn as nn
+
+logits = torch.tensor([[1000.0, 1001.0, 1002.0]])
+true_labels = torch.tensor([2])  # True class index
+
+criterion = nn.CrossEntropyLoss()
+loss = criterion(logits, true_labels)
+print(loss.item())  # Output: 0.4076
+\end{verbatim}
+
+\subsection{TensorFlow Example}
+\begin{verbatim}
+import tensorflow as tf
+
+logits = tf.constant([[1000.0, 1001.0, 1002.0]])
+true_labels = tf.constant([2])  # True class index
+
+loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+    labels=true_labels, logits=logits
+)
+print(loss.numpy())  # Output: [0.4076]
+\end{verbatim}
+
+\section{Conclusion}
+The softmax function is a key component of classification models, but its 
+direct computation can lead to numerical instability. The log-softmax trick 
+stabilizes the computation and is widely used in practice. Combined with 
+cross-entropy loss, it forms the foundation of modern classification tasks 
+in machine learning. By understanding and applying these concepts, you can 
+build more robust and efficient machine learning models.
+\end{notechapter}

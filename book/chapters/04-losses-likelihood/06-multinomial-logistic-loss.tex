@@ -1,0 +1,124 @@
+% Source: logistic_loss_formulations.tex
+\begin{notechapter}
+\chapter{The Multinomial Logistic Loss}\label{ch:multinomial-logistic-loss}
+
+\section{The General Multinomial Logistic Loss}
+
+The general form of the multinomial logistic loss for $M$ classes is:
+
+\begin{equation}
+l(\theta, y) = -\langle y, \theta\rangle + \log \sum_{i=1}^{M} \exp(\theta_i)
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $\theta \in \mathbb{R}^M$ are the logits (raw model outputs)
+    \item $y \in \{e_1, \ldots, e_M\}$ is a one-hot encoded vector
+    \item $e_i$ is the $i$-th standard basis vector (1 at position $i$, 0 elsewhere)
+\end{itemize}
+
+\section{Relationship to Softmax Formulation}
+
+The softmax function is defined as:
+\[
+\text{softmax}(\theta)_i = \frac{\exp(\theta_i)}{\sum_{j=1}^{M} \exp(\theta_j)}
+\]
+
+The negative log-likelihood using softmax is:
+\[
+l(\theta, y) = -\log(\text{softmax}(\theta)_y)
+\]
+
+Let's derive the equivalence:
+
+\begin{align*}
+l(\theta, y) &= -\log(\text{softmax}(\theta)_y) \\
+&= -\log\left(\frac{\exp(\theta_y)}{\sum_{i=1}^{M} \exp(\theta_i)}\right) \\
+&= -\left[\log(\exp(\theta_y)) - \log\sum_{i=1}^{M} \exp(\theta_i)\right] \\
+&= -\theta_y + \log\sum_{i=1}^{M} \exp(\theta_i)
+\end{align*}
+
+Since $y$ is one-hot encoded, $\langle y, \theta\rangle = \theta_y$, we recover equation (1):
+\[
+-\theta_y + \log\sum_{i=1}^{M} \exp(\theta_i) = -\langle y, \theta\rangle + \log \sum_{i=1}^{M} \exp(\theta_i)
+\]
+
+\section{Binary Case Specialization ($M=2$)}
+
+Let's show how this reduces to the familiar binary logistic loss.
+
+\subsection{Setup for Binary Classification}
+For $M=2$ classes:
+\begin{itemize}
+    \item Logits: $\theta = [\theta_1, \theta_2]$
+    \item Class 1: $y = [1, 0]$ (encoded as $e_1$)
+    \item Class 2: $y = [0, 1]$ (encoded as $e_2$)
+\end{itemize}
+
+\subsection{Case 1: True label is Class 1 ($y = [1, 0]$)}
+\begin{align*}
+l(\theta, y) &= -\langle [1, 0], [\theta_1, \theta_2] \rangle + \log(\exp(\theta_1) + \exp(\theta_2)) \\
+&= -\theta_1 + \log(\exp(\theta_1) + \exp(\theta_2)) \\
+&= \log\left(\frac{\exp(\theta_1) + \exp(\theta_2)}{\exp(\theta_1)}\right) \\
+&= \log\left(1 + \exp(\theta_2 - \theta_1)\right)
+\end{align*}
+
+\subsection{Case 2: True label is Class 2 ($y = [0, 1]$)}
+\begin{align*}
+l(\theta, y) &= -\langle [0, 1], [\theta_1, \theta_2] \rangle + \log(\exp(\theta_1) + \exp(\theta_2)) \\
+&= -\theta_2 + \log(\exp(\theta_1) + \exp(\theta_2)) \\
+&= \log\left(1 + \exp(\theta_1 - \theta_2)\right)
+\end{align*}
+
+\subsection{Reduction to Single Parameter}
+In binary classification, we typically use a single parameter $\theta = \theta_1 - \theta_2$. The two cases become:
+
+\begin{itemize}
+    \item For $y = [1, 0]$ (Class 1): $l(\theta) = \log(1 + \exp(-\theta))$
+    \item For $y = [0, 1]$ (Class 2): $l(\theta) = \log(1 + \exp(\theta))$
+\end{itemize}
+
+\section{Connection to Sigmoid and Standard Binary Form}
+
+\subsection{Sigmoid Function}
+The sigmoid function is:
+\[
+\sigma(z) = \frac{1}{1 + \exp(-z)}
+\]
+
+\subsection{Standard Binary Logistic Loss}
+The standard binary logistic loss for $y \in \{0,1\}$ is:
+\[
+l(\theta, y) = -y\log(\sigma(\theta)) - (1-y)\log(1-\sigma(\theta))
+\]
+
+Let's verify this matches our derived form:
+
+\subsubsection{Case $y=1$ (Class 1)}
+\begin{align*}
+l(\theta, 1) &= -\log(\sigma(\theta)) \\
+&= -\log\left(\frac{1}{1 + \exp(-\theta)}\right) \\
+&= \log(1 + \exp(-\theta))
+\end{align*}
+
+\subsubsection{Case $y=0$ (Class 2)}
+\begin{align*}
+l(\theta, 0) &= -\log(1-\sigma(\theta)) \\
+&= -\log\left(1 - \frac{1}{1 + \exp(-\theta)}\right) \\
+&= -\log\left(\frac{\exp(-\theta)}{1 + \exp(-\theta)}\right) \\
+&= \log(1 + \exp(\theta))
+\end{align*}
+
+This exactly matches our results from the multinomial formulation!
+
+\section{Summary of Relationships}
+
+\begin{itemize}
+    \item \textbf{Multinomial Form}: $-\langle y, \theta\rangle + \log\sum \exp(\theta_i)$
+    \item \textbf{Softmax Form}: $-\log\left(\frac{\exp(\theta_y)}{\sum \exp(\theta_i)}\right)$
+    \item \textbf{Binary Specialization}: $\log(1 + \exp(\mp\theta))$ depending on class
+    \item \textbf{Sigmoid Form}: $-y\log(\sigma(\theta)) - (1-y)\log(1-\sigma(\theta))$
+\end{itemize}
+
+All these forms are mathematically equivalent, just different representations of the same fundamental loss function.
+\end{notechapter}

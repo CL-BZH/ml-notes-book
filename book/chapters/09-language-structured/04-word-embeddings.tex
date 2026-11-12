@@ -1,0 +1,308 @@
+% Source: word_embeddings.tex
+\begin{notechapter}
+% ---- chapter-local definitions ----
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{black},
+}
+\lstset{style=mystyle}
+% -----------------------------------
+\chapter{Word Embeddings}\label{ch:word-embeddings}
+
+\section{Introduction}
+Word embeddings are dense vector representations of words that 
+capture semantic relationships. They are a cornerstone of modern 
+natural language processing (NLP) and are used in tasks like 
+machine translation, sentiment analysis, and text classification. 
+This tutorial explains what word embeddings are, how they are 
+obtained, and how they are used, with a focus on practical 
+implementation details.
+
+\section{What Are Word Embeddings?}
+Word embeddings map words to dense vectors in a continuous vector 
+space. Words with similar meanings are mapped to nearby points, 
+enabling machines to understand semantic relationships. For 
+example:
+\begin{itemize}
+    \item ``king'' - ``man'' + ``woman'' $\approx$ ``queen''
+    \item ``Paris'' - ``France'' + ``Italy'' $\approx$ ``Rome''
+\end{itemize}
+
+\section{How Are Word Embeddings Obtained?}
+Word embeddings are learned from large text corpora using 
+algorithms like Word2Vec, GloVe, and FastText. These algorithms 
+analyze word co-occurrence patterns to capture semantic 
+relationships.
+
+\subsection{Word2Vec}
+Word2Vec is a shallow neural network with two architectures:
+\begin{itemize}
+    \item \textbf{Skip-Gram}: Predicts context words given a 
+    target word.
+    \item \textbf{CBOW (Continuous Bag of Words)}: Predicts a 
+    target word given its context words.
+\end{itemize}
+
+\subsubsection{Skip-Gram Architecture}
+The Skip-Gram model takes a target word as input and predicts its 
+context words. For example, given the sentence ``The cat sat on 
+the mat,'' if the target word is ``sat,'' the model tries to 
+predict ``cat'' and ``on.''
+
+\begin{itemize}
+    \item \textbf{Input}: One-hot encoded vector of the target 
+    word.
+    \item \textbf{Hidden Layer}: A weight matrix (the embedding 
+    matrix) maps the input to a dense vector.
+    \item \textbf{Output}: A softmax layer predicts the 
+    probability distribution of context words.
+\end{itemize}
+
+The embedding matrix is learned by minimizing the prediction 
+error using gradient descent.
+
+\subsubsection{CBOW Architecture}
+The CBOW model takes context words as input and predicts the 
+target word. For example, given the context words ``cat'' and 
+``on,'' the model tries to predict ``sat.''
+
+\begin{itemize}
+    \item \textbf{Input}: Average of one-hot encoded vectors of 
+    context words.
+    \item \textbf{Hidden Layer}: A weight matrix maps the input 
+    to a dense vector.
+    \item \textbf{Output}: A softmax layer predicts the 
+    probability distribution of the target word.
+\end{itemize}
+
+\subsubsection{Pretext Task for Learning Embeddings}
+The prediction task in Word2Vec (whether Skip-Gram or CBOW) is a
+\textbf{pretext task}. The primary goal is not to perform the
+prediction itself but to use it as a mechanism to learn meaningful
+word embeddings. By training the model to predict words based on
+their context (or vice versa), the model learns to place words with
+similar meanings or usage patterns close to each other in the vector space. For example:
+\begin{itemize}
+    \item Words like "king" and "queen" will have similar embeddings
+    because they often appear in similar contexts.
+    \item The embeddings capture semantic relationships, such as
+    analogies (e.g., "king" - "man" + "woman" $\approx$ "queen"). 
+\end{itemize}
+This approach is based on the \textbf{distributional hypothesis}, which
+states that words appearing in similar contexts tend to have similar
+meanings.
+
+\subsection{GloVe}
+GloVe (Global Vectors for Word Representation) learns embeddings 
+by factorizing a word co-occurrence matrix. The key idea is to 
+capture global statistics of word co-occurrences.
+
+\subsubsection{Co-Occurrence Matrix}
+The co-occurrence matrix \( X \) stores how often words appear 
+together in a context window. For example, \( X_{ij} \) is the 
+number of times word \( j \) appears in the context of word \( i \).
+
+\subsubsection{Objective Function}
+GloVe minimizes the following objective function:
+\[
+J = \sum_{i,j=1}^V f(X_{ij}) (w_i^T \tilde{w}_j + b_i + \tilde{b}_j - \log X_{ij})^2
+\]
+where:
+\begin{itemize}
+    \item \( w_i \) and \( \tilde{w}_j \) are word vectors.
+    \item \( b_i \) and \( \tilde{b}_j \) are bias terms.
+    \item \( f(X_{ij}) \) is a weighting function to reduce the 
+    influence of rare co-occurrences.
+\end{itemize}
+
+\subsection{FastText}
+FastText extends Word2Vec by representing words as bags of 
+character n-grams. This allows it to generate embeddings for rare 
+and out-of-vocabulary words.
+
+\subsubsection{Subword Information}
+Each word is represented as a sum of its character n-grams. For 
+example, the word ``apple'' might be broken into n-grams like 
+``app,'' ``ppl,'' ``ple.''
+
+\subsubsection{Training}
+FastText uses the same architectures as Word2Vec (Skip-Gram or 
+CBOW) but learns embeddings for both words and their subword 
+components.
+
+\subsection{Are Word Embeddings Extracted from Deep Networks?}
+The answer depends on the type of word embedding model:
+
+\subsubsection{Traditional Embeddings (Word2Vec, GloVe, FastText)}
+\begin{itemize}
+    \item \textbf{Not Extracted from Deep Networks}: These models 
+    use shallow neural networks or matrix factorization.
+    \item In Word2Vec, the embeddings are the weights of the 
+    hidden layer in a shallow network.
+    \item In GloVe, the embeddings are obtained by factorizing a 
+    co-occurrence matrix.
+    \item In FastText, the embeddings are learned using a shallow 
+    network with subword information.
+\end{itemize}
+
+\subsubsection{Contextualized Embeddings (BERT, GPT, ELMo)}
+\begin{itemize}
+    \item \textbf{Extracted from Deep Networks}: These models use 
+    deep neural networks (e.g., transformers, LSTMs) to generate 
+    embeddings.
+    \item In BERT, embeddings are extracted from the final hidden 
+    states of a transformer encoder.
+    \item In GPT, embeddings are extracted from the final hidden 
+    states of a transformer decoder.
+    \item In ELMo, embeddings are extracted from the hidden 
+    states of a bidirectional LSTM.
+\end{itemize}
+
+\section{How Are Word Embeddings Used?}
+Word embeddings are used in various NLP tasks:
+\begin{itemize}
+    \item \textbf{Text Representation}: Words, sentences, or 
+    documents are represented as vectors.
+    \item \textbf{Semantic Similarity}: Cosine similarity measures 
+    how close two words are in vector space.
+    \item \textbf{Machine Translation}: Embeddings capture 
+    cross-lingual semantic relationships.
+    \item \textbf{Sentiment Analysis}: Words are represented as 
+    vectors for classification tasks.
+    \item \textbf{Named Entity Recognition (NER)}: Embeddings help 
+    identify entities like names and dates.
+\end{itemize}
+
+\section{Implementing Word Embeddings}
+Word embeddings are typically implemented using an \textbf{index 
+mapping} (like a dictionary) and an \textbf{embedding matrix}.
+
+\subsection{Index Mapping (Dictionary)}
+A dictionary maps each word to a unique index:
+\begin{lstlisting}[language=Python]
+index_mapping = {
+    "king": 0,
+    "queen": 1,
+    "man": 2,
+    "woman": 3
+}
+\end{lstlisting}
+
+\subsection{Embedding Matrix}
+The embedding matrix stores the actual word embeddings. Each row 
+corresponds to a word's index:
+\begin{lstlisting}[language=Python]
+embedding_matrix = [
+    [0.7, 0.8, 0.9],  # Index 0: "king"
+    [0.6, 0.7, 0.8],  # Index 1: "queen"
+    [0.5, 0.6, 0.7],  # Index 2: "man"
+    [0.4, 0.5, 0.6]   # Index 3: "woman"
+]
+\end{lstlisting}
+
+\subsection{Retrieving an Embedding}
+To retrieve an embedding:
+\begin{enumerate}
+    \item Look up the word's index in the dictionary.
+    \item Use the index to access the corresponding row in the 
+    embedding matrix.
+\end{enumerate}
+Example:
+\begin{lstlisting}[language=Python]
+word = "king"
+index = index_mapping[word]  # Get index (e.g., 0)
+embedding = embedding_matrix[index]  # Get embedding
+print(embedding)  # Output: [0.7, 0.8, 0.9]
+\end{lstlisting}
+
+\subsection{Why Not Use a Python Dictionary?}
+While a dictionary could store embeddings directly, it is less 
+efficient for large vocabularies. The embedding matrix approach 
+is:
+\begin{itemize}
+    \item \textbf{Memory-Efficient}: Stores only vectors, not 
+    keys.
+    \item \textbf{Fast}: Accessing rows in a matrix is faster than 
+    dictionary lookups.
+    \item \textbf{Compatible}: Works well with machine learning 
+    frameworks like TensorFlow and PyTorch.
+\end{itemize}
+
+\section{Loading Pretrained Embeddings}
+Pretrained embeddings (e.g., Word2Vec, GloVe) can be loaded using 
+libraries like \texttt{gensim}, \texttt{spaCy}, or 
+\texttt{transformers}.
+
+\subsection{Using Gensim}
+\begin{lstlisting}[language=Python]
+from gensim.models import KeyedVectors
+
+# Load the pretrained Word2Vec model
+model = KeyedVectors.load_word2vec_format(
+    'path/to/word2vec.bin', binary=True)
+
+# Get the embedding for a word
+word = "king"
+embedding = model[word]
+print(embedding)
+\end{lstlisting}
+
+\subsection{Using spaCy}
+\begin{lstlisting}[language=Python]
+import spacy
+
+# Load the spaCy model
+nlp = spacy.load('en_core_web_sm')
+
+# Get the embedding for a word
+word = "king"
+embedding = nlp(word).vector
+print(embedding)
+\end{lstlisting}
+
+\section{Key Takeaways}
+\begin{itemize}
+    \item Word embeddings are dense vector representations of 
+    words.
+    \item They are learned using algorithms like Word2Vec, GloVe, 
+    or FastText.
+    \item In Word2Vec, the prediction task (Skip-Gram or CBOW) is a 
+    pretext task used to learn meaningful word embeddings.
+    \item Pretrained embeddings can be loaded and used for various 
+    NLP tasks.
+    \item The mapping from words to embeddings is implemented 
+    using an index dictionary and an embedding matrix for 
+    efficiency.
+    \item Contextualized embeddings (e.g., BERT) generate dynamic 
+    representations based on context.
+\end{itemize}
+
+\section{Conclusion}
+Word embeddings are a powerful tool for representing words in NLP 
+tasks. By understanding how they are obtained, implemented, and 
+used, you can leverage them to improve the performance of your NLP 
+models. Whether you're working with traditional embeddings like 
+Word2Vec or modern contextualized embeddings like BERT, the 
+principles remain the same: capture semantic relationships and 
+represent words in a way that machines can understand.
+\end{notechapter}

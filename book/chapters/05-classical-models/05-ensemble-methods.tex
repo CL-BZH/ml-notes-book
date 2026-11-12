@@ -1,0 +1,228 @@
+% Source: adaboost.tex
+\begin{notechapter}
+\chapter{Ensemble Methods}\label{ch:ensemble-methods}
+\chaptersubtitle{AdaBoost, forward stagewise additive modeling and gradient boosting}
+
+\section{AdaBoost Algorithm}
+
+AdaBoost (Adaptive Boosting) is an ensemble learning algorithm that 
+combines multiple weak learners (e.g., shallow decision trees) to 
+create a strong learner. It focuses on instances that are difficult 
+to classify, iteratively improving the model's performance.
+
+\subsection{How AdaBoost Works}
+
+\subsubsection{Initialization}
+\begin{itemize}
+    \item Start with a dataset of \( N \) training instances: 
+    \( (x_1, y_1), (x_2, y_2), \dots, (x_N, y_N) \), where \( x_i \) 
+    are features and \( y_i \) are labels (e.g., \( y_i \in \{-1, 1\} \)).
+    \item Assign equal weights to all instances: 
+    \( w_i = \frac{1}{N} \) for \( i = 1, 2, \dots, N \).
+\end{itemize}
+
+\subsubsection{Iterative Training}
+AdaBoost trains \( T \) weak learners. For each iteration 
+\( t = 1, 2, \dots, T \):
+
+\begin{itemize}
+    \item \textbf{Step 1: Train a Weak Learner}
+    \begin{itemize}
+        \item Train a weak learner \( h_t(x) \) on the weighted data.
+        \item Compute the weighted error:
+        \[
+        \epsilon_t = \sum_{i=1}^N w_i \cdot \mathbb{I}(h_t(x_i) \neq y_i),
+        \]
+        where \( \mathbb{I} \) is 1 if incorrect, 0 otherwise.
+    \end{itemize}
+
+    \item \textbf{Step 2: Compute Weak Learner's Weight}
+    \begin{itemize}
+        \item Compute \( \alpha_t \) for \( h_t(x) \):
+        \[
+        \alpha_t = \frac{1}{2} \ln\left(\frac{1 - \epsilon_t}{\epsilon_t}\right).
+        \]
+        \item If \( \epsilon_t \) is small, \( \alpha_t \) is large.
+        \item If \( \epsilon_t \) is large, \( \alpha_t \) is small.
+    \end{itemize}
+
+    \item \textbf{Step 3: Update Instance Weights}
+    \begin{itemize}
+                \item Update the weights, with labels and predictions in \( \{-1, +1\} \):
+        \[
+        w_i \leftarrow w_i \cdot \exp\left(-\alpha_t \, y_i \, h_t(x_i)\right),
+        \]
+        i.e.\ multiply by \( e^{\alpha_t} > 1 \) the weights of misclassified instances
+        (\( y_i h_t(x_i) = -1 \)) and by \( e^{-\alpha_t} < 1 \) those of correctly classified ones.
+        Up to the normalization below, this is the same as multiplying only the misclassified weights by
+        \( e^{2\alpha_t} = \frac{1-\epsilon_t}{\epsilon_t} \). After normalization, the misclassified instances
+        carry exactly half of the total weight, so \( h_t \) has weighted error \( 1/2 \) under the new weights.
+        \item Normalize weights so they sum to 1:
+        \[
+        w_i \leftarrow \frac{w_i}{\sum_{j=1}^N w_j}.
+        \]
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Combine Weak Learners}
+After \( T \) iterations, the final strong learner \( H(x) \) is:
+\[
+H(x) = \text{sign}\left(\sum_{t=1}^T \alpha_t \cdot h_t(x)\right).
+\]
+\begin{itemize}
+    \item Weak learners with lower error contribute more.
+    \item The \( \text{sign} \) function outputs binary predictions.
+\end{itemize}
+
+\subsection{Key Features of AdaBoost}
+\begin{itemize}
+    \item Focuses on hard-to-classify instances.
+    \item Adaptively weights weak learners based on performance.
+    \item Reduces bias and improves generalization.
+    \item Less prone to overfitting with simple weak learners.
+\end{itemize}
+
+\subsection{Advantages of AdaBoost}
+\begin{itemize}
+    \item Simple and easy to implement.
+    \item Works well with weak learners like decision stumps.
+    \item Achieves high accuracy with minimal tuning.
+\end{itemize}
+
+\subsection{Limitations of AdaBoost}
+\begin{itemize}
+    \item Sensitive to noisy data and outliers.
+    \item Requires weak learners to perform better than random guessing.
+\end{itemize}
+
+\section{Forward Stagewise Additive Modeling (FSAM)}
+
+FSAM is a framework for building additive models sequentially. It is 
+the theoretical foundation for many boosting algorithms, including 
+AdaBoost and Gradient Boosting.
+
+\subsection{How FSAM Works}
+1. \textbf{Additive Model}:
+   The goal is to build a model \( F(x) \) as a sum of simpler models:
+   \[
+   F(x) = \sum_{t=1}^T \alpha_t h_t(x),
+   \]
+   where \( h_t(x) \) is a weak learner and \( \alpha_t \) is its weight.
+
+2. \textbf{Sequential Training}:
+   \begin{itemize}
+       \item At each step \( t \), a new weak learner \( h_t(x) \) is added.
+       \item The weak learner is chosen to minimize a loss function \( L \):
+         \[
+         h_t(x) = \arg\min_{h} \sum_{i=1}^N L\left(y_i, F_{t-1}(x_i) + \alpha_t h(x_i)\right).
+         \]
+       \item The weight \( \alpha_t \) is determined via optimization.
+   \end{itemize}
+
+3. \textbf{Greedy Optimization}:
+   \begin{itemize}
+       \item FSAM is greedy because it optimizes one weak learner at a time.
+   \end{itemize}
+
+\subsection{Connection to AdaBoost}
+AdaBoost is a special case of FSAM where:
+\begin{itemize}
+    \item The loss function is exponential: 
+    \[
+    L(y, F(x)) = \exp(-y F(x)).
+    \]
+    \item The weak learners are binary classifiers (e.g., decision stumps).
+\end{itemize}
+
+\section{Gradient Boosting}
+
+Gradient Boosting is a generalization of boosting algorithms that 
+uses gradient descent to minimize a differentiable loss function.
+
+\subsection{How Gradient Boosting Works}
+1. \textbf{Additive Model}:
+   The model is built sequentially:
+   \[
+   F(x) = \sum_{t=1}^T h_t(x),
+   \]
+   where \( h_t(x) \) is a weak learner (often a decision tree).
+
+2. \textbf{Gradient Descent in Function Space}:
+   \begin{itemize}
+       \item At each step \( t \), compute pseudo-residuals:
+         \[
+         r_{i,t} = -\frac{\partial L(y_i, F_{t-1}(x_i))}{\partial F_{t-1}(x_i)}.
+         \]
+       \item Train a weak learner \( h_t(x) \) to predict \( r_{i,t} \):
+         \[
+         h_t(x) = \arg\min_{h} \sum_{i=1}^N (r_{i,t} - h(x_i))^2.
+         \]
+   \end{itemize}
+
+3. \textbf{Update the Model}:
+   \begin{itemize}
+       \item Update the model:
+         \[
+         F_t(x) = F_{t-1}(x) + \nu h_t(x),
+         \]
+         where \( \nu \) is the learning rate.
+   \end{itemize}
+
+4. \textbf{Iterate Until Convergence}:
+   \begin{itemize}
+       \item Repeat for \( T \) iterations or until the loss stops improving.
+   \end{itemize}
+
+\subsection{Connection to FSAM}
+Gradient Boosting is a specific implementation of FSAM where:
+\begin{itemize}
+    \item The loss function is any differentiable loss.
+    \item The weak learners are trained to approximate the negative gradient.
+\end{itemize}
+
+\subsection{Example: Gradient Boosting for Regression}
+For regression with squared error loss:
+\begin{itemize}
+    \item Pseudo-residuals:
+      \[
+      r_{i,t} = y_i - F_{t-1}(x_i).
+      \]
+    \item Weak learner: A decision tree predicts \( r_{i,t} \).
+    \item Update model:
+      \[
+      F_t(x) = F_{t-1}(x) + \nu h_t(x).
+      \]
+\end{itemize}
+
+\section{Key Differences Between FSAM and Gradient Boosting}
+
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Feature} & \textbf{FSAM} & \textbf{Gradient Boosting} \\
+\hline
+Loss Function & Any loss function & Differentiable loss function \\
+\hline
+Weak Learner & Any weak learner & Typically decision trees \\
+\hline
+Optimization & Greedy, stepwise & Gradient descent in function space \\
+\hline
+Weight Calculation & Analytically derived & Determined via line search \\
+\hline
+Flexibility & Less flexible & Highly flexible \\
+\hline
+\end{tabular}
+
+\section{Advantages of Gradient Boosting}
+\begin{itemize}
+    \item Flexibility: Can handle any differentiable loss function.
+    \item Powerful: Often achieves state-of-the-art performance.
+    \item Interpretability: Weak learners (e.g., trees) are interpretable.
+\end{itemize}
+
+\section{Limitations of Gradient Boosting}
+\begin{itemize}
+    \item Computationally expensive: Sequential training can be slow.
+    \item Sensitive to overfitting: Requires careful tuning.
+    \item Black-box nature: The ensemble can be complex.
+\end{itemize}
+\end{notechapter}

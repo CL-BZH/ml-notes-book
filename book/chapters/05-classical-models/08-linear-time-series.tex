@@ -1,0 +1,371 @@
+% Source: linear_time_series_models.tex
+\begin{notechapter}
+\chapter{Some Linear Time Series Models}\label{ch:linear-time-series}
+
+\section*{Preamble: Key Operators in Time Series Analysis}
+Before diving into the models, we introduce two fundamental operators 
+used extensively in time series analysis: the \textbf{Backward Shift 
+Operator} and the \textbf{Difference Operator}.
+
+\subsection*{Backward Shift Operator}
+The \textbf{Backward Shift Operator} $B$ is defined as:
+\[
+B X_t = X_{t-1}, \quad B^k X_t = X_{t-k}
+\]
+This operator shifts the time index of a time series backward by one 
+or more steps.
+
+\subsection*{Difference Operator}
+The \textbf{Difference Operator} $\nabla$ is defined as:
+\[
+\nabla X_t = X_t - X_{t-1} = (1 - B) X_t
+\]
+This operator computes the difference between consecutive observations. 
+Higher-order differences are defined recursively:
+\[
+\nabla^d X_t = \nabla (\nabla^{d-1} X_t)
+\]
+For example, the second difference is:
+\[
+\nabla^2 X_t = \nabla (X_t - X_{t-1}) = X_t - 2X_{t-1} + X_{t-2} = (1 - B)^2 X_t
+\]
+
+\subsection*{Seasonal Difference Operator}
+For seasonal time series, the \textbf{Seasonal Difference Operator} 
+$\nabla_s$ is defined as:
+\[
+\nabla_s X_t = X_t - X_{t-s} = (1 - B^s) X_t
+\]
+where $s$ is the seasonal period (e.g., $s = 12$ for monthly data). 
+Higher-order seasonal differences are defined as:
+\[
+\nabla_s^D X_t = (1 - B^s)^D X_t
+\]
+
+\section*{Introduction}
+This chapter introduces various probability models for time series, 
+focusing on linear models such as autoregressive (AR), moving average 
+(MA), and mixed ARMA models. The concept of stationarity is central 
+to these models, and we explore how to identify and fit these models 
+to time series data.
+
+\section{Stochastic Processes and Their Properties}
+A \textbf{stochastic process} is a collection of random variables 
+ordered in time. It can be either continuous or discrete. In this 
+chapter, we focus on discrete-time processes, where observations 
+are made at equal intervals.
+
+\subsection*{Key Properties}
+\begin{itemize}
+    \item \textbf{Mean function}: $\mu(t) = E[X(t)]$
+    \item \textbf{Variance function}: $\sigma^2(t) = \text{Var}[X(t)]$
+    \item \textbf{Autocovariance function (acv.f.)}: 
+          $\gamma(t_1, t_2) = \text{Cov}[X(t_1), X(t_2)]$
+    \item \textbf{Autocorrelation function (ac.f.)}: 
+          $\rho(\tau) = \gamma(\tau)/\gamma(0)$
+\end{itemize}
+
+\section{Stationary Processes}
+A time series is \textbf{strictly stationary} if the joint distribution 
+of any set of observations is invariant to time shifts. A process is 
+\textbf{second-order stationary} (or weakly stationary) if its mean 
+and variance are constant, and the autocovariance depends only on 
+the lag $\tau$.
+
+\subsection*{Importance of Stationarity}
+Stationarity is crucial because much of the theory of time series 
+analysis is based on stationary processes. Non-stationary processes 
+can often be transformed into stationary ones by differencing or 
+other techniques.
+
+\section{Properties of the Autocorrelation Function (ac.f.)}
+The autocorrelation function (ac.f.) is a key tool for analyzing 
+time series. It measures the correlation between observations at 
+different lags.
+
+\subsection*{Key Properties of the ac.f.}
+\begin{itemize}
+    \item The ac.f. is an even function: $\rho(\tau) = \rho(-\tau)$.
+    \item The ac.f. is bounded: $|\rho(\tau)| \leq 1$.
+    \item The ac.f. does not uniquely identify the underlying model, 
+          as different processes can have the same ac.f.
+\end{itemize}
+
+\section{Purely Random Processes}
+A \textbf{purely random process} consists of a sequence of independent 
+and identically distributed (i.i.d.) random variables, often assumed 
+to be normally distributed with mean zero and variance $\sigma^2_Z$.
+
+\subsection*{Properties}
+\begin{itemize}
+    \item The ac.f. of a purely random process is zero for all lags 
+          except lag 0, where it is 1.
+    \item Such processes are also called \textbf{white noise}.
+\end{itemize}
+
+\section{Random Walks}
+A \textbf{random walk} is a process where each value is the sum of 
+the previous value and a purely random error term:
+\[
+X_t = X_{t-1} + Z_t
+\]
+The process is customarily started at zero when t = 0, so that
+\[
+X_1 = Z_1,\; \text{and}\; X_t = \sum_{i=1}^{t}Z_i
+\]
+
+Random walks are non-stationary, but their first differences are 
+stationary. Using the difference operator, this can be written as:
+\[
+\nabla X_t = Z_t
+\]
+
+\section{Moving Average (MA) Processes}
+An \textbf{MA(q) process} is defined as:
+\[
+X_t = Z_t + \beta_1 Z_{t-1} + \cdots + \beta_q Z_{t-q}
+\]
+Using the backward shift operator, this can be written as:
+\[
+X_t = \theta(B) Z_t
+\]
+where $\theta(B) = 1 + \beta_1 B + \cdots + \beta_q B^q$ is the MA 
+polynomial.
+
+\subsection*{Introduction to MA Processes}
+The moving average (MA) model is a simple yet powerful tool for 
+modeling time series. It predicts future values based on past 
+forecast errors, making it particularly useful for capturing 
+short-term fluctuations in the data. The order $q$ of the MA model 
+determines how many past errors are used for prediction.
+
+\subsection*{Properties}
+\begin{itemize}
+    \item The ac.f. of an MA(q) process "cuts off" after lag $q$, 
+          meaning $\rho(k) = 0$ for $k > q$.
+    \item MA processes are always stationary.
+    \item The process must satisfy the \textbf{invertibility condition} 
+          to ensure uniqueness. This condition requires that the roots 
+          of the MA polynomial $\theta(B)$ lie outside the unit circle.
+\end{itemize}
+
+\subsection*{Invertibility Condition}
+A process is invertible if there exists a polynomial $\theta^{-1}(B)$ 
+such that:
+\[
+\theta^{-1}(B) \theta(B) = 1
+\]
+This ensures that the MA process can be expressed as an infinite AR 
+process, which is useful for forecasting and interpretation.
+
+\section{Autoregressive (AR) Processes}
+An \textbf{AR(p) process} is defined as:
+\[
+X_t = \alpha_1 X_{t-1} + \cdots + \alpha_p X_{t-p} + Z_t
+\]
+Using the backward shift operator, this can be written as:
+\[
+\phi(B) X_t = Z_t
+\]
+where $\phi(B) = 1 - \alpha_1 B - \cdots - \alpha_p B^p$ is the AR 
+polynomial.
+
+\subsection*{Introduction to AR Processes}
+The autoregressive (AR) model is a fundamental tool in time series 
+analysis. It predicts future values based on past values, making it 
+particularly useful for capturing trends and dependencies in the data. 
+The order $p$ of the AR model determines how many past values are used 
+for prediction.
+
+\subsection*{Characteristic Equation}
+The \textbf{characteristic equation} of an AR(p) process is given by:
+\[
+1 - \alpha_1 B - \alpha_2 B^2 - \cdots - \alpha_p B^p = 0
+\]
+The roots of this equation determine the stationarity of the process.
+
+\subsection*{Stationarity Condition}
+An AR(p) process is stationary if all the roots of the characteristic 
+equation lie outside the unit circle. This ensures that the process 
+does not explode over time.
+
+\subsection*{Autocorrelation Function (ac.f.)}
+The ac.f. of an AR(p) process decays exponentially or as a damped 
+sinusoid, depending on the roots of the characteristic equation. 
+For example:
+\begin{itemize}
+    \item If the roots are real, the ac.f. decays exponentially.
+    \item If the roots are complex, the ac.f. exhibits damped 
+          sinusoidal behavior.
+\end{itemize}
+
+\subsection*{Yule-Walker Equations}
+The parameters of an AR(p) process can be estimated using the 
+\textbf{Yule-Walker equations}:
+\[
+\rho(k) = \alpha_1 \rho(k-1) + \cdots + \alpha_p \rho(k-p), \quad k \geq 1
+\]
+These equations relate the autocorrelations to the AR coefficients.
+
+\section{Mixed ARMA Models}
+An \textbf{ARMA(p, q) model} combines AR and MA components:
+\[
+X_t = \alpha_1 X_{t-1} + \cdots + \alpha_p X_{t-p} + Z_t + \beta_1 Z_{t-1} 
++ \cdots + \beta_q Z_{t-q}
+\]
+Using the backward shift operator, this can be written as:
+\[
+\phi(B) X_t = \theta(B) Z_t
+\]
+where $\phi(B) = 1 - \alpha_1 B - \cdots - \alpha_p B^p$ is the AR 
+polynomial, and $\theta(B) = 1 + \beta_1 B + \cdots + \beta_q B^q$ 
+is the MA polynomial.
+
+\subsection*{Introduction to ARMA Processes}
+The ARMA model combines the strengths of both AR and MA models, 
+allowing for more flexible and accurate predictions. The AR component 
+captures the dependency on past values, while the MA component captures 
+the dependency on past errors. Together, they provide a powerful tool 
+for modeling stationary time series.
+
+\subsection*{Stationarity and Invertibility}
+\begin{itemize}
+    \item The ARMA process is stationary if the roots of $\phi(B)$ 
+          lie outside the unit circle.
+    \item The process is invertible if the roots of $\theta(B)$ 
+          lie outside the unit circle.
+\end{itemize}
+
+\subsection*{Autocorrelation Function (ac.f.)}
+The ac.f. of an ARMA process is a mixture of the ac.f.s of the AR 
+and MA components. It generally decays exponentially after lag $q$.
+
+\section{Integrated ARMA (ARIMA) Models}
+An \textbf{ARIMA(p, d, q) model} is used for non-stationary time series 
+that can be made stationary by differencing $d$ times. The model is 
+written as:
+\[
+\phi(B) \nabla^d X_t = \theta(B) Z_t
+\]
+or equivalently:
+\[
+\phi(B) (1 - B)^d X_t = \theta(B) Z_t
+\]
+where $\nabla^d = (1 - B)^d$ is the $d$-th difference operator.
+
+\subsection*{Introduction to ARIMA Processes}
+The ARIMA model extends the ARMA model by incorporating differencing 
+to handle non-stationary time series. Differencing removes trends and 
+makes the series stationary, allowing the ARMA model to be applied. 
+The order $d$ of differencing determines how many times the series 
+is differenced.
+
+\subsection*{Properties}
+\begin{itemize}
+    \item The differenced series $\nabla^d X_t$ is an ARMA(p, q) 
+          process.
+    \item ARIMA models are widely used in practice, especially for 
+          economic and financial time series.
+    \item The differencing operation removes trends and makes the 
+          series stationary.
+    \item The parameters $p$, $d$, and $q$ must be chosen carefully 
+          to ensure a good fit.
+\end{itemize}
+
+\section{Seasonal ARIMA (SARIMA) Models}
+A \textbf{SARIMA(p, d, q)(P, D, Q)}$_s$ \textbf{model} extends the ARIMA
+model to handle seasonal patterns. It is defined as:
+\[
+\phi(B) \Phi(B^s) \nabla^d \nabla_s^D X_t = \theta(B) \Theta(B^s) Z_t
+\]
+or equivalently:
+\[
+\phi(B) \Phi(B^s) (1 - B)^d (1 - B^s)^D X_t = \theta(B) \Theta(B^s) Z_t
+\]
+where:
+\begin{itemize}
+    \item $\phi(B)$ and $\theta(B)$ are the non-seasonal AR and MA 
+          polynomials.
+    \item $\Phi(B^s)$ and $\Theta(B^s)$ are the seasonal AR and MA 
+          polynomials.
+    \item $s$ is the seasonal period (e.g., 12 for monthly data).
+    \item $D$ is the order of seasonal differencing.
+\end{itemize}
+
+\subsection*{Introduction to SARIMA Processes}
+The SARIMA model extends the ARIMA model to handle seasonal patterns 
+in the data. It incorporates both non-seasonal and seasonal components, 
+making it suitable for time series with strong seasonal trends. The 
+seasonal differencing $\nabla_s^D$ removes seasonal trends, allowing 
+the ARIMA model to be applied.
+
+\subsection*{Properties}
+\begin{itemize}
+    \item SARIMA models are useful for time series with both trend 
+          and seasonal components.
+    \item The seasonal differencing $\nabla_s^D = (1 - B^s)^D$ removes 
+          seasonal trends.
+\end{itemize}
+
+\section{Fractional Differencing and Long-Memory Models}
+\textbf{Fractional ARIMA (ARFIMA) models} extend ARIMA models by 
+allowing the differencing parameter $d$ to be a non-integer. This 
+leads to \textbf{long-memory processes}, where the autocorrelation 
+function decays very slowly.
+
+\subsection*{Long-Memory Processes}
+\begin{itemize}
+    \item In a long-memory process, the autocorrelations are not 
+          absolutely summable, meaning they decay at a hyperbolic 
+          rate rather than exponentially.
+    \item These processes are useful for modeling time series where 
+          observations far apart in time still exhibit some correlation.
+    \item The fractional differencing parameter $d$ controls the 
+          degree of long memory. For $0 < d < 0.5$, the process is 
+          stationary and exhibits long memory.
+\end{itemize}
+
+\section{The General Linear Process}
+A \textbf{general linear process} can be expressed as an infinite-order 
+MA process:
+\[
+X_t = \sum_{i=0}^{\infty} \psi_i Z_{t-i}
+\]
+where $\psi_i$ are weights and $Z_t$ is a purely random process.
+
+\subsection*{Properties}
+\begin{itemize}
+    \item This representation is useful for understanding the 
+          properties of stationary processes.
+        \item The process is (weakly) stationary as soon as the weights are square summable,
+          $\sum_i \psi_i^2 < \infty$ (then $\gamma(k) = \sigma_Z^2 \sum_i \psi_i \psi_{i+k}$). Absolute
+          summability, $\sum_i |\psi_i| < \infty$, is a stronger sufficient condition that is often
+          assumed because it also guarantees absolutely summable autocovariances (short memory).
+\end{itemize}
+
+\section{Continuous-Time Processes}
+The chapter briefly discusses continuous-time processes, such as the 
+\textbf{Ornstein-Uhlenbeck process}, which is a continuous-time 
+analogue of the AR(1) process.
+
+\subsection*{Properties}
+\begin{itemize}
+    \item Continuous-time processes are more complex to analyze 
+          than discrete-time processes.
+    \item They are often used in physics and engineering.
+\end{itemize}
+
+\section{The Wold Decomposition Theorem}
+The \textbf{Wold Decomposition Theorem} states that any stationary 
+process can be decomposed into a purely deterministic component 
+and a purely indeterministic component, which can be represented 
+as an infinite-order MA process.
+
+\subsection*{Implications}
+\begin{itemize}
+    \item The theorem provides a theoretical foundation for the 
+          use of MA and ARMA models in time series analysis.
+    \item It highlights the importance of the purely random 
+          component in modeling time series.
+\end{itemize}
+\end{notechapter}

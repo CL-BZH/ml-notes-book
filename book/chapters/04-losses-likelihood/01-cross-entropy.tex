@@ -1,0 +1,146 @@
+% Source: cross_entropy_from_IT_to_ML.tex
+\begin{notechapter}
+\chapter{Cross-Entropy}\label{ch:cross-entropy}
+\chaptersubtitle{From information theory to machine learning}
+
+\begin{abstract}
+    This document provides a deep dive into the cross-entropy loss function, explaining its origins in information theory, its role as a dissimilarity measure, and its application in both discrete and continuous machine learning tasks. We will explore why it is the cornerstone of classification, extend the concept to continuous outputs, and illustrate its use in a practical natural language processing example.
+\end{abstract}
+
+\section{Information Theory Foundation}
+
+\subsection{Entropy: The Measure of Uncertainty}
+
+In information theory, entropy quantifies the uncertainty or "surprise" inherent in a random variable's possible outcomes.
+
+\begin{definition}[Entropy]
+For a discrete random variable $X$ with probability mass function $P(x)$, the \textbf{entropy} $H(X)$ is defined as:
+\[
+H(X) = -\sum_{x \in \mathcal{X}} P(x) \log P(x)
+\]
+where $\mathcal{X}$ is the set of all possible outcomes, and by convention, $0 \log 0 = 0$.
+\end{definition}
+
+\textbf{Why is $H(X)$ the minimum average number of bits?} \\
+Imagine you want to transmit the outcomes of $X$ over a channel. If you design an optimal code, you will assign shorter codes to more frequent outcomes and longer codes to less frequent ones. The Shannon source coding theorem states that the expected code length, under this optimal scheme, cannot be less than the entropy $H(X)$. It is the fundamental limit of lossless compression. For a fair coin flip ($P(H)=P(T)=0.5$), $H(X) = 1$ bit, meaning you cannot do better than using 1 bit per flip. If the coin is unfair ($P(H)=0.99$), the entropy is much lower ($\approx 0.08$ bits), reflecting the fact that you can create a very efficient code for a highly predictable source.
+
+\subsection{Cross-Entropy and KL Divergence}
+
+Now, suppose we don't know the true distribution $P$ and instead use a model distribution $Q$ to design our code.
+
+\begin{definition}[Cross-Entropy]
+The \textbf{cross-entropy} between two discrete distributions $P$ and $Q$ is the average number of bits needed to identify an event from $P$ when using a code optimized for $Q$.
+\[
+H(P, Q) = -\sum_{x} P(x) \log Q(x)
+\]
+\end{definition}
+
+If $Q$ is identical to $P$, then $H(P, Q) = H(P)$, the minimum. If not, we need more bits. This "extra number of bits" is a direct measure of the dissimilarity between $P$ and $Q$, known as the Kullback-Leibler (KL) Divergence.
+
+\begin{definition}[KL Divergence]
+The \textbf{KL Divergence} from $Q$ to $P$ is defined as:
+\[
+D_{KL}(P \parallel Q) = \sum_{x} P(x) \log \frac{P(x)}{Q(x)} = H(P, Q) - H(P)
+\]
+\end{definition}
+
+Since $H(P)$ is a constant determined by the data-generating process, \textbf{minimizing the cross-entropy $H(P, Q)$ is equivalent to minimizing the KL divergence $D_{KL}(P \parallel Q)$}. Thus, by minimizing cross-entropy, we are directly forcing $Q$ to become as similar as possible to $P$.
+
+\section{Application to Classification}
+
+In classification, for a given input $X$, we have:
+\begin{itemize}
+    \item \textbf{True Distribution:} $P(Y|X)$
+    \item \textbf{Predicted Distribution:} $Q(Y|X)$
+\end{itemize}
+
+The \textbf{population cross-entropy} is the expectation over all data:
+\[
+H(P,Q) = \mathbb{E}_{(X,Y)\sim P(X,Y)}[-\log Q(Y|X)]
+\]
+In practice, we use the \textbf{empirical cross-entropy}, a Monte Carlo estimate from our dataset of size $n$:
+\[
+\hat{H}(P,Q) = -\frac{1}{n}\sum_{i=1}^{n}\log Q(Y=y_{i}|X=x_{i})
+\]
+
+\subsection{The Loss Function Perspective}
+
+For a single data point $(x_i, y_i)$ where the true label is $y_i$:
+\begin{itemize}
+    \item If $Q(Y=y_i|X=x_i) \to 1$, then $-\log Q(\cdot) \to 0$. \textbf{No penalty}.
+    \item If $Q(Y=y_i|X=x_i) \to 0$, then $-\log Q(\cdot) \to \infty$. \textbf{High penalty}.
+\end{itemize}
+This provides a smooth, differentiable measure of "wrongness" or dissimilarity, making it a perfect surrogate loss for the non-differentiable 0-1 loss.
+
+\section{Extension to Continuous Variables}
+
+The concepts of entropy and cross-entropy generalize to continuous random variables via differential entropy.
+
+\begin{definition}[Differential Entropy]
+The \textbf{differential entropy} $h(X)$ for a continuous random variable $X$ with probability density function $p(x)$ is:
+\[
+h(X) = -\int_{\mathcal{X}} p(x) \log p(x) dx
+\]
+\end{definition}
+Note: Differential entropy can be negative and does not represent a lower bound on bits (as quantization is required for digital representation), but it remains a useful measure of uncertainty.
+
+\begin{definition}[Differential Cross-Entropy and KL Divergence]
+The \textbf{differential cross-entropy} between two continuous distributions $p$ and $q$ is:
+\[
+h(p, q) = -\int p(x) \log q(x) dx
+\]
+The \textbf{KL Divergence} is:
+\[
+D_{KL}(p \parallel q) = \int p(x) \log \frac{p(x)}{q(x)} dx = h(p, q) - h(p)
+\]
+\end{definition}
+
+\subsection{Application: Regression with Gaussian Assumption}
+A common application is \textbf{maximum likelihood estimation} for regression. Assume our target $Y$ given $X$ is normally distributed around a mean predicted by our model $f(X)$ with a fixed variance $\sigma^2$.
+\[
+p(Y|X) = \mathcal{N}(Y; f(X), \sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(Y - f(X))^2}{2\sigma^2}\right)
+\]
+If we predict a distribution $q(Y|X) = \mathcal{N}(Y; \hat{f}(X), \sigma^2)$, the negative log-likelihood (cross-entropy) for one sample is:
+\[
+-\log q(y_i|x_i) = \frac{1}{2}\log(2\pi\sigma^2) + \frac{(y_i - \hat{f}(x_i))^2}{2\sigma^2}
+\]
+Minimizing this over the whole dataset is equivalent to minimizing the \textbf{Mean Squared Error (MSE)}. Thus, MSE can be viewed as a cross-entropy loss under a Gaussian noise assumption.
+
+\section{Practical Application: Language Modeling with Bigrams}
+
+Let's consider a simple character-level language model based on bigrams. The task is to predict the next character given the previous one.
+
+\subsection{Setup}
+\begin{itemize}
+    \item \textbf{Tokens:} Characters from a vocabulary $\mathcal{V}$ (e.g., $\{a, b, ..., z\}$).
+    \item \textbf{Model:} A bigram model defined by conditional probabilities $P(c_t | c_{t-1})$.
+    \item \textbf{Example Word:} `emma`
+\end{itemize}
+
+The word `emma` is decomposed into bigrams: `e m`, `m m`, `m a`.
+
+\subsection{True vs. Model Distribution}
+For a given context (previous character), the \textbf{true distribution} $P(Y|X=\text{context})$ is deterministic in our training data. For the context `e`, the next character is always `m`, so:
+\[
+P(Y=\text{m} | X=\text{e}) = 1, \quad P(Y=k|X=\text{e}) = 0 \ \forall k \neq \text{m}
+\]
+However, the \textbf{model's predicted distribution} $Q(Y|X)$ is learned. For the context `m', the model must learn that while `m' is likely (as in `mm'), `a' is also possible (as in `ma').
+
+\subsection{Calculating the Cross-Entropy Loss}
+Let's define our model's parameters $\theta$ which output probabilities $Q_\theta(Y|X)$.
+
+For the word `emma`:
+\begin{align*}
+\text{Loss} = & \ -\big[ \log Q_\theta(\text{m} | \text{e}) \quad & \text{(for `e m`)} \\
+              & + \log Q_\theta(\text{m} | \text{m}) \quad & \text{(for `m m`)} \\
+              & + \log Q_\theta(\text{a} | \text{m}) \big] & \text{(for `m a`)}
+\end{align*}
+
+The model is penalized if:
+\begin{itemize}
+    \item It assigns low probability to the correct next character (e.g., $Q(\text{m}|\text{e})$ is low).
+    \item It fails to capture the fact that from `m', both `m' and `a' are plausible, but with different frequencies. If `mm' is more common in the training corpus than `ma', the model should learn $Q(\text{m}|\text{m}) > Q(\text{a}|\text{m})$.
+\end{itemize}
+
+By minimizing the total cross-entropy over a large corpus, the model $Q_\theta$ learns to approximate the \textbf{empirical} bigram distribution of the language, which is our best estimate of the true $P$. This demonstrates how cross-entropy drives the model to capture the complex, non-deterministic conditional probabilities found in real-world data like language.
+\end{notechapter}

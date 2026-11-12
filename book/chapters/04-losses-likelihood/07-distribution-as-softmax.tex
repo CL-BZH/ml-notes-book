@@ -1,0 +1,80 @@
+% Source: prob_dist_as_softmax.tex
+\begin{notechapter}
+\chapter{Any Distribution is a Softmax}\label{ch:distribution-as-softmax}
+
+Given a probability distribution \( \mathbf{p} = [p_1, p_2, \dots, p_V] \),
+where each \( p_j \) is a probability with \( p_j > 0 \) and
+\( \sum_{j=1}^V p_j = 1 \), we can express each \( p_j \) as the output
+of a softmax function for some logits \( \mathbf{z} = [z_1, z_2, \dots, z_V] \).
+
+\section{Softmax Function}
+The softmax function converts logits \( \mathbf{z} \) into probabilities
+\( \mathbf{p} \):
+\[
+p_j = \frac{e^{z_j}}{\sum_{k=1}^V e^{z_k}}.
+\]
+
+\section{Expressing \( p_j \) as a Softmax}
+Given \( \mathbf{p} \), we can find logits \( \mathbf{z} \) such that:
+\[
+p_j = \frac{e^{z_j}}{\sum_{k=1}^V e^{z_k}}.
+\]
+
+Taking the logarithm of \( p_j \) and rearranging:
+\[
+\log p_j = z_j - \log \left( \sum_{k=1}^V e^{z_k} \right).
+\]
+
+Let \( C = \log \left( \sum_{k=1}^V e^{z_k} \right) \). Then:
+\[
+z_j = \log p_j + C.
+\]
+
+Here, \( C \) is a constant ensuring the logits \( \mathbf{z} \) produce
+the correct probabilities \( \mathbf{p} \) when passed through softmax.
+
+\section{Choosing \( C \)}
+The constant \( C \) is arbitrary because the softmax function is
+shift-invariant. Adding or subtracting a constant from all logits does
+not change the resulting probabilities. For simplicity, we can choose
+\( C = 0 \), giving:
+\[
+z_j = \log p_j.
+\]
+
+\section{Simplification}
+Since \( \sum_{k=1}^V p_k = 1 \), we have:
+\[
+\sum_{k=1}^V e^{z_k} = \sum_{k=1}^V e^{\log p_k} = \sum_{k=1}^V p_k = 1.
+\]
+
+Thus, the softmax simplifies to:
+\[
+p_j = e^{z_j}.
+\]
+
+\section{Example}
+Suppose \( \mathbf{p} = [0.7, 0.2, 0.1] \). The logits \( \mathbf{z} \) are:
+\[
+\mathbf{z} = [\log 0.7, \log 0.2, \log 0.1] \approx [-0.357, -1.609, -2.303].
+\]
+
+Applying softmax to \( \mathbf{z} \) recovers \( \mathbf{p} \):
+\[
+p_j = \frac{e^{z_j}}{\sum_{k=1}^3 e^{z_k}}.
+\]
+
+For example:
+\[
+p_1 = \frac{e^{-0.357}}{e^{-0.357} + e^{-1.609} + e^{-2.303}} \approx 0.7.
+\]
+
+\section{Key Points}
+\begin{itemize}
+    \item Any \( \mathbf{p} \) with \emph{strictly positive} entries can be expressed as a softmax for some \( \mathbf{z} \). A softmax output is never exactly \( 0 \): a distribution with \( p_j = 0 \) can only be approached as a limit (\( z_j \to -\infty \)).
+  \item The logits are unique up to an additive constant.
+  \item The logits \( \mathbf{z} \) can be computed as \( z_j = \log p_j + C \).
+  \item The softmax function is shift-invariant.
+  \item The softmax simplifies to \( p_j = e^{z_j} \) when \( \sum_{k=1}^V e^{z_k} = 1 \).
+\end{itemize}
+\end{notechapter}

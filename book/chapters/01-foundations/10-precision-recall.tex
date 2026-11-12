@@ -1,0 +1,301 @@
+% Source: precision_vs_recall.tex
+\begin{notechapter}
+\chapter{Class Encoding, Precision and Recall}\label{ch:precision-recall}
+
+\section{Introduction}
+For binary classification, the importance of encoding the target class
+as the positive (encoded as 1) or negative (encoded as 0)
+depends on whether the classes are 
+well-balanced or unbalanced. Let's explore two scenarios with 
+examples and computations:
+\begin{itemize}
+    \item \textbf{Scenario 1}: A classifier with default settings.
+    \item \textbf{Scenario 2}: A classifier with a modified threshold 
+    to better identify harmful cases, at the cost of more 
+    misclassifications for non-harmful cases.
+\end{itemize}
+
+Each scenario will be analyzed for both balanced and unbalanced 
+datasets, considering two encoding choices:
+\begin{itemize}
+    \item Encoding the harmful class (poisonous mushrooms) as 1.
+    \item Encoding the harmful class as 0.
+\end{itemize}
+
+This will highlight how encoding affects precision and recall in 
+different contexts.
+
+\section{Scenario 1: Default Classifier}
+In this scenario, the classifier has default settings, resulting 
+in higher misclassification rates for the harmful class.
+
+\subsection{Balanced Dataset}
+\begin{itemize}
+    \item Dataset: 50,000 edible mushrooms and 50,000 poisonous 
+    mushrooms.
+    \item Misclassification rates:
+        \begin{itemize}
+            \item 20\% of poisonous mushrooms.
+            \item 5\% of edible mushrooms.
+        \end{itemize}
+\end{itemize}
+
+\subsubsection{Encoding Poisonous as 1}
+\begin{itemize}
+    \item Confusion Matrix:
+    \[
+    \begin{array}{c|cc}
+        & \text{Predicted Poisonous} & \text{Predicted Edible} \\
+        \hline
+        \text{Actual Poisonous} & 40,000 & 10,000 \\
+        \text{Actual Edible} & 2,500 & 47,500 \\
+    \end{array}
+    \]
+    \item Recall (for poisonous mushrooms):
+    \[
+    \text{Recall} = \frac{40000}{40000 + 10000} = 0.8
+    \]
+    \item Precision (for poisonous mushrooms):
+    \[
+    \text{Precision} = \frac{40000}{40000 + 2500} \approx 0.941
+    \]
+\end{itemize}
+
+\subsubsection{Encoding Poisonous as 0}
+\begin{itemize}
+    \item Confusion Matrix:
+    \[
+    \begin{array}{c|cc}
+        & \text{Predicted Edible} & \text{Predicted Poisonous} \\
+        \hline
+        \text{Actual Edible} & 47,500 & 2,500 \\
+        \text{Actual Poisonous} & 10,000 & 40,000 \\
+    \end{array}
+    \]
+    \item Recall (for edible mushrooms):
+    \[
+    \text{Recall} = \frac{47500}{47500 + 2500} = 0.95
+    \]
+    \item Precision (for edible mushrooms):
+    \[
+    \text{Precision} = \frac{47500}{47500 + 10000} \approx 0.826
+    \]
+\end{itemize}
+
+\subsection{Unbalanced Dataset}
+\begin{itemize}
+    \item Dataset: 100,000 edible mushrooms and 1,000 poisonous 
+    mushrooms.
+    \item Misclassification rates:
+        \begin{itemize}
+            \item 20\% of poisonous mushrooms.
+            \item 5\% of edible mushrooms.
+        \end{itemize}
+\end{itemize}
+
+\subsubsection{Encoding Poisonous as 1}
+\begin{itemize}
+    \item Confusion Matrix:
+    \[
+    \begin{array}{c|cc}
+        & \text{Predicted Poisonous} & \text{Predicted Edible} \\
+        \hline
+        \text{Actual Poisonous} & 800 & 200 \\
+        \text{Actual Edible} & 5,000 & 95,000 \\
+    \end{array}
+    \]
+    \item Recall (for poisonous mushrooms):
+    \[
+    \text{Recall} = \frac{800}{800 + 200} = 0.8
+    \]
+    \item Precision (for poisonous mushrooms):
+    \[
+    \text{Precision} = \frac{800}{800 + 5000} \approx 0.138
+    \]
+\end{itemize}
+
+\subsubsection{Encoding Poisonous as 0}
+\begin{itemize}
+    \item Confusion Matrix:
+    \[
+    \begin{array}{c|cc}
+        & \text{Predicted Edible} & \text{Predicted Poisonous} \\
+        \hline
+        \text{Actual Edible} & 95,000 & 5,000 \\
+        \text{Actual Poisonous} & 200 & 800 \\
+    \end{array}
+    \]
+    \item Precision (for edible mushrooms):
+    \[
+    \text{Precision} = \frac{95000}{95000 + 200} \approx 0.998
+    \]
+    \item Recall (for edible mushrooms):
+    \[
+    \text{Recall} = \frac{95000}{95000 + 5000} = 0.95
+    \]
+\end{itemize}
+
+\subsection{Key Observations for Scenario 1}
+\begin{itemize}
+    \item In the balanced case, encoding the harmful class as 1 
+    emphasizes recall (0.8) and precision (0.941) for poisonous 
+    mushrooms. Encoding it as 0 emphasizes recall (0.95) and 
+    precision (0.826) for edible mushrooms. Both metrics are 
+    meaningful and comparable.
+    \item In the unbalanced case, encoding the harmful class as 1 
+    highlights the recall metric (0.8), which is critical for 
+    identifying harmful cases. However, the precision is very low 
+    (0.138), reflecting the high cost of false positives.
+    \item Encoding the harmful class as 0 masks the severity of 
+    the problem, as the precision and recall for the majority class 
+    are very close to 1, making the classifier appear to perform 
+    well despite failing to identify 20\% of harmful cases.
+\end{itemize}
+
+\section{Scenario 2: Modified Threshold}
+In this scenario, the classifier has a modified threshold to 
+better identify harmful cases, resulting in fewer misclassifications 
+for the harmful class but more misclassifications for the non-harmful 
+class.
+
+\subsection{Balanced Dataset}
+\begin{itemize}
+    \item Dataset: 50,000 edible mushrooms and 50,000 poisonous 
+    mushrooms.
+    \item Misclassification rates:
+        \begin{itemize}
+            \item 1\% of poisonous mushrooms.
+            \item 10\% of edible mushrooms.
+        \end{itemize}
+\end{itemize}
+
+\subsubsection{Encoding Poisonous as 1}
+\begin{itemize}
+    \item Confusion Matrix:
+    \[
+    \begin{array}{c|cc}
+        & \text{Predicted Poisonous} & \text{Predicted Edible} \\
+        \hline
+        \text{Actual Poisonous} & 49,500 & 500 \\
+        \text{Actual Edible} & 5,000 & 45,000 \\
+    \end{array}
+    \]
+    \item Recall (for poisonous mushrooms):
+    \[
+    \text{Recall} = \frac{49500}{49500 + 500} \approx 0.990
+    \]
+    \item Precision (for poisonous mushrooms):
+    \[
+    \text{Precision} = \frac{49500}{49500 + 5000} \approx 0.908
+    \]
+\end{itemize}
+
+\subsubsection{Encoding Poisonous as 0}
+\begin{itemize}
+    \item Confusion Matrix:
+    \[
+    \begin{array}{c|cc}
+        & \text{Predicted Edible} & \text{Predicted Poisonous} \\
+        \hline
+        \text{Actual Edible} & 45,000 & 5,000 \\
+        \text{Actual Poisonous} & 500 & 49,500 \\
+    \end{array}
+    \]
+    \item Recall (for edible mushrooms):
+    \[
+    \text{Recall} = \frac{45000}{45000 + 5000} = 0.9
+    \]
+    \item Precision (for edible mushrooms):
+    \[
+    \text{Precision} = \frac{45000}{45000 + 500} \approx 0.989
+    \]
+\end{itemize}
+
+\subsection{Unbalanced Dataset}
+\begin{itemize}
+    \item Dataset: 100,000 edible mushrooms and 1,000 poisonous 
+    mushrooms.
+    \item Misclassification rates:
+        \begin{itemize}
+            \item 1\% of poisonous mushrooms.
+            \item 10\% of edible mushrooms.
+        \end{itemize}
+\end{itemize}
+
+\subsubsection{Encoding Poisonous as 1}
+\begin{itemize}
+    \item Confusion Matrix:
+    \[
+    \begin{array}{c|cc}
+        & \text{Predicted Poisonous} & \text{Predicted Edible} \\
+        \hline
+        \text{Actual Poisonous} & 990 & 10 \\
+        \text{Actual Edible} & 10,000 & 90,000 \\
+    \end{array}
+    \]
+    \item Recall (for poisonous mushrooms):
+    \[
+    \text{Recall} = \frac{990}{990 + 10} = 0.990
+    \]
+    \item Precision (for poisonous mushrooms):
+    \[
+    \text{Precision} = \frac{990}{990 + 10000} \approx 0.090
+    \]
+\end{itemize}
+
+\subsubsection{Encoding Poisonous as 0}
+\begin{itemize}
+    \item Confusion Matrix:
+    \[
+    \begin{array}{c|cc}
+        & \text{Predicted Edible} & \text{Predicted Poisonous} \\
+        \hline
+        \text{Actual Edible} & 90,000 & 10,000 \\
+        \text{Actual Poisonous} & 10 & 990 \\
+    \end{array}
+    \]
+    \item Precision (for edible mushrooms):
+    \[
+    \text{Precision} = \frac{90000}{90000 + 10} \approx 0.9999
+    \]
+    \item Recall (for edible mushrooms):
+    \[
+    \text{Recall} = \frac{90000}{90000 + 10000} = 0.9
+    \]
+\end{itemize}
+
+\subsection{Key Observations for Scenario 2}
+\begin{itemize}
+    \item In the balanced case, encoding the harmful class as 1 
+    emphasizes recall (0.990) and precision (0.908) for poisonous 
+    mushrooms. Encoding it as 0 emphasizes recall (0.9) and 
+    precision (0.989) for edible mushrooms. Both metrics are 
+    meaningful and comparable.
+    \item In the unbalanced case, encoding the harmful class as 1 
+    highlights the recall metric (0.990), which is critical for 
+    identifying harmful cases. However, the precision is very low 
+    (0.090), reflecting the high cost of false positives.
+    \item Encoding the harmful class as 0 masks the severity of 
+    the problem, as the precision and recall for the majority class 
+    are very close to 1, making the classifier appear to perform 
+    well despite failing to identify 1\% of harmful cases.
+\end{itemize}
+
+\section{Conclusion}
+\begin{itemize}
+    \item For \textbf{balanced classes}, the encoding choice 
+    affects which class's precision and recall you focus on, 
+    but both metrics are similarly expressive and meaningful.
+    \item For \textbf{unbalanced classes}, encode the minority 
+    class as 1 and prioritize recall, especially when 
+    misclassifying the minority class is harmful.
+    \item The computations and confusion matrices clearly show 
+    why encoding the harmful class as 1 is crucial in unbalanced 
+    cases, as it ensures that the metrics reflect the performance 
+    on the critical class.
+    \item Comparing Scenario 1 and Scenario 2 highlights how 
+    optimizing the classifier to reduce misclassifications for 
+    the harmful class improves recall but often at the cost of 
+    lower precision.
+\end{itemize}
+\end{notechapter}

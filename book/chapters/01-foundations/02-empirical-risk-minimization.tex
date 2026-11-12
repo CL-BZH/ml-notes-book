@@ -1,0 +1,405 @@
+% Source: erm.tex
+\begin{notechapter}
+\chapter{Empirical Risk Minimization}\label{ch:empirical-risk-minimization}
+\chaptersubtitle{Theoretical foundations}
+
+\section{Empirical Risk Minimization (ERM) Principle}
+
+The \textbf{Empirical Risk Minimization (ERM) Principle} is a foundational idea in statistical learning theory. It states that the goal of a learning algorithm is to find a model \( f \) that minimizes the \textbf{empirical risk} (the average loss over the training data) as a proxy for minimizing the \textbf{true risk} (the expected loss over the entire data distribution).
+
+\subsection{Key Concepts}
+
+\begin{itemize}
+    \item \textbf{True Risk (Expected Risk)}:
+      The true risk \( R(f) \) is the expected loss of a model \( f \) over the entire data distribution \( P(X, Y) \). It is defined as:
+      \[
+      R(f) = \mathbb{E}_{(X,Y) \sim P(X,Y)}[L(f(X), Y)],
+      \]
+      where:
+      \begin{itemize}
+          \item \( L(f(X), Y) \) is the loss function (e.g., mean squared error for regression, cross-entropy for classification),
+          \item \( \mathbb{E} \) denotes the expectation over the true data distribution \( P(X, Y) \).
+      \end{itemize}
+      The true risk measures how well the model \( f \) performs on unseen data drawn from \( P(X, Y) \).
+
+    \item \textbf{Empirical Risk}:
+      Since we do not have access to the true data distribution \( P(X, Y) \), we use the \textbf{training dataset} \( D = \{(x_1, y_1), \dots, (x_n, y_n)\} \) to approximate the true risk. The empirical risk \( R_{\text{emp}}(f) \) is defined as:
+      \[
+      R_{\text{emp}}(f) = \frac{1}{n} \sum_{i=1}^n L(f(x_i), y_i),
+      \]
+      where:
+      \begin{itemize}
+          \item \( L(f(x_i), y_i) \) is the loss for the \( i \)-th training example,
+          \item \( n \) is the number of training examples.
+      \end{itemize}
+      The empirical risk measures how well the model \( f \) performs on the training data.
+
+    \item \textbf{ERM Principle}:
+      The ERM principle states that the learning algorithm should select the model \( f \) that minimizes the empirical risk:
+      \[
+      f^* = \arg\min_{f \in \mathcal{F}} R_{\text{emp}}(f),
+      \]
+      where:
+      \begin{itemize}
+          \item \( \mathcal{F} \) is the hypothesis space (the set of all possible models \( f \) that the learning algorithm can consider),
+          \item \( f^* \) is the model that achieves the lowest empirical risk on the training data.
+      \end{itemize}
+\end{itemize}
+
+\subsection{Why is ERM Important?}
+
+The ERM principle is important because:
+\begin{itemize}
+    \item It provides a practical way to approximate the true risk \( R(f) \) using the empirical risk \( R_{\text{emp}}(f) \).
+    \item It forms the basis for many machine learning algorithms, such as linear regression, logistic regression, and neural networks, which aim to minimize the empirical risk during training.
+\end{itemize}
+
+\subsection{Challenges with ERM}
+
+While ERM is a powerful principle, it has some challenges:
+\begin{itemize}
+    \item \textbf{Overfitting}:
+      \begin{itemize}
+          \item If the hypothesis space \( \mathcal{F} \) is too complex (e.g., a very flexible model like a high-degree polynomial or a deep neural network), the model \( f^* \) may achieve very low empirical risk on the training data but perform poorly on unseen data (high true risk).
+          \item This is because the model may "memorize" the training data instead of learning generalizable patterns.
+      \end{itemize}
+
+    \item \textbf{Generalization}:
+      \begin{itemize}
+          \item The goal of machine learning is not just to minimize the empirical risk but also to ensure that the model generalizes well to unseen data.
+          \item The difference between the empirical risk and the true risk is called the \textbf{generalization gap}. A key challenge in machine learning is to control this gap.
+      \end{itemize}
+
+    \item \textbf{Bias-Variance Tradeoff}:
+      \begin{itemize}
+          \item ERM does not explicitly account for the tradeoff between bias (error due to overly simplistic assumptions) and variance (error due to sensitivity to small fluctuations in the training set).
+          \item A model with high bias may underfit the data, while a model with high variance may overfit the data.
+      \end{itemize}
+\end{itemize}
+
+\subsection{Regularization and ERM}
+
+To address the challenges of ERM (e.g., overfitting), \textbf{regularization} is often introduced. Regularization adds a penalty term to the empirical risk to discourage overly complex models. The regularized empirical risk is defined as:
+\[
+R_{\text{reg}}(f) = R_{\text{emp}}(f) + \lambda \Omega(f),
+\]
+where:
+\begin{itemize}
+    \item \( \Omega(f) \) is the regularization term (e.g., L1 or L2 norm of the model parameters),
+    \item \( \lambda \) controls the strength of regularization.
+\end{itemize}
+
+The regularized ERM principle then becomes:
+\[
+f^* = \arg\min_{f \in \mathcal{F}} R_{\text{reg}}(f).
+\]
+
+\subsection{Example: Linear Regression}
+
+In linear regression, the ERM principle is used to find the model \( f(x) = w^T x + b \) that minimizes the mean squared error (MSE) on the training data:
+\[
+R_{\text{emp}}(f) = \frac{1}{n} \sum_{i=1}^n (f(x_i) - y_i)^2.
+\]
+The ERM solution is the set of parameters \( w \) and \( b \) that minimize this empirical risk.
+
+\section{Theoretical Foundations of ERM}
+
+\subsection{Consistency of ERM}
+
+The \textbf{consistency of ERM} refers to the property that as the size of the training dataset \( n \) grows to infinity, the model \( f^* \) selected by ERM converges to the best possible model \( f_{\text{opt}} \) in the hypothesis space \( \mathcal{F} \) with respect to the true risk \( R(f) \). Formally, ERM is consistent if:
+\[
+\lim_{n \to \infty} R(f^*) = R(f_{\text{opt}}),
+\]
+where \( f_{\text{opt}} = \arg\min_{f \in \mathcal{F}} R(f) \) is the model with the lowest true risk in \( \mathcal{F} \).
+
+\subsubsection{Why is Consistency Important?}
+Consistency ensures that as we collect more data, the model learned by ERM will perform as well as the best possible model in the hypothesis space \( \mathcal{F} \). Without consistency, there is no guarantee that ERM will lead to a good model, even with infinite data.
+
+\subsubsection{Conditions for Consistency}
+For ERM to be consistent, two key conditions must hold:
+\begin{itemize}
+    \item The hypothesis space \( \mathcal{F} \) must be rich enough to contain a good approximation of the true relationship between \( X \) and \( Y \).
+    \item The empirical risk must converge uniformly to the true risk over \( \mathcal{F} \) as \( n \to \infty \). This is where \textbf{uniform convergence} comes into play.
+\end{itemize}
+
+\subsection{Uniform Convergence}
+
+\subsubsection{What is Uniform Convergence?}
+Uniform convergence refers to the property that the empirical risk \( R_{\text{emp}}(f) \) converges to the true risk \( R(f) \) uniformly over all models \( f \in \mathcal{F} \) as the sample size \( n \) increases. Formally, uniform convergence holds if:
+\[
+\lim_{n \to \infty} \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R(f)| = 0.
+\]
+Here, \( \sup \) denotes the supremum (the least upper bound), meaning that the largest difference between \( R_{\text{emp}}(f) \) and \( R(f) \) across all \( f \in \mathcal{F} \) goes to zero as \( n \to \infty \).
+
+\subsubsection{Why is Uniform Convergence Important?}
+Uniform convergence ensures that the empirical risk \( R_{\text{emp}}(f) \) is a good approximation of the true risk \( R(f) \) for all models \( f \in \mathcal{F} \), not just the one selected by ERM. Without uniform convergence, even if \( R_{\text{emp}}(f^*) \) is small, \( R(f^*) \) could still be large, leading to poor generalization.
+
+\subsubsection{How is Uniform Convergence Achieved?}
+Uniform convergence depends on the complexity of the hypothesis space \( \mathcal{F} \). If \( \mathcal{F} \) is too complex (e.g., contains too many functions), uniform convergence may fail. Tools like the \textbf{Vapnik-Chervonenkis (VC) dimension} and the \textbf{shattering coefficient} are used to measure the complexity of \( \mathcal{F} \) and establish conditions for uniform convergence.
+
+\subsection{Symmetrization Lemma}
+
+\subsubsection{What is the Symmetrization Lemma?}
+The symmetrization lemma is a key technical tool used to prove uniform convergence. It relates the deviation between the empirical risk and the true risk to the deviation between the empirical risks computed on two independent datasets. Formally, the symmetrization lemma states that:
+\[
+\mathbb{P}\left( \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R(f)| > \epsilon \right) \leq 2 \mathbb{P}\left( \sup_{f \in \mathcal{F}} |R_{\text{emp}}^{(1)}(f) - R_{\text{emp}}^{(2)}(f)| > \frac{\epsilon}{2} \right),
+\]
+where \( R_{\text{emp}}^{(1)}(f) = R_{\text{emp}}(f) \) and \( R_{\text{emp}}^{(2)}(f) \) are the empirical risks computed on two independent datasets of size \( n \). The inequality holds for losses with values in \( [0,1] \) and \( n\epsilon^2 \geq 2 \).
+
+\subsubsection{Why is the Symmetrization Lemma Important?}
+The symmetrization lemma allows us to study the deviation between the empirical risk and the true risk by analyzing the deviation between two empirical risks, which is often easier to handle mathematically. It is a crucial step in proving uniform convergence and, ultimately, the consistency of ERM.
+
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\subsection{About the Proof of the Symmetrization Lemma}
+
+The statement above holds when the losses take values in $[0,1]$ and $n\epsilon^2 \geq 2$
+(this condition is needed; see below). A complete proof, for the one-sided version, is given in
+\cref{ch:symmetrization-lemma}; the absolute-value version is obtained in the same way. The
+structure of the argument is:
+\begin{enumerate}
+  \item Let $\hat f$ be a function (depending on $D_1$) for which $|R_{\text{emp}}(\hat f) - R(\hat f)| > \epsilon$
+        (if such a function exists).
+  \item Conditionally on $D_1$, $\hat f$ is a fixed function and $D_2$ is independent of $D_1$, so
+        Chebyshev's (or Hoeffding's) inequality applies to $R_{\text{emp}}^{(2)}(\hat f)$: with probability at least
+        $1 - \frac{1}{n\epsilon^2} \geq \frac{1}{2}$, we have $|R_{\text{emp}}^{(2)}(\hat f) - R(\hat f)| \leq \epsilon/2$.
+  \item On that event, by the triangle inequality,
+        $|R_{\text{emp}}(\hat f) - R_{\text{emp}}^{(2)}(\hat f)| > \epsilon/2$, hence
+        $\sup_f |R_{\text{emp}}^{(1)}(f) - R_{\text{emp}}^{(2)}(f)| > \epsilon/2$.
+  \item Integrating over $D_1$: $\frac{1}{2}\,\mathbb{P}(\sup_f |R_{\text{emp}} - R| > \epsilon) \leq
+        \mathbb{P}(\sup_f |R_{\text{emp}}^{(1)} - R_{\text{emp}}^{(2)}| > \epsilon/2)$.
+\end{enumerate}
+The factor $2$ is therefore $1/\frac{1}{2}$: it comes from the lower bound $\frac{1}{2}$ on the probability that the
+ghost sample behaves well (step 2), which is where $n\epsilon^2 \geq 2$ is used. It does \emph{not} come from
+``two datasets doubling the probability''.
+
+\subsection{Symmetrization by Random Signs (Rademacher Variables)}
+
+The interest of the lemma is that the right-hand side involves only empirical quantities, evaluated on
+$2n$ points: for a class of binary classifiers, $f$ only matters through its values on these $2n$ points,
+of which there are at most $S(\mathcal{F}, 2n)$ patterns (see the shattering coefficient below), so a
+union bound over finitely many patterns becomes possible.
+
+A second symmetrization step introduces independent Rademacher variables $\sigma_1, \dots, \sigma_n$
+($\pm 1$ with probability $1/2$ each, independent of the data). Since $(X_i,Y_i)$ and $(X'_i,Y'_i)$ are i.i.d.,
+swapping them does not change the joint distribution of the two samples; swapping the $i$-th pair simply
+changes the sign of $L(f(X_i), Y_i) - L(f(X'_i), Y'_i)$, simultaneously for all $f$. Hence the processes
+\[
+\Big( \tfrac{1}{n} \sum_{i=1}^n \big(L(f(X_i), Y_i) - L(f(X'_i), Y'_i)\big) \Big)_{f \in \mathcal{F}}
+\quad\text{and}\quad
+\Big( \tfrac{1}{n} \sum_{i=1}^n \sigma_i \big(L(f(X_i), Y_i) - L(f(X'_i), Y'_i)\big) \Big)_{f \in \mathcal{F}}
+\]
+have the \emph{same distribution}, and so do their suprema. This is the precise reason why the random signs
+can be inserted; it is an identity in distribution, not an inequality and not a ``cancellation of bias''
+(the differences $L(f(X_i),Y_i) - L(f(X'_i),Y'_i)$ already have mean zero without the signs). The benefit is
+that, conditionally on the $2n$ data points, the only remaining randomness is in the signs, and
+Hoeffding's inequality can be applied to the sum $\sum_i \sigma_i a_i$ for each fixed pattern
+$(a_i)$. Combining this with the union bound over the at most $S(\mathcal{F}, 2n)$ patterns gives the
+Vapnik--Chervonenkis bound
+\[
+\mathbb{P}\left( \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R(f)| > \epsilon \right) \leq 4\, S(\mathcal{F}, 2n)\, e^{-n\epsilon^2/8}
+\qquad (n\epsilon^2 \geq 2).
+\]
+
+\subsection{Shattering Coefficient}
+
+\subsubsection{What is the Shattering Coefficient?}
+The shattering coefficient \( S(\mathcal{F}, n) \) measures the expressive power of the hypothesis space \( \mathcal{F} \) by counting the maximum number of distinct ways \( \mathcal{F} \) can classify a dataset of size \( n \). Formally, \( S(\mathcal{F}, n) \) is the maximum number of distinct labelings (binary classifications) that can be produced by models in \( \mathcal{F} \) on any dataset of size \( n \).
+
+\subsubsection{Why is the Shattering Coefficient Important?}
+The shattering coefficient is closely related to the \textbf{VC dimension}, which is a measure of the complexity of \( \mathcal{F} \). By Sauer's lemma, \( S(\mathcal{F}, n) \) is either equal to \( 2^n \) for all \( n \) or bounded by a polynomial \( \sum_{k=0}^{d}\binom{n}{k} \leq (en/d)^d \) for \( n \geq d \), where \( d \) is the VC dimension. In the polynomial case, \( \mathcal{F} \) has finite VC dimension and uniform convergence holds (the bound \( 4S(\mathcal{F},2n)e^{-n\epsilon^2/8} \) tends to \( 0 \)). This ensures that ERM is consistent. If \( S(\mathcal{F}, n) \) grows exponentially with \( n \), then \( \mathcal{F} \) is too complex, and uniform convergence may fail, leading to overfitting.
+
+\subsubsection{Connection to VC Dimension}
+The VC dimension \( d \) of \( \mathcal{F} \) is the largest integer \( n \) for which \( S(\mathcal{F}, n) = 2^n \). If \( S(\mathcal{F}, n) < 2^n \) for some \( n \), then \( \mathcal{F} \) has finite VC dimension (at most that \( n - 1 \)). For hypothesis spaces with finite VC dimension, the shattering coefficient grows polynomially with \( n \), ensuring uniform convergence and consistency of ERM.
+
+\subsection{Uniform Convergence in "1.3.2 Probability to the Rescue"}
+
+In the section \textbf{"1.3.2 Probability to the Rescue"} of his book \textit{Learning From Data}, Yaser S. Abu-Mostafa introduces the idea that probability theory can help us understand how well the \textbf{empirical risk} (the error on the training data) approximates the \textbf{true risk} (the expected error on unseen data). The key concept underlying this idea is \textbf{uniform convergence}.
+
+\subsubsection{What is Uniform Convergence?}
+
+Uniform convergence refers to the property that the empirical risk \( R_{\text{emp}}(h) \) converges to the true risk \( R(h) \) uniformly over all hypotheses \( h \in \mathcal{H} \) as the sample size \( n \) increases. Formally, uniform convergence holds if:
+\[
+\lim_{n \to \infty} \sup_{h \in \mathcal{H}} |R_{\text{emp}}(h) - R(h)| = 0.
+\]
+Here:
+\begin{itemize}
+    \item \( \sup_{h \in \mathcal{H}} \) denotes the supremum (the least upper bound) over all hypotheses \( h \in \mathcal{H} \),
+    \item \( |R_{\text{emp}}(h) - R(h)| \) is the absolute difference between the empirical risk and the true risk for a given hypothesis \( h \).
+\end{itemize}
+
+\subsubsection{Why is Uniform Convergence Important?}
+
+Uniform convergence ensures that the empirical risk \( R_{\text{emp}}(h) \) is a good approximation of the true risk \( R(h) \) for all hypotheses \( h \in \mathcal{H} \), not just the one selected by the learning algorithm. Without uniform convergence:
+\begin{itemize}
+    \item The empirical risk \( R_{\text{emp}}(h) \) might be a poor approximation of the true risk \( R(h) \) for some hypotheses \( h \in \mathcal{H} \).
+    \item Even if the learning algorithm finds a hypothesis \( h^* \) with low empirical risk, \( h^* \) might have high true risk, leading to poor generalization.
+\end{itemize}
+
+\subsubsection{How Probability Theory Helps}
+
+Probability theory provides tools (e.g., concentration inequalities, symmetrization, and the VC dimension) to bound the difference between the empirical risk and the true risk. These tools allow us to prove that uniform convergence holds under certain conditions, such as:
+\begin{itemize}
+    \item The hypothesis set \( \mathcal{H} \) has finite VC dimension,
+    \item The training dataset is large enough.
+\end{itemize}
+
+\section{An Attempted Proof of the Symmetrization Lemma}
+
+\subsection{Define the Empirical and True Risks}
+\begin{itemize}
+   \item Let \( R_{\text{emp}}(f) = \frac{1}{n} \sum_{i=1}^n l(f, Z_i) \) be the empirical risk.
+   \item Let \( R(f) = \mathbb{E}[l(f, Z)] \) be the true risk.
+\end{itemize}
+
+\subsection{Introduce an Independent Copy of the Data}
+\begin{itemize}
+   \item Let \( Z_1', Z_2', \dots, Z_n' \) be an independent copy of the data \( Z_1, Z_2, \dots, Z_n \).
+   \item Define \( R_{\text{emp}}^{(2)}(f) = \frac{1}{n} \sum_{i=1}^n l(f, Z_i') \).
+\end{itemize}
+
+\subsection{Define the Difference}
+\begin{itemize}
+   \item Let \( D(f) = R_{\text{emp}}(f) - R_{\text{emp}}^{(2)}(f) \).
+\end{itemize}
+
+\subsection{Apply the Union Bound}
+\begin{itemize}
+   \item For any \( f \), 
+         \[
+         |R_{\text{emp}}(f) - R(f)| \leq |R_{\text{emp}}(f) - R_{\text{emp}}^{(2)}(f)| + |R_{\text{emp}}^{(2)}(f) - R(f)|.
+         \]
+   \item Taking the supremum over \( f \in \mathcal{F} \), we have:
+         \[
+         \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R(f)| \leq \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R_{\text{emp}}^{(2)}(f)| + \sup_{f \in \mathcal{F}} |R_{\text{emp}}^{(2)}(f) - R(f)|.
+         \]
+\end{itemize}
+
+\subsection{Use the Union Bound on Probabilities}
+\begin{itemize}
+   \item By the union bound:
+         \[
+         \mathbb{P}\left( \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R(f)| > \epsilon \right) \leq \mathbb{P}\left( \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R_{\text{emp}}^{(2)}(f)| > \frac{\epsilon}{2} \right) + \mathbb{P}\left( \sup_{f \in \mathcal{F}} |R_{\text{emp}}^{(2)}(f) - R(f)| > \frac{\epsilon}{2} \right).
+         \]
+\end{itemize}
+
+\subsection{Symmetry of the Independent Copy}
+\begin{itemize}
+   \item Since \( R_{\text{emp}}^{(2)}(f) \) is an independent copy of \( R_{\text{emp}}(f) \), the distribution of \( \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R(f)| \) is the same as \( \sup_{f \in \mathcal{F}} |R_{\text{emp}}^{(2)}(f) - R(f)| \).
+\end{itemize}
+
+\subsection{Why This Argument Does Not Prove the Lemma}
+The previous steps are correct, but they do not lead to the lemma. Writing $A$, $B$, $C$ for the
+three events of the union bound (see the next section), the symmetry remark says that
+$\mathbb{P}(C) = \mathbb{P}\big(\sup_f |R_{\text{emp}}(f) - R(f)| > \epsilon/2\big)$, which is at least
+$\mathbb{P}(A)$ (the threshold is smaller). The union bound $\mathbb{P}(A) \leq \mathbb{P}(B) + \mathbb{P}(C)$
+is therefore useless: its right-hand side is larger than its left-hand side even without $\mathbb{P}(B)$,
+and one cannot conclude $\mathbb{P}(A) \leq 2\,\mathbb{P}(B)$. The union bound treats the two deviations
+separately, whereas the real proof (\cref{ch:symmetrization-lemma} and the proof below) exploits the
+independence of the ghost sample: \emph{conditionally} on the first sample, the ghost sample is close to the
+true risk with probability at least $1/2$. This conditioning argument is the key ingredient.
+
+\section{Detailed Explanation of Step 3: Union Bound Application}
+
+In step 3 of the proof, we apply the union bound to control the probability that the supremum of the deviation between the empirical risk and the true risk exceeds a certain threshold, \( \epsilon \). Here's a detailed explanation of the reasoning:
+
+\subsection{Union Bound}
+\begin{itemize}
+   \item The union bound (Boole's inequality) states that for any events \( A \) and \( B \),
+         \[
+         \mathbb{P}(A \cup B) \leq \mathbb{P}(A) + \mathbb{P}(B).
+         \]
+         This inequality allows us to bound the probability of the union of events by the sum of their individual probabilities.
+\end{itemize}
+
+\subsection{Events Definition}
+\begin{itemize}
+   \item Let \( A = \left\{ \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R(f)| > \epsilon \right\} \).
+   \item Let \( B = \left\{ \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R_{\text{emp}}^{(2)}(f)| > \frac{\epsilon}{2} \right\} \).
+   \item Let \( C = \left\{ \sup_{f \in \mathcal{F}} |R_{\text{emp}}^{(2)}(f) - R(f)| > \frac{\epsilon}{2} \right\} \).
+\end{itemize}
+
+\subsection{Inclusion of Events}
+\begin{itemize}
+   \item If both \( B \) and \( C \) do not occur, i.e., if \( \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R_{\text{emp}}^{(2)}(f)| \leq \frac{\epsilon}{2} \) and \( \sup_{f \in \mathcal{F}} |R_{\text{emp}}^{(2)}(f) - R(f)| \leq \frac{\epsilon}{2} \), then for any \( f \in \mathcal{F} \),
+         \[
+         |R_{\text{emp}}(f) - R(f)| \leq |R_{\text{emp}}(f) - R_{\text{emp}}^{(2)}(f)| + |R_{\text{emp}}^{(2)}(f) - R(f)| \leq \epsilon.
+         \]
+   \item Therefore, if \( A \) occurs (i.e., \( \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R(f)| > \epsilon \)), at least one of \( B \) or \( C \) must occur.
+\end{itemize}
+
+\subsection{Application of Union Bound}
+\begin{itemize}
+   \item Since \( A \subseteq B \cup C \), by the union bound,
+         \[
+         \mathbb{P}(A) \leq \mathbb{P}(B \cup C) \leq \mathbb{P}(B) + \mathbb{P}(C).
+         \]
+   \item Substituting the definitions of \( A \), \( B \), and \( C \), we get:
+         \[
+         \mathbb{P}\left( \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R(f)| > \epsilon \right) \leq \mathbb{P}\left( \sup_{f \in \mathcal{F}} |R_{\text{emp}}(f) - R_{\text{emp}}^{(2)}(f)| > \frac{\epsilon}{2} \right) + \mathbb{P}\left( \sup_{f \in \mathcal{F}} |R_{\text{emp}}^{(2)}(f) - R(f)| > \frac{\epsilon}{2} \right).
+         \]
+\end{itemize}
+
+This step is crucial as it decomposes the problem of bounding the deviation of the empirical risk from the true risk into two separate deviations, each involving independent empirical risks. This decomposition simplifies the analysis and allows for the application of probabilistic tools to control these deviations effectively.
+
+\subsection{Symmetrization (Proof with Chebyshev's Inequality)}
+
+We now give the classical proof of the lemma. We use a ``ghost sample'', an extra (virtual) data set
+\(Z_{1}^{\prime},\dots,Z_{m}^{\prime}\), independent of \(Z_1,\dots,Z_m\) and with the same distribution, and denote
+\(P^{\text{emp}'}\) the corresponding empirical measure: \(P^{\text{emp}'}g = \frac{1}{m}\sum_{i=1}^m g(Z'_i)\).
+The functions \(g \in \mathcal{G}\) (losses of the hypotheses) take values in \([0,1]\).
+
+\begin{lemma}[Symmetrization]
+For any \(t>0\) such that \(mt^{2}\geq 2\),
+\[
+\mathbb{P}_{\mathbf{Z}\sim D^{m}}\left[\sup_{g\in\mathcal{G}}(P^{\text{true}}- P^{\text{emp}})g\geq t\right]\leq 2\,\mathbb{P}_{\mathbf{Z}\sim D^{m},\mathbf{Z} ^{\prime}\sim D^{m}}\left[\sup_{g\in\mathcal{G}}(P^{\text{emp}'}-P^{\text{emp}})g\geq t/2\right].
+\]
+\end{lemma}
+
+That is, if we can bound the difference between the behavior on one sample versus another, it gives us a bound on the behavior of a sample with respect to the true risk.
+
+\begin{proof}
+For simplicity, assume that the supremum in the left-hand side is attained, and let \(g_{m}\) be a function achieving it; \(g_m\) depends on \(Z_{1},\dots,Z_{m}\) (but not on the ghost sample). (Without this assumption, use a function that is \(\epsilon\)-close to the supremum and let \(\epsilon \to 0\), as in \cref{ch:symmetrization-lemma}.)
+
+Think about the event that \((P^{\text{true}}-P^{\text{emp}})g_{m}\geq t\) (the sample's loss is far from the true loss) and \((P^{\text{true}}-P^{\text{emp}'})g_{m}<t/2\) (the ghost sample's loss is close to the true loss). If this event occurs, things did not generalize well for \(Z_{1},\dots,Z_{m}\) but they did for \(Z_{1}^{\prime},\dots,Z_{m}^{\prime}\), so the two empirical measures must differ:
+\[
+\mathbf{1}_{(P^{\text{true}}-P^{\text{emp}})g_{m}\geq t}\;\mathbf{1}_{(P^{\text{true}}-P^{\text{emp}'})g_{m}<t/2}
+= \mathbf{1}_{\{(P^{\text{true}}-P^{\text{emp}})g_{m}\geq t\ \text{and}\ (P^{\text{emp}'}-P^{\text{true}})g_{m}>-t/2\}}
+\leq \mathbf{1}_{(P^{\text{emp}'}-P^{\text{emp}})g_{m}>t/2}.
+\]
+The inequality holds because the event on the left implies the one on the right: adding the two inequalities gives \((P^{\text{true}}-P^{\text{emp}}+P^{\text{emp}'}-P^{\text{true}})g_{m}>t-t/2\).
+
+Taking expectations with respect to the ghost sample (conditionally on \(\mathbf{Z}\), so that \(g_m\) is fixed), and using that the expectation of an indicator is a probability,
+\begin{equation}\label{empirical-risk-minimization:eq:p_rem}
+\mathbf{1}_{(P^{\text{true}}-P^{\text{emp}})g_{m}\geq t}\;\mathbb{P}_{\mathbf{Z}^{\prime}\sim D^{m}}\big[(P^{\text{true}}-P^{\text{emp}'})g_{m}<t/2\big]
+\leq \mathbb{P}_{\mathbf{Z}^{\prime}\sim D^{m}}\big[(P^{\text{emp}'}-P^{\text{emp}})g_{m}>t/2\big].
+\end{equation}
+
+Chebyshev's inequality says \(\mathbb{P}[|X-\mathbb{E}X|\geq s]\leq{\rm Var}X/s^{2}\). Since \(\mathbb{E}[P^{\text{emp}'}g_m \mid \mathbf{Z}] = P^{\text{true}}g_m\) and \(\operatorname{Var}(P^{\text{emp}'}g_m \mid \mathbf{Z}) = \operatorname{Var}(g_m(Z'))/m\),
+\[
+\mathbb{P}_{\mathbf{Z}^{\prime}\sim D^{m}}\big[(P^{\text{true}}-P^{\text{emp}'})g_{m}\geq t/2\big]\leq\frac{4\operatorname{Var}(g_m(Z'))}{mt^{2}} \leq \frac{1}{mt^{2}},
+\]
+because a random variable with values in \([0,1]\) has variance at most \(1/4\). Hence
+\[
+\mathbb{P}_{\mathbf{Z}^{\prime}\sim D^{m}}\big[(P^{\text{true}}-P^{\text{emp}'})g_{m}<t/2\big]\geq 1-\frac{1}{mt^{2}},
+\]
+and, plugging this into \eqref{empirical-risk-minimization:eq:p_rem},
+\[
+\mathbf{1}_{(P^{\text{true}}-P^{\text{emp}})g_{m}\geq t}\left(1-\frac {1}{mt^{2}}\right)
+\leq \mathbb{P}_{\mathbf{Z}^{\prime}\sim D^{m}}\big[(P^{\text{emp}'}-P^{\text{emp}})g_{m}>t/2\big].
+\]
+Taking the expectation with respect to the first sample,
+\[
+\mathbb{P}_{\mathbf{Z}\sim D^{m}}\big[(P^{\text{true}}-P^{\text{emp}})g_{m}\geq t\big]\left(1-\frac{1}{mt^{2}}\right)\leq\mathbb{P}_{\mathbf{Z}, \mathbf{Z}^{\prime}}\big[(P^{\text{emp}'}-P^{\text{emp}})g_{m}>t/2\big].
+\]
+Finally, \(mt^{2} \geq 2\) gives \(1-\frac{1}{mt^{2}} \geq \frac{1}{2}\), and since \(g_m\) attains the supremum on the left and \(g_m \in \mathcal{G}\) on the right,
+\[
+\mathbb{P}_{\mathbf{Z}}\Big[\sup_{g\in\mathcal{G}}(P^{\text{true}}-P^{\text{emp}})g\geq t\Big] \leq 2\,\mathbb{P}_{\mathbf{Z}, \mathbf{Z}'}\big[(P^{\text{emp}'}-P^{\text{emp}})g_{m}>t/2\big]
+\leq 2\,\mathbb{P}_{\mathbf{Z},\mathbf{Z}^{\prime}}\Big[\sup_{g\in\mathcal{G}}(P^{\text{emp}'}-P^{\text{emp}})g\geq t/2\Big],
+\]
+where we also relaxed the strict inequality ``\(>\)'' to ``\(\geq\)''.
+\end{proof}
+
+\begin{remark}
+Replacing Chebyshev's inequality by Hoeffding's inequality gives the factor \(1 - e^{-mt^2/2}\) instead of \(1 - \frac{1}{mt^2}\); under \(mt^2 \geq 2\) both are at least \(\frac{1}{2}\). A proof that does not assume that the supremum is attained, using Hoeffding's inequality, is given in \cref{ch:symmetrization-lemma}.
+\end{remark}
+\end{notechapter}

@@ -1,0 +1,275 @@
+% Source: monte_carlo_methods.tex
+\begin{notechapter}
+\chapter{Monte Carlo Methods}\label{ch:monte-carlo}
+\chaptersubtitle{Bias, variance and nested estimation}
+
+\section{Introduction}
+
+Monte Carlo methods are powerful computational techniques for estimating expectations and integrals using random sampling. While basic Monte Carlo estimators enjoy desirable properties like unbiasedness, more complex scenarios like nested estimation introduce subtle biases that require careful analysis.
+
+\section{Standard Monte Carlo Estimation}
+
+\subsection{The Basic Framework}
+
+Let $X$ be a random variable with probability density function $p(x)$, and we want to estimate:
+
+\begin{equation}
+\mu = \mathbb{E}[f(X)] = \int f(x) p(x) dx
+\end{equation}
+
+The Monte Carlo estimator with $N$ independent samples is:
+
+\begin{equation}
+\hat{\mu}_N = \frac{1}{N} \sum_{i=1}^N f(X_i), \quad X_i \sim p(x) \text{ i.i.d.}
+\end{equation}
+
+\subsection{Unbiasedness Property}
+
+\begin{theorem}[Unbiasedness of Monte Carlo]
+The Monte Carlo estimator $\hat{\mu}_N$ is unbiased for any $N \geq 1$:
+\begin{equation}
+\mathbb{E}[\hat{\mu}_N] = \mu
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+\begin{align*}
+\mathbb{E}[\hat{\mu}_N] &= \mathbb{E}\left[\frac{1}{N} \sum_{i=1}^N f(X_i)\right] \\
+&= \frac{1}{N} \sum_{i=1}^N \mathbb{E}[f(X_i)] \quad \text{(by linearity of expectation)} \\
+&= \frac{1}{N} \sum_{i=1}^N \mu \quad \text{(since $\mathbb{E}[f(X_i)] = \mu$ for all $i$)} \\
+&= \mu
+\end{align*}
+\end{proof}
+
+\subsection{Variance Properties}
+
+The variance of the Monte Carlo estimator is:
+
+\begin{equation}
+\text{Var}(\hat{\mu}_N) = \mathbb{E}[(\hat{\mu}_N - \mu)^2] = \frac{\sigma^2}{N}
+\end{equation}
+where $\sigma^2 = \text{Var}(f(X))$.
+
+\subsection{The $N=1$ Case: Clarifying a Common Confusion}
+
+For $N=1$, we have:
+\begin{equation}
+\hat{\mu}_1 = f(X_1)
+\end{equation}
+
+This estimator is still \textbf{unbiased}:
+\begin{equation}
+\mathbb{E}[\hat{\mu}_1] = \mathbb{E}[f(X_1)] = \mu
+\end{equation}
+
+However, it has high variance:
+\begin{equation}
+\text{Var}(\hat{\mu}_1) = \sigma^2
+\end{equation}
+
+\textbf{Key Insight}: A single sample Monte Carlo estimator is mathematically unbiased but practically unreliable due to high variance. The issues with $N=1$ are variance-related, not bias-related.
+
+\section{Nested Monte Carlo Estimation}
+
+\subsection{Problem Formulation}
+
+Nested Monte Carlo arises when we need to estimate expectations of functions of conditional expectations:
+
+\begin{equation}
+\theta = \mathbb{E}[f(\mathbb{E}[g(X,Y)|X])]
+\end{equation}
+
+where:
+\begin{itemize}
+\item $X$ is the outer random variable with distribution $p(x)$
+\item $Y$ is the inner random variable with conditional distribution $p(y|x)$
+\item $g(X,Y)$ is the inner function
+\item $f(\cdot)$ is the outer function (typically nonlinear)
+\end{itemize}
+
+\subsection{The Nested Monte Carlo Estimator}
+
+The nested Monte Carlo estimator uses:
+\begin{itemize}
+\item $N$ outer samples: $X_1, \ldots, X_N \sim p(x)$
+\item $M$ inner samples for each outer sample: $Y_{i1}, \ldots, Y_{iM} \sim p(y|X_i)$
+\end{itemize}
+
+The estimator is:
+\begin{equation}
+\hat{\theta}_{N,M} = \frac{1}{N} \sum_{i=1}^N f\left(\frac{1}{M} \sum_{j=1}^M g(X_i, Y_{ij})\right)
+\end{equation}
+
+\subsection{Bias in Nested Monte Carlo}
+
+\begin{theorem}[Bias of Nested Monte Carlo]
+The nested Monte Carlo estimator $\hat{\theta}_{N,M}$ is generally biased for finite $M$:
+\begin{equation}
+\mathbb{E}[\hat{\theta}_{N,M}] \neq \theta
+\end{equation}
+The bias persists even as $N \to \infty$.
+\end{theorem}
+
+\begin{proof}
+Let's analyze the expectation for fixed $N$:
+
+\begin{align*}
+\mathbb{E}[\hat{\theta}_{N,M}] &= \mathbb{E}\left[\frac{1}{N} \sum_{i=1}^N f\left(\frac{1}{M} \sum_{j=1}^M g(X_i, Y_{ij})\right)\right] \\
+&= \frac{1}{N} \sum_{i=1}^N \mathbb{E}\left[f\left(\frac{1}{M} \sum_{j=1}^M g(X_i, Y_{ij})\right)\right] \\
+&= \mathbb{E}\left[f\left(\frac{1}{M} \sum_{j=1}^M g(X, Y_j)\right)\right] \quad \text{(by identical distribution)}
+\end{align*}
+
+Now define:
+\begin{itemize}
+\item $\mu(X) = \mathbb{E}[g(X,Y)|X]$ (true conditional mean)
+\item $\hat{\mu}_M(X) = \frac{1}{M} \sum_{j=1}^M g(X, Y_j)$ (MC estimate of conditional mean)
+\end{itemize}
+
+For a \textbf{fixed} $X$, $\hat{\mu}_M(X)$ is an unbiased estimate of $\mu(X)$:
+$\mathbb{E}[\hat{\mu}_M(X) \mid X] = \mu(X)$. But $f$ is applied \emph{after} averaging, and
+expectation does not commute with a nonlinear $f$. Suppose for instance that $f$ is strictly convex
+and that $\operatorname{Var}(g(X,Y)\mid X) > 0$ with positive probability. By Jensen's inequality (strict
+when $f$ is strictly convex and $\hat{\mu}_M(X)$ is not almost surely constant given $X$):
+\begin{align*}
+\mathbb{E}[f(\hat{\mu}_M(X)) | X] &\geq f(\mathbb{E}[\hat{\mu}_M(X) | X]) = f(\mu(X)),
+\end{align*}
+with strict inequality on an event of positive probability. Taking the expectation over $X$:
+\begin{align*}
+\mathbb{E}[\hat{\theta}_{N,M}] = \mathbb{E}\big[\mathbb{E}[f(\hat{\mu}_M(X)) | X]\big]
+> \mathbb{E}[f(\mu(X))] = \theta .
+\end{align*}
+The same argument with reversed inequalities applies to strictly concave $f$. (For a general nonlinear
+$f$, neither convex nor concave, the conditional biases may have different signs for different $X$ and
+could in principle cancel; the estimator is \emph{generally} biased, but not always.)
+
+This proves $\mathbb{E}[\hat{\theta}_{N,M}] \neq \theta$ for finite $M$ when $f$ is strictly convex or strictly concave. Since $\mathbb{E}[\hat{\theta}_{N,M}] = \mathbb{E}[f(\hat{\mu}_M(X))]$ does not depend on $N$, the bias does not vanish as $N \to \infty$.
+\end{proof}
+
+\subsection{Jensen's Inequality and Bias Direction}
+
+The direction of bias depends on the convexity of $f$:
+
+\begin{itemize}
+\item If $f$ is \textbf{convex}: $\mathbb{E}[f(\hat{\mu}_M(X))] \geq f(\mathbb{E}[\hat{\mu}_M(X)]) = f(\mu(X))$
+\item If $f$ is \textbf{concave}: $\mathbb{E}[f(\hat{\mu}_M(X))] \leq f(\mathbb{E}[\hat{\mu}_M(X)]) = f(\mu(X))$
+\end{itemize}
+
+Taking expectations over $X$ preserves these inequalities.
+
+\subsection{Asymptotic Properties}
+
+\begin{theorem}[Consistency of Nested Monte Carlo]
+As both $N, M \to \infty$, the nested Monte Carlo estimator is consistent:
+\begin{equation}
+\hat{\theta}_{N,M} \xrightarrow{p} \theta
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+For each $X_i$, by the law of large numbers:
+\begin{equation}
+\hat{\mu}_M(X_i) = \frac{1}{M} \sum_{j=1}^M g(X_i, Y_{ij}) \xrightarrow{p} \mu(X_i) \quad \text{as } M \to \infty
+\end{equation}
+
+By continuity of $f$:
+\begin{equation}
+f(\hat{\mu}_M(X_i)) \xrightarrow{p} f(\mu(X_i)) \quad \text{as } M \to \infty
+\end{equation}
+
+Then by the law of large numbers on the outer average:
+\begin{equation}
+\hat{\theta}_{N,M} = \frac{1}{N} \sum_{i=1}^N f(\hat{\mu}_M(X_i)) \xrightarrow{p} \mathbb{E}[f(\mu(X))] = \theta \quad \text{as } N, M \to \infty
+\end{equation}
+This last step is only a sketch: the terms $f(\hat{\mu}_M(X_i))$ change with $M$, so the outer law
+of large numbers must be applied to a triangular array. A clean sufficient condition is that $f$ is
+$L$-Lipschitz and $g$ has finite variance: then
+$|\mathbb{E}[\hat{\theta}_{N,M}] - \theta| \leq L\,\mathbb{E}|\hat{\mu}_M(X) - \mu(X)| \leq L\sqrt{\mathbb{E}[\operatorname{Var}(g\mid X)]/M} \to 0$,
+and $\operatorname{Var}(\hat{\theta}_{N,M}) = \operatorname{Var}(f(\hat{\mu}_M(X)))/N \to 0$, so the mean squared
+error tends to $0$.
+\end{proof}
+
+\section{Examples and Applications}
+
+\subsection{Example 1: Squared Conditional Expectation}
+
+Estimate: $\theta = \mathbb{E}[(\mathbb{E}[Y|X])^2]$
+
+Nested estimator: $\hat{\theta}_{N,M} = \frac{1}{N} \sum_{i=1}^N \left(\frac{1}{M} \sum_{j=1}^M Y_{ij}\right)^2$
+
+Since $f(z) = z^2$ is convex, the estimator is biased \textbf{upward}:
+\begin{equation}
+\mathbb{E}[\hat{\theta}_{N,M}] \geq \theta
+\end{equation}
+In this case the bias can be computed exactly: given $X$, the inner mean $\bar{Y}_M$ has mean
+$\mu(X)$ and variance $\operatorname{Var}(Y\mid X)/M$, so
+\[
+\mathbb{E}\big[\bar{Y}_M^2 \mid X\big] = \mu(X)^2 + \frac{\operatorname{Var}(Y\mid X)}{M}
+\quad\Longrightarrow\quad
+\mathbb{E}[\hat{\theta}_{N,M}] - \theta = \frac{\mathbb{E}[\operatorname{Var}(Y\mid X)]}{M}.
+\]
+The bias is exactly of order $1/M$. Here it can even be removed: replacing $\bar{Y}_M^2$ by
+$\frac{1}{M(M-1)}\sum_{j \neq k} Y_{ij}Y_{ik}$ gives an unbiased estimator (for $M \geq 2$).
+
+\subsection{Example 2: Conditional Variance}
+
+Estimate: $\theta = \mathbb{E}[\text{Var}(Y|X)] = \mathbb{E}\big[\mathbb{E}[Y^2|X] - (\mathbb{E}[Y|X])^2\big]$
+(the conditional variance $\text{Var}(Y|X)$ itself is a random variable, a function of $X$; it is its
+expectation that a Monte Carlo estimator targets).
+
+The term $(\mathbb{E}[Y|X])^2$ is of the type of Example 1, and the naive plug-in estimator
+$\frac{1}{N}\sum_i \frac{1}{M}\sum_j (Y_{ij} - \bar{Y}_{i})^2$ is biased downward by the factor $\frac{M-1}{M}$.
+Using the unbiased within-group sample variance
+$s_i^2 = \frac{1}{M-1}\sum_j (Y_{ij} - \bar{Y}_{i})^2$ instead gives an unbiased nested estimator
+$\frac{1}{N}\sum_i s_i^2$: some nested quantities (polynomials of conditional moments) admit unbiased
+estimators, while general nonlinear $f$ (e.g.\ $\log$, $\max$, ratios) do not.
+
+\section{Bias-Variance Tradeoff}
+
+In nested Monte Carlo, we face a fundamental tradeoff:
+
+\begin{itemize}
+\item \textbf{Large $M$}: Reduces bias but increases computational cost
+\item \textbf{Small $M$}: Less computationally expensive but introduces bias
+\item \textbf{Large $N$}: Reduces variance of the outer average
+\end{itemize}
+
+The mean squared error decomposes as:
+\begin{equation}
+\text{MSE}(\hat{\theta}_{N,M}) = \text{Bias}^2(\hat{\theta}_{N,M}) + \text{Var}(\hat{\theta}_{N,M})
+\end{equation}
+
+where:
+\begin{itemize}
+\item $\text{Bias}(\hat{\theta}_{N,M}) = O\left(\frac{1}{M}\right)$ for twice-differentiable $f$ (a second-order Taylor expansion gives $\text{Bias} \approx \frac{1}{2M}\mathbb{E}[f''(\mu(X))\operatorname{Var}(g\mid X)]$)
+\item $\text{Var}(\hat{\theta}_{N,M}) = O\left(\frac{1}{N} + \frac{1}{NM}\right)$
+\end{itemize}
+
+\section{Comparison Table}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{p{0.45\textwidth}p{0.45\textwidth}}
+\toprule
+\textbf{Standard Monte Carlo} & \textbf{Nested Monte Carlo} \\
+\midrule
+Unbiased for any $N \geq 1$ & Biased for finite $M$ \\
+$\mathbb{E}[\hat{\mu}_N] = \mu$ & $\mathbb{E}[\hat{\theta}_{N,M}] \neq \theta$ for finite $M$ \\
+Variance $\propto \frac{1}{N}$ & Complex variance structure \\
+More samples always help & Bias-variance tradeoff \\
+Simple to analyze & Requires careful analysis \\
+\bottomrule
+\end{tabular}
+\caption{Comparison of standard vs. nested Monte Carlo properties}
+\end{table}
+
+\section{Conclusion}
+
+The key distinctions are:
+
+\begin{itemize}
+\item \textbf{Standard Monte Carlo}: Unbiased for any sample size due to linearity of the estimator
+\item \textbf{Nested Monte Carlo}: Generally biased due to nonlinear functions of noisy estimates
+\item The bias arises from applying nonlinear functions to Monte Carlo estimates before taking expectations
+\item Understanding these properties is crucial for designing effective Monte Carlo algorithms and interpreting their results
+\end{itemize}
+\end{notechapter}

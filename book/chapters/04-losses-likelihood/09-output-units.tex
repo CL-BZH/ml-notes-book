@@ -1,0 +1,729 @@
+% Source: gradient_based_learning.tex
+\begin{notechapter}
+\chapter{Sigmoid, Softmax and Other Output Units}\label{ch:output-units}
+\chaptersubtitle{Bernoulli, multinoulli, Gaussian and mixture output distributions}
+
+\section{Introduction}
+In Section 6.2.2.2 of \textit{Deep Learning} by Goodfellow, Bengio and Courville, the authors discuss
+the use of \textbf{sigmoid units} for modeling \textbf{Bernoulli output
+distributions} and \textbf{softmax units} for modeling \textbf{Multinoulli
+output distributions}. This document explains:
+\begin{enumerate}
+    \item Why the unnormalized log probabilities are assumed to be linear
+          in \( y \) and \( z \), and why \( \log \tilde{P}(y) = yz \)
+          is chosen for binary classification.
+    \item Why \( P(y) = \sigma((2y - 1)z) \) is used to express the
+          probability of \( y \) in binary classification.
+    \item Why the log in the cost function undoes the exp of the sigmoid.
+    \item Why the loss is rewritten in terms of the softplus function.
+    \item Why mean squared error (MSE) is not used for binary
+          classification.
+    \item Why the softplus-based loss is preferable for training sigmoid
+          output units.
+    \item How softmax units generalize sigmoid units for multi-class
+          classification.
+    \item How to model other output types, including continuous outputs,
+          structured outputs, and more complex distributions.
+\end{enumerate}
+
+\section{Sigmoid Function}
+The \textbf{sigmoid function} \( \sigma(z) \) is defined as:
+\[
+\sigma(z) = \frac{1}{1 + e^{-z}}.
+\]
+It has the following properties:
+\begin{itemize}
+    \item \textbf{Range:} \( \sigma(z) \in (0, 1) \), making it suitable
+          for representing probabilities.
+    \item \textbf{Symmetry:} \( \sigma(-z) = 1 - \sigma(z) \).
+    \item \textbf{Derivative:} The derivative of the sigmoid function is
+          \( \sigma'(z) = \sigma(z)(1 - \sigma(z)) \), which is useful
+          for gradient-based optimization.
+\end{itemize}
+
+\section{Unnormalized Log Probabilities and Linearity}
+
+\subsection{Bernoulli Distribution and Binary Classification}
+In binary classification, the output \( y \) follows a \textbf{Bernoulli
+distribution}:
+\[
+P(y) = \mu^y (1 - \mu)^{1 - y},
+\]
+where \( \mu = P(y = 1) \) is the probability of the positive class. The
+goal is to model \( \mu \) as a function of the input features \( x \),
+typically using a neural network.
+
+\subsection{Log Probabilities}
+Working with log probabilities is numerically stable and simplifies
+computations. The log of the Bernoulli PMF is:
+\[
+\log P(y) = y \log \mu + (1 - y) \log (1 - \mu).
+\]
+
+\subsection{Connection to Cross-Entropy Loss}
+The log-likelihood of the Bernoulli distribution is closely related to
+the \textbf{cross-entropy loss}, which is commonly used in binary
+classification. The cross-entropy loss is defined as:
+\[
+\mathcal{L}_{\text{CE}}(y, \hat{y}) = - \left( y \log \hat{y} + (1 - y) 
+\log (1 - \hat{y}) \right),
+\]
+where \( \hat{y} = \mu \) is the predicted probability of the positive
+class.
+
+\begin{itemize}
+    \item The cross-entropy loss is essentially the \textbf{negative
+          log-likelihood} of the Bernoulli distribution.
+    \item Minimizing the cross-entropy loss is equivalent to maximizing
+          the log-likelihood, which is the standard approach for training
+          models in binary classification tasks.
+    \item This connection is why the cross-entropy loss is often used in
+          binary classification problems, as it directly aligns with the
+          probabilistic interpretation of the Bernoulli distribution.
+\end{itemize}
+
+\subsection{Key Differences Between Cross-Entropy and KL Divergence}
+The log-likelihood of the Bernoulli distribution is closely related to both the \textbf{cross-entropy} and the \textbf{Kullback-Leibler (KL) divergence}. Here, we clarify the relationship between these concepts.
+
+\subsubsection{Cross-Entropy}
+The \textbf{cross-entropy} \( H(P, Q) \) measures the average number of bits needed to encode data from the true distribution \( P \) using a model distribution \( Q \). For a true distribution \( P \) and a predicted distribution \( Q \), the cross-entropy is defined as:
+\[
+H(P, Q) = -\sum_{i} P(y = i) \log Q(y = i).
+\]
+In classification tasks, \( P \) is typically a one-hot vector (the true class), and \( Q \) is the predicted probability distribution (e.g., the output of a softmax function).
+
+\subsubsection{KL Divergence}
+The \textbf{KL divergence} \( D_{\text{KL}}(P \parallel Q) \) measures how much information is lost when \( Q \) is used to approximate \( P \). It is defined as:
+\[
+D_{\text{KL}}(P \parallel Q) = \sum_{i} P(y = i) \log \frac{P(y = i)}{Q(y = i)}.
+\]
+The KL divergence is always non-negative and is zero only when \( P = Q \).
+
+\subsubsection{Relationship Between Cross-Entropy and KL Divergence}
+The cross-entropy can be expressed in terms of the KL divergence and the entropy of the true distribution \( P \):
+\[
+H(P, Q) = H(P) + D_{\text{KL}}(P \parallel Q),
+\]
+where \( H(P) \) is the entropy of \( P \), defined as:
+\[
+H(P) = -\sum_{i} P(y = i) \log P(y = i).
+\]
+In classification tasks, \( P \) is a one-hot vector, so \( H(P) = 0 \) (since \( P(y = i) = 1 \) for the true class and \( P(y = j) = 0 \) for \( j \neq i \)). Thus:
+\[
+H(P, Q) = D_{\text{KL}}(P \parallel Q).
+\]
+This means that in classification tasks, minimizing the cross-entropy is equivalent to minimizing the KL divergence between the true distribution \( P \) and the predicted distribution \( Q \).
+
+\subsection{Why Negative Log-Likelihood is Cross-Entropy}
+The negative log-likelihood measures how well a model's predicted probabilities match the true distribution of the data. For a single example with true class \( y = i \), the log-likelihood of the model's predicted probability \( \text{softmax}(z)_i \) is:
+\[
+\log P(y = i) = \log \text{softmax}(z)_i.
+\]
+The negative log-likelihood is simply the negative of this:
+\[
+\mathcal{L}(y, z) = -\log \text{softmax}(z)_i.
+\]
+
+The \textbf{cross-entropy} measures the average number of bits needed to encode data from the true distribution \( P \) using a model distribution \( Q \). For a single example, the cross-entropy between the true distribution \( P \) and the predicted distribution \( Q \) is:
+\[
+H(P, Q) = -\sum_{j=1}^k P(y = j) \log Q(y = j),
+\]
+where:
+\begin{itemize}
+    \item \( P(y = j) \) is the true probability of class \( j \) (1 for the true class \( i \), and 0 for all other classes).
+    \item \( Q(y = j) = \text{softmax}(z)_j \) is the predicted probability of class \( j \).
+\end{itemize}
+
+Since \( P(y = j) \) is a one-hot vector (i.e., \( P(y = i) = 1 \) and \( P(y = j) = 0 \) for \( j \neq i \)), the cross-entropy simplifies to:
+\[
+H(P, Q) = -\log Q(y = i) = -\log \text{softmax}(z)_i.
+\]
+
+The \textbf{Kullback-Leibler (KL) divergence} measures how much information is lost when \( Q \) is used to approximate \( P \). It is defined as:
+\[
+D_{\text{KL}}(P \parallel Q) = \sum_{j=1}^k P(y = j) \log \frac{P(y = j)}{Q(y = j)}.
+\]
+For a one-hot vector \( P \), the KL divergence simplifies to:
+\[
+D_{\text{KL}}(P \parallel Q) = -\log Q(y = i).
+\]
+
+The relationship between cross-entropy, KL divergence, and the entropy of the true distribution \( P \) is:
+\[
+H(P, Q) = H(P) + D_{\text{KL}}(P \parallel Q),
+\]
+where \( H(P) \) is the entropy of \( P \), defined as:
+\[
+H(P) = -\sum_{j=1}^k P(y = j) \log P(y = j).
+\]
+For a one-hot vector \( P \), the entropy \( H(P) = 0 \), so:
+\[
+H(P, Q) = D_{\text{KL}}(P \parallel Q).
+\]
+
+Thus, in classification tasks, minimizing the cross-entropy is equivalent to minimizing the KL divergence between the true distribution \( P \) and the predicted distribution \( Q \). This is why the cross-entropy loss is used in training models for classification tasks.
+
+\subsection{Logistic Regression}
+Logistic regression is a fundamental statistical and machine learning technique used for binary classification. It models the probability \( \mu = P(y = 1) \) as a function of the input features \( x \) using the \textbf{sigmoid function}:
+\[
+\mu = \sigma(w^T x + b),
+\]
+where:
+\begin{itemize}
+    \item \( w \) is the weight vector (coefficients),
+    \item \( x \) is the input feature vector,
+    \item \( b \) is the bias term.
+\end{itemize}
+
+\subsubsection{Log-Odds (Logit)}
+The key idea in logistic regression is to model the \textbf{log-odds} (also called the \textbf{logit}) of the probability \( \mu \) as a linear function of the input features:
+\[
+\text{logit}(\mu) = \log \left( \frac{\mu}{1 - \mu} \right) = w^T x + b.
+\]
+The log-odds is the logarithm of the ratio of the probability of the positive class to the probability of the negative class.
+
+\subsubsection{Why Log-Odds?}
+The log-odds is used in logistic regression for several reasons:
+\begin{itemize}
+    \item \textbf{Unbounded Range:} The log-odds can take any real value (from \(-\infty\) to \(+\infty\)), while probabilities are bounded between 0 and 1. This makes it easier to model the log-odds as a linear function of the input features.
+    \item \textbf{Interpretability:} The coefficients \( w \) in logistic regression can be interpreted as the change in log-odds for a unit change in the corresponding input feature. This provides a clear understanding of the relationship between the input features and the output probability.
+    \item \textbf{Connection to Linear Regression:} By modeling the log-odds as a linear function, logistic regression extends the concept of linear regression to binary classification tasks.
+\end{itemize}
+
+\subsubsection{Inverse of the Logit: Sigmoid Function}
+The inverse of the logit function is the \textbf{sigmoid function}, which maps the log-odds back to a probability:
+\[
+\mu = \sigma(w^T x + b) = \frac{1}{1 + e^{-(w^T x + b)}}.
+\]
+This ensures that the output is a valid probability between 0 and 1.
+
+\subsection{Unnormalized Log Probabilities}
+Unnormalized log probabilities (logits) are often used to avoid explicit normalization. The unnormalized log probability is denoted as \( \log \tilde{P}(y) \), where:
+\[
+\tilde{P}(y) \propto P(y).
+\]
+
+\subsection{Assumption: Linearity in \( y \) and \( z \)}
+The authors assume that the unnormalized log probabilities are linear in \( y \) and \( z \), where \( z \) is the output of the neural network. This assumption is motivated by:
+\begin{itemize}
+    \item \textbf{Simplicity:} Linear relationships are simple and interpretable.
+    \item \textbf{Expressiveness:} The neural network can learn complex nonlinear transformations of \( x \) to produce \( z \).
+    \item \textbf{Connection to Logistic Regression:} This assumption is consistent with logistic regression, where the log-odds (logit) is a linear function of the input features.
+\end{itemize}
+
+\subsection{Choice of \( \log \tilde{P}(y) = yz \)}
+The specific choice \( \log \tilde{P}(y) = yz \) ensures that:
+\begin{itemize}
+    \item For \( y = 1 \), \( \log \tilde{P}(1) = z \).
+    \item For \( y = 0 \), \( \log \tilde{P}(0) = 0 \).
+\end{itemize}
+This choice simplifies the normalization step and is consistent with maximum likelihood estimation.
+
+\section{Probability Expression: \( P(y) = \sigma((2y - 1)z) \)}
+
+\subsection{Compact Representation}
+The equation \( P(y) = \sigma((2y - 1)z) \) is a compact way to express \( P(y) \) for both \( y = 0 \) and \( y = 1 \). Let’s verify this:
+
+\subsubsection{Case 1: \( y = 1 \)}
+For \( y = 1 \):
+\[
+2y - 1 = 1, \quad \text{so} \quad P(y = 1) = \sigma(z).
+\]
+
+\subsubsection{Case 2: \( y = 0 \)}
+For \( y = 0 \):
+\[
+2y - 1 = -1, \quad \text{so} \quad P(y = 0) = \sigma(-z) = 1 - \sigma(z).
+\]
+
+\subsection{Why Use \( \sigma((2y - 1)z) \)?}
+This form is useful because:
+\begin{itemize}
+    \item It combines the two cases \( y = 0 \) and \( y = 1 \) into a single expression.
+    \item It avoids explicitly computing \( 1 - \sigma(z) \), which can be numerically unstable.
+    \item It simplifies gradient computation during backpropagation.
+\end{itemize}
+
+\subsection{Numerical Instability of \( 1 - \sigma(z) \)}
+The term \( 1 - \sigma(z) \) can be numerically unstable because:
+\begin{itemize}
+    \item For large positive \( z \), \( \sigma(z) \) is very close to 1. Subtracting it from 1 can lead to loss of precision due to catastrophic cancellation.
+    \item For large negative \( z \), \( \sigma(z) \) is very close to 0, and \( 1 - \sigma(z) \) is close to 1, but the subtraction itself may still suffer from inaccuracies.
+\end{itemize}
+To avoid this, we use the identity \( 1 - \sigma(z) = \sigma(-z) \), which is numerically stable.
+
+\section{Log in the Cost Function and Softplus}
+
+\subsection{Log Undoes the Exp in the Sigmoid}
+The sigmoid function involves exponentials (\( e^z \)), and the log-likelihood contains logarithms of the sigmoid. This creates a cancellation effect:
+\[
+\log \sigma(z) = \log \left( \frac{e^z}{1 + e^z} \right) = z - \log(1 + e^z),
+\]
+\[
+\log (1 - \sigma(z)) = \log \left( \frac{1}{1 + e^z} \right) = -\log(1 + e^z).
+\]
+Thus, the log-likelihood simplifies to:
+\[
+\log P(y) = yz - \log(1 + e^z).
+\]
+Here, the \( \log \) undoes the \( \exp \) in the sigmoid, leading to a simpler and more numerically stable expression.
+
+\subsection{Softplus Function}
+The \textbf{softplus function} is defined as:
+\[
+\text{softplus}(z) = \log(1 + e^z).
+\]
+It is a smooth approximation of the ReLU function and has the property:
+\[
+\text{softplus}(z) \approx 
+\begin{cases}
+z & \text{if } z \gg 0, \\
+0 & \text{if } z \ll 0.
+\end{cases}
+\]
+
+\subsection{Rewriting the Loss}
+The log-likelihood can be rewritten using the softplus function:
+\[
+\log P(y) = yz - \text{softplus}(z).
+\]
+The negative log-likelihood (the loss function) becomes:
+\[
+\mathcal{L}(y, z) = -\log P(y) = -yz + \text{softplus}(z).
+\]
+
+\subsection{Derivation of the Compact Form}
+To derive the compact form of the loss function, we consider the two cases \( y = 1 \) and \( y = 0 \) separately.
+
+\subsubsection{Case 1: \( y = 1 \)}
+For \( y = 1 \), the loss becomes:
+\[
+\mathcal{L}(1, z) = -z + \text{softplus}(z).
+\]
+Using the definition of the softplus function:
+\[
+\text{softplus}(z) = \log(1 + e^z),
+\]
+we can rewrite the loss as:
+\[
+\mathcal{L}(1, z) = -z + \log(1 + e^z).
+\]
+Notice that:
+\[
+-z + \log(1 + e^z) = \log(e^{-z}) + \log(1 + e^z) = \log(e^{-z} (1 + e^z)).
+\]
+Simplifying further:
+\[
+e^{-z} (1 + e^z) = e^{-z} + 1.
+\]
+Thus:
+\[
+\mathcal{L}(1, z) = \log(1 + e^{-z}) = \text{softplus}(-z).
+\]
+
+\subsubsection{Case 2: \( y = 0 \)}
+For \( y = 0 \), the loss becomes:
+\[
+\mathcal{L}(0, z) = \text{softplus}(z).
+\]
+
+\subsubsection{Combining the Two Cases}
+To combine the two cases \( y = 1 \) and \( y = 0 \) into a single expression, we introduce the transformation \( (1 - 2y)z \), which behaves differently for \( y = 1 \) and \( y = 0 \).
+
+\begin{itemize}
+    \item For \( y = 1 \):
+      \[
+      (1 - 2 \cdot 1)z = (1 - 2)z = -z.
+      \]
+      So, \( \text{softplus}((1 - 2y)z) = \text{softplus}(-z) \), which matches the loss for \( y = 1 \).
+
+    \item For \( y = 0 \):
+      \[
+      (1 - 2 \cdot 0)z = (1 - 0)z = z.
+      \]
+      So, \( \text{softplus}((1 - 2y)z) = \text{softplus}(z) \), which matches the loss for \( y = 0 \).
+\end{itemize}
+
+Thus, the transformation \( (1 - 2y)z \) allows us to write the loss function in a single compact form:
+\[
+\mathcal{L}(y, z) = \text{softplus}((1 - 2y)z).
+\]
+
+This compact form is elegant and efficient, as it handles both cases \( y = 1 \) and \( y = 0 \) in a single expression.
+
+\section{Why Not Use Mean Squared Error (MSE)?}
+
+\subsection{Issues with MSE for Binary Classification}
+While MSE is a common loss function for regression tasks, it is not well-suited for binary classification because:
+\begin{itemize}
+    \item \textbf{Non-Convexity:} When used with a sigmoid activation, the MSE loss becomes non-convex. This makes optimization difficult, as the loss surface may have many local minima.
+    \item \textbf{Saturation:} The sigmoid function saturates (i.e., its gradient becomes very small) when \( z \) is far from 0. This leads to vanishing gradients, slowing down or preventing learning.
+    \item \textbf{Mismatch with Probabilities:} MSE penalizes deviations from the true labels equally, regardless of the predicted probability. In contrast, the log-likelihood loss penalizes incorrect predictions more heavily when the model is confident (i.e., when \( \sigma(z) \) is close to 0 or 1).
+\end{itemize}
+
+\subsection{Comparison of Loss Functions}
+\begin{itemize}
+    \item \textbf{Log-Likelihood Loss:} Directly maximizes the probability of the correct class. It is convex (when used with a linear model) and avoids saturation issues.
+    \item \textbf{MSE Loss:} Does not directly optimize for probabilistic correctness. It is non-convex and suffers from saturation when used with sigmoid activations.
+\end{itemize}
+
+\section{Why Softplus-Based Loss is Preferable}
+
+\subsection{Saturation Behavior}
+The softplus-based loss saturates (i.e., stops changing significantly) only when the model already has the correct answer. This happens because the softplus function, \( \text{softplus}(z) = \log(1 + e^z) \), saturates to 0 for very negative arguments. Let’s analyze this for both cases:
+
+\subsubsection{Case 1: \( y = 1 \)}
+\begin{itemize}
+    \item The argument to the softplus function is \( (1 - 2 \cdot 1)z = -z \).
+    \item The loss becomes \( \text{softplus}(-z) \).
+    \item When \( z \) is very positive (i.e., the model is confident that \( y = 1 \)), \( -z \) is very negative.
+    \item For very negative arguments, the softplus function saturates to 0:
+          \[
+          \text{softplus}(-z) \approx 0 \quad \text{when} \quad z \gg 0.
+          \]
+    \item Thus, the loss saturates to 0 when the model is correct and confident.
+\end{itemize}
+
+\subsubsection{Case 2: \( y = 0 \)}
+\begin{itemize}
+    \item The argument to the softplus function is \( (1 - 2 \cdot 0)z = z \).
+    \item The loss becomes \( \text{softplus}(z) \).
+    \item When \( z \) is very negative (i.e., the model is confident that \( y = 0 \)), \( z \) is very negative.
+    \item For very negative arguments, the softplus function saturates to 0:
+          \[
+          \text{softplus}(z) \approx 0 \quad \text{when} \quad z \ll 0.
+          \]
+    \item Thus, the loss saturates to 0 when the model is correct and confident.
+\end{itemize}
+
+\subsection{Gradient Behavior}
+The gradient of the softplus-based loss with respect to \( z \) is:
+\[
+\frac{\partial \mathcal{L}(y, z)}{\partial z} = (1 - 2y) \sigma((1 - 2y)z),
+\]
+where \( \sigma \) is the sigmoid function. Let’s analyze the gradient in both cases:
+
+\subsubsection{When the Model is Correct}
+\begin{itemize}
+    \item For \( y = 1 \) and \( z \gg 0 \), \( \sigma(-z) \approx 0 \), so the gradient is close to 0.
+    \item For \( y = 0 \) and \( z \ll 0 \), \( \sigma(z) \approx 0 \), so the gradient is close to 0.
+    \item This means the gradient vanishes when the model is correct, effectively stopping further updates.
+\end{itemize}
+
+\subsubsection{When the Model is Incorrect}
+\begin{itemize}
+    \item For \( y = 1 \) and \( z < 0 \), \( \sigma(-z) \approx 1 \), so the gradient is close to \(-1\).
+    \item For \( y = 0 \) and \( z > 0 \), \( \sigma(z) \approx 1 \), so the gradient is close to \(1\).
+    \item This means the gradient remains strong when the model is incorrect, enabling fast correction.
+\end{itemize}
+
+\subsection{Why This is Desirable}
+The softplus-based loss has two key advantages:
+\begin{itemize}
+    \item \textbf{Saturation Only When Correct:} The loss saturates only when the model is already correct, avoiding unnecessary updates.
+    \item \textbf{Strong Gradients When Incorrect:} When the model is incorrect, the gradient remains strong, allowing for quick correction of mistakes.
+\end{itemize}
+
+\subsection{Issues with MSE}
+In contrast, the mean squared error (MSE) loss can saturate anytime \( \sigma(z) \) saturates, regardless of whether the model is correct or incorrect:
+\begin{itemize}
+    \item When \( z \) is very negative, \( \sigma(z) \) saturates to 0.
+    \item When \( z \) is very positive, \( \sigma(z) \) saturates to 1.
+\end{itemize}
+In both cases, the gradient of MSE shrinks, making learning difficult. This is why the softplus-based loss is preferred for binary classification.
+
+\section{Softmax Units for Multinoulli Output Distributions}
+
+\subsection{Multinoulli Distribution}
+The \textbf{Multinoulli distribution} (also known as the categorical distribution) is a generalization of the Bernoulli distribution to more than two classes. It models a discrete random variable that can take one of \( k \) possible outcomes, where \( k \) is the number of classes. The probability mass function (PMF) of the Multinoulli distribution is:
+\[
+P(y = i) = p_i, \quad \text{for } i = 1, 2, \dots, k,
+\]
+where \( p_i \) is the probability of the \( i \)-th class, and \( \sum_{i=1}^k p_i = 1 \).
+
+\subsection{Softmax Function}
+The \textbf{softmax function} is used to model the probabilities of the Multinoulli distribution. It maps a vector of real-valued scores (logits) \( z = (z_1, z_2, \dots, z_k) \) to a probability distribution over \( k \) classes:
+\[
+\text{softmax}(z)_i = \frac{e^{z_i}}{\sum_{j=1}^k e^{z_j}}.
+\]
+The softmax function ensures that:
+\begin{itemize}
+    \item The output is a valid probability distribution (i.e., \( \text{softmax}(z)_i \in (0, 1) \) and \( \sum_{i=1}^k \text{softmax}(z)_i = 1 \)).
+    \item It is invariant to additive shifts in the logits (i.e., \( \text{softmax}(z) = \text{softmax}(z + c) \) for any constant \( c \)).
+\end{itemize}
+
+\subsection{Log-Likelihood and Cross-Entropy Loss}
+The log-likelihood of the Multinoulli distribution for a single example is:
+\[
+\log P(y = i) = \log \text{softmax}(z)_i = z_i - \log \sum_{j=1}^k e^{z_j}.
+\]
+The \textbf{cross-entropy loss} (or negative log-likelihood) is used to train models with softmax outputs:
+\[
+\mathcal{L}(y, z) = -\log \text{softmax}(z)_i = -z_i + \log \sum_{j=1}^k e^{z_j}.
+\]
+This loss function encourages the model to assign high probability to the correct class and low probabilities to the incorrect classes.
+
+\subsection{Derivation of the Gradient of the Softmax Loss}
+The gradient of the softmax loss with respect to the logits \( z_j \) is:
+\[
+\frac{\partial \mathcal{L}(y, z)}{\partial z_j} = \text{softmax}(z)_j - \bbone_{j = i},
+\]
+where \( \bbone_{j = i} \) is an indicator function that is 1 when \( j = i \) (the correct class) and 0 otherwise. Let's derive this step by step.
+
+\subsubsection{Step 1: Define the Softmax Function and the Loss}
+The softmax function is defined as:
+\[
+\text{softmax}(z)_j = \frac{e^{z_j}}{\sum_{k=1}^K e^{z_k}}.
+\]
+The cross-entropy loss for a single example with true class \( y = i \) is:
+\[
+\mathcal{L}(y, z) = -\log \text{softmax}(z)_i = -\log \left( \frac{e^{z_i}}{\sum_{k=1}^K e^{z_k}} \right).
+\]
+
+\subsubsection{Step 2: Simplify the Loss}
+The loss can be rewritten as:
+\[
+\mathcal{L}(y, z) = -z_i + \log \sum_{k=1}^K e^{z_k}.
+\]
+
+\subsubsection{Step 3: Compute the Gradient with Respect to \( z_j \)}
+We need to compute the partial derivative of the loss \( \mathcal{L}(y, z) \) with respect to \( z_j \). Let's break this into two parts:
+
+\begin{enumerate}
+    \item \textbf{Derivative of \( -z_i \):}
+    \begin{itemize}
+        \item If \( j = i \), then 
+              \[
+              \frac{\partial (-z_i)}{\partial z_j} = -1.
+              \]
+        \item If \( j \neq i \), then 
+              \[
+              \frac{\partial (-z_i)}{\partial z_j} = 0.
+              \]
+        \item This can be written compactly using the indicator function:
+              \[
+              \frac{\partial (-z_i)}{\partial z_j} = -\bbone_{j = i}.
+              \]
+    \end{itemize}
+
+    \item \textbf{Derivative of \( \log \sum_{k=1}^K e^{z_k} \):}
+    \begin{itemize}
+        \item Let \( S = \sum_{k=1}^K e^{z_k} \). Then:
+              \[
+              \frac{\partial \log S}{\partial z_j} = \frac{1}{S} \cdot \frac{\partial S}{\partial z_j}.
+              \]
+        \item The derivative of \( S \) with respect to \( z_j \) is:
+              \[
+              \frac{\partial S}{\partial z_j} = e^{z_j},
+              \]
+              because \( S \) is a sum of exponentials, and only the term \( e^{z_j} \) depends on \( z_j \).
+        \item Thus:
+              \[
+              \frac{\partial \log S}{\partial z_j} = \frac{e^{z_j}}{S} = \text{softmax}(z)_j.
+              \]
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Step 4: Combine the Two Parts}
+Now, combining the derivatives of the two parts of the loss, we get:
+\[
+\frac{\partial \mathcal{L}(y, z)}{\partial z_j} = \frac{\partial (-z_i)}{\partial z_j} + \frac{\partial \log S}{\partial z_j}.
+\]
+
+Substituting the results from Step 3:
+\[
+\frac{\partial \mathcal{L}(y, z)}{\partial z_j} = -\bbone_{j = i} + \text{softmax}(z)_j.
+\]
+
+This can be rewritten as:
+\[
+\frac{\partial \mathcal{L}(y, z)}{\partial z_j} = \text{softmax}(z)_j - \bbone_{j = i}.
+\]
+
+\subsubsection{Step 5: Interpretation of the Gradient}
+The gradient has an intuitive interpretation:
+\begin{itemize}
+    \item For the correct class (\( j = i \)):
+          \[
+          \frac{\partial \mathcal{L}(y, z)}{\partial z_j} = \text{softmax}(z)_j - 1.
+          \]
+          This encourages the model to increase the probability of the correct class (since \( \text{softmax}(z)_j < 1 \)).
+
+    \item For the incorrect classes (\( j \neq i \)):
+          \[
+          \frac{\partial \mathcal{L}(y, z)}{\partial z_j} = \text{softmax}(z)_j.
+          \]
+          This encourages the model to decrease the probabilities of the incorrect classes (since \( \text{softmax}(z)_j > 0 \)).
+\end{itemize}
+
+\subsection{Numerical Stability}
+Computing the softmax function directly can lead to numerical instability due to the exponentials \( e^{z_j} \), especially when \( z_j \) is large. To improve numerical stability, the logits are often shifted by subtracting the maximum logit value:
+\[
+\text{softmax}(z)_i = \frac{e^{z_i - \max(z)}}{\sum_{j=1}^k e^{z_j - \max(z)}}.
+\]
+This ensures that the largest exponent is 0, avoiding overflow.
+
+\subsection{Connection to Logistic Regression}
+The softmax function generalizes the sigmoid function used in logistic regression to multiple classes. In the binary case (\( k = 2 \)), the softmax function reduces to the sigmoid function:
+\[
+\text{softmax}(z)_1 = \frac{e^{z_1}}{e^{z_1} + e^{z_2}} = \frac{1}{1 + e^{-(z_1 - z_2)}} = \sigma(z_1 - z_2).
+\]
+
+\subsection{Applications}
+Softmax units are widely used in multi-class classification tasks, such as:
+\begin{itemize}
+    \item Image classification (e.g., classifying images into one of \( k \) categories).
+    \item Natural language processing (e.g., predicting the next word in a sequence).
+\end{itemize}
+
+\subsection{Unregularized Maximum Likelihood and Empirical Distribution}
+When training a model with a softmax output layer using \textbf{unregularized maximum likelihood estimation (MLE)}, the model learns parameters \( \theta \) such that the softmax predictions approximate the \textbf{empirical distribution} of the training data. This means that for a given input \( x \), the softmax output for class \( i \) will approximate the fraction of times class \( i \) appears in the training data for that specific input \( x \). Mathematically, this can be expressed as:
+\[
+\text{softmax}(z(x; \theta))_i \approx \frac{\sum_{j=1}^m \bbone_{y^{(j)} = i, x^{(j)} = x}}{\sum_{j=1}^m \bbone_{x^{(j)} = x}},
+\]
+where:
+\begin{itemize}
+    \item \( \bbone_{y^{(j)} = i, x^{(j)} = x} \) is an indicator function that is 1 if the \( j \)-th training example has label \( i \) and input \( x \), and 0 otherwise.
+    \item \( \bbone_{x^{(j)} = x} \) is an indicator function that is 1 if the \( j \)-th training example has input \( x \), and 0 otherwise.
+\end{itemize}
+
+\subsubsection{Why This Happens}
+This behavior occurs because:
+\begin{itemize}
+    \item \textbf{Maximum Likelihood Estimation (MLE):} MLE aims to maximize the likelihood of the observed data. For a softmax model, this is equivalent to minimizing the cross-entropy loss:
+          \[
+          \mathcal{L}(\theta) = -\sum_{j=1}^m \log \text{softmax}(z(x^{(j)}; \theta))_{y^{(j)}}.
+          \]
+    \item \textbf{Consistency of MLE:} Maximum likelihood is a \textbf{consistent estimator}, meaning that as the number of training examples \( m \) grows to infinity, the model's predictions will converge to the true underlying distribution of the data (assuming the model family is capable of representing this distribution).
+    \item \textbf{Empirical Distribution:} Without regularization, the model is free to adjust its parameters to perfectly fit the training data. As a result, the softmax outputs will match the empirical distribution of the training set.
+\end{itemize}
+
+\subsubsection{Example}
+Suppose we have a training set with the following data for a specific input \( x \):
+\begin{itemize}
+    \item Class 1 appears 3 times.
+    \item Class 2 appears 2 times.
+    \item Class 3 appears 5 times.
+\end{itemize}
+The empirical distribution for input \( x \) is:
+\[
+P(y = 1 \mid x) = \frac{3}{10}, \quad P(y = 2 \mid x) = \frac{2}{10}, \quad P(y = 3 \mid x) = \frac{5}{10}.
+\]
+When trained using unregularized maximum likelihood, the model will learn parameters \( \theta \) such that:
+\[
+\text{softmax}(z(x; \theta))_1 \approx 0.3, \quad \text{softmax}(z(x; \theta))_2 \approx 0.2, \quad \text{softmax}(z(x; \theta))_3 \approx 0.5.
+\]
+
+\subsubsection{Implications}
+\begin{itemize}
+    \item \textbf{Overfitting:} If the model is too flexible (e.g., a very large neural network), it may overfit the training data by memorizing the empirical distribution. This is why regularization (e.g., weight decay, dropout) is often used to prevent overfitting.
+    \item \textbf{Generalization:} While the model will match the training distribution, its ability to generalize to unseen data depends on the quality and diversity of the training data.
+    \item \textbf{Consistency:} As the number of training examples grows, the model's predictions will converge to the true underlying distribution, assuming the model family is expressive enough to represent it.
+\end{itemize}
+
+\subsubsection{Mathematical Explanation}
+The likelihood of the observed data under the model is:
+\[
+\mathcal{L}(\theta) = \prod_{j=1}^m P(y^{(j)} \mid x^{(j)}; \theta).
+\]
+Taking the logarithm (log-likelihood), we get:
+\[
+\log \mathcal{L}(\theta) = \sum_{j=1}^m \log P(y^{(j)} \mid x^{(j)}; \theta).
+\]
+For a softmax model, \( P(y^{(j)} \mid x^{(j)}; \theta) = \text{softmax}(z(x^{(j)}; \theta))_{y^{(j)}} \). Maximizing the log-likelihood is equivalent to minimizing the cross-entropy loss:
+\[
+\mathcal{L}(\theta) = -\sum_{j=1}^m \log \text{softmax}(z(x^{(j)}; \theta))_{y^{(j)}}.
+\]
+When the model is trained to minimize this loss, the softmax outputs will approximate the empirical distribution of the training data.
+
+\section{Other Output Types}
+Chapter \textbf{6.2.2.4} in \textit{Deep Learning} by Goodfellow, Bengio and Courville discusses how to model different types of output distributions beyond the standard \textbf{Bernoulli} and \textbf{Multinoulli} distributions. These include continuous outputs, structured outputs, and more complex distributions.
+
+\subsection{Continuous Outputs (Gaussian Distribution)}
+For regression tasks where the output \( y \) is continuous, we can model \( y \) as a Gaussian distribution:
+\[
+p(y \mid x) = \mathcal{N}(y; \mu(x), \sigma^2(x)),
+\]
+where:
+\begin{itemize}
+    \item \( \mu(x) \) is the mean of the Gaussian, predicted by the neural network.
+    \item \( \sigma^2(x) \) is the variance, which can also be predicted by the network or fixed as a hyperparameter.
+\end{itemize}
+
+The negative log-likelihood loss for a single example is:
+\[
+\mathcal{L}(y, \mu, \sigma) = \frac{1}{2} \log(2\pi\sigma^2) + \frac{(y - \mu)^2}{2\sigma^2}.
+\]
+If \( \sigma \) is fixed, the loss simplifies, up to an additive constant and the factor \( 1/\sigma^2 \), to the \textbf{squared error} (whose average is the MSE):
+\[
+\mathcal{L}(y, \mu) = \frac{1}{2} (y - \mu)^2.
+\]
+
+\subsection{Mixture Models}
+For more complex continuous outputs, a single Gaussian may not suffice. Instead, we can use a \textbf{mixture of Gaussians}:
+\[
+p(y \mid x) = \sum_{k=1}^K \pi_k(x) \mathcal{N}(y; \mu_k(x), \sigma_k^2(x)),
+\]
+where:
+\begin{itemize}
+    \item \( \pi_k(x) \) are the mixture weights (probabilities of each component), predicted by the network.
+    \item \( \mu_k(x) \) and \( \sigma_k^2(x) \) are the mean and variance of each Gaussian component.
+\end{itemize}
+
+The loss function is the negative log-likelihood of the mixture model.
+
+\subsection{Structured Outputs}
+Structured outputs involve dependencies between output variables. For example:
+\begin{itemize}
+    \item \textbf{Sequences:} In machine translation, the output is a sequence of words. Models like \textbf{sequence-to-sequence (Seq2Seq)} with attention or \textbf{transformers} are used.
+        \item \textbf{Graphs:} In molecule generation, the output is a graph (atoms and bonds). Graph generative models (often built on \textbf{graph neural networks}) are used to produce such outputs. (In molecular \emph{property prediction}, by contrast, the graph is the input and the output is a scalar or a vector.)
+\end{itemize}
+
+These models often use specialized architectures and loss functions to capture the structure of the output.
+
+\subsection{Heteroscedasticity}
+In some tasks, the variance of the output depends on the input. For example, in financial forecasting, the uncertainty of predictions may vary with market conditions. The neural network can predict both the mean \( \mu(x) \) and variance \( \sigma^2(x) \):
+\[
+p(y \mid x) = \mathcal{N}(y; \mu(x), \sigma^2(x)).
+\]
+The loss function is:
+\[
+\mathcal{L}(y, \mu, \sigma) = \frac{1}{2} \log(2\pi\sigma^2) + \frac{(y - \mu)^2}{2\sigma^2}.
+\]
+
+\subsection{Other Distributions}
+For non-Gaussian outputs, we can use other distributions:
+\begin{itemize}
+    \item \textbf{Laplace Distribution:} Useful for robustness to outliers. The probability density function is:
+          \[
+          p(y \mid x) = \frac{1}{2b} \exp\left(-\frac{|y - \mu|}{b}\right),
+          \]
+          where \( \mu \) is the mean and \( b \) is the scale parameter.
+    \item \textbf{Beta Distribution:} Useful for outputs bounded between 0 and 1. The probability density function is:
+          \[
+          p(y \mid x) = \frac{y^{\alpha-1} (1-y)^{\beta-1}}{B(\alpha, \beta)},
+          \]
+          where \( \alpha \) and \( \beta \) are shape parameters predicted by the network, and \( B(\alpha, \beta) \) is the beta function.
+\end{itemize}
+
+\section{Conclusion}
+\begin{itemize}
+    \item The assumption of linearity in \( y \) and \( z \) for unnormalized log probabilities is motivated by simplicity, expressiveness, and consistency with logistic regression.
+    \item The choice \( \log \tilde{P}(y) = yz \) ensures that the log probability of \( y = 1 \) is proportional to \( z \), while the log probability of \( y = 0 \) is fixed at 0.
+    \item The form \( P(y) = \sigma((2y - 1)z) \) provides a compact and numerically stable way to express the probability of \( y \) in binary classification.
+    \item The sigmoid function \( \sigma(z) = \frac{1}{1 + e^{-z}} \) is central to these derivations, with properties that make it ideal for modeling probabilities.
+    \item The term \( 1 - \sigma(z) \) can be numerically unstable, but using \( \sigma(-z) \) avoids this issue.
+    \item The log in the cost function undoes the exp in the sigmoid, simplifying the log-likelihood and making it numerically stable.
+    \item The loss is rewritten in terms of the softplus function to avoid numerical instability and improve optimization.
+    \item The log-likelihood of the Bernoulli distribution is closely related to the cross-entropy loss, which is commonly used in binary classification. Minimizing the cross-entropy loss is equivalent to minimizing the KL divergence between the true distribution \( P \) and the predicted distribution \( Q \).
+    \item Logistic regression models the log-odds (logit) of the probability as a linear function of the input features, and the sigmoid function maps the log-odds back to a probability. This approach is consistent with the assumptions in the document.
+    \item MSE is not used for binary classification because it is non-convex, suffers from saturation, and does not align well with probabilistic modeling.
+    \item The softplus-based loss is preferable because it saturates only when the model has the correct answer and maintains strong gradients when the model is incorrect, enabling fast correction of mistakes.
+    \item The softmax function generalizes the sigmoid function to multi-class classification, providing a probabilistic framework for modeling Multinoulli output distributions.
+    \item Unregularized maximum likelihood drives the model to learn parameters that make the softmax predictions match the empirical distribution of the training data. This happens because maximum likelihood is a consistent estimator, meaning the model's predictions will converge to the true distribution as the number of training examples increases (assuming the model is sufficiently expressive).
+    \item For continuous outputs, Gaussian distributions or mixtures of Gaussians can be used, with the network predicting the mean and variance.
+    \item Structured outputs, such as sequences or graphs, require specialized models like Seq2Seq or GNNs to handle dependencies between output variables.
+    \item Heteroscedasticity can be modeled by predicting both the mean and variance as functions of the input.
+    \item Other distributions, such as Laplace or Beta, can be used for specific types of outputs.
+\end{itemize}
+\end{notechapter}
