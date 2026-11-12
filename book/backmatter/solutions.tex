@@ -251,3 +251,191 @@ variables is the density of their sum, $\mathcal N(0,2h^2)$, so this equals
 $\varphi_{\sqrt2h}(a-b)$. Expanding the square of
 $\hat f_{\mathcal T} = \frac1n\sum_i\varphi_h(\cdot - X_i)$ then gives
 $\int\hat f_{\mathcal T}^2 = \frac1{n^2}\sum_{i,j}\varphi_{\sqrt2h}(X_i - X_j)$.
+
+% =====================================================================
+\section{\nameref*{ch:stats-and-proba}}
+
+\solution{stats-and-proba:exr:1}
+Exactly, $\Prob(K\leq2) = \sum_{k=0}^2\binom{50}k0.1^k0.9^{50-k}\approx0.005 + 0.029 + 0.078 = 0.112$.
+The normal approximation $\hat p\approx\mathcal N(0.1, 0.0018)$ gives
+$\Phi\bigl((0.04-0.1)/0.0424\bigr) = \Phi(-1.41)\approx0.079$, a poor approximation;
+with the continuity correction ($K\leq2.5$, i.e.\ $\hat p\leq0.05$) it gives
+$\Phi(-1.18)\approx0.119$. For $np = 5$ the binomial is still far from Gaussian.
+
+\solution{stats-and-proba:exr:2}
+$\E[X_i] = \theta/2$, so $\E[2\bar X_n] = \theta$; and $\Var(X_i) = \theta^2/12$, so
+$\mathrm{MSE}(2\bar X_n) = \Var(2\bar X_n) = 4\theta^2/(12n) = \theta^2/(3n)$. The density of
+$M$ is $nx^{n-1}/\theta^n$ on $[0,\theta]$, so $\E[M] = \frac n{n+1}\theta$ and
+$\E[M^2] = \frac n{n+2}\theta^2$, hence $\Var(M) = \frac{n\theta^2}{(n+1)^2(n+2)}$. The
+estimator $T = \frac{n+1}nM$ is unbiased with $\mathrm{MSE}(T) = \Var(T) = \frac{\theta^2}{n(n+2)}$.
+The ratio $\mathrm{MSE}(2\bar X_n)/\mathrm{MSE}(T) = (n+2)/3$ grows with $n$: both are
+unbiased, but $T$ is far more precise --- its error decreases like $1/n$, not
+$1/\sqrt n$.
+
+\solution{stats-and-proba:exr:3}
+A given point is missed by one draw with probability $1 - \frac1n$, and by all $n$
+independent draws with probability $(1-\frac1n)^n$. Since
+$n\log(1-\frac1n) = -1 + O(\frac1n)$, this tends to $e^{-1}$, and the point appears
+with probability $1 - (1-\frac1n)^n\to1 - e^{-1}\approx0.632$.
+
+\solution{stats-and-proba:exr:4}
+$\mathrm{MSE}(cS^2) = c^2\Var(S^2) + (c-1)^2\sigma^4 = \sigma^4\bigl[\frac{2c^2}{n-1} + (c-1)^2\bigr]$.
+Setting the derivative $\frac{4c}{n-1} + 2(c-1)$ to zero gives $c = \frac{n-1}{n+1}$:
+the MSE-optimal estimator divides the sum of squared deviations by $n+1$ --- neither
+$n-1$ (unbiased) nor $n$ (maximum likelihood).
+
+% =====================================================================
+\section{\nameref*{ch:lln-clt-inference}}
+
+\solution{lln-clt-inference:exr:1}
+Chebyshev gives $\Prob(\abs{\hat p - p}\geq0.01)\leq\frac{p(1-p)}{n\times10^{-4}}\leq\frac{0.25}{n\times10^{-4}}$,
+which is at most $0.05$ for $n\geq50\,000$. The CLT asks for
+$1.96\sqrt{0.25/n}\leq0.01$, i.e.\ $n\geq9604$: Chebyshev is valid for every $n$ but
+about five times too pessimistic here.
+
+\solution{lln-clt-inference:exr:2}
+On examples where both classifiers are right or both wrong, the error rates do not
+differ; only the $60$ discordant examples matter. Under $H_0$ (equal error rates)
+each discordant example favours A or B with probability $\frac12$, so the number
+favouring A is $\mathrm{Bin}(60,\frac12)$, with mean $30$ and standard deviation
+$\sqrt{15}\approx3.87$. The observed $40$ gives $z = 10/3.87\approx2.58$ and a two-sided
+$p$-value of about $0.01$: reject at $5\%$; A is better. Comparing the two error
+rates as if the test sets were independent would ignore this pairing and lose
+power.
+
+\solution{lln-clt-inference:exr:3}
+$\E\abs X = \frac2\pi\int_0^\infty\frac{x}{1+x^2}\,dx = \frac1\pi\bigl[\log(1+x^2)\bigr]_0^\infty = \infty$.
+The law of large numbers requires $\E\abs X<\infty$; the Cauchy distribution does not
+satisfy this hypothesis (it has no mean), so there is no contradiction in
+$\bar X_n$ not converging.
+
+\solution{lln-clt-inference:exr:4}
+At $x_1 = 3$ the log-odds are $-1.5 + 2.4 = 0.9$, so $P = \sigma(0.9)\approx0.71$; at
+$x_1 = 2$ they are $0.1$ and $P\approx0.52$. The change is about $0.19$, compared with
+$0.33 - 0.18 = 0.15$ between $x_1 = 0$ and $1$: the same odds ratio produces
+different changes in probability.
+
+% =====================================================================
+\section{\nameref*{ch:covariance-estimation}}
+
+\solution{covariance-estimation:exr:1}
+For $v\in\R^p$, $v^\top\hat\Sigma_Xv = \frac1n\norm{\mathbf X_cv}^2\geq0$. The rank of
+$\hat\Sigma_X$ equals that of $\mathbf X_c = A\mathbf X$, which is at most
+$\mathrm{rank}(A) = n-1$. If $n\leq p$, then $\mathrm{rank}(\hat\Sigma_X)\leq n-1<p$ and the
+$p\times p$ matrix is singular. This is why covariance estimates in high dimension
+are regularized (e.g.\ by adding a multiple of the identity).
+
+\solution{covariance-estimation:exr:2}
+With $u = (1,-1)^\top$, $\Var(X_1 - X_2) = u^\top\Sigma_Xu = 4 + 3 - 2\times2 = 3$. The
+correlation is $2/\sqrt{4\times3}\approx0.58$.
+
+\solution{covariance-estimation:exr:3}
+Let $X$ be uniform on $[-1,1]$ and $Y = X^2$. Then
+$\Cov(X,Y) = \E[X^3] - \E[X]\E[X^2] = 0$, yet $Y$ is a function of $X$. Covariance only
+detects linear dependence.
+
+% =====================================================================
+\section{\nameref*{ch:convergence-of-events}}
+
+\solution{convergence-of-events:exr:1}
+The sets decrease to $\bigcap_nA_n = \{0\}$, so $\liminf A_n = \limsup A_n = \{0\}$ and
+$\Prob(A_n) = 1/n\to0 = \Prob(\{0\})$, as continuity from above predicts.
+
+\solution{convergence-of-events:exr:2}
+For every $N$, $\limsup A_n\subseteq\bigcup_{n\geq N}A_n$, so
+$\Prob(\limsup A_n)\leq\sum_{n\geq N}\Prob(A_n)$. The right-hand side is the tail of a
+convergent series and tends to $0$ as $N\to\infty$.
+
+\solution{convergence-of-events:exr:3}
+The sequence $\bbone_{A_n}(\omega)$ takes values in $\{0,1\}$. Its $\limsup$ is $1$
+iff it equals $1$ infinitely often, i.e.\ iff $\omega$ belongs to infinitely many
+$A_n$, i.e.\ iff $\omega\in\limsup A_n$. Its $\liminf$ is $1$ iff it is eventually
+always $1$, i.e.\ iff $\omega\in\liminf A_n$.
+
+% =====================================================================
+\section{\nameref*{ch:bayesian-reasoning}}
+
+\solution{bayesian-reasoning:exr:1}
+Given the disease status the tests are independent, so
+\[
+  p(\text{sick}\mid+,+) = \frac{0.9^2\times0.01}{0.9^2\times0.01 + 0.05^2\times0.99}
+  = \frac{0.0081}{0.0081 + 0.002475}\approx0.77 .
+\]
+Equivalently, the posterior $0.15$ after the first test becomes the prior for the
+second.
+
+\solution{bayesian-reasoning:exr:2}
+\[
+  \frac{a+h}{a+b+N} = \frac{a+b}{a+b+N}\cdot\frac{a}{a+b} + \frac{N}{a+b+N}\cdot\frac hN .
+\]
+The prior counts as $a+b$ pseudo-observations. As $N\to\infty$ the weight of the
+data tends to $1$ and the posterior mean approaches the ML estimate.
+
+\solution{bayesian-reasoning:exr:3}
+The log-posterior is, up to a constant,
+$-\frac1{2\sigma^2}\sum_i(y_i - \mu)^2 - \frac{\mu^2}{2\tau^2}$, a quadratic in $\mu$ with
+coefficient $-\frac12\bigl(\frac n{\sigma^2} + \frac1{\tau^2}\bigr)$ of $\mu^2$: the
+posterior is Gaussian with precision $\frac n{\sigma^2} + \frac1{\tau^2}$ and mean
+\[
+  \E[\mu\mid y] = \frac{n\bar y/\sigma^2}{n/\sigma^2 + 1/\tau^2} = \frac{n\tau^2}{n\tau^2 + \sigma^2}\,\bar y .
+\]
+The sample mean is shrunk toward the prior mean $0$, more strongly when $n$ is small
+or $\tau$ small: the one-dimensional version of ridge regression.
+
+\solution{bayesian-reasoning:exr:4}
+Always reliable: $p(y_2 = 0\mid x = 1) = 0$, so the posterior probability of rain is
+$0$ --- a fully trusted ``no'' overrides the app. Always unreliable:
+$p(y_2 = 0\mid x = 1) = 0.3$ and $p(y_2 = 0\mid x = 0) = 0.7$, so the posterior is
+$\frac{0.8\times0.3}{0.8\times0.3 + 0.2\times0.7} = \frac{0.24}{0.38}\approx0.63$.
+The value $0.28$ of the example lies between the two.
+
+% =====================================================================
+\section{\nameref*{ch:monte-carlo}}
+
+\solution{monte-carlo:exr:1}
+We need $1.96\sqrt{0.242/N}\leq0.001$, i.e.\ $N\geq0.242\times1960^2\approx9.3\times10^5$.
+
+\solution{monte-carlo:exr:2}
+$\log$ is concave, so the estimator is biased downward:
+$\E[\log\bar Z_M]\leq\log\E[Z]$. With $f(z) = \log z$, $f''(z) = -1/z^2$, and
+\cref{monte-carlo:prop:taylor} gives the leading term
+$-\frac{1}{2M}\frac{\Var(Z)}{(\E Z)^2}$: half the squared coefficient of variation divided
+by $M$. This is why log-likelihoods of latent-variable models estimated by
+averaging importance weights are biased low.
+
+\solution{monte-carlo:exr:3}
+For $j\neq k$, independence gives $\E[Y_jY_k] = (\E Y)^2$; there are $M(M-1)$ ordered
+pairs, so the average is unbiased. Since
+$\sum_{j\neq k}Y_jY_k = \bigl(\sum_jY_j\bigr)^2 - \sum_jY_j^2$ and
+$\sum_jY_j^2 = (M-1)S^2 + M\bar Y^2$, the estimator equals $\bar Y^2 - S^2/M$: the
+naive $\bar Y^2$ corrected by its exact bias, an estimate of $\Var(\bar Y)$.
+
+% =====================================================================
+\section{\nameref*{ch:em-algorithm}}
+
+\solution{em-algorithm:exr:1}
+For a head: $0.4\times0.6 = 0.24$ (coin B) and $0.6\times0.7 = 0.42$ (coin C), so
+$\gamma(1) = 0.24/0.66\approx0.3636$. For a tail: $0.4\times0.4 = 0.16$ and
+$0.6\times0.3 = 0.18$, so $\gamma(0) = 0.16/0.34\approx0.4706$. With six heads and four
+tails, $\sum_j\gamma_j = 6\times0.3636 + 4\times0.4706\approx4.064$, so $\pi^{(1)}\approx0.4064$,
+$p^{(1)} = 2.1818/4.064\approx0.5368$ and $q^{(1)} = 6\times0.6364/5.936\approx0.6432$.
+
+\solution{em-algorithm:exr:2}
+If $p = q$, the two factors in $\gamma_j$ have the same likelihood term, so
+$\gamma_j = \pi$ for every $j$: the observation carries no information on the hidden
+coin, and the posterior equals the prior. The M-step gives $\pi^{(1)} = \pi^{(0)}$ and
+$p^{(1)} = q^{(1)} = \bar y$, and the same holds at every later step. This point is a
+fixed point of EM (and a maximum-likelihood estimate, since $s = \bar y$); EM cannot
+learn $\pi$ because nothing in the data distinguishes the two coins.
+
+\solution{em-algorithm:exr:3}
+With $b_j = \pi\binom m{k_j}p^{k_j}(1-p)^{m-k_j}$ and
+$c_j = (1-\pi)\binom m{k_j}q^{k_j}(1-q)^{m-k_j}$, the E-step is $\gamma_j = b_j/(b_j + c_j)$
+(the binomial coefficients cancel). The M-step is
+\[
+  \pi = \frac1n\sum_j\gamma_j,\qquad
+  p = \frac{\sum_j\gamma_jk_j}{m\sum_j\gamma_j},\qquad
+  q = \frac{\sum_j(1-\gamma_j)k_j}{m\sum_j(1-\gamma_j)} .
+\]
+For $m\geq2$ the distribution of $k_j$ is no longer determined by a single number,
+and the parameters become identifiable (up to swapping B and C).

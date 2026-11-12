@@ -1,402 +1,308 @@
-% Source: stats_and_proba_for_ml.tex
 \begin{notechapter}
-\chapter{Statistics and Probability for Machine Learning}\label{ch:stats-and-proba}
-\chaptersubtitle{Estimators, sampling distributions and the training sample}
+\chapter{Estimators and Sampling Distributions}\label{ch:stats-and-proba}
+\chaptersubtitle{What is fixed, what is random, and how good is an estimate?}
 
-\section{Fundamental Concepts}
-
-\subsection{Random Quantity vs. Unknown Quantity}
-\begin{itemize}
-    \item \textbf{Unknown Quantity}:
-        \begin{itemize}
-            \item A \textbf{fixed but unknown} value (e.g., population mean, 
-                  true parameter).
-            \item \textbf{Deterministic}: Does not vary or follow a probability 
-                  distribution.
-            \item Goal: Estimate or determine its value using data.
-            \item Example: The true slope \( \beta_1 \) in a regression model.
-        \end{itemize}
-    \item \textbf{Random Quantity}:
-        \begin{itemize}
-            \item A \textbf{variable} value that follows a probability 
-                  distribution.
-            \item \textbf{Stochastic}: Subject to chance and uncertainty.
-            \item Goal: Model its behavior, make predictions, or quantify 
-                  uncertainty.
-            \item Example: The outcome of a coin toss or the error term \( 
-                  \epsilon \) in regression.
-        \end{itemize}
+\begin{chapterintro}
+Every number a learning algorithm reports --- a fitted weight, a training error,
+a test accuracy --- is computed from random data, and would have come out
+differently with another dataset. This chapter gives the vocabulary and the
+basic tools to reason about that variability. You will learn
+\begin{itemize}[nosep]
+  \item to distinguish an \emph{unknown} quantity from a \emph{random} one, and an
+        \emph{estimator} from an \emph{estimate};
+  \item what the \emph{sampling distribution} of an estimator is;
+  \item the bias, variance and mean squared error of an estimator, and the
+        decomposition linking them;
+  \item why the sample variance divides by $n-1$, and why an unbiased estimator
+        is not always the best one;
+  \item how quantities that depend on the whole training set are studied, and
+        how the bootstrap approximates their distribution from a single dataset.
 \end{itemize}
+\prerequisites{expectation and variance; \cref{learning-problem:sec:sample}
+(the training sample, and the meanings of ``sample'').}
+\end{chapterintro}
 
-\begin{table}[h!]
-    \centering
-    \begin{tabular}{lll}
-        \toprule
-        \textbf{Aspect} & \textbf{Unknown Quantity} & \textbf{Random Quantity} \\
-        \midrule
-        \textbf{Nature} & Fixed but not known & Variable and uncertain \\
-        \textbf{Determinism} & Deterministic & Stochastic (follows a 
-        distribution) \\
-        \textbf{Goal} & Estimate or determine the value & Model variability or 
-        make predictions \\
-        \textbf{Example} & True value of a parameter (e.g., \( \beta_1 \)) & 
-        Outcome of a random experiment \\
-        \bottomrule
-    \end{tabular}
+\section{Unknown quantities and random quantities}\label{stats-and-proba:sec:unknown-random}
+
+Statistics deals with two kinds of quantities that are easily confused,
+because we are uncertain about both.
+
+\begin{description}
+  \item[An unknown quantity] is a fixed number that we do not know: the mean
+        height of a population, the true slope $\beta_1$ of a regression model,
+        the risk $\Risk(f)$ of a predictor. It does not vary; our goal is to
+        \emph{estimate} it.
+  \item[A random quantity] varies from one repetition of an experiment to the
+        next according to a probability distribution: the outcome of a coin
+        toss, the noise $\varepsilon$ in a regression, the empirical risk
+        computed on a random sample. Our goal is to \emph{describe its
+        distribution}.
+\end{description}
+
+\begin{table}[ht]
+\centering
+\caption{Unknown versus random quantities.}
+\label{stats-and-proba:tab:unknown-random}
+\begin{tabular}{@{}lll@{}}
+\toprule
+ & unknown quantity & random quantity \\
+\midrule
+nature & fixed, not known & varies from draw to draw \\
+described by & a single (unknown) value & a probability distribution \\
+goal & estimate it & model its variability \\
+example & true parameter $\beta_1$, risk $\Risk(f)$ & coin toss, noise $\varepsilon$, $\ERisk(f)$ \\
+\bottomrule
+\end{tabular}
 \end{table}
 
-\subsection{Estimators and Estimates}
-\begin{itemize}
-    \item \textbf{Estimator}:
-        \begin{itemize}
-            \item A rule or formula (e.g., sample mean \( \bar{X} \)) used to 
-                  estimate an unknown quantity.
-            \item \textbf{Random quantity}: Depends on random sample data.
-            \item Example: \( \bar{X} \) is an estimator of the population mean 
-                  \( \mu \).
-        \end{itemize}
-    \item \textbf{Estimate}:
-        \begin{itemize}
-            \item A specific value computed from a sample (e.g., \( \bar{x} = 
-                  5.2 \)).
-            \item \textbf{Fixed value}: Result of applying the estimator to a 
-                  particular sample.
-        \end{itemize}
-\end{itemize}
+\begin{pitfall}[Uncertain is not the same as random]
+In the frequentist view adopted in this chapter, a parameter is unknown but
+\emph{not} random: it makes no sense to speak of ``the probability that
+$\beta_1 > 0$''. Probabilities describe the data and the quantities computed
+from them. The Bayesian view (\cref{ch:bayesian-reasoning}) deliberately treats
+unknown parameters as random variables, in order to express uncertainty about
+them with probabilities. Both views are coherent; mixing them is what causes
+confusion.
+\end{pitfall}
 
-\subsection{Sampling Distribution}
-\begin{itemize}
-    \item \textbf{Definition}: The probability distribution of an estimator’s 
-          values across all possible samples.
-    \item \textbf{Key Points}:
-        \begin{itemize}
-            \item Usually \textbf{unknown} in practice (we rarely have access 
-                  to the entire population).
-            \item Can be approximated using:
-                \begin{itemize}
-                    \item \textbf{Theoretical results} (e.g., Central Limit 
-                          Theorem).
-                    \item \textbf{Resampling methods} (e.g., bootstrap).
-                \end{itemize}
-        \end{itemize}
-\end{itemize}
+\section{Estimators and their sampling distribution}\label{stats-and-proba:sec:estimators}
 
-\subsection{Bias and Variance of an Estimator}
-\begin{itemize}
-    \item \textbf{Bias}:
-        \begin{itemize}
-            \item Difference between the expected value of the estimator and 
-                  the true parameter:
-                \[
-                \text{Bias} = \mathbb{E}[\hat{\theta}] - \theta
-                \]
-            \item \textbf{Unknown} in practice (depends on the true parameter 
-                  \( \theta \)).
-            \item Example: The sample mean \( \bar{X} \) is unbiased for \( 
-                  \mu \).
-        \end{itemize}
-    \item \textbf{Variance}:
-        \begin{itemize}
-            \item Measures how much the estimator varies across different 
-                  samples:
-                \[
-                \text{Var}(\hat{\theta}) = \mathbb{E}[(\hat{\theta} - 
-                \mathbb{E}[\hat{\theta}])^2]
-                \]
-            \item \textbf{Unknown} in practice (depends on the population 
-                  distribution).
-            \item Can be estimated using sample data or resampling methods.
-        \end{itemize}
-\end{itemize}
+Let $X_1,\dots,X_n$ be an i.i.d.\ sample from a distribution that depends on
+an unknown parameter $\theta$ (for instance its mean). As everywhere in this book, ``sample'' means the whole
+collection (\cref{learning-problem:sec:sample-meanings}); each $X_i$ is an
+observation.
 
-\subsection{Sample Variance (\( s^2 \))}
-\begin{itemize}
-    \item \textbf{Definition}: An estimate of the population variance \( 
-          \sigma^2 \) based on sample data:
-        \[
-        s^2 = \frac{1}{n-1} \sum_{i=1}^n (x_i - \bar{x})^2
-        \]
-    \item \textbf{Key Points}:
-        \begin{itemize}
-            \item \textbf{Unbiased estimator} of \( \sigma^2 \).
-            \item Used to estimate the variance of other estimators (e.g.,
-                  \( \text{Var}(\bar{X}) = \frac{\sigma^2}{n} \) is estimated by \( \frac{s^2}{n} \)).
-            \item The factor \( \frac{1}{n-1} \) (Bessel's correction) makes \( s^2 \) unbiased; dividing by \( n \) gives a biased (but maximum-likelihood under a Gaussian model) estimator. Note that \( s = \sqrt{s^2} \) is still slightly biased for \( \sigma \).
-        \end{itemize}
-\end{itemize}
+\begin{definition}[Estimator, estimate, sampling distribution]
+An \emph{estimator} of $\theta$ is a function of the sample,
+$\hat\theta = T(X_1,\dots,X_n)$; it is a random variable. Its value
+$T(x_1,\dots,x_n)$ on an observed dataset is an \emph{estimate}, a number. The
+probability distribution of $\hat\theta$ --- the distribution of the values it
+would take over all possible samples --- is its \emph{sampling distribution}.
+\end{definition}
 
-\section{Training Sample \( D \) as a Random Variable}
+The sample mean $\bar X_n = \frac1n\sum_iX_i$ is an estimator of the mean $\mu$;
+$\bar x = 5.2$ computed on a dataset is an estimate. The empirical risk of
+\cref{learning-problem:def:emprisk} is an estimator of the risk.
 
-\subsection{Definition and Randomness}
-\begin{itemize}
-    \item \textbf{Definition}: The training sample \( D = \{(X_1, Y_1), \dots, 
-          (X_n, Y_n)\} \) consists of input-output pairs drawn from a joint 
-          distribution \( P(X, Y) \).
-    \item \textbf{Randomness}: Since \( D \) is a sample from a population, it 
-          is a \textbf{random variable}. Different samples from the same 
-          population would yield different training sets.
-    \item \textbf{Implications}: Any quantity computed from \( D \) (e.g., a 
-          trained classifier, its parameters, or its performance metrics) is 
-          also a \textbf{random variable} because it depends on the specific 
-          realization of \( D \).
-\end{itemize}
+\begin{example}[An exact sampling distribution]\label{stats-and-proba:ex:binomial}
+A classifier with error rate $p$ is tested on $n$ independent examples. The
+number of errors is binomial, so the estimated error rate $\hat p = K/n$ takes
+the values $0, \frac1n, \dots, 1$ with $\Prob(\hat p = k/n) = \binom nk p^k(1-p)^{n-k}$.
+With $p = 0.1$ and $n = 50$, $\Prob(\hat p\leq 0.04) = \Prob(K\leq2)\approx0.11$:
+about one test set in nine would make this classifier look more than twice as
+good as it is.
+\end{example}
 
-\subsection{Expected Value with Respect to \( D \)}
-\begin{itemize}
-    \item \textbf{Definition}: The expected value of a quantity (e.g., the 
-          generalization error of a classifier) with respect to the 
-          distribution of \( D \) is the average value we would expect if we 
-          could repeatedly draw different training sets \( D \) from the 
-          population.
-    \item \textbf{Mathematically}: For a function \( f(D) \) (e.g., the error 
-          of a classifier trained on \( D \)), the expected value is:
-        \[
-        \mathbb{E}_D[f(D)] = \int f(D) \, P(D) \, dD
-        \]
-        where \( P(D) \) is the distribution of the training sample \( D \).
-    \item \textbf{Challenge}: In practice, \( P(D) \) is \textbf{unknown}, so 
-          we cannot compute this integral directly.
-\end{itemize}
+In general the sampling distribution is unknown, because it depends on the
+unknown distribution of the data. It can be approximated by limit theorems
+(the central limit theorem, \cref{ch:lln-clt-inference}) or by resampling (the
+bootstrap, \cref{stats-and-proba:sec:bootstrap}).
 
-\subsection{Monte Carlo Methods}
-\begin{itemize}
-    \item \textbf{Purpose}: Approximate expected values when the distribution 
-          is unknown.
-    \item \textbf{Steps}:
-        \begin{enumerate}
-                        \item Generate multiple training sets \( D_1, \dots, D_m \): ideally fresh independent samples from the population; in practice, when only one dataset is available, bootstrap resamples (drawn with replacement from it).
-            \item Compute the quantity of interest \( f(D_i) \) for each set.
-            \item Average the results:
-                \[
-                \mathbb{E}_D[f(D)] \approx \frac{1}{m} \sum_{i=1}^m f(D_i)
-                \]
-        \end{enumerate}
-    \item \textbf{Key Points}:
-        \begin{itemize}
-                        \item Relies on the \textbf{law of large numbers}: with independent draws \( D_i \sim P(D) \), the average converges to \( \mathbb{E}_D[f(D)] \), with an error of order \( 1/\sqrt{m} \).
-            \item With bootstrap resamples, the average estimates the expectation under the \emph{empirical} distribution of the data, which only approximates \( P(D) \); moreover the resamples overlap with each other (and with any evaluation data), which biases error estimates unless out-of-bag points are used.
-            \item Useful for tasks like estimating generalization error or 
-                  tuning hyperparameters.
-        \end{itemize}
-\end{itemize}
+\section{Bias, variance and mean squared error}\label{stats-and-proba:sec:bias-variance}
 
-\section{Logistic Regression}
-
-\subsection{Overview}
-Logistic regression is used for \textbf{binary classification}, where the 
-outcome \( y \) is either 0 or 1. The model predicts the \textbf{probability} 
-that \( y = 1 \) given the input features \( x_1, x_2, \dots, x_p \). The 
-logistic regression model is defined as:
-
+\begin{definition}[Bias, variance, MSE]
+The \emph{bias}, \emph{variance} and \emph{mean squared error} of an estimator
+$\hat\theta$ of $\theta$ are
 \[
-P(y=1 \mid x) = \frac{1}{1 + e^{-(\beta_0 + \beta_1 x_1 + \dots + \beta_p x_p)}}
+  \mathrm{Bias}(\hat\theta) = \E[\hat\theta] - \theta,\qquad
+  \Var(\hat\theta) = \E\bigl[(\hat\theta - \E\hat\theta)^2\bigr],\qquad
+  \mathrm{MSE}(\hat\theta) = \E\bigl[(\hat\theta - \theta)^2\bigr].
 \]
+$\hat\theta$ is \emph{unbiased} if its bias is zero.
+\end{definition}
 
-Here:
-\begin{itemize}
-    \item \( P(y=1 \mid x) \) is the probability that \( y = 1 \) given the 
-          features \( x \).
-    \item \( \beta_0, \beta_1, \dots, \beta_p \) are the coefficients to be 
-          estimated.
-    \item The term \( \beta_0 + \beta_1 x_1 + \dots + \beta_p x_p \) is called 
-          the \textbf{linear predictor}.
-\end{itemize}
+The bias depends on the unknown $\theta$ and the variance on the unknown
+distribution of the data, so neither is known in practice; but both can be
+studied mathematically, and the variance can be estimated from the data.
 
-\subsection{Odds and Log-Odds}
-\begin{itemize}
-    \item \textbf{Odds}:
-        \begin{itemize}
-            \item The \textbf{odds} of an event is the ratio of the probability 
-                  that the event occurs to the probability that it does not 
-                  occur:
-                \[
-                \text{Odds} = \frac{P(y=1 \mid x)}{1 - P(y=1 \mid x)}
-                \]
-            \item For example, if \( P(y=1 \mid x) = 0.75 \), the odds are \( 
-                  0.75 / 0.25 = 3 \), meaning the event is 3 times more likely 
-                  to occur than not.
-        \end{itemize}
-    \item \textbf{Log-Odds}:
-        \begin{itemize}
-            \item The \textbf{log-odds} (also called the \textbf{logit}) is the 
-                  natural logarithm of the odds:
-                \[
-                \text{Log-Odds} = \ln\left(\frac{P(y=1 \mid x)}{1 - P(y=1 \mid 
-                x)}\right)
-                \]
-            \item In logistic regression, the linear predictor \( \beta_0 + 
-                  \beta_1 x_1 + \dots + \beta_p x_p \) is equal to the 
-                  log-odds:
-                \[
-                \ln\left(\frac{P(y=1 \mid x)}{1 - P(y=1 \mid x)}\right) = 
-                \beta_0 + \beta_1 x_1 + \dots + \beta_p x_p
-                \]
-        \end{itemize}
-\end{itemize}
+\begin{proposition}[MSE decomposition]\label{stats-and-proba:prop:mse}
+$\mathrm{MSE}(\hat\theta) = \mathrm{Bias}(\hat\theta)^2 + \Var(\hat\theta)$.
+\end{proposition}
 
-\subsection{Interpretation of Coefficients}
-The coefficients \( \beta_1, \dots, \beta_p \) in logistic regression
-represent the \textbf{change in log-odds} of the outcome for a one-unit change 
-in the corresponding feature, holding all other features constant. The intercept \( \beta_0 \) is the log-odds when all features are \( 0 \).
+\begin{proof}
+Write $\hat\theta - \theta = (\hat\theta - \E\hat\theta) + (\E\hat\theta - \theta)$.
+The second term is a constant, and the first has mean zero, so the cross term
+vanishes when the square is expanded and its expectation taken.
+\end{proof}
 
-\subsubsection{Example}
-Suppose we have a logistic regression model with one feature \( x_1 \):
+This is the estimator-level version of the bias--variance decomposition of
+\cref{erm:prop:bias-variance}: an estimator can be wrong on average (bias) or
+unstable from sample to sample (variance), and its MSE adds the two.
+
+\begin{intuition}[Darts]
+Think of repeated samples as repeated throws at a target located at $\theta$.
+The bias is the distance from the centre of the cloud of hits to the target;
+the variance is the spread of the cloud. A tight cloud off-centre and a wide
+cloud centred on the target can have the same mean squared distance.
+\end{intuition}
+
+\subsection{The sample mean}
+
+\begin{proposition}\label{stats-and-proba:prop:mean}
+If the $X_i$ have mean $\mu$ and variance $\sigma^2$, then
+$\E[\bar X_n] = \mu$ and $\Var(\bar X_n) = \sigma^2/n$.
+\end{proposition}
+
+\begin{proof}
+Linearity of expectation gives the mean; independence gives
+$\Var(\sum_iX_i) = \sum_i\Var(X_i) = n\sigma^2$, and dividing by $n^2$ gives the
+variance.
+\end{proof}
+
+The \emph{standard error} $\sigma/\sqrt n$ of the mean decreases like $1/\sqrt n$:
+four times more data halves the uncertainty. It is estimated by $s/\sqrt n$,
+with $s$ the sample standard deviation defined next.
+
+\subsection{The sample variance and Bessel's correction}
+
+\begin{proposition}[Bessel's correction]\label{stats-and-proba:prop:bessel}
+Let $S^2 = \frac1{n-1}\sum_{i=1}^n(X_i - \bar X_n)^2$. Then $\E[S^2] = \sigma^2$,
+whereas $\hat\sigma^2 = \frac1n\sum_i(X_i - \bar X_n)^2 = \frac{n-1}{n}S^2$ has
+$\E[\hat\sigma^2] = \frac{n-1}n\sigma^2$.
+\end{proposition}
+
+\begin{proof}
+Centring at the true mean, $X_i - \bar X_n = (X_i - \mu) - (\bar X_n - \mu)$, and
 \[
-\ln\left(\frac{P(y=1 \mid x_1)}{1 - P(y=1 \mid x_1)}\right) = \beta_0 + \beta_1 
-x_1
+  \sum_i(X_i - \bar X_n)^2 = \sum_i(X_i - \mu)^2 - n(\bar X_n - \mu)^2,
 \]
+because the cross term is $-2(\bar X_n - \mu)\sum_i(X_i - \mu) = -2n(\bar X_n - \mu)^2$.
+Taking expectations, the first sum has mean $n\sigma^2$ and the second term
+$n\Var(\bar X_n) = \sigma^2$, so $\E\sum_i(X_i - \bar X_n)^2 = (n-1)\sigma^2$.
+\end{proof}
 
-\begin{itemize}
-    \item \textbf{Intercept (\( \beta_0 \))}:
-        \begin{itemize}
-            \item When \( x_1 = 0 \), the log-odds of the outcome is \( 
-                  \beta_0 \).
-            \item Example: If \( \beta_0 = -1.5 \), the log-odds of \( y=1 \) 
-                  when \( x_1 = 0 \) is \( -1.5 \).
-        \end{itemize}
-    \item \textbf{Coefficient (\( \beta_1 \))}:
-        \begin{itemize}
-            \item A one-unit increase in \( x_1 \) changes the log-odds by \( 
-                  \beta_1 \).
-            \item Example: If \( \beta_1 = 0.8 \), a one-unit increase in \( 
-                  x_1 \) increases the log-odds by \( 0.8 \).
-        \end{itemize}
+\begin{intuition}[Why $n - 1$?]
+The deviations are measured from $\bar X_n$, which is computed from the same
+data and is therefore closer to them than the true mean $\mu$ is: the sum of
+squared deviations is smallest around $\bar X_n$. Dividing by $n$ would
+underestimate the spread. Another reading: the $n$ deviations
+$X_i - \bar X_n$ sum to zero, so only $n-1$ of them are free --- one
+``degree of freedom'' has been spent estimating the mean.
+\end{intuition}
+
+\begin{example}[Five measurements]\label{stats-and-proba:ex:five}
+Heights $170, 165, 180, 175, 160$ (cm) have $\bar x = 170$ and squared
+deviations $0, 25, 100, 25, 100$, summing to $250$. The unbiased estimate is
+$s^2 = 250/4 = 62.5$ ($s\approx7.9$ cm) and the maximum-likelihood estimate
+under a Gaussian model is $\hat\sigma^2 = 250/5 = 50$ ($\hat\sigma\approx7.1$ cm).
+The standard error of the mean is estimated by $s/\sqrt5\approx3.5$ cm.
+\end{example}
+
+\begin{pitfall}[Unbiased is not the same as best]
+\begin{itemize}[nosep]
+  \item $S$ is a \emph{biased} estimator of $\sigma$, even though $S^2$ is
+        unbiased for $\sigma^2$: since the square root is concave, Jensen's
+        inequality gives $\E[S]\leq\sqrt{\E[S^2]} = \sigma$. Unbiasedness does
+        not survive nonlinear transformations.
+  \item For Gaussian data, $\Var(S^2) = 2\sigma^4/(n-1)$, so
+        $\mathrm{MSE}(S^2) = 2\sigma^4/(n-1)$, while the biased $\hat\sigma^2$
+        has $\mathrm{MSE}(\hat\sigma^2) = \sigma^4/n^2 + 2\sigma^4(n-1)/n^2 = (2n-1)\sigma^4/n^2$,
+        which is \emph{smaller}. Accepting a little bias to reduce variance is
+        exactly what regularization does (\cref{erm:sec:bias-variance}).
 \end{itemize}
+\end{pitfall}
 
-\subsection{From Log-Odds to Odds}
-To make the interpretation more intuitive, we can exponentiate the 
-coefficients to get the \textbf{odds ratio}:
+\section{Quantities that depend on the training set}\label{stats-and-proba:sec:training-set}
+
+In machine learning the estimator of interest is often the output of a whole
+learning procedure. The training sample
+$D_n = ((X_1,Y_1),\dots,(X_n,Y_n))$ is random (\cref{learning-problem:def:sample}),
+so the trained model $\hat f_{D_n}$, its parameters, and its test error are
+random as well. A typical object of study is an expectation over training sets,
 \[
-\text{Odds Ratio} = e^{\beta_1}
+  \E_{D_n}\bigl[\phi(D_n)\bigr] = \int\phi(d)\,P^n(\mathrm{d}d),
 \]
+for instance $\phi(D_n) = \Risk(\hat f_{D_n})$, the expected risk of the algorithm
+(\cref{erm:sec:model-vs-algorithm}). Its integrand involves the unknown
+distribution $P^n$, so it cannot be computed directly.
 
-\subsubsection{Example}
-If \( \beta_1 = 0.8 \), the odds ratio is:
-\[
-e^{0.8} \approx 2.23
-\]
-This means that a one-unit increase in \( x_1 \) \textbf{multiplies the odds} 
-of the outcome by \( 2.23 \) (i.e., the odds increase by 123\%).
+\paragraph{Monte Carlo over datasets.} If we could draw $m$ independent training
+sets $D^{(1)},\dots,D^{(m)}$ from the population, the average
+$\frac1m\sum_k\phi(D^{(k)})$ would estimate $\E_{D_n}[\phi(D_n)]$ without bias,
+with an error of order $1/\sqrt m$ (\cref{ch:monte-carlo}). This is how such
+quantities are studied in simulations, where the data-generating distribution is
+known.
 
-\section{Practical Applications}
+\subsection{The bootstrap}\label{stats-and-proba:sec:bootstrap}
 
-\subsection{Linear Regression}
-\begin{itemize}
-    \item \textbf{Model}: \( y = \beta_0 + \beta_1 x_1 + \dots + \beta_p x_p + 
-          \epsilon \)
-    \item \textbf{Goal}: Estimate the coefficients \( \beta_0, \beta_1, \dots, 
-          \beta_p \) using data.
-    \item \textbf{Assumptions}: Linearity, independence, homoscedasticity, 
-          normality of errors.
+With real data we have a single dataset. The bootstrap (Efron, 1979) replaces
+the unknown distribution $P$ by the \emph{empirical distribution} $\hat P_n$ of
+the data, which puts mass $\frac1n$ on each observed point, and samples from it.
+
+\begin{center}
+\begin{minipage}{0.9\linewidth}
+\textbf{Bootstrap estimate of the standard error of a statistic $T$.}
+\begin{enumerate}[nosep]
+  \item For $b = 1,\dots,B$: draw $n$ points \emph{with replacement} from the
+        dataset, giving a resample $d^{*(b)}$, and compute $T^{*(b)} = T(d^{*(b)})$.
+  \item Report the standard deviation of $T^{*(1)},\dots,T^{*(B)}$ as the
+        estimated standard error of $T$. Their empirical distribution
+        approximates the sampling distribution of $T$.
+\end{enumerate}
+\end{minipage}
+\end{center}
+
+\begin{keyidea}[What the bootstrap estimates]
+The bootstrap computes (by Monte Carlo) the sampling distribution of $T$ when
+the data come from $\hat P_n$ instead of $P$. It works when $\hat P_n$ is a good
+stand-in for $P$ --- large $n$, and a statistic that depends smoothly on the
+distribution --- and needs no formula for the standard error. A resample
+contains on average only $1 - (1-\frac1n)^n\approx63\%$ of the distinct
+original points.
+\end{keyidea}
+
+\begin{pitfall}[Bootstrap and error estimates]
+Evaluating a model trained on a bootstrap resample on the \emph{original} data
+is optimistic: about $63\%$ of the evaluation points were seen in training. Use
+the points left out of each resample (the ``out-of-bag'' points) for
+evaluation, or use cross-validation (\cref{measuring-performance:sec:cv}).
+\end{pitfall}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item A parameter is fixed but unknown; an estimator is a random variable
+        computed from the sample; an estimate is its value on the observed data.
+  \item The sampling distribution of an estimator describes its values across
+        samples. Its mean defines the bias, its spread the variance, and
+        $\mathrm{MSE} = \mathrm{Bias}^2 + \Var$.
+  \item $\bar X_n$ is unbiased with variance $\sigma^2/n$; $S^2$ with divisor
+        $n-1$ is unbiased for $\sigma^2$, but unbiasedness is not preserved by
+        nonlinear maps and is not the same as small MSE.
+  \item Trained models and their errors are functions of the random training
+        set; expectations over training sets are approximated by Monte Carlo
+        when data can be simulated, and by the bootstrap from a single dataset.
 \end{itemize}
+\end{chaptersummary}
 
-\subsection{Logistic Regression}
-\begin{itemize}
-    \item \textbf{Model}: Used for binary classification. Predicts the 
-          probability of a class:
-        \[
-        P(y=1 \mid x) = \frac{1}{1 + e^{-(\beta_0 + \beta_1 x_1 + \dots + 
-        \beta_p x_p)}}
-        \]
-    \item \textbf{Interpretation}:
-        \begin{itemize}
-                        \item The linear predictor is the \textbf{log-odds} of the outcome; each coefficient is a change in log-odds.
-            \item A one-unit increase in \( x_j \) changes the log-odds by \( 
-                  \beta_j \).
-            \item Exponentiating \( \beta_j \) gives the \textbf{odds ratio}, 
-                  which quantifies the multiplicative effect on the odds of the 
-                  outcome.
-        \end{itemize}
-\end{itemize}
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
 
-\subsection{Resampling Methods}
-\begin{itemize}
-    \item \textbf{Bootstrap}:
-        \begin{itemize}
-            \item Generates multiple samples by resampling with replacement.
-            \item Used to estimate the sampling distribution of an estimator.
-        \end{itemize}
-    \item \textbf{Cross-Validation}:
-        \begin{itemize}
-            \item Divides data into training and validation sets to evaluate 
-                  model performance.
-            \item Helps prevent overfitting.
-        \end{itemize}
-\end{itemize}
+\begin{exercise}\label{stats-and-proba:exr:1}
+Compute $\Prob(\hat p\leq0.04)$ in \cref{stats-and-proba:ex:binomial} exactly,
+and compare with the normal approximation
+$\hat p\approx\mathcal N(p, p(1-p)/n)$.
+\solutionlink{stats-and-proba:exr:1}
+\end{exercise}
 
-\section{Dataset and Samples}
+\begin{exercise}\label{stats-and-proba:exr:2}
+Let $X_1,\dots,X_n$ be uniform on $[0,\theta]$. Show that $2\bar X_n$ is an
+unbiased estimator of $\theta$ and compute its MSE. Then show that
+$M = \max_iX_i$ satisfies $\E[M] = \frac n{n+1}\theta$, and compare the MSE of
+$\frac{n+1}nM$ with that of $2\bar X_n$.
+\hint{$\Prob(M\leq x) = (x/\theta)^n$ for $0\leq x\leq\theta$.}
+\solutionlink{stats-and-proba:exr:2}
+\end{exercise}
 
-\subsection{Sample as a Collection of Data Points}
-In most statistical and machine learning contexts, a \textbf{sample} refers to 
-a \textbf{collection of data points} drawn from a population. For example:
-\begin{itemize}
-    \item If \( D = \{(X_1, Y_1), \dots, (X_n, Y_n)\} \) is a random variable 
-          representing the training data, then a \textbf{realization} of \( D 
-          \) is a specific collection of data points:
-        \[
-        d = \{(x_1, y_1), \dots, (x_n, y_n)\}
-        \]
-        Here, \( d \) is a \textbf{sample} (or \textbf{dataset}) consisting of 
-        \( n \) observed data points.
-    \item \textbf{Key Point}: In this case, the \textbf{sample} refers to the 
-          entire collection of data points, not individual observations.
-\end{itemize}
+\begin{exercise}\label{stats-and-proba:exr:3}
+Show that the probability that a given point appears in a bootstrap resample of
+size $n$ is $1 - (1 - \frac1n)^n$, and that it tends to $1 - e^{-1}\approx0.632$.
+\solutionlink{stats-and-proba:exr:3}
+\end{exercise}
 
-\subsection{Sample as an Individual Data Point}
-In some contexts, particularly in probability theory, the term \textbf{sample} 
-can refer to a \textbf{single draw} from a distribution. For example:
-\begin{itemize}
-    \item If \( (X, Y) \) is a random variable with joint distribution \( P(X, 
-          Y) \), then a single realization \( (x_i, y_i) \) is sometimes called 
-          a \textbf{sample}.
-    \item In this case, the \textbf{sample} refers to an individual observation 
-          or data point.
-\end{itemize}
-
-\subsection{Clarifying the Terminology}
-To avoid confusion, it’s important to specify whether you’re referring to:
-\begin{itemize}
-    \item A \textbf{sample} as a \textbf{collection of data points} (e.g., \( 
-          d = \{(x_1, y_1), \dots, (x_n, y_n)\} \)), or
-    \item A \textbf{sample} as a \textbf{single data point} (e.g., \( (x_i, 
-          y_i) \)).
-\end{itemize}
-
-\subsection{Common Usage in Statistics and Machine Learning}
-In most statistical and machine learning contexts:
-\begin{itemize}
-    \item \textbf{Sample} refers to the \textbf{entire dataset} \( d = 
-          \{(x_1, y_1), \dots, (x_n, y_n)\} \).
-    \item \textbf{Individual data points} \( (x_i, y_i) \) are referred to as 
-          \textbf{observations}, \textbf{instances}, or \textbf{examples}.
-\end{itemize}
-
-\subsection{Example}
-Suppose we are studying the heights (\( X \)) and weights (\( Y \)) of 
-individuals in a population.
-
-\begin{itemize}
-    \item \textbf{Sample (Dataset)}:
-        \begin{itemize}
-            \item A sample might consist of \( n = 100 \) individuals:
-                \[
-                d = \{(x_1, y_1), \dots, (x_{100}, y_{100})\}
-                \]
-            \item Here, \( d \) is the \textbf{sample} (or \textbf{dataset}).
-        \end{itemize}
-    \item \textbf{Individual Data Point}:
-        \begin{itemize}
-            \item A single observation \( (x_i, y_i) \) (e.g., \( x_i = 170 \) 
-                  cm, \( y_i = 68 \) kg) is an \textbf{individual data point} 
-                  or \textbf{observation}.
-        \end{itemize}
-\end{itemize}
-
-\section{Conclusion}
-This chapter covers key concepts in probability and statistics, from
-fundamental distinctions (e.g., random vs. unknown quantities) to
-Monte Carlo approximations of expectations over the training sample.
-Limit theorems, confidence intervals, tests and Bayesian inference are
-treated in \cref{ch:lln-clt-inference}. Understanding these 
-concepts is crucial for proper statistical analysis, modeling, and inference.
+\begin{exercise}\label{stats-and-proba:exr:4}
+Among estimators of the form $cS^2$ of $\sigma^2$ for Gaussian data, find the
+constant $c$ that minimizes the MSE.
+\hint{use $\Var(S^2) = 2\sigma^4/(n-1)$.}
+\solutionlink{stats-and-proba:exr:4}
+\end{exercise}
 \end{notechapter}

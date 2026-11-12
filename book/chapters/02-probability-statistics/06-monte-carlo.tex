@@ -1,0 +1,253 @@
+\begin{notechapter}
+\chapter{Monte Carlo Methods}\label{ch:monte-carlo}
+\chaptersubtitle{Bias, variance and nested estimation}
+
+\begin{chapterintro}
+Monte Carlo methods estimate expectations and integrals by averaging random
+draws. The basic estimator is unbiased and its error is easy to quantify; but as
+soon as a nonlinear function is applied to an inner Monte Carlo estimate --- a
+situation called \emph{nested} estimation --- a bias appears that no amount of
+outer sampling removes. You will learn
+\begin{itemize}[nosep]
+  \item the plain Monte Carlo estimator, its unbiasedness, its variance and an
+        error bar computed from the samples themselves;
+  \item why a single sample is unbiased but useless;
+  \item the nested Monte Carlo estimator and why it is biased, with the
+        direction of the bias given by Jensen's inequality;
+  \item an exact computation of the bias in a simple case, and how to remove it;
+  \item consistency, the $O(1/M)$ bias and how to split a computational budget
+        between inner and outer samples.
+\end{itemize}
+\prerequisites{\cref{ch:stats-and-proba,ch:lln-clt-inference}; Jensen's
+inequality; Taylor expansions.}
+\end{chapterintro}
+
+\section{Plain Monte Carlo}\label{monte-carlo:sec:plain}
+
+Let $X$ have density $p$, and suppose we want
+\[
+  \mu = \E[f(X)] = \int f(x)\,p(x)\,dx .
+\]
+If we can draw samples from $p$, the \emph{Monte Carlo estimator} with $N$
+i.i.d.\ draws is
+\[
+  \hat\mu_N = \frac1N\sum_{i=1}^Nf(X_i),\qquad X_i\sim p .
+\]
+
+\begin{proposition}[Unbiasedness and variance]\label{monte-carlo:prop:plain}
+For every $N\geq1$, $\E[\hat\mu_N] = \mu$; if $\sigma^2 = \Var(f(X))<\infty$, then
+$\Var(\hat\mu_N) = \sigma^2/N$.
+\end{proposition}
+
+\begin{proof}
+This is \cref{stats-and-proba:prop:mean} applied to the i.i.d.\ variables
+$f(X_i)$, whose mean is $\mu$ and variance $\sigma^2$.
+\end{proof}
+
+The error decreases like $1/\sqrt N$ \emph{whatever the dimension of $X$}, which
+is why Monte Carlo is the method of choice for high-dimensional integrals. By the
+CLT, $\hat\mu_N\pm1.96\,\hat\sigma/\sqrt N$, with $\hat\sigma$ the sample standard
+deviation of the $f(X_i)$, is an approximate $95\%$ confidence interval: the
+samples provide their own error bar.
+
+\begin{example}[An integral with a known answer]\label{monte-carlo:ex:exp}
+For $U$ uniform on $[0,1]$, $\mu = \E[e^U] = e - 1\approx1.7183$ and
+$\Var(e^U) = \E[e^{2U}] - \mu^2 = \frac{e^2-1}2 - (e-1)^2\approx0.242$. With
+$N = 1000$ draws the standard error is $\sqrt{0.242/1000}\approx0.016$, so the
+estimate is typically correct to about $\pm0.03$; one more decimal digit costs a
+hundred times more samples.
+\end{example}
+
+\begin{pitfall}[One sample is unbiased]
+For $N = 1$, $\hat\mu_1 = f(X_1)$ still has $\E[\hat\mu_1] = \mu$: it is unbiased.
+Its problem is its variance $\sigma^2$, not a bias. ``Unbiased'' says that the
+estimator is right \emph{on average over repetitions}, not that one realization
+is close to the truth. Stochastic gradient descent relies on exactly such
+unbiased but noisy one-sample (or minibatch) estimates of a gradient.
+\end{pitfall}
+
+\section{Nested Monte Carlo}\label{monte-carlo:sec:nested}
+
+Many quantities are expectations of a \emph{nonlinear} function of a conditional
+expectation:
+\[
+  \theta = \E\bigl[f\bigl(\E[g(X,Y)\mid X]\bigr)\bigr]
+  = \E\bigl[f(\gamma(X))\bigr],\qquad \gamma(x) = \E[g(X,Y)\mid X = x].
+\]
+Examples include expected information gain in experimental design, the
+log-likelihood of latent-variable models ($f = \log$), and option pricing with
+early exercise ($f = \max$). When $\gamma$ has no closed form, it is itself
+estimated by Monte Carlo.
+
+\begin{definition}[Nested Monte Carlo estimator]
+Draw $N$ outer samples $X_i\sim p(x)$ and, for each, $M$ inner samples
+$Y_{i1},\dots,Y_{iM}\sim p(y\mid X_i)$. Set
+\[
+  \hat\gamma_M(X_i) = \frac1M\sum_{j=1}^Mg(X_i,Y_{ij}),\qquad
+  \hat\theta_{N,M} = \frac1N\sum_{i=1}^Nf\bigl(\hat\gamma_M(X_i)\bigr).
+\]
+\end{definition}
+
+The inner estimate is unbiased given $X_i$: $\E[\hat\gamma_M(X_i)\mid X_i] = \gamma(X_i)$.
+But $f$ is applied \emph{after} the averaging, and expectation does not commute
+with a nonlinear function.
+
+\begin{theorem}[Nested Monte Carlo is biased]\label{monte-carlo:thm:bias}
+$\E[\hat\theta_{N,M}] = \E\bigl[f(\hat\gamma_M(X))\bigr]$ does not depend on $N$.
+If $f$ is convex, $\E[\hat\theta_{N,M}]\geq\theta$; if $f$ is concave,
+$\E[\hat\theta_{N,M}]\leq\theta$. If $f$ is strictly convex (or strictly concave)
+and $\Var(g(X,Y)\mid X)>0$ with positive probability, the inequality is strict:
+the estimator is biased for every finite $M$, and the bias does not vanish as
+$N\to\infty$.
+\end{theorem}
+
+\begin{proof}
+The pairs $(X_i, (Y_{ij})_j)$ are i.i.d., so all terms of the outer average have
+the same expectation, $\E[f(\hat\gamma_M(X))]$, which does not involve $N$. For
+convex $f$, Jensen's inequality applied conditionally on $X$ gives
+\[
+  \E\bigl[f(\hat\gamma_M(X))\mid X\bigr]\geq f\bigl(\E[\hat\gamma_M(X)\mid X]\bigr) = f(\gamma(X)),
+\]
+and taking expectations over $X$ gives $\E[\hat\theta_{N,M}]\geq\theta$. If $f$ is
+strictly convex, the conditional inequality is strict whenever
+$\hat\gamma_M(X)$ is not a.s.\ constant given $X$, i.e.\ whenever
+$\Var(g\mid X)>0$; if this happens with positive probability, the strict
+inequality survives the outer expectation. Concave $f$ is symmetric.
+\end{proof}
+
+For a nonlinear $f$ that is neither convex nor concave, the conditional biases can
+have different signs for different $X$ and could in principle cancel: nested
+estimators are \emph{generally}, not always, biased.
+
+\begin{example}[An exact bias]\label{monte-carlo:ex:square}
+Take $f(z) = z^2$ and $g(x,y) = y$, so $\theta = \E[(\E[Y\mid X])^2]$. Given $X$,
+the inner mean $\bar Y_M$ has mean $\gamma(X)$ and variance $\Var(Y\mid X)/M$, so
+\[
+  \E\bigl[\bar Y_M^2\mid X\bigr] = \gamma(X)^2 + \frac{\Var(Y\mid X)}M
+  \quad\Longrightarrow\quad
+  \E[\hat\theta_{N,M}] - \theta = \frac{\E[\Var(Y\mid X)]}{M} .
+\]
+For instance with $X\sim\mathcal N(0,1)$ and $Y\mid X\sim\mathcal N(X,1)$, $\theta = \E[X^2] = 1$
+and $\E[\hat\theta_{N,M}] = 1 + \frac1M$: $2$ for $M = 1$, $1.5$ for $M = 2$, $1.1$
+for $M = 10$, \emph{whatever} $N$.
+
+Here the bias can be removed: the product of two \emph{different} inner samples
+is unbiased for $\gamma(X)^2$, since $\E[Y_{ij}Y_{ik}\mid X] = \gamma(X)^2$ for
+$j\neq k$. So
+\[
+  \frac1N\sum_i\frac1{M(M-1)}\sum_{j\neq k}Y_{ij}Y_{ik}\qquad(M\geq2)
+\]
+is unbiased for $\theta$.
+\end{example}
+
+\begin{example}[Expected conditional variance]
+For $\theta = \E[\Var(Y\mid X)] = \E\bigl[\E[Y^2\mid X] - (\E[Y\mid X])^2\bigr]$, the
+naive plug-in $\frac1N\sum_i\frac1M\sum_j(Y_{ij} - \bar Y_i)^2$ is biased downward by
+the factor $\frac{M-1}M$, by \cref{stats-and-proba:prop:bessel} applied within
+each group. Using the unbiased within-group variance
+$s_i^2 = \frac1{M-1}\sum_j(Y_{ij} - \bar Y_i)^2$ gives the unbiased estimator
+$\frac1N\sum_is_i^2$.
+\end{example}
+
+\begin{keyidea}
+Polynomials of conditional moments admit unbiased nested estimators (products
+over distinct inner samples, as above). General nonlinear functions --- $\log$,
+$\max$, ratios --- do not, and their nested estimators are biased for every
+finite $M$.
+\end{keyidea}
+
+\section{Consistency and the bias--variance trade-off}\label{monte-carlo:sec:tradeoff}
+
+\begin{proposition}[Size of the bias]\label{monte-carlo:prop:taylor}
+If $f$ is twice continuously differentiable with bounded $f''$, and $g$ has finite
+conditional variance $v(X) = \Var(g(X,Y)\mid X)$, then
+\[
+  \E[\hat\theta_{N,M}] - \theta = \frac{1}{2M}\E\bigl[f''(\gamma(X))\,v(X)\bigr] + o\Bigl(\frac1M\Bigr).
+\]
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+Expand $f$ around $\gamma(X)$:
+$f(\hat\gamma_M) = f(\gamma) + f'(\gamma)(\hat\gamma_M - \gamma) + \frac12f''(\xi)(\hat\gamma_M - \gamma)^2$
+for some $\xi$ between $\hat\gamma_M$ and $\gamma$. Given $X$, the linear term
+has mean zero and $\E[(\hat\gamma_M - \gamma)^2\mid X] = v(X)/M$. Replacing
+$f''(\xi)$ by $f''(\gamma)$ costs $o(1/M)$, because $\hat\gamma_M\to\gamma$ and $f''$
+is bounded and continuous.
+\end{proof}
+
+For $f(z) = z^2$, $f'' = 2$ and the formula gives back the exact bias
+$\E[v(X)]/M$ of \cref{monte-carlo:ex:square}.
+
+\paragraph{Consistency.} As $N, M\to\infty$, $\hat\theta_{N,M}\to\theta$ in mean square
+under mild conditions. A clean sufficient condition is that $f$ be $L$-Lipschitz
+and $\E[v(X)]<\infty$: then
+$\abs{\E[\hat\theta_{N,M}] - \theta}\leq L\,\E\abs{\hat\gamma_M(X) - \gamma(X)}\leq L\sqrt{\E[v(X)]/M}$
+by Jensen's inequality, and $\Var(\hat\theta_{N,M}) = \Var(f(\hat\gamma_M(X)))/N\to0$.
+(The naive argument ``inner LLN, then outer LLN'' needs care, because the terms of
+the outer average change with $M$.)
+
+\paragraph{Allocating a budget.} With a smooth $f$, the mean squared error behaves like
+\[
+  \mathrm{MSE}(\hat\theta_{N,M}) = \mathrm{Bias}^2 + \Var\approx\frac{b^2}{M^2} + \frac{c}{N}
+\]
+for constants $b, c$. Under a budget of $C = NM$ inner evaluations, substituting
+$N = C/M$ gives $b^2/M^2 + cM/C$, minimized for $M\propto C^{1/3}$, and then
+$\mathrm{MSE}\propto C^{-2/3}$ --- slower than the $C^{-1}$ of plain Monte Carlo
+(Rainforth et al., \emph{On Nesting Monte Carlo Estimators}, 2018). Both levels
+must grow: putting all the budget into $N$ leaves the bias untouched.
+
+\begin{table}[ht]
+\centering
+\caption{Plain versus nested Monte Carlo.}
+\label{monte-carlo:tab:comparison}
+\begin{tabular}{@{}lll@{}}
+\toprule
+ & plain & nested ($M$ inner samples) \\
+\midrule
+bias & $0$ for every $N$ & $O(1/M)$, independent of $N$ \\
+variance & $\sigma^2/N$ & $O(1/N)$ \\
+best MSE for cost $C$ & $\propto C^{-1}$ & $\propto C^{-2/3}$, with $M\propto C^{1/3}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Plain Monte Carlo is unbiased for every $N$, with standard error
+        $\sigma/\sqrt N$ estimated from the samples themselves.
+  \item Unbiasedness concerns the average over repetitions; a one-sample
+        estimator is unbiased but has variance $\sigma^2$.
+  \item Nested Monte Carlo applies a nonlinear $f$ to an inner average; its
+        expectation $\E[f(\hat\gamma_M(X))]$ does not depend on $N$, and by
+        Jensen it is biased upward for convex $f$ and downward for concave $f$.
+  \item The bias is $\frac1{2M}\E[f''(\gamma)v]+o(1/M)$; for $f(z) = z^2$ it is exactly
+        $\E[\Var(Y\mid X)]/M$ and can be removed with products of distinct inner
+        samples.
+  \item Under a budget $C = NM$, the best choice is $M\propto C^{1/3}$, giving an
+        MSE of order $C^{-2/3}$.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{monte-carlo:exr:1}
+How many samples are needed in \cref{monte-carlo:ex:exp} for a $95\%$ interval of
+half-width $0.001$?
+\solutionlink{monte-carlo:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{monte-carlo:exr:2}
+Let $\theta = \log\E[Z]$ for a positive random variable $Z$, estimated by
+$\log\bigl(\frac1M\sum_jZ_j\bigr)$. In which direction is it biased? Using
+\cref{monte-carlo:prop:taylor}, give the leading term of the bias.
+\solutionlink{monte-carlo:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{monte-carlo:exr:3}
+Verify that $\frac{1}{M(M-1)}\sum_{j\neq k}Y_jY_k$ is an unbiased estimator of
+$(\E Y)^2$ for i.i.d.\ $Y_1,\dots,Y_M$ ($M\geq2$), and write it in terms of the
+sample mean and the unbiased sample variance.
+\solutionlink{monte-carlo:exr:3}
+\end{exercise}
+\end{notechapter}
