@@ -1,0 +1,484 @@
+\begin{notechapter}
+\chapter{Measuring Performance}\label{ch:measuring-performance}
+\chaptersubtitle{Metrics for regression and classification, and estimating risk by cross-validation}
+
+\begin{chapterintro}
+The previous chapters defined the risk of a predictor and explained why it must
+be estimated on data not used for training. This chapter turns to practice:
+which numbers to report, what they mean, and how to estimate them efficiently.
+You will learn
+\begin{itemize}[nosep]
+  \item the coefficient of determination $R^2$: its definition, the variance
+        decomposition behind it (with proof), why it can be negative, and the
+        adjusted $R^2$;
+  \item the confusion matrix, precision, recall and related scores, and why
+        the choice of the \emph{positive} class matters so much for unbalanced
+        data;
+  \item hold-out validation and $k$-fold and leave-one-out cross-validation;
+  \item how leave-one-out gives an unbiased criterion for choosing the
+        bandwidth of a kernel density estimator (the mean integrated squared
+        error), with two proofs.
+\end{itemize}
+\prerequisites{\cref{ch:learning-problem,ch:erm}; least squares;
+\cref{bayes-decision-theory:sec:costs} for the discussion of thresholds.}
+\end{chapterintro}
+
+\section{Regression metrics}\label{measuring-performance:sec:regression}
+
+For predictions $\hat y_1,\dots,\hat y_n$ of observed values $y_1,\dots,y_n$,
+the basic metrics are empirical risks:
+\[
+  \mathrm{MSE} = \frac1n\sum_i(y_i - \hat y_i)^2,\qquad
+  \mathrm{RMSE} = \sqrt{\mathrm{MSE}},\qquad
+  \mathrm{MAE} = \frac1n\sum_i\abs{y_i - \hat y_i}.
+\]
+The RMSE is in the units of $y$; the MAE is less sensitive to a few large
+errors. Neither tells us whether an error of, say, $3$ units is large or small
+for the problem at hand. The coefficient of determination answers that by
+comparing with a trivial baseline.
+
+\subsection{The coefficient of determination}
+
+\begin{definition}[$R^2$]
+With $\bar y = \frac1n\sum_iy_i$, define the residual and total sums of squares
+\[
+  SS_{\mathrm{res}} = \sum_{i=1}^n(y_i - \hat y_i)^2,\qquad
+  SS_{\mathrm{tot}} = \sum_{i=1}^n(y_i - \bar y)^2,
+\]
+and the \emph{coefficient of determination}
+\[
+  R^2 = 1 - \frac{SS_{\mathrm{res}}}{SS_{\mathrm{tot}}} .
+\]
+\end{definition}
+
+$SS_{\mathrm{tot}}$ is the residual sum of squares of the best \emph{constant}
+predictor, $\bar y$. So $R^2$ is the fraction of the baseline's squared error
+that the model removes: $R^2 = 1$ means perfect predictions, $R^2 = 0$ means no
+better than predicting the mean, and $R^2 < 0$ means \emph{worse} than the
+mean. For least squares, $R^2$ has a second reading.
+
+\begin{proposition}[Variance decomposition for least squares]\label{measuring-performance:prop:anova}
+Let $\hat y$ be the least-squares fit of $y$ on a set of regressors that
+\emph{includes an intercept}, evaluated on the data it was fitted on. With
+$SS_{\mathrm{reg}} = \sum_i(\hat y_i - \bar y)^2$,
+\[
+  SS_{\mathrm{tot}} = SS_{\mathrm{reg}} + SS_{\mathrm{res}},
+\]
+hence $R^2 = SS_{\mathrm{reg}}/SS_{\mathrm{tot}}\in[0,1]$ is the fraction of the
+variance of $y$ ``explained'' by the fit. Moreover $R^2$ equals the squared
+sample correlation between $y$ and $\hat y$.
+\end{proposition}
+
+\begin{proof}
+Let $e = y - \hat y$. The least-squares residual is orthogonal to every
+regressor; since the constant vector $\bbone$ is one of them, $\sum_ie_i = 0$,
+and since $\hat y$ is a combination of regressors, $\sum_ie_i\hat y_i = 0$.
+Write $y - \bar y\bbone = (\hat y - \bar y\bbone) + e$. The two terms are
+orthogonal, because
+$\sum_i(\hat y_i - \bar y)e_i = \sum_ie_i\hat y_i - \bar y\sum_ie_i = 0$, so
+Pythagoras gives $SS_{\mathrm{tot}} = SS_{\mathrm{reg}} + SS_{\mathrm{res}}$.
+
+For the correlation: $\sum_ie_i = 0$ implies that $\hat y$ has mean $\bar y$, and
+the sample covariance of $y$ and $\hat y$ is
+$\frac1n\sum_i(\hat y_i - \bar y + e_i)(\hat y_i - \bar y) = \frac1nSS_{\mathrm{reg}}$.
+Hence $\mathrm{corr}(y,\hat y)^2 = SS_{\mathrm{reg}}^2/(SS_{\mathrm{tot}}SS_{\mathrm{reg}}) = SS_{\mathrm{reg}}/SS_{\mathrm{tot}}$.
+\end{proof}
+
+\begin{example}[Computing $R^2$ by hand]\label{measuring-performance:ex:r2}
+Five points $(x,y)$: $(1,2)$, $(2,4)$, $(3,5)$, $(4,4)$, $(5,5)$. Here
+$\bar x = 3$, $\bar y = 4$, $\sum(x_i-\bar x)(y_i-\bar y) = 6$ and
+$\sum(x_i - \bar x)^2 = 10$, so the least-squares line has slope $0.6$ and
+intercept $4 - 0.6\times3 = 2.2$. Then
+\begin{center}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+$y_i$ & 2 & 4 & 5 & 4 & 5 \\
+$\hat y_i$ & 2.8 & 3.4 & 4.0 & 4.6 & 5.2 \\
+$y_i - \hat y_i$ & $-0.8$ & $0.6$ & $1.0$ & $-0.6$ & $-0.2$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+gives $SS_{\mathrm{res}} = 2.4$, $SS_{\mathrm{tot}} = 4 + 0 + 1 + 0 + 1 = 6$, and
+$R^2 = 1 - 2.4/6 = 0.6$. As predicted by the proposition,
+$SS_{\mathrm{reg}} = 1.44 + 0.36 + 0 + 0.36 + 1.44 = 3.6 = 6 - 2.4$, and
+$\mathrm{corr}(x,y)^2 = 6^2/(10\times6) = 0.6$.
+
+By contrast, the constant prediction $\hat y_i = 5$ gives
+$SS_{\mathrm{res}} = 9 + 1 + 0 + 1 + 0 = 11$ and $R^2 = 1 - 11/6\approx-0.83$.
+\end{example}
+
+\begin{pitfall}[$R^2$ outside its comfort zone]
+The guarantee $0\leq R^2\leq1$ holds only for least squares with an intercept,
+on the training data. For a model without intercept, a non-linear model, or
+any model evaluated on \emph{test} data, $R^2$ can be negative, and a negative
+test $R^2$ is a clear sign that the model is worse than predicting the mean.
+\end{pitfall}
+
+\subsection{Limitations and the adjusted $R^2$}
+
+\begin{itemize}
+  \item \textbf{More regressors never hurt on the training set.} Adding a
+        regressor to a least-squares model cannot increase $SS_{\mathrm{res}}$ (the
+        old fit is still available), so the training $R^2$ never decreases ---
+        even if the new regressor is pure noise. This is the optimism of
+        \cref{erm:prop:optimism} in another guise.
+  \item \textbf{$R^2$ judges the fitted model, not the relationship.} A low
+        $R^2$ for a linear fit does not mean that $X$ and $Y$ are unrelated: in
+        \cref{bayes-decision-theory:ex:parabola} the best line has $R^2 = 0$
+        although $Y$ is almost a function of $X$. A high $R^2$ does not prove
+        the model correctly specified either.
+  \item \textbf{Outliers}, which dominate sums of squares, can move $R^2$ a
+        lot.
+\end{itemize}
+
+The \emph{adjusted} $R^2$ compensates for the first problem. With $p$
+regressors besides the intercept,
+\[
+  R^2_{\mathrm{adj}} = 1 - \frac{SS_{\mathrm{res}}/(n-p-1)}{SS_{\mathrm{tot}}/(n-1)}
+  = 1 - (1 - R^2)\frac{n-1}{n-p-1}.
+\]
+Both numerator and denominator are now unbiased variance estimates (the
+residual one loses $p+1$ degrees of freedom, as in
+\cref{erm:ex:ols-optimism}), so a useless regressor typically \emph{lowers}
+$R^2_{\mathrm{adj}}$. In \cref{measuring-performance:ex:r2},
+$R^2_{\mathrm{adj}} = 1 - 0.4\times4/3\approx0.47$. Even so, the honest way to
+compare models remains their error on held-out data.
+
+\section{Classification metrics}\label{measuring-performance:sec:classification}
+
+\subsection{The confusion matrix}
+
+For a binary classifier one class is designated \emph{positive} (usually
+encoded $1$) and the other \emph{negative} ($0$). Every prediction falls in
+one cell of the \emph{confusion matrix}:
+\begin{center}
+\begin{tabular}{@{}l|cc@{}}
+ & predicted positive & predicted negative \\ \midrule
+actual positive & TP (true positive) & FN (false negative) \\
+actual negative & FP (false positive) & TN (true negative) \\
+\end{tabular}
+\end{center}
+
+\begin{definition}[Classification scores]
+\[
+\begin{aligned}
+  \text{accuracy} &= \frac{\mathrm{TP} + \mathrm{TN}}{\mathrm{TP}+\mathrm{FN}+\mathrm{FP}+\mathrm{TN}}, &
+  \text{precision} &= \frac{\mathrm{TP}}{\mathrm{TP}+\mathrm{FP}}, \\
+  \text{recall (sensitivity)} &= \frac{\mathrm{TP}}{\mathrm{TP}+\mathrm{FN}}, &
+  \text{specificity} &= \frac{\mathrm{TN}}{\mathrm{TN}+\mathrm{FP}},
+\end{aligned}
+\]
+the false positive rate is $\mathrm{FPR} = 1 - \text{specificity}$, and
+$F_1 = 2\,\frac{\text{precision}\times\text{recall}}{\text{precision}+\text{recall}}$
+is their harmonic mean.
+\end{definition}
+
+Recall answers ``of the actual positives, how many did we find?''; precision
+answers ``of the cases we flagged, how many were real?''. Both refer to the
+positive class only. That is why the choice of the positive class --- often
+just the question of which class is encoded as $1$ --- is not a cosmetic
+detail.
+
+\subsection{Precision depends on the base rate}
+
+Recall and FPR are properties of the classifier on each class. Precision also
+depends on how common the positive class is.
+
+\begin{proposition}[Precision and prevalence]\label{measuring-performance:prop:prevalence}
+Let $\pi$ be the proportion of positives, $r$ the recall and $\phi$ the false
+positive rate. Then
+\[
+  \text{precision} = \frac{r\,\pi}{r\,\pi + \phi\,(1-\pi)} .
+\]
+\end{proposition}
+
+\begin{proof}
+Out of $N$ examples, $\pi N$ are positive, of which $r\pi N$ are flagged; and
+$(1-\pi)N$ are negative, of which $\phi(1-\pi)N$ are flagged. Precision is the
+first number divided by the total number flagged. (This is Bayes' rule for
+$P(Y = 1\mid\hat Y = 1)$.)
+\end{proof}
+
+When $\pi$ is small, even a small false positive rate swamps the true
+positives, and precision collapses.
+
+\subsection{Worked example: poisonous mushrooms}\label{measuring-performance:sec:mushrooms}
+
+A classifier separates edible from poisonous mushrooms. Mistaking a poisonous
+mushroom for an edible one is the dangerous error. We consider two classifiers:
+\begin{itemize}[nosep]
+  \item \textbf{C1} (default threshold) misses $20\%$ of poisonous mushrooms and
+        wrongly flags $5\%$ of edible ones;
+  \item \textbf{C2} (threshold lowered, as in \cref{bayes-decision-theory:thm:costs})
+        misses only $1\%$ of poisonous mushrooms but wrongly flags $10\%$ of
+        edible ones;
+\end{itemize}
+and two datasets: a \emph{balanced} one ($50\,000$ of each) and an
+\emph{unbalanced} one ($100\,000$ edible, $1\,000$ poisonous). For C1 on the
+unbalanced set, with ``poisonous'' as the positive class, the confusion matrix
+is
+\begin{center}
+\begin{tabular}{@{}l|cc@{}}
+ & predicted poisonous & predicted edible \\ \midrule
+actual poisonous & $800$ & $200$ \\
+actual edible & $5\,000$ & $95\,000$ \\
+\end{tabular}
+\end{center}
+so recall $= 800/1000 = 0.80$ and precision $= 800/5800\approx0.14$. Taking
+instead ``edible'' as the positive class, the same predictions give precision
+$95\,000/95\,200\approx0.998$ and recall $0.95$.
+\Cref{measuring-performance:tab:mushrooms} collects all cases.
+
+\begin{table}[ht]
+\centering
+\caption{Precision and recall of the mushroom classifiers, depending on which
+class is called positive.}
+\label{measuring-performance:tab:mushrooms}
+\begin{tabular}{@{}llcccccc@{}}
+\toprule
+ & & \multicolumn{2}{c}{positive $=$ poisonous} & \multicolumn{2}{c}{positive $=$ edible} & \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+classifier & dataset & recall & precision & recall & precision & accuracy \\
+\midrule
+C1 & balanced   & 0.80 & 0.941 & 0.95 & 0.826 & 0.875 \\
+C1 & unbalanced & 0.80 & 0.138 & 0.95 & 0.998 & 0.949 \\
+C2 & balanced   & 0.99 & 0.908 & 0.90 & 0.989 & 0.945 \\
+C2 & unbalanced & 0.99 & 0.090 & 0.90 & 0.9999 & 0.901 \\
+\midrule
+always ``edible'' & unbalanced & 0 & --- & 1 & 0.990 & 0.990 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three lessons can be read off the table.
+\begin{enumerate}
+  \item \textbf{On balanced data both choices are informative.} Each pair of
+        numbers describes the classifier reasonably, and they tell
+        complementary stories.
+  \item \textbf{On unbalanced data, choose the rare (or critical) class as
+        positive.} With ``edible'' as positive, C1 looks excellent (precision
+        $0.998$, recall $0.95$) while it lets one poisonous mushroom in five
+        through. With ``poisonous'' as positive, the recall of $0.80$ exposes
+        the problem immediately, and the low precision ($0.14$, as predicted by
+        \cref{measuring-performance:prop:prevalence} with $\pi\approx0.01$)
+        shows the cost of the false alarms.
+  \item \textbf{Accuracy is misleading on unbalanced data.} The useless
+        classifier that always answers ``edible'' has the best accuracy of all
+        ($0.990$), and C2 --- the only safe classifier --- has a \emph{lower}
+        accuracy than C1. Lowering the threshold traded precision for recall,
+        which is exactly what the costs demand.
+\end{enumerate}
+
+\begin{pitfall}[Library defaults]
+Software computes precision and recall for the class encoded as $1$ by
+default (in scikit-learn, \texttt{pos\_label=1}). If the critical class is
+encoded as $0$, the default report silently describes the other class.
+\end{pitfall}
+
+A classifier that outputs scores can be operated at any threshold. Sweeping the
+threshold traces a \emph{precision--recall curve} (or a ROC curve of recall
+against FPR); the operating point should then be chosen from the costs of the
+two errors, as in \cref{bayes-decision-theory:sec:costs}.
+
+\section{Estimating risk: validation and cross-validation}\label{measuring-performance:sec:cv}
+
+Every metric above is an empirical average and must be computed on data not
+used for training (\cref{erm:sec:optimism}). Three schemes are standard.
+
+\begin{description}
+  \item[Hold-out.] Split the data once into a training part and a validation
+        (or test) part. Simple, but the estimate uses only part of the data and
+        varies with the split.
+  \item[$k$-fold cross-validation.] Split the data into $k$ folds
+        $I_1,\dots,I_k$ of nearly equal size. For each $j$, train on all folds
+        but $I_j$ to get $\hat f^{(-j)}$, and evaluate on $I_j$:
+        \[
+          \widehat R_{\mathrm{CV}} = \frac1n\sum_{j=1}^k\sum_{i\in I_j}\ell\bigl(\hat f^{(-j)}(x_i), y_i\bigr).
+        \]
+        Every point is used once for evaluation and $k-1$ times for training.
+  \item[Leave-one-out (LOO).] The case $k = n$: each model is trained on $n-1$
+        points and evaluated on the one left out.
+\end{description}
+
+\begin{keyidea}[What cross-validation estimates]
+Cross-validation averages over several \emph{different} trained models, so it
+does not estimate the risk of the final model $\hat f$ trained on all the data.
+It estimates the expected risk of the \emph{learning algorithm} at sample
+size $n(k-1)/k$ (\cref{erm:sec:model-vs-algorithm}). This is the right quantity
+for choosing between algorithms or hyperparameters, which is its main use.
+\end{keyidea}
+
+\subsection{Leave-one-out for density estimation}\label{measuring-performance:sec:mise}
+
+Cross-validation also works when there are no labels. We illustrate it on the
+choice of the bandwidth of a kernel density estimator, where the leave-one-out
+trick yields an \emph{exactly} unbiased criterion.
+
+Let $X_1,\dots,X_n$ be i.i.d.\ with unknown density $f$ on $\R^D$, and let
+$\mathcal T = (X_1,\dots,X_n)$. The \emph{kernel density estimator} with kernel
+$\Phi_h$ of bandwidth $h$ is
+\[
+  \hat f_{\mathcal T}(x) = \frac1n\sum_{i=1}^n\Phi_h(x, X_i),
+  \qquad\text{for example}\quad \Phi_h(x, x_i) = \frac{1}{(2\pi h^2)^{D/2}}e^{-\norm{x - x_i}^2/(2h^2)} .
+\]
+Each data point spreads a bump of width $h$, and the estimate is their average.
+A small $h$ gives a spiky estimate that follows the sample (high variance); a
+large $h$ blurs genuine structure (high bias) --- see
+\cref{measuring-performance:fig:kde}.
+
+\begin{definition}[Mean integrated squared error]
+The quality of $\hat f_{\mathcal T}$ is measured by
+\[
+  \mathrm{MISE}(h) = \E_{\mathcal T}\Bigl[\int\bigl(\hat f_{\mathcal T}(x) - f(x)\bigr)^2dx\Bigr],
+\]
+the expected squared $L^2$ distance between the estimate and the truth, the
+expectation being over samples.
+\end{definition}
+
+Expanding the square,
+\[
+  \mathrm{MISE}(h) = \E_{\mathcal T}\Bigl[\int\hat f_{\mathcal T}^2\Bigr]
+  - 2\,\E_{\mathcal T}\Bigl[\int\hat f_{\mathcal T}\,f\Bigr] + \int f^2 .
+\]
+The last term does not depend on $h$, so minimizing the MISE is equivalent to
+minimizing the first two terms. We need estimates of both from the sample alone.
+\begin{itemize}
+  \item The first is easy: $\int\hat f_{\mathcal T}^2$ is computable from the
+        data, and is by definition an unbiased estimate of its own expectation.
+  \item The second involves the unknown $f$. Note that
+        $\int\hat f_{\mathcal T}(x)f(x)\,dx = \E_X[\hat f_{\mathcal T}(X)\mid\mathcal T]$
+        for a \emph{new} point $X\sim f$ independent of the sample. Evaluating
+        $\hat f_{\mathcal T}$ at the sample points themselves would be optimistic
+        --- each point contributes its own bump --- so we leave each point out.
+\end{itemize}
+Let $\hat f_{-k}(x) = \frac1{n-1}\sum_{i\neq k}\Phi_h(x, X_i)$ be the estimate
+computed without $X_k$.
+
+\begin{proposition}[An unbiased leave-one-out estimate]\label{measuring-performance:prop:loo}
+\[
+  \E\Bigl[\frac1n\sum_{k=1}^n\hat f_{-k}(X_k)\Bigr] = \E_{\mathcal T}\Bigl[\int\hat f_{\mathcal T}(x)f(x)\,dx\Bigr].
+\]
+\end{proposition}
+
+\emph{First proof (conditioning).} Fix $k$. The point $X_k$ is independent of
+the other $n-1$ points, on which $\hat f_{-k}$ is built, so conditioning on them,
+\[
+  \E\bigl[\hat f_{-k}(X_k)\bigr] = \E\Bigl[\int\hat f_{-k}(x)f(x)\,dx\Bigr]
+  = \int\E\bigl[\hat f_{-k}(x)\bigr]f(x)\,dx .
+\]
+Now $\hat f_{-k}(x)$ is an average of $n-1$ i.i.d.\ terms $\Phi_h(x,X_i)$, and
+$\hat f_{\mathcal T}(x)$ an average of $n$ such terms; both have the same mean
+$\E[\Phi_h(x, X_1)]$, because the mean of an average of i.i.d.\ terms does not
+depend on how many terms are averaged. Hence
+$\E[\hat f_{-k}(X_k)] = \int\E[\hat f_{\mathcal T}(x)]f(x)\,dx = \E[\int\hat f_{\mathcal T}f]$
+for every $k$, and averaging over $k$ gives the claim.
+\hfill$\square$
+
+\emph{Second proof (direct computation).} For $i\neq k$, $X_i$ and $X_k$ are
+independent with density $f$, so $\E[\Phi_h(X_k, X_i)] = \iint\Phi_h(x,y)f(x)f(y)\,dx\,dy$
+for every such pair. Hence
+\[
+  \E\Bigl[\frac1n\sum_k\hat f_{-k}(X_k)\Bigr]
+  = \frac1n\sum_k\frac1{n-1}\sum_{i\neq k}\E\bigl[\Phi_h(X_k,X_i)\bigr]
+  = \iint\Phi_h(x,y)f(y)f(x)\,dy\,dx .
+\]
+On the other hand
+$\E[\hat f_{\mathcal T}(x)] = \E[\Phi_h(x,X_1)] = \int\Phi_h(x,y)f(y)\,dy$, so
+\[
+  \E\Bigl[\int\hat f_{\mathcal T}f\Bigr] = \int\Bigl(\int\Phi_h(x,y)f(y)\,dy\Bigr)f(x)\,dx,
+\]
+the same double integral.
+\hfill$\square$
+
+\begin{pitfall}[Why not keep the point in?]
+Without leaving $X_k$ out, $\hat f_{\mathcal T}(X_k)$ contains the term
+$\frac1n\Phi_h(X_k,X_k) = \frac1n\Phi_h(0)$, which grows without bound as
+$h\to0$ (for the Gaussian kernel, like $h^{-D}$). The criterion would then always
+prefer the smallest bandwidth --- a density estimator's version of the
+memorizer of \cref{erm:sec:principle}.
+\end{pitfall}
+
+Putting the two estimates together gives the \emph{least-squares
+cross-validation} criterion, an unbiased estimate of
+$\mathrm{MISE}(h) - \int f^2$:
+\[
+  \mathrm{LSCV}(h) = \int\hat f_{\mathcal T}(x)^2\,dx - \frac2n\sum_{k=1}^n\hat f_{-k}(X_k).
+\]
+For the Gaussian kernel the integral has a closed form, because the convolution
+of two Gaussians of width $h$ is a Gaussian of width $\sqrt2h$:
+$\int\hat f_{\mathcal T}^2 = \frac1{n^2}\sum_{i,j}\Phi_{\sqrt2h}(X_i,X_j)$. The
+bandwidth is chosen by minimizing $\mathrm{LSCV}(h)$ over a grid.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[name=kde, width=0.6\textwidth, height=5.2cm, xmin=-4.5, xmax=4.5, ymin=0, ymax=0.62,
+  xlabel={$x$}, ylabel={density}, axis lines=left, legend style={font=\scriptsize, at={(0.5,1.0)}, anchor=south, legend columns=2}]
+  \addplot[thin, gray] coordinates {(-4.50,0.000) (-4.40,0.000) (-4.30,0.000) (-4.20,0.000) (-4.10,0.000) (-4.00,0.000) (-3.90,0.000) (-3.80,0.000) (-3.70,0.000) (-3.60,0.000) (-3.50,0.000) (-3.40,0.000) (-3.30,0.000) (-3.20,0.000) (-3.10,0.000) (-3.00,0.000) (-2.90,0.000) (-2.80,0.010) (-2.70,0.083) (-2.60,0.147) (-2.50,0.058) (-2.40,0.031) (-2.30,0.093) (-2.20,0.201) (-2.10,0.269) (-2.00,0.351) (-1.90,0.333) (-1.80,0.266) (-1.70,0.363) (-1.60,0.411) (-1.50,0.328) (-1.40,0.378) (-1.30,0.348) (-1.20,0.332) (-1.10,0.322) (-1.00,0.254) (-0.90,0.193) (-0.80,0.103) (-0.70,0.039) (-0.60,0.049) (-0.50,0.033) (-0.40,0.015) (-0.30,0.054) (-0.20,0.085) (-0.10,0.044) (0.00,0.006) (0.10,0.003) (0.20,0.040) (0.30,0.141) (0.40,0.184) (0.50,0.128) (0.60,0.156) (0.70,0.253) (0.80,0.170) (0.90,0.121) (1.00,0.248) (1.10,0.371) (1.20,0.403) (1.30,0.308) (1.40,0.324) (1.50,0.226) (1.60,0.129) (1.70,0.138) (1.80,0.176) (1.90,0.283) (2.00,0.307) (2.10,0.184) (2.20,0.102) (2.30,0.085) (2.40,0.091) (2.50,0.027) (2.60,0.002) (2.70,0.008) (2.80,0.059) (2.90,0.097) (3.00,0.034) (3.10,0.002) (3.20,0.000) (3.30,0.000) (3.40,0.000) (3.50,0.000) (3.60,0.000) (3.70,0.000) (3.80,0.000) (3.90,0.000) (4.00,0.000) (4.10,0.000) (4.20,0.000) (4.30,0.000) (4.40,0.000) (4.50,0.000)};
+  \addlegendentry{$h = 0.08$}
+  \addplot[thick, bookaccent] coordinates {(-4.50,0.000) (-4.40,0.000) (-4.30,0.000) (-4.20,0.000) (-4.10,0.000) (-4.00,0.000) (-3.90,0.000) (-3.80,0.000) (-3.70,0.000) (-3.60,0.001) (-3.50,0.001) (-3.40,0.003) (-3.30,0.005) (-3.20,0.010) (-3.10,0.016) (-3.00,0.024) (-2.90,0.035) (-2.80,0.049) (-2.70,0.065) (-2.60,0.085) (-2.50,0.108) (-2.40,0.134) (-2.30,0.164) (-2.20,0.195) (-2.10,0.226) (-2.00,0.256) (-1.90,0.281) (-1.80,0.302) (-1.70,0.316) (-1.60,0.324) (-1.50,0.325) (-1.40,0.317) (-1.30,0.303) (-1.20,0.281) (-1.10,0.254) (-1.00,0.222) (-0.90,0.188) (-0.80,0.155) (-0.70,0.124) (-0.60,0.099) (-0.50,0.080) (-0.40,0.066) (-0.30,0.059) (-0.20,0.056) (-0.10,0.059) (0.00,0.066) (0.10,0.077) (0.20,0.091) (0.30,0.109) (0.40,0.128) (0.50,0.148) (0.60,0.168) (0.70,0.188) (0.80,0.208) (0.90,0.227) (1.00,0.243) (1.10,0.254) (1.20,0.260) (1.30,0.259) (1.40,0.253) (1.50,0.243) (1.60,0.231) (1.70,0.218) (1.80,0.205) (1.90,0.191) (2.00,0.175) (2.10,0.157) (2.20,0.136) (2.30,0.115) (2.40,0.095) (2.50,0.077) (2.60,0.063) (2.70,0.051) (2.80,0.042) (2.90,0.035) (3.00,0.028) (3.10,0.022) (3.20,0.017) (3.30,0.012) (3.40,0.008) (3.50,0.005) (3.60,0.003) (3.70,0.002) (3.80,0.001) (3.90,0.000) (4.00,0.000) (4.10,0.000) (4.20,0.000) (4.30,0.000) (4.40,0.000) (4.50,0.000)};
+  \addlegendentry{$h = 0.35$ (LSCV)}
+  \addplot[thick, bookexample] coordinates {(-4.50,0.023) (-4.40,0.026) (-4.30,0.029) (-4.20,0.033) (-4.10,0.036) (-4.00,0.040) (-3.90,0.044) (-3.80,0.048) (-3.70,0.053) (-3.60,0.058) (-3.50,0.063) (-3.40,0.068) (-3.30,0.073) (-3.20,0.078) (-3.10,0.083) (-3.00,0.089) (-2.90,0.094) (-2.80,0.100) (-2.70,0.105) (-2.60,0.110) (-2.50,0.116) (-2.40,0.121) (-2.30,0.125) (-2.20,0.130) (-2.10,0.134) (-2.00,0.139) (-1.90,0.142) (-1.80,0.146) (-1.70,0.149) (-1.60,0.152) (-1.50,0.155) (-1.40,0.157) (-1.30,0.159) (-1.20,0.161) (-1.10,0.162) (-1.00,0.163) (-0.90,0.164) (-0.80,0.165) (-0.70,0.165) (-0.60,0.166) (-0.50,0.166) (-0.40,0.166) (-0.30,0.165) (-0.20,0.165) (-0.10,0.165) (0.00,0.164) (0.10,0.163) (0.20,0.162) (0.30,0.162) (0.40,0.160) (0.50,0.159) (0.60,0.158) (0.70,0.157) (0.80,0.155) (0.90,0.153) (1.00,0.151) (1.10,0.149) (1.20,0.147) (1.30,0.144) (1.40,0.141) (1.50,0.138) (1.60,0.135) (1.70,0.132) (1.80,0.128) (1.90,0.124) (2.00,0.120) (2.10,0.116) (2.20,0.111) (2.30,0.107) (2.40,0.102) (2.50,0.098) (2.60,0.093) (2.70,0.088) (2.80,0.083) (2.90,0.078) (3.00,0.074) (3.10,0.069) (3.20,0.064) (3.30,0.060) (3.40,0.055) (3.50,0.051) (3.60,0.047) (3.70,0.043) (3.80,0.039) (3.90,0.036) (4.00,0.033) (4.10,0.029) (4.20,0.026) (4.30,0.024) (4.40,0.021) (4.50,0.019)};
+  \addlegendentry{$h = 1.5$}
+  \addplot[thick, dashed, black] coordinates {(-4.50,0.000) (-4.40,0.000) (-4.30,0.000) (-4.20,0.000) (-4.10,0.000) (-4.00,0.000) (-3.90,0.000) (-3.80,0.000) (-3.70,0.000) (-3.60,0.001) (-3.50,0.001) (-3.40,0.002) (-3.30,0.004) (-3.20,0.006) (-3.10,0.009) (-3.00,0.015) (-2.90,0.022) (-2.80,0.032) (-2.70,0.045) (-2.60,0.062) (-2.50,0.083) (-2.40,0.108) (-2.30,0.137) (-2.20,0.168) (-2.10,0.202) (-2.00,0.235) (-1.90,0.266) (-1.80,0.293) (-1.70,0.315) (-1.60,0.328) (-1.50,0.333) (-1.40,0.328) (-1.30,0.315) (-1.20,0.294) (-1.10,0.267) (-1.00,0.237) (-0.90,0.204) (-0.80,0.172) (-0.70,0.142) (-0.60,0.116) (-0.50,0.094) (-0.40,0.077) (-0.30,0.065) (-0.20,0.058) (-0.10,0.056) (0.00,0.058) (0.10,0.063) (0.20,0.073) (0.30,0.085) (0.40,0.099) (0.50,0.115) (0.60,0.133) (0.70,0.152) (0.80,0.170) (0.90,0.188) (1.00,0.205) (1.10,0.220) (1.20,0.232) (1.30,0.242) (1.40,0.247) (1.50,0.249) (1.60,0.247) (1.70,0.242) (1.80,0.232) (1.90,0.220) (2.00,0.205) (2.10,0.188) (2.20,0.170) (2.30,0.151) (2.40,0.132) (2.50,0.114) (2.60,0.097) (2.70,0.081) (2.80,0.067) (2.90,0.054) (3.00,0.043) (3.10,0.034) (3.20,0.026) (3.30,0.020) (3.40,0.015) (3.50,0.011) (3.60,0.008) (3.70,0.006) (3.80,0.004) (3.90,0.003) (4.00,0.002) (4.10,0.001) (4.20,0.001) (4.30,0.001) (4.40,0.000) (4.50,0.000)};
+  \addlegendentry{true density}
+  \addplot[only marks, mark=|, mark size=2pt, black!60] coordinates {(-2.62,0.005) (-2.61,0.005) (-2.61,0.005) (-2.30,0.005) (-2.18,0.005) (-2.17,0.005) (-2.16,0.005) (-2.09,0.005) (-2.08,0.005) (-1.99,0.005) (-1.97,0.005) (-1.96,0.005) (-1.95,0.005) (-1.94,0.005) (-1.94,0.005) (-1.90,0.005) (-1.79,0.005) (-1.77,0.005) (-1.75,0.005) (-1.71,0.005) (-1.65,0.005) (-1.65,0.005) (-1.64,0.005) (-1.61,0.005) (-1.61,0.005) (-1.58,0.005) (-1.58,0.005) (-1.53,0.005) (-1.45,0.005) (-1.42,0.005) (-1.40,0.005) (-1.39,0.005) (-1.39,0.005) (-1.34,0.005) (-1.33,0.005) (-1.32,0.005) (-1.24,0.005) (-1.21,0.005) (-1.20,0.005) (-1.14,0.005) (-1.14,0.005) (-1.12,0.005) (-1.11,0.005) (-1.04,0.005) (-0.99,0.005) (-0.99,0.005) (-0.91,0.005) (-0.89,0.005) (-0.81,0.005) (-0.57,0.005) (-0.25,0.005) (-0.16,0.005) (0.30,0.005) (0.34,0.005) (0.38,0.005) (0.44,0.005) (0.48,0.005) (0.66,0.005) (0.66,0.005) (0.69,0.005) (0.70,0.005) (0.77,0.005) (0.78,0.005) (0.97,0.005) (0.99,0.005) (1.03,0.005) (1.05,0.005) (1.10,0.005) (1.12,0.005) (1.16,0.005) (1.16,0.005) (1.19,0.005) (1.19,0.005) (1.22,0.005) (1.22,0.005) (1.26,0.005) (1.35,0.005) (1.40,0.005) (1.40,0.005) (1.41,0.005) (1.43,0.005) (1.45,0.005) (1.51,0.005) (1.60,0.005) (1.70,0.005) (1.76,0.005) (1.81,0.005) (1.91,0.005) (1.92,0.005) (1.96,0.005) (1.97,0.005) (1.97,0.005) (1.99,0.005) (2.04,0.005) (2.14,0.005) (2.15,0.005) (2.35,0.005) (2.39,0.005) (2.88,0.005) (2.89,0.005)};
+\end{axis}
+\begin{axis}[at={(kde.east)}, anchor=west, xshift=1.2cm, width=0.36\textwidth, height=5.2cm,
+  xmin=0, xmax=2, xlabel={$h$}, ylabel={$\mathrm{LSCV}(h)$}, axis lines=left,
+  yticklabel style={/pgf/number format/fixed, /pgf/number format/precision=2}]
+  \addplot[thick, bookaccent] coordinates {(0.050,-0.1872) (0.089,-0.2008) (0.128,-0.2090) (0.167,-0.2148) (0.206,-0.2183) (0.245,-0.2204) (0.285,-0.2216) (0.324,-0.2222) (0.363,-0.2224) (0.402,-0.2219) (0.441,-0.2209) (0.480,-0.2194) (0.519,-0.2174) (0.558,-0.2150) (0.597,-0.2123) (0.636,-0.2093) (0.676,-0.2062) (0.715,-0.2029) (0.754,-0.1996) (0.793,-0.1963) (0.832,-0.1931) (0.871,-0.1900) (0.910,-0.1870) (0.949,-0.1841) (0.988,-0.1814) (1.027,-0.1789) (1.067,-0.1765) (1.106,-0.1743) (1.145,-0.1722) (1.184,-0.1703) (1.223,-0.1685) (1.262,-0.1669) (1.301,-0.1654) (1.340,-0.1640) (1.379,-0.1627) (1.418,-0.1614) (1.458,-0.1603) (1.497,-0.1592) (1.536,-0.1582) (1.575,-0.1572) (1.614,-0.1563) (1.653,-0.1554) (1.692,-0.1545) (1.731,-0.1537) (1.770,-0.1529) (1.809,-0.1521) (1.848,-0.1513) (1.888,-0.1505) (1.927,-0.1497) (1.966,-0.1489)};
+  \draw[dotted] (axis cs:0.353,-0.23) -- (axis cs:0.353,-0.15);
+\end{axis}
+\end{tikzpicture}
+\caption{Left: kernel density estimates from $100$ points (ticks) drawn from a
+two-component Gaussian mixture, for three bandwidths. Right: the leave-one-out
+criterion, minimized near $h = 0.35$.}
+\label{measuring-performance:fig:kde}
+\end{figure}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item $R^2 = 1 - SS_{\mathrm{res}}/SS_{\mathrm{tot}}$ compares a model with the
+        constant predictor $\bar y$. For least squares with intercept on
+        training data, $SS_{\mathrm{tot}} = SS_{\mathrm{reg}} + SS_{\mathrm{res}}$
+        and $R^2\in[0,1]$ is a squared correlation; otherwise it can be
+        negative. The adjusted $R^2$ corrects for the number of regressors.
+  \item Precision and recall describe the positive class. Precision falls with
+        the prevalence; on unbalanced data the rare or critical class should be
+        the positive one, and accuracy is misleading.
+  \item Risk is estimated on held-out data; $k$-fold cross-validation estimates
+        the expected risk of the algorithm.
+  \item For kernel density estimation, leaving each point out gives an exactly
+        unbiased estimate of the $h$-dependent part of the MISE, the LSCV
+        criterion.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}
+Show that if a least-squares model is fitted \emph{without} intercept, $R^2$ as
+defined above can be negative on the training data. Give a three-point example.
+\end{exercise}
+
+\begin{exercise}
+Using \cref{measuring-performance:prop:prevalence}, find the false positive rate
+that classifier C1 would need on the unbalanced mushroom data for its precision
+on poisonous mushrooms to reach $0.5$.
+\end{exercise}
+
+\begin{exercise}
+Show that $F_1 = \frac{2\,\mathrm{TP}}{2\,\mathrm{TP} + \mathrm{FP} + \mathrm{FN}}$,
+and that it does not depend on TN. Why is that a desirable property for rare
+positive classes?
+\end{exercise}
+
+\begin{exercise}
+Prove the closed form of $\int\hat f_{\mathcal T}^2$ for the Gaussian kernel in
+one dimension.
+\hint{$\int\varphi_h(x-a)\varphi_h(x-b)\,dx = \varphi_{\sqrt2h}(a-b)$, where
+$\varphi_h$ is the $\mathcal N(0,h^2)$ density.}
+\end{exercise}
+\end{notechapter}

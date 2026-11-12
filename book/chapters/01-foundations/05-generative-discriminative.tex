@@ -1,0 +1,343 @@
+\begin{notechapter}
+\chapter{Generative and Discriminative Models}\label{ch:generative-discriminative}
+\chaptersubtitle{Two products of probabilities: likelihood and naive Bayes}
+
+\begin{chapterintro}
+Products of probabilities are everywhere in machine learning, and two of them
+are easily confused: the product over \emph{data points} in a likelihood, and
+the product over \emph{features} in the naive Bayes model. They rest on
+different assumptions and play different roles. Disentangling them leads to
+the distinction between generative and discriminative models. You will learn
+\begin{itemize}[nosep]
+  \item where the product in a likelihood comes from, and why maximizing a
+        conditional likelihood is the same as minimizing the cross-entropy;
+  \item the naive Bayes model, its conditional-independence assumption, and
+        how to train it by counting (with a derivation);
+  \item a complete worked example of a spam filter;
+  \item the difference between the joint and the conditional likelihood;
+  \item why Gaussian naive Bayes and logistic regression have the same form
+        but are not the same model.
+\end{itemize}
+\prerequisites{\cref{ch:learning-problem,ch:bayes-decision-theory};
+maximum likelihood; Lagrange multipliers (for one proof).}
+\end{chapterintro}
+
+\section{Two products}\label{generative-discriminative:sec:two}
+
+Consider a dataset $d_n = \{(x_i,y_i)\}_{i=1}^n$ with inputs
+$x_i = (x_{i1},\dots,x_{iD})$ made of $D$ features, and labels in a finite set
+$\Ys$. Two expressions appear constantly:
+\[
+  \underbrace{\prod_{i=1}^n Q_\theta(y_i\mid x_i)}_{\text{a likelihood: product over data points}}
+  \qquad\text{and}\qquad
+  \underbrace{P(Y = y)\prod_{j=1}^D P(X_j = x_j\mid Y = y)}_{\text{naive Bayes: product over features}} .
+\]
+The first is a \emph{training principle}; it applies to any probabilistic
+model. The second is a \emph{model}: a particular assumption about how the
+features of one example relate to each other.
+\Cref{generative-discriminative:tab:compare} summarizes the contrast; the rest
+of the chapter explains it.
+
+\begin{table}[ht]
+\centering
+\caption{The two product structures.}
+\label{generative-discriminative:tab:compare}
+\begin{tabular}{@{}p{0.2\textwidth}p{0.36\textwidth}p{0.36\textwidth}@{}}
+\toprule
+ & Likelihood product & Naive Bayes product \\
+\midrule
+multiplies over & data points $i = 1,\dots,n$ & features $j = 1,\dots,D$ of one point \\
+comes from & independence of the examples (i.i.d.) & conditional independence of features given the class \\
+role & how to fit any model & what one particular model assumes \\
+status & standard, usually reasonable & strong, usually false, often harmless \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{The likelihood: a product over data points}\label{generative-discriminative:sec:likelihood}
+
+Let $Q_\theta(y\mid x)$ be a model of the conditional distribution of $Y$ given
+$X$, with parameters $\theta$ --- for instance logistic regression or a neural
+network with a softmax output.
+
+\begin{definition}[Conditional likelihood]
+The \emph{conditional likelihood} of $\theta$ on the dataset is the probability
+the model assigns to the observed labels given the observed inputs,
+\[
+  \mathcal L(\theta) = \prod_{i=1}^n Q_\theta(y_i\mid x_i),
+  \qquad
+  \log\mathcal L(\theta) = \sum_{i=1}^n\log Q_\theta(y_i\mid x_i).
+\]
+\end{definition}
+
+The product is the probability of the $n$ labels \emph{jointly}, and it
+factorizes because the examples are assumed independent: by the i.i.d.\
+assumption of \cref{learning-problem:def:sample},
+$P(y_1,\dots,y_n\mid x_1,\dots,x_n) = \prod_i P(y_i\mid x_i)$. Nothing is
+assumed about the features inside each $x_i$.
+
+Taking logarithms turns the product into a sum, which is numerically stable
+and easier to differentiate. Dividing by $-n$ gives
+\[
+  -\frac1n\log\mathcal L(\theta) = \frac1n\sum_{i=1}^n\bigl(-\log Q_\theta(y_i\mid x_i)\bigr),
+\]
+which is the empirical risk of $Q_\theta$ under the log-loss of
+\cref{learning-problem:tab:losses}, also called the \emph{cross-entropy}.
+\textbf{Maximizing the conditional likelihood is ERM with the log-loss}, and by
+\cref{bayes-decision-theory:prop:logloss} its population version is minimized
+by the true conditional distribution. This is why the same loss is used for
+logistic regression and for deep classifiers.
+
+\section{Naive Bayes: a product over features}\label{generative-discriminative:sec:nb}
+
+Naive Bayes is a \emph{generative} classifier: instead of modelling
+$P(Y\mid X)$, it models how each class generates its inputs and inverts the
+model with Bayes' rule.
+
+\begin{definition}[Naive Bayes]
+The naive Bayes model assumes that the features are \emph{conditionally
+independent given the class}:
+\[
+  P(X_1 = x_1,\dots,X_D = x_D\mid Y = y) = \prod_{j=1}^D P(X_j = x_j\mid Y = y).
+\]
+Combined with Bayes' rule, the posterior is
+\[
+  P(Y = y\mid X = x) = \frac{P(Y=y)\prod_j P(X_j = x_j\mid Y = y)}{\sum_{y'}P(Y=y')\prod_jP(X_j = x_j\mid Y = y')}
+  \;\propto\; P(Y = y)\prod_{j=1}^D P(X_j = x_j\mid Y = y),
+\]
+and the classifier predicts the class with the largest posterior (the MAP rule of
+\cref{bayes-decision-theory:sec:map-ml}).
+\end{definition}
+
+\begin{intuition}[Why ``naive''?]
+In a spam filter the words ``money'' and ``free'' are not independent, even
+within spam: they tend to appear together. Naive Bayes ignores this, and
+counts their evidence twice. The probabilities it outputs are therefore often
+too extreme. But the classification only needs the \emph{ranking} of the
+classes to be right, and that is far more robust: naive Bayes is frequently a
+surprisingly good classifier with badly calibrated probabilities.
+\end{intuition}
+
+The benefit of the assumption is statistical. A full joint model of $D$ binary
+features needs $2^D - 1$ parameters per class; naive Bayes needs $D$. That is
+the difference between an impossible estimation problem and a trivial one.
+
+\subsection{Training naive Bayes by maximum likelihood}
+
+A generative model specifies the whole joint distribution
+$P_\theta(x,y) = P_\theta(y)P_\theta(x\mid y)$, and is naturally fitted by
+maximizing the \emph{joint} likelihood. For naive Bayes, the two products now
+appear together:
+\[
+  \mathcal L_{\mathrm{joint}}(\theta) = \prod_{i=1}^n P_\theta(x_i, y_i)
+  = \prod_{i=1}^n\Bigl[P_\theta(y_i)\prod_{j=1}^D P_\theta(x_{ij}\mid y_i)\Bigr].
+\]
+The outer product comes from the independence of the examples, the inner one
+from the model.
+
+\begin{proposition}[Maximum-likelihood estimates are frequencies]\label{generative-discriminative:prop:counts}
+For discrete features, the joint likelihood is maximized by
+\[
+  \hat P(Y = y) = \frac{N_y}{n},\qquad
+  \hat P(X_j = v\mid Y = y) = \frac{N_{j,v,y}}{N_y},
+\]
+where $N_y$ is the number of examples of class $y$ and $N_{j,v,y}$ the number of
+examples of class $y$ whose feature $j$ equals $v$.
+\end{proposition}
+
+\begin{proof}
+The log-likelihood is
+\[
+  \log\mathcal L_{\mathrm{joint}} = \sum_{y} N_y\log\pi_y
+  + \sum_{j}\sum_{y}\sum_v N_{j,v,y}\log\phi_{j,v,y},
+\]
+with $\pi_y = P(Y = y)$ and $\phi_{j,v,y} = P(X_j = v\mid Y = y)$: each example
+contributes the log-probability of its class and of each of its feature values.
+The parameters separate into independent groups --- the priors $(\pi_y)_y$, and
+for each pair $(j,y)$ the distribution $(\phi_{j,v,y})_v$ --- each constrained
+to sum to $1$. Each group is a problem of the form
+\[
+  \max_{p}\ \sum_v c_v\log p_v\quad\text{subject to}\quad \sum_v p_v = 1,
+\]
+with counts $c_v\geq0$. Setting the derivative of the Lagrangian
+$\sum_v c_v\log p_v - \lambda(\sum_v p_v - 1)$ to zero gives $c_v/p_v = \lambda$,
+so $p_v\propto c_v$, and the constraint gives $p_v = c_v/\sum_{v'}c_{v'}$. The
+objective is concave, so this is the maximum.
+\end{proof}
+
+\begin{pitfall}[Zero counts]
+If the word ``refund'' never occurs in the training ham, the estimate
+$\hat P(\text{refund}\mid\text{ham}) = 0$ makes every future email containing
+``refund'' certain spam, whatever else it says. The standard fix is
+\emph{Laplace} (add-one) smoothing:
+$\hat P(X_j = v\mid Y = y) = (N_{j,v,y} + 1)/(N_y + V_j)$, where $V_j$ is the
+number of values of feature $j$. It corresponds to a Bayesian estimate with a
+uniform prior on the parameters (\cref{ch:bayesian-reasoning}).
+\end{pitfall}
+
+\section{A worked example: a tiny spam filter}\label{generative-discriminative:sec:spam}
+
+\begin{example}[Two words, ten emails]\label{generative-discriminative:ex:spam}
+Each email is described by two binary features: $M = 1$ if it contains
+``money'' and $F = 1$ if it contains ``free''. The training set contains
+four spam and six ham emails:
+\begin{center}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+class & $(M,F)$ of each email & $N_y$ & $\#\{M=1\}$ & $\#\{F=1\}$ \\
+\midrule
+spam & $(1,1)$, $(1,0)$, $(0,1)$, $(1,1)$ & 4 & 3 & 3 \\
+ham  & $(0,0)$, $(1,0)$, $(0,0)$, $(0,1)$, $(0,0)$, $(0,0)$ & 6 & 1 & 1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\emph{Training} (\cref{generative-discriminative:prop:counts}):
+\[
+  \hat P(\text{spam}) = \tfrac{4}{10},\quad
+  \hat P(M{=}1\mid\text{spam}) = \hat P(F{=}1\mid\text{spam}) = \tfrac34,\quad
+  \hat P(M{=}1\mid\text{ham}) = \hat P(F{=}1\mid\text{ham}) = \tfrac16 .
+\]
+\emph{Prediction} for a new email containing both words:
+\begin{align*}
+  \text{spam}:&\quad 0.4\times\tfrac34\times\tfrac34 = 0.225,\\
+  \text{ham}:&\quad 0.6\times\tfrac16\times\tfrac16 \approx 0.0167,
+\end{align*}
+so $\hat P(\text{spam}\mid M{=}1,F{=}1) = 0.225/(0.225 + 0.0167)\approx 0.93$.
+For an email containing neither word, the scores are
+$0.4\times\frac14\times\frac14 = 0.025$ and $0.6\times\frac56\times\frac56\approx0.417$,
+giving $\hat P(\text{spam}\mid M{=}0,F{=}0)\approx0.06$.
+
+The \emph{product over features} was used to score one email; the \emph{product
+over examples} was used, implicitly, to obtain the counts.
+\end{example}
+
+\section{Joint versus conditional likelihood}\label{generative-discriminative:sec:joint-vs-conditional}
+
+The two likelihoods of this chapter are related by
+\[
+  \prod_i P_\theta(x_i,y_i) = \underbrace{\prod_i P_\theta(y_i\mid x_i)}_{\text{conditional likelihood}}\;\underbrace{\prod_iP_\theta(x_i)}_{\text{likelihood of the inputs}} .
+\]
+\begin{itemize}
+  \item A \textbf{generative} model (naive Bayes, Gaussian discriminant
+        analysis, hidden Markov models) maximizes the joint likelihood. It
+        spends part of its effort modelling the inputs, which classification
+        does not need, but it can generate data, handle missing features, and
+        often has closed-form estimates.
+  \item A \textbf{discriminative} model (logistic regression, neural networks,
+        conditional random fields) maximizes the conditional likelihood only
+        --- the cross-entropy. It models exactly what prediction requires.
+\end{itemize}
+The closed-form counts of \cref{generative-discriminative:prop:counts} maximize
+the joint likelihood. Maximizing instead the conditional likelihood of the
+\emph{same} naive Bayes model has no closed form --- and, as the next section
+shows, amounts to logistic regression.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[font=\small, node distance=8mm and 4mm,
+  box/.style={draw, rounded corners, align=center, inner sep=4pt, fill=#1!6, draw=#1},
+  >=Stealth]
+  \node[box=bookaccent] (mle) {\textbf{maximum likelihood}\\ (product over examples)};
+  \node[box=bookdef, below left=10mm and 4mm of mle] (gen) {\textbf{generative}: joint likelihood\\ $\max\prod_iP_\theta(x_i,y_i)$\\[2pt] naive Bayes, GDA, HMM};
+  \node[box=bookexample, below right=10mm and 4mm of mle] (disc) {\textbf{discriminative}: conditional likelihood\\ $\max\prod_iQ_\theta(y_i\mid x_i)$ = min cross-entropy\\[2pt] logistic regression, neural nets, CRF};
+  \draw[->] (mle) -- (gen);
+  \draw[->] (mle) -- (disc);
+\end{tikzpicture}
+\caption{Maximum likelihood is the common training principle; generative and
+discriminative models differ in \emph{which} likelihood they maximize.}
+\label{generative-discriminative:fig:hierarchy}
+\end{figure}
+
+\section{Gaussian naive Bayes and logistic regression}\label{generative-discriminative:sec:gnb-lr}
+
+Take two classes and real features, and model each feature, given the class,
+as a Gaussian with a class-dependent mean and a variance \emph{shared by the
+two classes}:
+$X_j\mid Y = c\sim\mathcal N(\mu_{jc},\sigma_j^2)$. The log-odds are
+\[
+  \log\frac{P(Y=1\mid x)}{P(Y=0\mid x)}
+  = \log\frac{\pi_1}{\pi_0} + \sum_{j=1}^D\log\frac{\mathcal N(x_j;\mu_{j1},\sigma_j^2)}{\mathcal N(x_j;\mu_{j0},\sigma_j^2)} .
+\]
+In each term the normalizing constants cancel (same variance), leaving
+\[
+  \frac{(x_j-\mu_{j0})^2 - (x_j-\mu_{j1})^2}{2\sigma_j^2}
+  = \frac{\mu_{j1}-\mu_{j0}}{\sigma_j^2}\,x_j + \frac{\mu_{j0}^2-\mu_{j1}^2}{2\sigma_j^2}:
+\]
+the quadratic terms $x_j^2$ cancel. Hence
+\[
+  \log\frac{P(Y=1\mid x)}{P(Y=0\mid x)} = w_0 + \sum_{j=1}^Dw_jx_j,
+  \qquad w_j = \frac{\mu_{j1}-\mu_{j0}}{\sigma_j^2},\quad
+  w_0 = \log\frac{\pi_1}{\pi_0} + \sum_j\frac{\mu_{j0}^2-\mu_{j1}^2}{2\sigma_j^2},
+\]
+that is, $P(Y=1\mid x) = \sigma(w_0 + w^\top x)$ --- exactly the form of logistic
+regression. With class-dependent variances the $x_j^2$ terms survive and the
+log-odds become quadratic.
+
+\begin{keyidea}[Same form, different fits]
+Gaussian naive Bayes and logistic regression describe the same family of
+posteriors, but choose a member of it differently. Naive Bayes estimates means,
+variances and priors from the joint likelihood and \emph{derives} $w$;
+logistic regression fits $w$ \emph{directly} by maximizing the conditional
+likelihood. When the naive Bayes assumptions are wrong, logistic regression
+is asymptotically better, because it does not rely on them. With little data,
+naive Bayes often wins, because its estimates converge faster (Ng and Jordan,
+2002). They form a \emph{generative--discriminative pair}.
+\end{keyidea}
+
+\section{Choosing between the two approaches}\label{generative-discriminative:sec:choosing}
+
+Naive Bayes (and generative models generally) are attractive when
+\begin{itemize}[nosep]
+  \item the dataset is small, or training must be very fast;
+  \item features are roughly conditionally independent (bag-of-words text is
+        the classic case);
+  \item a simple, interpretable baseline is wanted, or features may be
+        missing at prediction time.
+\end{itemize}
+Discriminative models trained with the cross-entropy are preferable when
+\begin{itemize}[nosep]
+  \item data are plentiful and features interact in complex ways;
+  \item the best predictive accuracy is the goal;
+  \item calibrated probabilities $P(Y\mid X)$ are needed (for instance to apply
+        a cost-sensitive threshold, \cref{bayes-decision-theory:thm:costs}).
+\end{itemize}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item The likelihood $\prod_iQ_\theta(y_i\mid x_i)$ is a product over
+        \emph{examples}, justified by the i.i.d.\ assumption; maximizing it is
+        minimizing the cross-entropy, i.e.\ ERM with the log-loss.
+  \item Naive Bayes' $P(y)\prod_jP(x_j\mid y)$ is a product over
+        \emph{features}, justified only by the model's conditional-independence
+        assumption.
+  \item Training naive Bayes by maximum (joint) likelihood gives frequency
+        estimates; Laplace smoothing avoids zero probabilities.
+  \item Generative models maximize the joint likelihood, discriminative ones
+        the conditional likelihood. Gaussian naive Bayes with shared variances
+        and logistic regression have the same posterior form but different
+        estimators.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}
+Redo \cref{generative-discriminative:ex:spam} with Laplace smoothing. How do the
+two posterior probabilities change?
+\end{exercise}
+
+\begin{exercise}
+Show that for binary features, the log-odds of a naive Bayes model are also an
+affine function of $x$. Express the weights in terms of
+$\phi_{j1} = P(X_j = 1\mid Y=1)$ and $\phi_{j0} = P(X_j=1\mid Y=0)$.
+\hint{write $P(X_j=x_j\mid Y=c) = \phi_{jc}^{x_j}(1-\phi_{jc})^{1-x_j}$.}
+\end{exercise}
+
+\begin{exercise}
+Duplicate the feature ``money'' in \cref{generative-discriminative:ex:spam}
+(so that each email has features $(M, M, F)$). Recompute the posterior for an
+email with $M = 1$, $F = 0$ before and after duplication, and explain the effect
+in terms of the conditional-independence assumption.
+\end{exercise}
+\end{notechapter}

@@ -1,307 +1,476 @@
-% Source: symmetrization_lemma.tex
 \begin{notechapter}
-\chapter{The Symmetrization Lemma}\label{ch:symmetrization-lemma}
-\chaptersubtitle{A detailed proof}
+\chapter{Uniform Convergence and the Symmetrization Lemma}\label{ch:symmetrization-lemma}
+\chaptersubtitle{From finite to infinite hypothesis classes}
 
-\section{Symmetrization Lemma}
-
-\noindent \textbf{Statement:}  
-For any \( t > 0 \) such that \( mt^2 \geq 2 \), the following holds:
-\[
-\mathbb{P}_{\mathbf{Z} \sim D^m} \left[ \sup_{g \in \mathcal{G}} 
-(P^{\text{true}}g - P^{\text{emp}}g) \geq t \right] \leq 
-2 \mathbb{P}_{\mathbf{Z}, \mathbf{Z}^{\prime} \sim D^m \times D^m} 
-\left[ \sup_{g \in \mathcal{G}} (P^{\text{emp}^{\prime}}g - 
-P^{\text{emp}}g) \geq \frac{t}{2} \right],
-\]
-where:
-\begin{itemize}
-    \item \( P^{\text{true}}g = \mathbb{E}_{(X,Y) \sim D}[g(X,Y)] \) 
-    is the true risk of \( g \),
-    \item \( P^{\text{emp}}g = \frac{1}{m} \sum_{i=1}^m g(Z_i) \) is 
-    the empirical risk on the sample \( \mathbf{Z} = (Z_1, \dots, Z_m) \),
-    \item \( P^{\text{emp}^{\prime}}g = \frac{1}{m} \sum_{i=1}^m 
-    g(Z_i^{\prime}) \) is the empirical risk on a ghost sample 
-    \( \mathbf{Z}^{\prime} = (Z_1^{\prime}, \dots, Z_m^{\prime}) \).
+\begin{chapterintro}
+\Cref{ch:erm} reduced the success of empirical risk minimization to a single
+question: is the empirical risk close to the risk \emph{uniformly} over the
+hypothesis class? For a finite class, Hoeffding's inequality and a union bound
+answered it. This chapter answers it for infinite classes, such as all linear
+classifiers. You will learn
+\begin{itemize}[nosep]
+  \item why the obvious union-bound argument fails;
+  \item the \emph{symmetrization lemma}, which replaces the unknown risk by the
+        empirical risk on an independent ``ghost'' sample, with a complete
+        proof;
+  \item how random signs (Rademacher variables) turn the problem into one about
+        finitely many patterns;
+  \item the \emph{shattering coefficient} and the \emph{VC dimension}, with
+        examples;
+  \item the Vapnik--Chervonenkis generalization bound, and what it says in
+        numbers.
 \end{itemize}
+\prerequisites{\cref{ch:erm} (in particular \cref{erm:thm:uniform} and
+Hoeffding's inequality); conditional expectation; Chebyshev's inequality.}
+\end{chapterintro}
 
-\subsection{Clarification of \( \mathbf{Z} \sim D^m \) and \( \mathbf{Z}^{\prime} 
-\sim D^m \)}
+\section{The plan}\label{symmetrization-lemma:sec:plan}
 
-The notation \( \mathbf{Z} \sim D^m \) means that the dataset 
-\( \mathbf{Z} = (Z_1, Z_2, \dots, Z_m) \) consists of \( m \) i.i.d. 
-samples drawn from the joint distribution \( D \), where each 
-\( Z_i = (X_i, Y_i) \) is a pair of input and output. Similarly, 
-\( \mathbf{Z}^{\prime} \sim D^m \) denotes a ghost sample 
-\( \mathbf{Z}^{\prime} = (Z_1^{\prime}, Z_2^{\prime}, \dots, Z_m^{\prime}) \), 
-which is an independent dataset drawn from the same distribution \( D^m \).
+For a finite class we bounded $\Prob(\sup_f \abs{\ERisk(f) - \Risk(f)} \geq \epsilon)$
+by summing over the $\abs{\Hs}$ hypotheses. With infinitely many hypotheses the
+sum is infinite. Yet on $n$ data points a classifier is only seen through its
+$n$ predictions, and even an infinite class of binary classifiers produces at
+most $2^n$ different prediction patterns. The difficulty is that the risk
+$\Risk(f)$ is \emph{not} determined by the predictions on the sample: it
+depends on $f$ everywhere.
 
-\section{Proof}
+The argument therefore has two steps.
+\begin{enumerate}
+  \item \textbf{Symmetrization.} Replace the risk $\Risk(f)$ by the empirical
+        risk on a second, independent sample of the same size (the
+        \emph{ghost sample}). Afterwards only the values of $f$ on $2n$ points
+        matter.
+  \item \textbf{Counting.} On $2n$ points the class produces finitely many
+        patterns; apply Hoeffding's inequality to each and a union bound over
+        the patterns.
+\end{enumerate}
+The ghost sample is a device of the proof: it is never collected.
 
-\subsection{Step 1: Setup and Approximation Argument}
+\section{Setting and notation}\label{symmetrization-lemma:sec:notation}
 
-We want to bound the probability:
+Write $Z = (X, Y)$ for a data point and $Z_1,\dots,Z_n$ for the i.i.d.\ sample.
+For each hypothesis $f$, the function $g(z) = \ell(f(x), y)$ is its loss; let
+$\mathcal G = \{g_f : f\in\Hs\}$ be the class of losses, which we assume take
+values in $[0,1]$ (the 0--1 loss is the main example). Following the notation
+of empirical process theory,\footnote{Other texts write $P^{\text{true}}g$,
+$P^{\text{emp}}g$ and $P^{\text{emp}'}g$ for these three quantities.}
 \[
-\mathbb{P}_{\mathbf{Z} \sim D^m} \left[ \sup_{g \in \mathcal{G}} 
-(P^{\text{true}}g - P^{\text{emp}}g) \geq t \right].
+  Pg = \E[g(Z)] = \Risk(f), \qquad
+  P_n g = \frac1n\sum_{i=1}^n g(Z_i) = \ERisk(f), \qquad
+  P'_n g = \frac1n\sum_{i=1}^n g(Z'_i),
+\]
+where the ghost sample $Z'_1, \dots, Z'_n$ is i.i.d.\ with the same distribution
+as the $Z_i$, and independent of them. For a fixed $g$,
+$\E[P'_n g] = \E[P_n g] = Pg$. We assume the suprema below are measurable
+(true, for instance, when $\mathcal G$ is countable or can be approximated by a
+countable subclass).
+
+\section{Why the obvious argument fails}\label{symmetrization-lemma:sec:naive}
+
+The tempting route is the triangle inequality. For every $g$,
+\[
+  \abs{P_n g - Pg} \leq \abs{P_n g - P'_n g} + \abs{P'_n g - Pg},
+\]
+so with the events
+\[
+  A = \Bigl\{\sup_g \abs{P_n g - Pg} > \epsilon\Bigr\},\quad
+  B = \Bigl\{\sup_g \abs{P_n g - P'_n g} > \tfrac{\epsilon}{2}\Bigr\},\quad
+  C = \Bigl\{\sup_g \abs{P'_n g - Pg} > \tfrac{\epsilon}{2}\Bigr\},
+\]
+we have $A \subseteq B \cup C$: if neither $B$ nor $C$ occurs, every
+$\abs{P_ng - Pg}$ is at most $\frac\epsilon2 + \frac\epsilon2$. The union bound
+gives $\Prob(A) \leq \Prob(B) + \Prob(C)$.
+
+\begin{pitfall}[This inequality is true but useless]
+The ghost sample has the same distribution as the sample, so
+$\Prob(C) = \Prob\bigl(\sup_g\abs{P_n g - Pg} > \frac\epsilon2\bigr)$, which is
+\emph{at least} $\Prob(A)$ because its threshold is smaller. The bound
+$\Prob(A) \leq \Prob(B) + \Prob(C)$ is therefore weaker than the trivial
+$\Prob(A)\leq\Prob(C)$, and one cannot deduce $\Prob(A) \leq 2\Prob(B)$ from it.
+The union bound treats the two deviations as if they were unrelated. The real
+proof uses the \emph{independence} of the ghost sample: once the first sample
+is fixed, the ghost sample is close to the truth with high probability.
+\end{pitfall}
+
+\section{The symmetrization lemma}\label{symmetrization-lemma:sec:lemma}
+
+\begin{lemma}[Symmetrization]\label{symmetrization-lemma:lem:main}
+Let the functions of $\mathcal G$ take values in $[0,1]$. For every $t > 0$
+with $nt^2 \geq 2$,
+\[
+  \Prob\Bigl[\sup_{g\in\mathcal G}\,(Pg - P_n g) \geq t\Bigr]
+  \;\leq\; 2\,\Prob\Bigl[\sup_{g\in\mathcal G}\,(P'_n g - P_n g) \geq \tfrac t2\Bigr].
+\]
+The left-hand probability is over the sample; the right-hand one over the
+sample and the ghost sample.
+\end{lemma}
+
+\begin{intuition}[Bad for one sample, good for the other]
+Suppose the sample is ``bad'': some $g$ has an empirical risk at least $t$ below
+its true risk. That $g$ was selected using the sample only, so it is a fixed
+function from the point of view of the ghost sample, and for a fixed function
+the ghost empirical risk is close to the true risk with probability at least
+$\frac12$. Whenever that happens, the two samples disagree about $g$ by at
+least $\frac t2$. So a bad sample leads, at least half of the time, to a visible
+disagreement between two samples --- an event that involves no unknown
+quantity. The factor $2$ in the lemma is $1/\frac12$.
+\end{intuition}
+
+\begin{proof}
+Let $A = \{\sup_g (Pg - P_n g) \geq t\}$ be the event on the left.
+
+\emph{Step 1: a near-maximizer.} The supremum need not be attained. Fix
+$\epsilon\in(0,t)$. For each sample, choose $g_\epsilon \in \mathcal G$ with
+\[
+  Pg_\epsilon - P_n g_\epsilon \geq \sup_{g\in\mathcal G}(Pg - P_ng) - \epsilon .
+\]
+The function $g_\epsilon$ depends on $Z_1,\dots,Z_n$ but not on the ghost
+sample. Let $A_\epsilon = \{Pg_\epsilon - P_n g_\epsilon \geq t-\epsilon\}$. If
+$A$ occurs, the supremum is at least $t$, so $g_\epsilon$ achieves at least
+$t - \epsilon$: $A\subseteq A_\epsilon$ and
+\begin{equation}\label{symmetrization-lemma:eq:step1}
+  \Prob(A) \leq \Prob(A_\epsilon).
+\end{equation}
+
+\emph{Step 2: a deterministic inclusion.} Let $s = \frac{t-\epsilon}{2}$. If
+$A_\epsilon$ occurs and the ghost sample is good for $g_\epsilon$, in the sense
+that $Pg_\epsilon - P'_n g_\epsilon < s$, then
+\[
+  P'_n g_\epsilon - P_n g_\epsilon
+  = \underbrace{(Pg_\epsilon - P_n g_\epsilon)}_{\geq\, 2s}
+  - \underbrace{(Pg_\epsilon - P'_n g_\epsilon)}_{<\, s} > s .
+\]
+In terms of indicators, for every pair of samples,
+\begin{equation}\label{symmetrization-lemma:eq:indicators}
+  \bbone_{A_\epsilon}\;\bbone\bigl[Pg_\epsilon - P'_n g_\epsilon < s\bigr]
+  \;\leq\; \bbone\bigl[P'_n g_\epsilon - P_n g_\epsilon \geq s\bigr].
+\end{equation}
+
+\emph{Step 3: average over the ghost sample.} Condition on $Z_1,\dots,Z_n$.
+Then $\bbone_{A_\epsilon}$ is a constant, $g_\epsilon$ is a fixed function,
+and the ghost sample is still an i.i.d.\ sample independent of everything
+else. Taking the conditional expectation of \eqref{symmetrization-lemma:eq:indicators}
+(the expectation of an indicator is a probability),
+\begin{equation}\label{symmetrization-lemma:eq:conditional}
+  \bbone_{A_\epsilon}\;\Prob'\bigl[Pg_\epsilon - P'_n g_\epsilon < s\bigr]
+  \leq \Prob'\bigl[P'_n g_\epsilon - P_n g_\epsilon \geq s\bigr],
+\end{equation}
+where $\Prob'$ is the probability over the ghost sample with the first sample
+fixed. Since $g_\epsilon$ is fixed and $g_\epsilon(Z'_i)\in[0,1]$, the
+one-sided Hoeffding inequality bounds the lower tail of the ghost empirical
+mean:
+\[
+  \Prob'\bigl[Pg_\epsilon - P'_n g_\epsilon \geq s\bigr] \leq e^{-2ns^2}
+  = e^{-n(t-\epsilon)^2/2},
+  \quad\text{so}\quad
+  \Prob'\bigl[Pg_\epsilon - P'_n g_\epsilon < s\bigr] \geq 1 - e^{-n(t-\epsilon)^2/2}.
+\]
+Plugging this into \eqref{symmetrization-lemma:eq:conditional} gives, for
+every first sample,
+\[
+  \bbone_{A_\epsilon}\Bigl(1 - e^{-n(t-\epsilon)^2/2}\Bigr)
+  \leq \Prob'\bigl[P'_n g_\epsilon - P_n g_\epsilon \geq s\bigr].
 \]
 
-Assume that the functions of \( \mathcal{G} \) take values in \( [0,1] \) (e.g.\ the 0--1 loss of a classifier) and let \( 0 < \epsilon < t \). Since the supremum may not be achieved by any function \( g \in \mathcal{G} \), 
-we use an \textbf{approximation argument}. For any \( \epsilon > 0 \), 
-there exists a function \( g_\epsilon \in \mathcal{G} \) such that:
+\emph{Step 4: average over the first sample.} Taking the expectation over
+$Z_1,\dots,Z_n$, the left side becomes
+$\Prob(A_\epsilon)(1 - e^{-n(t-\epsilon)^2/2})$ and the right side the
+probability, over both samples, that $P'_ng_\epsilon - P_ng_\epsilon\geq s$.
+Since $g_\epsilon\in\mathcal G$, that event is contained in
+$\{\sup_g (P'_n g - P_n g) \geq s\}$. Combined with
+\eqref{symmetrization-lemma:eq:step1},
+\begin{equation}\label{symmetrization-lemma:eq:step4}
+  \Prob(A)\Bigl(1 - e^{-n(t-\epsilon)^2/2}\Bigr)
+  \leq \Prob\Bigl[\sup_g (P'_n g - P_n g) \geq \tfrac{t-\epsilon}{2}\Bigr]
+  \qquad\text{for every } \epsilon\in(0,t).
+\end{equation}
+
+\emph{Step 5: let $\epsilon\downarrow 0$.} On the left,
+$1 - e^{-n(t-\epsilon)^2/2} \to 1 - e^{-nt^2/2}$, and $nt^2\geq2$ gives
+$e^{-nt^2/2}\leq e^{-1} < \frac12$. On the right, the events
+$\{\sup_g(P'_ng - P_ng) \geq \frac{t-\epsilon}{2}\}$ shrink as $\epsilon$
+decreases and their intersection is $\{\sup_g(P'_ng - P_ng) \geq \frac t2\}$;
+by continuity of probability from above, their probabilities converge to the
+probability of that event. Passing to the limit in
+\eqref{symmetrization-lemma:eq:step4},
 \[
-P^{\text{true}}g_\epsilon - P^{\text{emp}}g_\epsilon \geq 
-\sup_{g \in \mathcal{G}} (P^{\text{true}}g - P^{\text{emp}}g) - \epsilon.
+  \tfrac12\,\Prob(A) \leq \Bigl(1 - e^{-nt^2/2}\Bigr)\Prob(A)
+  \leq \Prob\Bigl[\sup_g (P'_n g - P_n g) \geq \tfrac t2\Bigr]. \qedhere
 \]
+\end{proof}
 
-This means \( g_\epsilon \) comes arbitrarily close to achieving 
-the supremum.
+\begin{pitfall}[No limit of the events $A_\epsilon$ is needed]
+The near-maximizer $g_\epsilon$ changes with $\epsilon$, so the events
+$A_\epsilon$ need not be monotone nor converge to anything, and one should not
+try to prove $\Prob(A_\epsilon)\to\Prob(A)$. The proof never needs it: the
+inclusion $A\subseteq A_\epsilon$ is enough, and the only limit concerns the
+right-hand side, where the events \emph{are} monotone.
+\Cref{ch:convergence-of-events} discusses limits of events in detail.
+\end{pitfall}
 
-\subsection{Step 2: Define the Bad Event}
-
-Define the "bad event" for the function \( g_\epsilon \):
+\begin{remark}[Where $nt^2\geq2$ comes from]
+The classical proof uses Chebyshev's inequality instead of Hoeffding's (and
+assumes for simplicity that the supremum is attained, so that $\epsilon=0$).
+A variable with values in $[0,1]$ has variance at most $\frac14$, so
+$\Var'(P'_n g) \leq \frac1{4n}$ and
 \[
-A_\epsilon = \left\{ \mathbf{Z} \sim D^m : P^{\text{true}}g_\epsilon 
-- P^{\text{emp}}g_\epsilon \geq t - \epsilon \right\}.
+  \Prob'\bigl[Pg - P'_ng \geq \tfrac t2\bigr] \leq \frac{\Var'(P'_n g)}{(t/2)^2} \leq \frac{1}{nt^2}.
 \]
-
-By the approximation argument, if \( \sup_{g \in \mathcal{G}} 
-(P^{\text{true}}g - P^{\text{emp}}g) \geq t \), then 
-\( P^{\text{true}}g_\epsilon - P^{\text{emp}}g_\epsilon \geq t - \epsilon \). 
-Thus:
-\[
-\mathbb{P}_{\mathbf{Z} \sim D^m} \left[ \sup_{g \in \mathcal{G}} 
-(P^{\text{true}}g - P^{\text{emp}}g) \geq t \right] \leq 
-\mathbb{P}_{\mathbf{Z} \sim D^m} [A_\epsilon].
-\]
-
-\subsection{Step 3: Introduce the Ghost Sample}
-
-To bound \( \mathbb{P}_{\mathbf{Z} \sim D^m} [A_\epsilon] \), we introduce 
-a \textbf{ghost sample} \( \mathbf{Z}^{\prime} = (Z_1^{\prime}, \dots, 
-Z_m^{\prime}) \), drawn independently from \( D^m \). Define the empirical 
-risk on the ghost sample:
-\[
-P^{\text{emp}^{\prime}}g_\epsilon = \frac{1}{m} \sum_{i=1}^m g_\epsilon(Z_i^{\prime}).
-\]
-
-\subsection{Relationship Between \( P^{\text{true}}g_\epsilon \) and \( \mathbb{E}[P^{\text{emp}^{\prime}}g_\epsilon] \)}
-
-The true risk \( P^{\text{true}}g_\epsilon \) is equal to the expected value 
-of the empirical risk on the ghost sample \( P^{\text{emp}^{\prime}}g_\epsilon \):
-\[
-P^{\text{true}}g_\epsilon = \mathbb{E}[P^{\text{emp}^{\prime}}g_\epsilon].
-\]
-
-This follows from the fact that \( \mathbf{Z}^{\prime} = (Z_1^{\prime}, \dots, Z_m^{\prime}) \) 
-is an i.i.d. sample from \( D \), and by linearity of expectation:
-\[
-\mathbb{E}[P^{\text{emp}^{\prime}}g_\epsilon] = \mathbb{E}\left[ \frac{1}{m} \sum_{i=1}^m g_\epsilon(Z_i^{\prime}) \right] 
-= \frac{1}{m} \sum_{i=1}^m \mathbb{E}[g_\epsilon(Z_i^{\prime})] = \mathbb{E}[g_\epsilon(Z)] = P^{\text{true}}g_\epsilon.
-\]
-
-This equality is crucial because it ensures that the deviation 
-\( P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon \) has mean zero, 
-which is a key property used in applying Hoeffding's inequality.
-
-\subsection{Step 4: Relate \( A_\epsilon \) and \( B_\epsilon \)}
-
-We use the following key inequality:
-\[
-\mathbf{1}_{A_\epsilon} \cdot \mathbf{1}_{(P^{\text{true}}g_\epsilon 
-- P^{\text{emp}^{\prime}}g_\epsilon < \frac{t - \epsilon}{2})} \leq 
-\mathbf{1}_{(P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{emp}}g_\epsilon 
-\geq \frac{t - \epsilon}{2})}.
-\]
-
-\begin{itemize}
-    \item If \( \mathbf{Z} \in A_\epsilon \), then 
-    \( P^{\text{true}}g_\epsilon - P^{\text{emp}}g_\epsilon \geq t - \epsilon \).
-    \item If \( P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon 
-    < \frac{t - \epsilon}{2} \), then:
-    \[
-    P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{emp}}g_\epsilon = 
-    (P^{\text{true}}g_\epsilon - P^{\text{emp}}g_\epsilon) - 
-    (P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon) 
-    \geq (t - \epsilon) - \frac{t - \epsilon}{2} = \frac{t - \epsilon}{2}.
-    \]
-    \item Thus, \( \mathbf{1}_{A_\epsilon} \cdot \mathbf{1}_{(P^{\text{true}}g_\epsilon 
-    - P^{\text{emp}^{\prime}}g_\epsilon < \frac{t - \epsilon}{2})} \leq 
-    \mathbf{1}_{(P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{emp}}g_\epsilon 
-    \geq \frac{t - \epsilon}{2})} \).
-\end{itemize}
-
-Here the sample \( \mathbf{Z} \) is held fixed. The function \( g_\epsilon \) depends on \( \mathbf{Z} \) but not on \( \mathbf{Z}^{\prime} \), which is independent of \( \mathbf{Z} \): conditionally on \( \mathbf{Z} \), \( g_\epsilon \) is a fixed function and \( \mathbf{Z}^{\prime} \) is still an i.i.d.\ sample from \( D \). Taking expectations over \( \mathbf{Z}^{\prime} \) (conditionally on \( \mathbf{Z} \)), we get:
-\[
-\mathbf{1}_{A_\epsilon} \cdot \mathbb{E}_{\mathbf{Z}^{\prime} \sim D^m} 
-\left[ \mathbf{1}_{(P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon 
-< \frac{t - \epsilon}{2})} \right] \leq 
-\mathbb{E}_{\mathbf{Z}^{\prime} \sim D^m} \left[ \mathbf{1}_{(P^{\text{emp}^{\prime}}g_\epsilon 
-- P^{\text{emp}}g_\epsilon \geq \frac{t - \epsilon}{2})} \right].
-\]
-
-Since the expectation of an indicator function is equal to the probability 
-of the event it represents, we have:
-\[
-\mathbf{1}_{A_\epsilon} \cdot \mathbb{P}_{\mathbf{Z}^{\prime} \sim D^m} 
-\left[ P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon 
-< \frac{t - \epsilon}{2} \right] \leq 
-\mathbb{P}_{\mathbf{Z}^{\prime} \sim D^m} \left[ P^{\text{emp}^{\prime}}g_\epsilon 
-- P^{\text{emp}}g_\epsilon \geq \frac{t - \epsilon}{2} \right].
-\]
-
-\subsection{Step 5: Apply Hoeffding's Inequality}
-
-In this step, we apply the \textbf{one-sided Hoeffding's inequality} to 
-bound the probability:
-\[
-\mathbb{P}_{\mathbf{Z}^{\prime} \sim D^m} \left[ P^{\text{true}}g_\epsilon 
-- P^{\text{emp}^{\prime}}g_\epsilon \geq \frac{t - \epsilon}{2} \right].
-\]
-
-\subsubsection{Applying the One-Sided Hoeffding’s Inequality}
-
-The \textbf{one-sided Hoeffding’s inequality} bounds the probability that the empirical 
-mean \( \bar{X} \) deviates \textbf{below} the true mean \( \mathbb{E}[\bar{X}] \) by more 
-than \( \delta \). Specifically, for bounded random variables \( X_i \in [a, b] \), 
-it states:
-\[
-\mathbb{P}\left( \bar{X} - \mathbb{E}[\bar{X}] \leq -\delta \right) \leq 
-\exp\left(-\frac{2m\delta^2}{(b - a)^2}\right).
-\]
-
-In our case:
-\begin{itemize}
-    \item The empirical mean is \( P^{\text{emp}^{\prime}}g_\epsilon = 
-    \frac{1}{m} \sum_{i=1}^m g_\epsilon(Z_i^{\prime}) \).
-    \item The true mean is \( P^{\text{true}}g_\epsilon = \mathbb{E}[g_\epsilon(Z)] \).
-    \item The deviation is \( \delta = \frac{t - \epsilon}{2} \).
-\end{itemize}
-
-Since \( g_\epsilon \) is bounded (e.g., \( g_\epsilon \in [0, 1] \)), 
-we have \( b - a = 1 \), and (applied conditionally on \( \mathbf{Z} \), as explained above) the inequality simplifies to:
-\[
-\mathbb{P}\left( P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{true}}g_\epsilon 
-\leq -\frac{t - \epsilon}{2} \right) \leq 
-\exp\left(-\frac{m(t - \epsilon)^2}{2}\right).
-\]
-
-\subsubsection{Connecting to the Original Event}
-
-The event we are interested in:
-\[
-P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon \geq \frac{t - \epsilon}{2},
-\]
-is equivalent to:
-\[
-P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{true}}g_\epsilon \leq -\frac{t - \epsilon}{2}.
-\]
-
-Thus, the one-sided Hoeffding’s inequality directly applies to this event, 
-and we obtain:
-\[
-\mathbb{P}_{\mathbf{Z}^{\prime} \sim D^m} \left[ P^{\text{true}}g_\epsilon 
-- P^{\text{emp}^{\prime}}g_\epsilon \geq \frac{t - \epsilon}{2} \right] 
-\leq \exp\left(-\frac{m(t - \epsilon)^2}{2}\right).
-\]
-
-\subsubsection{Why We Use the One-Sided Inequality}
-
-We are interested in bounding the probability that the true risk exceeds 
-the empirical risk on the ghost sample by at least \( \frac{t - \epsilon}{2} \). 
-This corresponds to the \textbf{lower tail} of the deviation \( P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{true}}g_\epsilon \). 
-The one-sided Hoeffding’s inequality is used because it provides a tight bound 
-for this specific tail, avoiding the unnecessary factor of 2 that would appear 
-in the two-sided version.
-
-\subsubsection{Complement Probability}
-
-The complement of this event is:
-\[
-\mathbb{P}_{\mathbf{Z}^{\prime} \sim D^m} \left[ P^{\text{true}}g_\epsilon 
-- P^{\text{emp}^{\prime}}g_\epsilon < \frac{t - \epsilon}{2} \right] 
-\geq 1 - \exp\left(-\frac{m(t - \epsilon)^2}{2}\right).
-\]
-
-This complement probability is used in the subsequent steps to relate 
-the probabilities of the events \( A_\epsilon \) and \( B_\epsilon \).
-
-\subsection{Step 6: Integrate over \( \mathbf{Z} \)}
-
-Combining Step 4 with the complement probability of Step 5 we have, for every sample
-\( \mathbf{Z} \),
-\[
-\mathbf{1}_{A_\epsilon}(\mathbf{Z}) \left(1 - \exp\left(-\frac{m(t - \epsilon)^2}{2}\right)\right)
-\leq
-\mathbb{P}_{\mathbf{Z}^{\prime} \sim D^m} \left[ P^{\text{emp}^{\prime}}g_\epsilon
-- P^{\text{emp}}g_\epsilon \geq \frac{t - \epsilon}{2} \;\middle|\; \mathbf{Z} \right].
-\]
-Taking the expectation over \( \mathbf{Z} \) and introducing the event
-\[
-B_\epsilon = \left\{ (\mathbf{Z}, \mathbf{Z}^{\prime}) :
-P^{\text{emp}^{\prime}}g_\epsilon - P^{\text{emp}}g_\epsilon \geq \frac{t - \epsilon}{2} \right\}
-\subseteq
-\left\{ (\mathbf{Z}, \mathbf{Z}^{\prime}) :
-\sup_{g \in \mathcal{G}} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t - \epsilon}{2} \right\},
-\]
-we get
-\[
-\mathbb{P}[A_\epsilon] \left(1 - \exp\left(-\frac{m(t - \epsilon)^2}{2}\right)\right)
-\leq \mathbb{P}[B_\epsilon]
-\leq \mathbb{P}\left[ \sup_{g \in \mathcal{G}} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t - \epsilon}{2} \right].
-\]
-Together with Step 2 (\( \mathbb{P}[A] \leq \mathbb{P}[A_\epsilon] \), where \( A \) is the event
-\( \sup_{g} (P^{\text{true}}g - P^{\text{emp}}g) \geq t \)), this gives for every \( \epsilon \in (0, t) \):
-\[
-\mathbb{P}[A] \left(1 - \exp\left(-\frac{m(t - \epsilon)^2}{2}\right)\right)
-\leq \mathbb{P}\left[ \sup_{g \in \mathcal{G}} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t - \epsilon}{2} \right].
-\]
-Note that no limit of the events \( A_\epsilon \) is needed: the inclusion
-\( A \subseteq A_\epsilon \) is enough.
-
-\subsection{Step 7: Let \( \epsilon \to 0 \)}
-
-\begin{itemize}
-    \item \textbf{Left-hand side.} As \( \epsilon \to 0 \),
-    \( 1 - \exp\left(-\frac{m(t - \epsilon)^2}{2}\right) \to 1 - \exp\left(-\frac{mt^2}{2}\right) \).
-    When \( mt^2 \geq 2 \),
-    \[
-    \exp\left(-\frac{mt^2}{2}\right) \leq e^{-1} \approx 0.368 < \frac{1}{2},
-    \qquad\text{so}\qquad 1 - \exp\left(-\frac{mt^2}{2}\right) \geq \frac{1}{2}.
-    \]
-    \item \textbf{Right-hand side.} The events
-    \( \{ \sup_{g} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t - \epsilon}{2} \} \)
-    decrease as \( \epsilon \downarrow 0 \) and their intersection is
-    \( \{ \sup_{g} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t}{2} \} \).
-    By continuity of probability from above, their probabilities converge to
-    \( \mathbb{P}\left[ \sup_{g} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t}{2} \right] \).
-\end{itemize}
-Letting \( \epsilon \to 0 \) in the inequality of Step 6 therefore gives
-\[
-\frac{1}{2}\, \mathbb{P}[A] \leq \left(1 - e^{-mt^2/2}\right) \mathbb{P}[A]
-\leq \mathbb{P}\left[ \sup_{g \in \mathcal{G}} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g) \geq \frac{t}{2} \right].
-\]
-
-\subsection{Final Result}
-
-We conclude that, for \( mt^2 \geq 2 \):
-\[
-\mathbb{P}_{\mathbf{Z} \sim D^m} \left[ \sup_{g \in \mathcal{G}}
-(P^{\text{true}}g - P^{\text{emp}}g) \geq t \right] \leq
-2 \mathbb{P}_{\mathbf{Z}, \mathbf{Z}^{\prime} \sim D^m \times D^m}
-\left[ \sup_{g \in \mathcal{G}} (P^{\text{emp}^{\prime}}g - P^{\text{emp}}g)
-\geq \frac{t}{2} \right].
-\]
-
-This completes the proof of the symmetrization lemma \textbf{without assuming
-that the supremum is attained} by some function of \( \mathcal{G} \).
-
-\begin{remark}
-The classical proof replaces Hoeffding's inequality by Chebyshev's inequality:
-since \( g_\epsilon \in [0,1] \), \( \operatorname{Var}(P^{\text{emp}^{\prime}}g_\epsilon) \leq \frac{1}{4m} \), so
-\( \mathbb{P}\big[P^{\text{true}}g_\epsilon - P^{\text{emp}^{\prime}}g_\epsilon \geq \frac{t}{2}\big] \leq \frac{4}{4m t^2} = \frac{1}{mt^2} \leq \frac{1}{2} \)
-as soon as \( mt^2 \geq 2 \). This is where the condition \( mt^2 \geq 2 \) comes from; Hoeffding's
-inequality gives the same conclusion. We also implicitly assume that the suprema are measurable
-(e.g.\ \( \mathcal{G} \) countable or suitably separable).
+This is at most $\frac12$ exactly when $nt^2\geq2$; Hoeffding's inequality gives
+the same conclusion under the same condition. Without some such condition the
+lemma is false: for very small $n$ the ghost sample is not reliably good.
 \end{remark}
+
+\subsection{The two-sided version}
+
+The same argument, with absolute values throughout, gives the version used for
+generalization bounds.
+
+\begin{corollary}[Two-sided symmetrization]\label{symmetrization-lemma:cor:two-sided}
+Under the same assumptions, for every $\epsilon>0$ with $n\epsilon^2\geq2$,
+\[
+  \Prob\Bigl[\sup_{g}\abs{P_n g - Pg} > \epsilon\Bigr]
+  \leq 2\,\Prob\Bigl[\sup_{g}\abs{P_n g - P'_n g} > \tfrac\epsilon2\Bigr].
+\]
+\end{corollary}
+
+\begin{proof}[Proof sketch]
+Repeat the proof with $\abs{Pg - P_n g}$ in place of $Pg - P_ng$ and the strict
+thresholds of the statement. In Step~3 one now needs
+$\Prob'(\abs{P'_n g - Pg} \geq \frac\epsilon2) \leq \frac12$ for a fixed $g$:
+the two-sided Chebyshev bound of the remark gives exactly $\frac1{n\epsilon^2}\leq\frac12$.
+(The two-sided Hoeffding bound $2e^{-n\epsilon^2/2}$ would require the
+stronger condition $n\epsilon^2\geq 2\log 4$.)
+\end{proof}
+
+\section{Random signs}\label{symmetrization-lemma:sec:rademacher}
+
+After symmetrization, the quantity to control is
+$\sup_g \abs{\frac1n\sum_i (g(Z_i) - g(Z'_i))}$. A second trick makes it
+tractable.
+
+Let $\sigma_1,\dots,\sigma_n$ be independent \emph{Rademacher} variables,
+equal to $+1$ or $-1$ with probability $\frac12$ each, independent of the
+data. Exchanging $Z_i$ and $Z'_i$ does not change the joint distribution of the
+two samples, because the pairs are i.i.d.\ and the two samples play symmetric
+roles. The exchange flips the sign of $g(Z_i) - g(Z'_i)$ \emph{simultaneously
+for all} $g$. Exchanging each pair independently with probability $\frac12$
+therefore shows that the two random processes
+\[
+  \Bigl(\frac1n\sum_{i=1}^n \bigl(g(Z_i) - g(Z'_i)\bigr)\Bigr)_{g\in\mathcal G}
+  \quad\text{and}\quad
+  \Bigl(\frac1n\sum_{i=1}^n \sigma_i\bigl(g(Z_i) - g(Z'_i)\bigr)\Bigr)_{g\in\mathcal G}
+\]
+have the same distribution, hence so do their suprema.
+
+\begin{pitfall}[An identity, not an inequality]
+Inserting the signs is an exact identity in distribution. It is not a
+``cancellation of bias'': the differences $g(Z_i) - g(Z'_i)$ already have mean
+zero. The benefit is elsewhere: conditionally on the $2n$ data points, the only
+randomness left is in the signs, which are independent and bounded, so
+Hoeffding's inequality applies to $\sum_i\sigma_i a_i$ for any fixed numbers
+$a_i$.
+\end{pitfall}
+
+\section{Counting patterns: shattering and VC dimension}\label{symmetrization-lemma:sec:vc}
+
+Let $\Hs$ be a class of binary classifiers $f:\Xs\to\{0,1\}$.
+
+\begin{definition}[Shattering coefficient and VC dimension]
+The \emph{shattering coefficient} (or growth function) of $\Hs$ is the largest
+number of distinct labellings that $\Hs$ produces on $n$ points:
+\[
+  S(\Hs, n) = \max_{x_1,\dots,x_n\in\Xs}\;\Bigl|\bigl\{(f(x_1),\dots,f(x_n)) : f\in\Hs\bigr\}\Bigr| \;\leq\; 2^n .
+\]
+A set of $n$ points is \emph{shattered} if $\Hs$ realizes all $2^n$ labellings
+on it. The \emph{VC dimension} $d_{\mathrm{VC}}(\Hs)$ is the largest $n$ such
+that some set of $n$ points is shattered, i.e.\ such that $S(\Hs,n) = 2^n$
+(it is $\infty$ if there is no largest such $n$).
+\end{definition}
+
+To show $d_{\mathrm{VC}} = d$ one must exhibit \emph{one} set of $d$ points that
+is shattered, and show that \emph{no} set of $d+1$ points is.
+
+\begin{example}[Thresholds on the line]
+$\Hs = \{x\mapsto\bbone[x\geq\theta] : \theta\in\R\}$. On sorted points
+$x_1<\dots<x_n$ a threshold labels a prefix $0$ and the rest $1$, so the
+possible labellings are determined by the position of $\theta$ among the
+points: $S(\Hs,n) = n+1$. One point is shattered, but on two points
+$x_1 < x_2$ the labelling $(1,0)$ is impossible: $d_{\mathrm{VC}} = 1$.
+\end{example}
+
+\begin{example}[Intervals]
+$\Hs = \{x\mapsto\bbone[a\leq x\leq b]\}$. A labelling is realizable iff its
+$1$s are consecutive. Counting the empty labelling and the choices of a first
+and last $1$, $S(\Hs,n) = 1 + n + \binom n2$. Two points are shattered; on three
+points the pattern $(1,0,1)$ is impossible: $d_{\mathrm{VC}} = 2$.
+\end{example}
+
+\begin{example}[Half-planes]\label{symmetrization-lemma:ex:halfplanes}
+$\Hs = \{x\mapsto\bbone[w^\top x + b\geq0] : w\in\R^2, b\in\R\}$. Three points
+not on a line can be shattered: any subset of them can be cut off from the
+others by a line. Four points cannot. If one of them lies inside the triangle
+formed by the other three, the labelling ``1 on the triangle, 0 inside'' is
+impossible, because a half-plane is convex. Otherwise the four points form a
+convex quadrilateral, and labelling the two diagonals differently (the ``XOR''
+pattern of \cref{symmetrization-lemma:fig:xor}) is impossible: the two
+segments joining same-label points cross, and their intersection point would
+have to receive both labels. (If three of the points are on a line, the
+middle one cannot be labelled differently from the two others.) Hence
+$d_{\mathrm{VC}} = 3$. More generally, affine
+classifiers on $\R^d$ have VC dimension $d+1$.
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=1.1]
+  \draw[gray!60] (0,0) -- (2,2) (0,2) -- (2,0);
+  \foreach \p in {(0,0),(2,2)} \fill[bookaccent] \p circle (3.5pt);
+  \foreach \p in {(0,2),(2,0)} \draw[thick, bookpitfall, fill=white] \p circle (3.5pt);
+  \node[right, font=\small, align=left] at (2.6,1) {filled: label 1\\ open: label 0};
+\end{tikzpicture}
+\caption{The XOR labelling of four points in convex position cannot be produced
+by a half-plane.}
+\label{symmetrization-lemma:fig:xor}
+\end{figure}
+
+The decisive fact is that the growth function is either \emph{exponential}
+forever or eventually \emph{polynomial}.
+
+\begin{lemma}[Sauer--Shelah]\label{symmetrization-lemma:lem:sauer}
+If $d_{\mathrm{VC}}(\Hs) = d < \infty$, then for all $n$,
+\[
+  S(\Hs, n) \leq \sum_{k=0}^d\binom nk, \qquad\text{and}\qquad S(\Hs,n)\leq\Bigl(\frac{en}{d}\Bigr)^d \text{ for } n\geq d .
+\]
+\end{lemma}
+
+The intervals example attains the first bound with equality. (A proof by
+induction on $n$ can be found in any learning theory textbook, e.g.\
+Shalev-Shwartz and Ben-David, \emph{Understanding Machine Learning}, Lemma~6.10.)
+
+\section{The VC generalization bound}\label{symmetrization-lemma:sec:bound}
+
+We can now assemble the pieces.
+
+\begin{theorem}[Vapnik--Chervonenkis]\label{symmetrization-lemma:thm:vc}
+Let $\Hs$ be a class of binary classifiers, with the 0--1 loss. For every
+$\epsilon>0$ with $n\epsilon^2\geq2$,
+\[
+  \Prob\Bigl(\sup_{f\in\Hs}\abs{\ERisk(f) - \Risk(f)} > \epsilon\Bigr)
+  \leq 4\,S(\Hs,2n)\,e^{-n\epsilon^2/8}.
+\]
+\end{theorem}
+
+\begin{proof}
+\emph{Symmetrize.} By \cref{symmetrization-lemma:cor:two-sided}, the
+probability is at most
+$2\,\Prob\bigl(\sup_g\abs{\frac1n\sum_i(g(Z_i) - g(Z'_i))} > \frac\epsilon2\bigr)$.
+
+\emph{Insert random signs.} By \cref{symmetrization-lemma:sec:rademacher}
+this equals
+$2\,\Prob\bigl(\sup_g\abs{\frac1n\sum_i\sigma_i(g(Z_i) - g(Z'_i))} > \frac\epsilon2\bigr)$.
+
+\emph{Condition on the data and count.} Fix the $2n$ points
+$Z_1,\dots,Z_n,Z'_1,\dots,Z'_n$. The 0--1 loss $g_f(z) = \bbone[f(x)\neq y]$ on
+these points is determined by the labelling that $f$ gives to the $2n$ inputs,
+so as $f$ ranges over $\Hs$, the vector
+$a = \bigl(g(Z_i) - g(Z'_i)\bigr)_{i\leq n}$ takes at most $S(\Hs,2n)$ distinct
+values. For one fixed vector $a\in[-1,1]^n$, the terms $\sigma_ia_i$ are
+independent, have mean zero and lie in $[-1,1]$, so Hoeffding's inequality
+(range $b - a = 2$) gives
+\[
+  \Prob_\sigma\Bigl(\Bigl|\frac1n\sum_i\sigma_ia_i\Bigr| > \frac\epsilon2\Bigr)
+  \leq 2\exp\Bigl(-\frac{2n(\epsilon/2)^2}{4}\Bigr) = 2e^{-n\epsilon^2/8}.
+\]
+A union bound over the at most $S(\Hs,2n)$ vectors bounds the conditional
+probability of the supremum by $2S(\Hs,2n)e^{-n\epsilon^2/8}$. This bound does
+not depend on the data, so it also bounds the unconditional probability.
+Multiplying by the factor 2 of the first step gives the result.
+\end{proof}
+
+Inverting the bound and using Sauer's lemma gives the familiar form.
+
+\begin{corollary}[Generalization bound]\label{symmetrization-lemma:cor:bound}
+Let $d = d_{\mathrm{VC}}(\Hs)<\infty$ and $\delta\in(0,1)$. With probability at
+least $1-\delta$, simultaneously for all $f\in\Hs$,
+\[
+  \Risk(f) \leq \ERisk(f) + \sqrt{\frac8n\Bigl(d\log\frac{2en}{d} + \log\frac4\delta\Bigr)},
+\]
+and the ERM solution satisfies $\Risk(\hat f_n) - \Risk(f_\Hs) \leq 2\epsilon_n$, where
+$\epsilon_n$ is the square root above.
+\end{corollary}
+
+\begin{proof}
+Set $4S(\Hs,2n)e^{-n\epsilon^2/8} = \delta$ and solve:
+$\epsilon^2 = \frac8n(\log S(\Hs,2n) + \log\frac4\delta)$. Sauer's lemma gives
+$\log S(\Hs,2n) \leq d\log(2en/d)$ (for $2n \geq d$). The condition
+$n\epsilon^2\geq 2$ holds automatically, since $n\epsilon^2\geq 8\log 4 > 2$.
+The ERM statement follows from \cref{erm:thm:uniform}.
+\end{proof}
+
+\begin{example}[The bound in numbers]
+For half-planes in the plane ($d = 3$) and $\delta = 0.05$, the deviation
+$\epsilon_n$ is about $0.46$ for $n = 1000$, $0.16$ for $n = 10\,000$ and
+$0.057$ for $n = 100\,000$. The constants are pessimistic --- in practice the
+gap between training and test error of a linear classifier is far smaller ---
+but the \emph{rate} is the message: the deviation decreases like
+$\sqrt{d\log n/n}$, and the class enters only through its VC dimension, not
+through its (infinite) cardinality.
+\end{example}
+
+\begin{keyidea}[Learnability]
+If $\Hs$ has finite VC dimension, ERM over $\Hs$ is consistent for
+\emph{every} distribution $P$, with an explicit rate. Conversely (the
+``fundamental theorem of statistical learning''), a class of infinite VC
+dimension cannot be learned with guarantees that hold uniformly over all
+distributions. The VC dimension is thus the right measure of the size of a
+class of classifiers.
+\end{keyidea}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item A naive triangle-inequality and union-bound argument cannot relate
+        the deviation from the true risk to the deviation between two samples.
+  \item The symmetrization lemma does: a sample on which some hypothesis
+        looks too good leads, with probability at least $\frac12$, to a
+        disagreement of size $\frac t2$ with an independent ghost sample. The
+        condition $nt^2\geq2$ guarantees that probability.
+  \item Random signs can be inserted at no cost (identity in distribution);
+        conditionally on the $2n$ points, Hoeffding's inequality applies.
+  \item On $2n$ points a class of classifiers produces at most $S(\Hs,2n)$
+        patterns; by Sauer's lemma this is polynomial when the VC dimension is
+        finite.
+  \item Together: $\Prob(\sup_f\abs{\ERisk(f)-\Risk(f)}>\epsilon)\leq4S(\Hs,2n)e^{-n\epsilon^2/8}$,
+        a deviation of order $\sqrt{d\log n/n}$.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}
+Show that the class of indicator functions of axis-aligned rectangles in
+$\R^2$ has VC dimension $4$.
+\hint{for the upper bound, among five points consider the leftmost,
+rightmost, highest and lowest.}
+\end{exercise}
+
+\begin{exercise}
+Prove the first bound of \cref{symmetrization-lemma:lem:sauer} for the class
+of thresholds and for the class of intervals by direct counting, and check
+that it is attained.
+\end{exercise}
+
+\begin{exercise}
+Where exactly does the proof of \cref{symmetrization-lemma:lem:main} use the
+independence of the ghost sample from the first sample? Construct an example
+where the ghost sample is a copy of the first sample ($Z'_i = Z_i$) and the
+conclusion fails.
+\end{exercise}
+
+\begin{exercise}
+Using \cref{symmetrization-lemma:cor:bound}, find the smallest $n$ (to within
+a factor 2) that guarantees an estimation error below $0.05$ with probability
+$0.95$ for half-planes in $\R^2$.
+\end{exercise}
 \end{notechapter}

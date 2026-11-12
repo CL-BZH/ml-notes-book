@@ -1,0 +1,324 @@
+\begin{notechapter}
+\chapter{Lipschitz Continuity}\label{ch:lipschitz-continuity}
+\chaptersubtitle{A speed limit for functions, and why machine learning needs one}
+
+\begin{chapterintro}
+Many guarantees in machine learning --- that a classifier cannot be fooled by
+a tiny perturbation, that gradient descent with a given step size makes
+progress, that a GAN critic estimates a meaningful distance --- rest on one
+property: the function involved cannot change faster than a known rate. You
+will learn
+\begin{itemize}[nosep]
+  \item the definition of Lipschitz continuity and its geometric meaning;
+  \item how to compute or bound Lipschitz constants: gradients, compositions,
+        linear layers and whole networks;
+  \item how a Lipschitz bound certifies robustness to adversarial
+        perturbations;
+  \item the descent lemma: why a Lipschitz \emph{gradient} fixes the
+        admissible learning rate;
+  \item the role of 1-Lipschitz functions in Wasserstein GANs, and other uses.
+\end{itemize}
+\prerequisites{multivariable calculus (gradient, Jacobian, chain rule);
+matrix norms and singular values.}
+\end{chapterintro}
+
+\section{Definition and intuition}\label{lipschitz-continuity:sec:definition}
+
+\begin{definition}[Lipschitz continuity]\label{lipschitz-continuity:def:lipschitz}
+A function $f:\R^n\to\R^m$ is \emph{$L$-Lipschitz} (for norms $\norm{\cdot}$ on
+both spaces) if
+\begin{equation}\label{lipschitz-continuity:eq:lipschitz}
+  \norm{f(x_1) - f(x_2)} \leq L\,\norm{x_1 - x_2}\qquad\text{for all } x_1,x_2.
+\end{equation}
+The smallest such $L$ is the \emph{Lipschitz constant} of $f$, written
+$\mathrm{Lip}(f)$. Unless stated otherwise we use Euclidean norms.
+\end{definition}
+
+\begin{intuition}[A speed limit, and a cone]
+Dividing by $\norm{x_1-x_2}$, the definition says that no ``rate of change''
+of $f$ --- no slope of a chord of its graph --- exceeds $L$. For a function of
+one variable this has a picture: at every point of the graph, place a double
+cone with slopes $\pm L$; the graph never enters the inside of the cone
+(\cref{lipschitz-continuity:fig:cone}). A small $L$ means a function that
+changes slowly; a large $L$ allows sharp variations.
+\end{intuition}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.62\textwidth, height=7cm, xmin=-3, xmax=3, ymin=-2.2, ymax=2.2,
+  axis lines=middle, xtick=\empty, ytick=\empty, samples=120]
+  \addplot[name path=up, draw=none, domain=-3:3] {0.5*sin(deg(2*0.6)) + 0.3*0.6 + 1.3*abs(x-0.6)};
+  \addplot[name path=dn, draw=none, domain=-3:3] {0.5*sin(deg(2*0.6)) + 0.3*0.6 - 1.3*abs(x-0.6)};
+  \addplot[name path=top, draw=none, domain=-3:3] {3};
+  \addplot[name path=bot, draw=none, domain=-3:3] {-3};
+  \addplot[bookpitfall!15] fill between[of=up and top];
+  \addplot[bookpitfall!15] fill between[of=dn and bot];
+  \addplot[bookpitfall, dashed, domain=-3:3] {0.5*sin(deg(2*0.6)) + 0.3*0.6 + 1.3*(x-0.6)};
+  \addplot[bookpitfall, dashed, domain=-3:3] {0.5*sin(deg(2*0.6)) + 0.3*0.6 - 1.3*(x-0.6)};
+  \addplot[very thick, bookaccent, domain=-3:3] {0.5*sin(deg(2*x)) + 0.3*x};
+  \fill (axis cs:0.6,{0.5*sin(deg(1.2)) + 0.18}) circle (2pt);
+\end{axis}
+\end{tikzpicture}
+\caption{The function $f(x) = \frac12\sin 2x + 0.3x$ has $\abs{f'}\leq 1.3$, so it
+is $1.3$-Lipschitz: at every point (here the black dot) its graph stays
+outside the shaded region above and below the lines of slope $\pm1.3$.}
+\label{lipschitz-continuity:fig:cone}
+\end{figure}
+
+\begin{example}[Lipschitz or not?]\label{lipschitz-continuity:ex:examples}
+\begin{itemize}[nosep]
+  \item $x\mapsto\abs x$ and the ReLU $x\mapsto\max(0,x)$ are $1$-Lipschitz,
+        although they are not differentiable at $0$.
+  \item The sigmoid $\sigma(x) = 1/(1+e^{-x})$ has $\sigma' = \sigma(1-\sigma)\leq\frac14$,
+        so it is $\frac14$-Lipschitz; $\tanh$ is $1$-Lipschitz.
+  \item $x\mapsto x^2$ is not Lipschitz on $\R$ (its slope is unbounded), but it
+        is $2a$-Lipschitz on $[-a,a]$.
+  \item $x\mapsto\sqrt x$ on $[0,1]$ is continuous but not Lipschitz: near $0$
+        the chord slopes $\sqrt h/h = 1/\sqrt h$ are unbounded.
+  \item A linear map $x\mapsto Wx$ is Lipschitz with constant equal to its
+        \emph{spectral norm} $\norm{W}_2 = \sigma_{\max}(W)$, the largest
+        singular value, since $\norm{Wx_1 - Wx_2} = \norm{W(x_1-x_2)}$ and
+        $\norm{W}_2$ is by definition $\max_{u\neq0}\norm{Wu}/\norm u$.
+\end{itemize}
+\end{example}
+
+\section{Computing Lipschitz constants}\label{lipschitz-continuity:sec:computing}
+
+\begin{proposition}[Lipschitz constant of a differentiable function]\label{lipschitz-continuity:prop:jacobian}
+Let $f:\R^n\to\R^m$ be continuously differentiable with Jacobian $J_f$. Then
+\[
+  \mathrm{Lip}(f) = \sup_{x}\,\norm{J_f(x)}_2 .
+\]
+For $m=1$ this reads $\mathrm{Lip}(f) = \sup_x\norm{\nabla f(x)}$.
+\end{proposition}
+
+\begin{proof}
+($\leq$) For $x_1,x_2$, let $\gamma(s) = x_1 + s(x_2-x_1)$. By the fundamental
+theorem of calculus along the segment,
+\[
+  f(x_2) - f(x_1) = \int_0^1 J_f(\gamma(s))\,(x_2 - x_1)\,ds,
+  \quad\text{so}\quad
+  \norm{f(x_2)-f(x_1)} \leq \sup_x\norm{J_f(x)}_2\,\norm{x_2-x_1}.
+\]
+($\geq$) Fix $x$ and a unit vector $u$. For small $h>0$,
+$\norm{f(x + hu) - f(x)}/h\leq\mathrm{Lip}(f)$, and the left side tends to
+$\norm{J_f(x)u}$. Taking the supremum over $u$ gives
+$\norm{J_f(x)}_2\leq\mathrm{Lip}(f)$.
+\end{proof}
+
+\begin{proposition}[Composition]\label{lipschitz-continuity:prop:composition}
+$\mathrm{Lip}(f\circ g)\leq\mathrm{Lip}(f)\,\mathrm{Lip}(g)$.
+\end{proposition}
+
+\begin{proof}
+$\norm{f(g(x)) - f(g(y))}\leq\mathrm{Lip}(f)\norm{g(x) - g(y)}\leq\mathrm{Lip}(f)\mathrm{Lip}(g)\norm{x-y}$.
+\end{proof}
+
+\begin{example}[A bound for a neural network]\label{lipschitz-continuity:ex:network}
+A feed-forward network
+$F(x) = W_K\,\varphi(W_{K-1}\cdots\varphi(W_1x))$ with a $1$-Lipschitz activation
+$\varphi$ (ReLU, $\tanh$) applied coordinatewise is a composition of linear maps
+and $1$-Lipschitz maps (biases do not change Lipschitz constants). By
+\cref{lipschitz-continuity:prop:composition},
+\[
+  \mathrm{Lip}(F)\leq\prod_{k=1}^K\norm{W_k}_2 .
+\]
+The bound is cheap but can be very loose, because it ignores how the layers
+interact. With $W_1 = \diag(1,0)$, $W_2 = \diag(0,1)$ and no activation, the
+product of norms is $1$ while $W_2W_1 = 0$ is $0$-Lipschitz. Computing the exact
+Lipschitz constant of a ReLU network is NP-hard.
+\end{example}
+
+\paragraph{Spectral normalization.} The spectral norm of a weight matrix is
+estimated cheaply by \emph{power iteration}: repeat
+$u\leftarrow W^\top Wu/\norm{W^\top Wu}$; then $\norm{Wu}\to\sigma_{\max}(W)$.
+Dividing each weight matrix by this estimate during training (Miyato et al.,
+2018) makes every layer $1$-Lipschitz, and hence, by the bound above, the whole
+network.
+
+\section{Robustness to adversarial perturbations}\label{lipschitz-continuity:sec:robustness}
+
+Deep classifiers are vulnerable to \emph{adversarial examples}: inputs changed
+by an imperceptible amount that receive a different label. A Lipschitz bound
+turns ``imperceptible changes have small effects'' into a theorem.
+
+\begin{proposition}[Certified radius]\label{lipschitz-continuity:prop:certified}
+Let $F:\R^n\to\R^K$ output one score per class, be $L$-Lipschitz in the
+Euclidean norm, and predict $c = \argmax_k F_k(x)$ with margin
+\[
+  \gamma(x) = F_c(x) - \max_{k\neq c}F_k(x) > 0 .
+\]
+Then the prediction is unchanged for every perturbation $\delta$ with
+$\norm\delta < \gamma(x)/(\sqrt2\,L)$.
+\end{proposition}
+
+\begin{proof}
+For $k\neq c$, the function $x\mapsto F_c(x) - F_k(x) = (e_c - e_k)^\top F(x)$
+is a composition of $F$ with a linear map of norm $\norm{e_c - e_k} = \sqrt2$,
+hence $\sqrt2L$-Lipschitz. Therefore
+\[
+  F_c(x+\delta) - F_k(x+\delta)\geq F_c(x) - F_k(x) - \sqrt2L\norm\delta
+  \geq\gamma(x) - \sqrt2L\norm\delta > 0,
+\]
+so class $c$ still has the largest score.
+\end{proof}
+
+\begin{example}[A certified cat]
+A $1$-Lipschitz classifier outputs class probabilities, and gives an image the
+label ``cat'' with probability $0.99$; every other class has probability at
+most $0.01$, so the margin is at least $0.98$. An adversary changes the image
+by $\norm{\delta} = 0.1$. The output vector moves by at most $0.1$ in Euclidean
+norm, so every coordinate moves by at most $0.1$: ``cat'' keeps a probability of
+at least $0.89$ and every other class stays below $0.11$. The label cannot flip.
+\Cref{lipschitz-continuity:prop:certified} gives the same conclusion for any
+$\norm\delta < 0.98/\sqrt2\approx0.69$.
+\end{example}
+
+Training with \emph{Lipschitz regularization} (penalizing large gradients) or
+with spectrally normalized layers keeps $L$ small and so enlarges the certified
+radius; the price is usually some loss of accuracy on clean data.
+
+\section{Smoothness and gradient descent}\label{lipschitz-continuity:sec:optimization}
+
+In optimization the Lipschitz assumption is placed on the \emph{gradient} of the
+loss.
+
+\begin{definition}[Smoothness]
+A differentiable function $\mathcal J:\R^p\to\R$ is \emph{$\beta$-smooth} if its
+gradient is $\beta$-Lipschitz:
+$\norm{\nabla\mathcal J(\theta_1) - \nabla\mathcal J(\theta_2)}\leq\beta\norm{\theta_1-\theta_2}$.
+For twice-differentiable $\mathcal J$ this means that the Hessian has spectral
+norm at most $\beta$ everywhere: the curvature is bounded.
+\end{definition}
+
+\begin{lemma}[Descent lemma]\label{lipschitz-continuity:lem:descent}
+If $\mathcal J$ is $\beta$-smooth, then for all $\theta,\theta'$,
+\[
+  \mathcal J(\theta')\leq\mathcal J(\theta) + \nabla\mathcal J(\theta)^\top(\theta'-\theta) + \frac\beta2\norm{\theta'-\theta}^2 .
+\]
+In particular, one gradient step $\theta' = \theta - \eta\nabla\mathcal J(\theta)$
+satisfies
+\[
+  \mathcal J(\theta')\leq\mathcal J(\theta) - \eta\Bigl(1 - \frac{\beta\eta}{2}\Bigr)\norm{\nabla\mathcal J(\theta)}^2,
+\]
+so the loss decreases whenever $0<\eta<2/\beta$ and $\nabla\mathcal J(\theta)\neq0$.
+\end{lemma}
+
+\begin{proof}
+Let $v = \theta'-\theta$. By the fundamental theorem of calculus,
+\[
+  \mathcal J(\theta') - \mathcal J(\theta) - \nabla\mathcal J(\theta)^\top v
+  = \int_0^1\bigl(\nabla\mathcal J(\theta + sv) - \nabla\mathcal J(\theta)\bigr)^\top v\,ds
+  \leq\int_0^1\beta s\norm v^2\,ds = \frac\beta2\norm v^2,
+\]
+using Cauchy--Schwarz and the Lipschitz property. For the gradient step,
+$v = -\eta\nabla\mathcal J(\theta)$, and the right-hand side becomes
+$-\eta\norm{\nabla\mathcal J}^2 + \frac{\beta\eta^2}{2}\norm{\nabla\mathcal J}^2$.
+\end{proof}
+
+The lemma says that a smooth function lies below a parabola touching it at the
+current point; gradient descent minimizes that parabola. The best guaranteed
+decrease, $\frac1{2\beta}\norm{\nabla\mathcal J}^2$, is obtained for $\eta = 1/\beta$,
+the classical choice of learning rate.
+
+\begin{example}[The threshold $2/\beta$ is sharp]
+For $\mathcal J(\theta) = \frac a2\theta^2$ with $a>0$, the gradient $a\theta$ is
+$a$-Lipschitz, so $\beta = a$. Gradient descent gives
+$\theta_{k+1} = \theta_k - \eta a\theta_k = (1 - \eta a)\theta_k$, which
+converges to the minimizer $0$ iff $\abs{1-\eta a}<1$, i.e.\ $0<\eta<2/a$. At
+$\eta = 2/a$ the iterates oscillate between $\pm\theta_0$ forever, and beyond it
+they diverge. A learning rate that is too large ``overshoots'' because it
+ignores the curvature.
+\end{example}
+
+\section{Other uses in machine learning}\label{lipschitz-continuity:sec:other}
+
+\paragraph{Wasserstein GANs.} The Wasserstein-1 distance between distributions
+$P$ and $Q$ has the dual form (Kantorovich--Rubinstein)
+\[
+  W_1(P,Q) = \sup_{\mathrm{Lip}(D)\leq1}\ \E_{X\sim P}[D(X)] - \E_{X\sim Q}[D(X)] .
+\]
+A Wasserstein GAN trains a \emph{critic} $D$ to approximate this supremum, so
+the critic must be kept $1$-Lipschitz: by clipping weights (Arjovsky et al.,
+2017), by penalizing $(\norm{\nabla D(\hat x)} - 1)^2$ at points $\hat x$
+interpolating real and generated samples (WGAN-GP, Gulrajani et al., 2017), or
+by spectral normalization. Without the constraint the supremum is infinite and
+training is unstable.
+
+\paragraph{Generalization.} Several generalization bounds for neural networks
+depend on the network through margin-normalized products of layer norms, such
+as $\prod_k\norm{W_k}_2$ (Bartlett, Foster and Telgarsky, 2017). Informally, a
+function with a small Lipschitz constant cannot fit arbitrary labels on nearby
+points, so it is less able to memorize noise. Such bounds explain trends more
+than they predict test errors.
+
+\paragraph{Reinforcement learning.} Assuming the value function and the policy
+are Lipschitz in the state formalizes the idea that similar states have
+similar values and call for similar actions, which is what allows
+generalization across a continuous state space.
+
+\paragraph{Metric learning.} If an embedding network $\phi$ is $L$-Lipschitz,
+then $\norm{\phi(a) - \phi(b)}\leq L\norm{a-b}$: inputs that are close stay
+close in the embedding, so similarity scores computed from embeddings vary
+smoothly with the inputs.
+
+\begin{table}[ht]
+\centering
+\caption{Roles of Lipschitz continuity.}
+\label{lipschitz-continuity:tab:summary}
+\begin{tabular}{@{}p{0.2\textwidth}p{0.24\textwidth}p{0.48\textwidth}@{}}
+\toprule
+Area & What is Lipschitz & Consequence \\
+\midrule
+robustness & the classifier $F$ & certified radius $\gamma/(\sqrt2L)$ \\
+optimization & the gradient $\nabla\mathcal J$ & descent for $\eta<2/\beta$; $\eta = 1/\beta$ \\
+WGAN & the critic $D$ & critic estimates the Wasserstein distance \\
+generalization & the network & complexity measured by products of norms \\
+RL, metric learning & value, policy, embedding & similar inputs give similar outputs \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item $f$ is $L$-Lipschitz if $\norm{f(x)-f(y)}\leq L\norm{x-y}$; for
+        differentiable $f$, $\mathrm{Lip}(f) = \sup_x\norm{J_f(x)}_2$.
+  \item Lipschitz constants multiply under composition; a network with
+        $1$-Lipschitz activations satisfies
+        $\mathrm{Lip}(F)\leq\prod_k\norm{W_k}_2$, a cheap but loose bound
+        that spectral normalization controls.
+  \item A margin $\gamma$ certifies robustness to perturbations of norm below
+        $\gamma/(\sqrt2L)$.
+  \item A $\beta$-Lipschitz gradient gives the descent lemma: gradient steps
+        decrease the loss for $\eta<2/\beta$, and this threshold is sharp.
+  \item The Kantorovich--Rubinstein duality is why WGAN critics must be
+        $1$-Lipschitz.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}
+Show that $\log(1 + e^{x})$ (the softplus) is $1$-Lipschitz and that its
+derivative is $\frac14$-Lipschitz. Deduce a safe learning rate for the
+one-dimensional logistic loss $\theta\mapsto\log(1 + e^{-y\theta x})$ with
+$\abs x\leq 1$, $y\in\{\pm1\}$.
+\end{exercise}
+
+\begin{exercise}
+Compute the Lipschitz constant of $x\mapsto Wx$ for
+$W = \begin{psmallmatrix}3 & 0\\ 4 & 5\end{psmallmatrix}$, and compare with
+the Frobenius norm $\norm W_F$. Which is the larger, and why is that always the
+case?
+\end{exercise}
+
+\begin{exercise}
+Let $\mathcal J(\theta) = \frac12\theta^\top A\theta$ with $A$ symmetric
+positive definite and eigenvalues $0<\lambda_{\min}\leq\lambda_{\max}$. Show that
+$\mathcal J$ is $\lambda_{\max}$-smooth and that gradient descent converges iff
+$0<\eta<2/\lambda_{\max}$. Which eigen-direction converges slowest with
+$\eta = 1/\lambda_{\max}$?
+\end{exercise}
+\end{notechapter}
