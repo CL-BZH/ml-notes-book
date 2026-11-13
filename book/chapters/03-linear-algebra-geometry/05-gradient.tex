@@ -218,11 +218,12 @@ Textbooks differ in how openly they say so. Hubbard and Hubbard (\emph{Vector Ca
 Algebra, and Differential Forms}, 5th ed., §1.1) separate ``positional data'' (points) from
 ``incremental data'' (vectors), give them different notations, and state that points cannot be
 added while vectors can --- the axioms above without the name. Loomis and Sternberg
-(\emph{Advanced Calculus}, §1.2) build the coordinate correspondence between Euclidean space and
-$\R^3$ from a chosen origin, then deliberately transfer the geometric language to $\R^3$, where a
-translation becomes the addition of a constant vector; from then on, as in
-their definition of the differential (§3.6), a point and an increment are both elements of the
-same normed vector space. Both are legitimate. The second is what our arrays do.
+(\emph{Advanced Calculus}, §1.2) build the coordinate correspondence between Euclidean space $\mathbb E^3$
+and $\R^3$ from a chosen origin, then state that ``it is natural to transfer all this geometric
+terminology from sets in $\mathbb E^3$ to the corresponding sets in $\R^3$'', the translation through $b$
+becoming the map $x\mapsto x + b$, and that ``these notions all carry over to an arbitrary real vector
+space in a perfectly satisfactory way'' (p.~40). From then on, as in their definition of the
+differential (§3.6), a point and an increment are both elements of the same normed vector space. Both are legitimate. The second is what our arrays do.
 
 \begin{proposition}[Affine combinations]\label{gradient-tangent-space:prop:affine-comb}
 Let $a_1,\dots,a_k\in\mathcal A$, $\lambda_1,\dots,\lambda_k\in\R$ and $o\in\mathcal A$.
@@ -329,8 +330,11 @@ on $L(\theta) + \frac\lambda2\norm{\theta - o}^2$, that is, MAP estimation with 
 the formula contains a modelling choice --- the centre of the prior --- that the notation $\lambda\theta$ hides.
 For a network trained from scratch, decaying towards the zero weights is a reasonable prior. For a
 network fine-tuned from pre-trained weights $\theta_0$, decaying towards $\theta_0$, i.e.\ replacing $\lambda\theta$ by
-$\lambda(\theta - \theta_0)$, is often the better one (the ``L2-SP'' regularizer of Li, Grandvalet and Davoine,
-2018).
+$\lambda(\theta - \theta_0)$, is often the better one. This is the ``L2-SP'' regularizer (Li, Grandvalet and
+Davoine, \emph{Explicit Inductive Bias for Transfer Learning with Convolutional Networks}, ICML
+2018), $\frac\alpha2\norm{w_S - w_S^0}^2 + \frac\beta2\norm{w_{\bar S}}^2$: the layers $S$ shared with the source model are pulled
+towards their pre-trained values $w_S^0$, while the new layers $\bar S$, which have no such values,
+keep the zero weights as their centre. One regularizer, two chosen origins.
 \end{example}
 
 The same test applied to a change of \emph{basis} rather than of origin is the subject of
