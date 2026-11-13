@@ -1,0 +1,244 @@
+\begin{notechapter}
+\chapter{The Singular Value Decomposition}\label{ch:svd}
+\chaptersubtitle{Rotate, stretch, rotate}
+
+\begin{chapterintro}
+Every matrix, square or not, acts in the same simple way: it rotates (or reflects)
+its input, stretches it along perpendicular axes, and rotates the result into the
+output space. The singular value decomposition (SVD) makes this explicit, and it is
+the computational backbone of PCA, least squares, low-rank approximation and
+recommender systems. You will learn
+\begin{itemize}[nosep]
+  \item the statement of the SVD and a proof of its existence from the spectral
+        theorem;
+  \item its geometric meaning, and the reading of $A$ as a sum of rank-one maps;
+  \item how to compute an SVD by hand on a $2\times2$ example;
+  \item the best low-rank approximation (Eckart--Young);
+  \item the Moore--Penrose pseudoinverse and the minimum-norm least-squares
+        solution.
+\end{itemize}
+\prerequisites{\cref{ch:adjoint-operator}; eigenvalues and the spectral theorem for
+symmetric matrices.}
+\end{chapterintro}
+
+\section{The decomposition}\label{svd:sec:statement}
+
+\begin{theorem}[Singular value decomposition]\label{svd:thm:svd}
+Every $A\in\R^{m\times n}$ of rank $r$ can be written
+\[
+  A = U\Sigma V^\top = \sum_{i=1}^r\sigma_i\,u_iv_i^\top,
+\]
+where $U = [u_1,\dots,u_m]\in\R^{m\times m}$ and $V = [v_1,\dots,v_n]\in\R^{n\times n}$ are
+orthogonal, and $\Sigma\in\R^{m\times n}$ is zero except for its diagonal entries
+$\Sigma_{ii} = \sigma_i$, with $\sigma_1\geq\sigma_2\geq\dots\geq\sigma_r>0$ and $\sigma_i = 0$
+for $i>r$. The $\sigma_i$ are the \emph{singular values}, the $u_i$ the \emph{left} and the
+$v_i$ the \emph{right singular vectors}. They satisfy
+\[
+  Av_i = \sigma_iu_i,\qquad A^\top u_i = \sigma_iv_i,\qquad
+  A^\top Av_i = \sigma_i^2v_i,\qquad AA^\top u_i = \sigma_i^2u_i .
+\]
+\end{theorem}
+
+\begin{proof}
+$A^\top A$ is symmetric positive semi-definite ($x^\top A^\top Ax = \norm{Ax}^2\geq0$), so
+by the spectral theorem it has an orthonormal basis of eigenvectors $v_1,\dots,v_n$ with
+eigenvalues $\lambda_1\geq\dots\geq\lambda_n\geq0$. Since $\ker(A^\top A) = \ker(A)$
+(\cref{adjoint-operator:prop:unique}), exactly $r$ eigenvalues are positive. Set
+$\sigma_i = \sqrt{\lambda_i}$ and, for $i\leq r$, $u_i = Av_i/\sigma_i$. These are
+orthonormal:
+\[
+  u_i^\top u_j = \frac{v_i^\top A^\top Av_j}{\sigma_i\sigma_j} = \frac{\lambda_j\,v_i^\top v_j}{\sigma_i\sigma_j} = \delta_{ij}.
+\]
+Complete $u_1,\dots,u_r$ into an orthonormal basis $u_1,\dots,u_m$ of $\R^m$. For $i>r$,
+$\norm{Av_i}^2 = \lambda_i = 0$, so $Av_i = 0$. Hence $Av_i = \sigma_iu_i$ for every $i$
+(with $\sigma_i = 0$ for $i>r$), that is $AV = U\Sigma$, and $A = U\Sigma V^\top$ because $V$
+is orthogonal. The remaining relations follow by transposing and multiplying.
+\end{proof}
+
+The last $n-r$ columns of $V$ form an orthonormal basis of $\ker(A)$, and the last
+$m-r$ columns of $U$ one of $\ker(A^\top) = \operatorname{Im}(A)^\perp$. The singular
+values are unique; the singular vectors are unique up to sign when the $\sigma_i$ are
+distinct. The \emph{thin} SVD keeps only the first $r$ columns: $A = U_r\Sigma_rV_r^\top$
+with $U_r\in\R^{m\times r}$, $\Sigma_r = \diag(\sigma_1,\dots,\sigma_r)$, $V_r\in\R^{n\times r}$.
+
+\section{Geometric meaning}\label{svd:sec:geometry}
+
+Read $Ax = U\bigl(\Sigma(V^\top x)\bigr)$ from right to left:
+\begin{enumerate}
+  \item $V^\top x$ expresses $x$ in the orthonormal basis $v_1,\dots,v_n$: its entries are
+        the coordinates $v_i^\top x = \norm x\cos\theta_i$ of $x$ along the input directions
+        (a rotation or reflection of $\R^n$);
+  \item $\Sigma$ multiplies coordinate $i$ by $\sigma_i$, drops the coordinates beyond $r$,
+        and changes the dimension from $n$ to $m$;
+  \item $U$ places the result along the output directions $u_1,\dots,u_m$ (a rotation or
+        reflection of $\R^m$).
+\end{enumerate}
+Equivalently, by the rank-one sum,
+\[
+  Ax = \sum_{i=1}^r\sigma_i\,(v_i^\top x)\,u_i :
+\]
+each term \emph{projects} $x$ on $v_i$, \emph{scales} the coordinate by $\sigma_i$, and
+\emph{embeds} it along $u_i$. In particular $A$ maps the unit sphere of $\R^n$ onto an
+ellipsoid in $\operatorname{Im}(A)$ with semi-axes $\sigma_iu_i$
+(\cref{svd:fig:ellipse}), and $\norm{A}_2 = \max_{\norm x=1}\norm{Ax} = \sigma_1$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth]
+\begin{axis}[name=in, width=5.2cm, height=5.2cm, axis equal image, xmin=-1.6, xmax=1.6,
+  ymin=-1.6, ymax=1.6, axis lines=middle, xtick=\empty, ytick=\empty, title={input $\R^2$}]
+  \addplot[thick, bookaccent, domain=0:360, samples=90] ({cos(x)}, {sin(x)});
+  \draw[->, very thick, bookexample] (axis cs:0,0) -- (axis cs:0.7071,0.7071) node[above right] {$v_1$};
+  \draw[->, very thick, bookdef] (axis cs:0,0) -- (axis cs:0.7071,-0.7071) node[below right] {$v_2$};
+\end{axis}
+\begin{axis}[at={(in.east)}, anchor=west, xshift=2.2cm, width=7cm, height=7cm, axis equal image,
+  xmin=-7, xmax=7, ymin=-7, ymax=7, axis lines=middle, xtick=\empty, ytick=\empty, title={output $\R^2$}]
+  \addplot[thick, bookaccent, domain=0:360, samples=120] ({3*cos(x)}, {4*cos(x)+5*sin(x)});
+  \draw[->, very thick, bookexample] (axis cs:0,0) -- (axis cs:2.1213,6.3640) node[right] {$\sigma_1u_1$};
+  \draw[->, very thick, bookdef] (axis cs:0,0) -- (axis cs:2.1213,-0.7071) node[below right] {$\sigma_2u_2$};
+\end{axis}
+\draw[->, thick] ([xshift=4pt]in.east) -- node[above] {$A$} ([xshift=2.0cm]in.east);
+\end{tikzpicture}
+\caption{The matrix $A = \begin{psmallmatrix}3&0\\4&5\end{psmallmatrix}$ maps the unit circle to
+an ellipse. The orthogonal input directions $v_1$, $v_2$ go to the orthogonal semi-axes
+$\sigma_1u_1$, $\sigma_2u_2$ (\cref{svd:ex:2x2}).}
+\label{svd:fig:ellipse}
+\end{figure}
+
+\begin{example}[An SVD by hand]\label{svd:ex:2x2}
+Let $A = \begin{psmallmatrix}3&0\\4&5\end{psmallmatrix}$.
+\begin{enumerate}
+  \item $A^\top A = \begin{psmallmatrix}25&20\\20&25\end{psmallmatrix}$ has characteristic polynomial
+        $(25-\lambda)^2 - 400$, so $\lambda_1 = 45$, $\lambda_2 = 5$, and
+        $\sigma_1 = \sqrt{45} = 3\sqrt5\approx6.71$, $\sigma_2 = \sqrt5\approx2.24$.
+  \item Eigenvectors: $v_1 = \frac1{\sqrt2}(1,1)$ and $v_2 = \frac1{\sqrt2}(1,-1)$.
+  \item $u_1 = Av_1/\sigma_1 = \frac{1}{\sqrt2}(3,9)/(3\sqrt5) = \frac1{\sqrt{10}}(1,3)$ and
+        $u_2 = Av_2/\sigma_2 = \frac1{\sqrt2}(3,-1)/\sqrt5 = \frac1{\sqrt{10}}(3,-1)$, which are indeed
+        orthonormal.
+\end{enumerate}
+Hence
+\[
+  \begin{bmatrix}3&0\\4&5\end{bmatrix}
+  = \underbrace{\frac1{\sqrt{10}}\begin{bmatrix}1&3\\3&-1\end{bmatrix}}_{U}
+    \underbrace{\begin{bmatrix}3\sqrt5&0\\0&\sqrt5\end{bmatrix}}_{\Sigma}
+    \underbrace{\frac1{\sqrt2}\begin{bmatrix}1&1\\1&-1\end{bmatrix}}_{V^\top}.
+\]
+Check: $\det A = 15 = \sigma_1\sigma_2$, and $\norm A_F^2 = 9+16+25 = 50 = \sigma_1^2+\sigma_2^2$.
+\end{example}
+
+\begin{pitfall}[Singular values are not eigenvalues]
+The eigenvalues of this $A$ are $3$ and $5$ (it is triangular), not $6.71$ and $2.24$.
+Eigenvectors need not be orthogonal and describe directions that $A$ maps to
+themselves; singular vectors are always orthonormal and describe how $A$ maps one
+orthonormal frame to another. The two coincide (up to sign) only for symmetric positive
+semi-definite matrices.
+\end{pitfall}
+
+\section{Best low-rank approximation}\label{svd:sec:eckart-young}
+
+Truncating the rank-one sum after $k$ terms gives
+$A_k = \sum_{i=1}^k\sigma_iu_iv_i^\top = U_k\Sigma_kV_k^\top$.
+
+\begin{theorem}[Eckart--Young--Mirsky]\label{svd:thm:eckart-young}
+Among all matrices $B$ of rank at most $k$,
+\[
+  \norm{A - A_k}_F = \min_{\mathrm{rank}(B)\leq k}\norm{A - B}_F = \Bigl(\sum_{i>k}\sigma_i^2\Bigr)^{1/2},
+  \qquad
+  \norm{A - A_k}_2 = \min_{\mathrm{rank}(B)\leq k}\norm{A - B}_2 = \sigma_{k+1}.
+\]
+\end{theorem}
+
+\begin{proof}[Proof for the spectral norm]
+That $\norm{A - A_k}_2 = \sigma_{k+1}$ follows from $A - A_k = \sum_{i>k}\sigma_iu_iv_i^\top$.
+Let $B$ have rank $\leq k$; then $\ker(B)$ has dimension $\geq n-k$ and meets the
+$(k+1)$-dimensional space $\operatorname{span}(v_1,\dots,v_{k+1})$ in some unit vector $x$.
+Then $\norm{(A-B)x} = \norm{Ax} = \bigl(\sum_{i\leq k+1}\sigma_i^2(v_i^\top x)^2\bigr)^{1/2}\geq\sigma_{k+1}$.
+The Frobenius case is proved in \cref{ch:pca-overview} in the language of PCA.
+\end{proof}
+
+\begin{example}[Rank-one approximation]
+In \cref{svd:ex:2x2},
+$A_1 = \sigma_1u_1v_1^\top = 3\sqrt5\cdot\frac1{\sqrt{10}}\begin{psmallmatrix}1\\3\end{psmallmatrix}\frac1{\sqrt2}\begin{psmallmatrix}1&1\end{psmallmatrix} = \begin{psmallmatrix}1.5&1.5\\4.5&4.5\end{psmallmatrix}$,
+and $A - A_1 = \begin{psmallmatrix}1.5&-1.5\\-0.5&0.5\end{psmallmatrix}$ has
+$\norm{A - A_1}_F^2 = 5 = \sigma_2^2$: the rank-one matrix keeps $45/50 = 90\%$ of the
+``energy'' $\norm A_F^2$.
+\end{example}
+
+Low-rank approximation is the principle behind PCA (\cref{ch:pca-overview}), latent
+semantic analysis, image compression and the matrix factorization models of
+recommender systems (\cref{ch:matrix-factorization}).
+
+\section{The pseudoinverse}\label{svd:sec:pseudoinverse}
+
+\begin{definition}[Moore--Penrose pseudoinverse]
+With $A = U\Sigma V^\top$, the pseudoinverse is $A^+ = V\Sigma^+U^\top$, where
+$\Sigma^+\in\R^{n\times m}$ is obtained by transposing $\Sigma$ and replacing each non-zero
+$\sigma_i$ by $1/\sigma_i$: $A^+ = \sum_{i=1}^r\sigma_i^{-1}\,v_iu_i^\top$.
+\end{definition}
+
+Since $U^\top u_i = e_i$, the pseudoinverse undoes $A$ on the singular directions:
+\[
+  Av_i = \sigma_iu_i\qquad\text{and}\qquad A^+u_i = \frac1{\sigma_i}v_i\quad(i\leq r),
+  \qquad A^+u_i = 0\quad(i>r).
+\]
+It is a true inverse between $\operatorname{span}(v_1,\dots,v_r) = \ker(A)^\perp$ and
+$\operatorname{span}(u_1,\dots,u_r) = \operatorname{Im}(A)$, and sends
+$\operatorname{Im}(A)^\perp$ to $0$. When $A$ is square and invertible, $A^+ = A^{-1}$; when
+its columns are independent, $A^+ = (A^\top A)^{-1}A^\top$.
+
+\begin{theorem}[Minimum-norm least squares]\label{svd:thm:minnorm}
+$\hat x = A^+y$ solves the normal equations $A^\top A\hat x = A^\top y$, and has the smallest
+norm among all least-squares solutions. Moreover $AA^+ = U_rU_r^\top$ is the orthogonal
+projection onto $\operatorname{Im}(A)$.
+\end{theorem}
+
+\begin{proof}
+$A^\top A A^+ = V\Sigma^\top U^\top U\Sigma V^\top V\Sigma^+U^\top = V(\Sigma^\top\Sigma\Sigma^+)U^\top = V\Sigma^\top U^\top = A^\top$,
+because $\Sigma^\top\Sigma\Sigma^+ = \Sigma^\top$ (check on the diagonal: $\sigma_i^2\cdot\sigma_i^{-1} = \sigma_i$, and
+$0$ where $\sigma_i = 0$). So $A^\top A(A^+y) = A^\top y$. All solutions are $A^+y + z$ with
+$z\in\ker(A)$, and $A^+y\in\operatorname{span}(v_1,\dots,v_r) = \ker(A)^\perp$, so
+$\norm{A^+y + z}^2 = \norm{A^+y}^2 + \norm z^2$ is smallest for $z = 0$. Finally
+$AA^+ = U\Sigma\Sigma^+U^\top = \sum_{i\leq r}u_iu_i^\top$.
+\end{proof}
+
+\begin{example}[A rank-deficient system]
+$A = \begin{psmallmatrix}1&1\\1&1\end{psmallmatrix}$ has rank one: $\sigma_1 = 2$, $u_1 = v_1 = \frac1{\sqrt2}(1,1)$.
+Hence $A^+ = \frac12v_1u_1^\top = \frac14\begin{psmallmatrix}1&1\\1&1\end{psmallmatrix}$. For $y = (1,0)$,
+every $x$ with $x_1 + x_2 = \frac12$ is a least-squares solution (the projection of $y$ on
+$\operatorname{Im}(A)$ is $(\frac12,\frac12)$); $A^+y = (\frac14,\frac14)$ is the one of minimum norm.
+\end{example}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item $A = U\Sigma V^\top = \sum_i\sigma_iu_iv_i^\top$ with orthogonal $U$, $V$ and singular values
+        $\sigma_1\geq\dots\geq\sigma_r>0$; $v_i$, $\sigma_i^2$ are eigenpairs of $A^\top A$ and
+        $u_i = Av_i/\sigma_i$.
+  \item Geometrically: rotate ($V^\top$), stretch and change dimension ($\Sigma$), rotate ($U$);
+        the unit sphere becomes an ellipsoid with semi-axes $\sigma_iu_i$, and $\norm A_2 = \sigma_1$.
+  \item Truncating the sum gives the best rank-$k$ approximation, with errors
+        $(\sum_{i>k}\sigma_i^2)^{1/2}$ in Frobenius norm and $\sigma_{k+1}$ in spectral norm.
+  \item $A^+ = \sum_i\sigma_i^{-1}v_iu_i^\top$ gives the minimum-norm least-squares solution, and
+        $AA^+$ is the orthogonal projection onto $\operatorname{Im}(A)$.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{svd:exr:1}
+Show that $\norm A_F^2 = \sum_i\sigma_i^2$ and $\abs{\det A} = \prod_i\sigma_i$ for square $A$.
+\solutionlink{svd:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{svd:exr:2}
+Compute the SVD of the $3\times2$ matrix $A = \begin{psmallmatrix}1&1\\1&1\\0&0\end{psmallmatrix}$ and its
+pseudoinverse.
+\solutionlink{svd:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{svd:exr:3}
+Verify the four Penrose conditions for $A^+$: $AA^+A = A$, $A^+AA^+ = A^+$, and $AA^+$, $A^+A$
+symmetric.
+\solutionlink{svd:exr:3}
+\end{exercise}
+\end{notechapter}

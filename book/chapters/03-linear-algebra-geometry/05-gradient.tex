@@ -1,0 +1,312 @@
+\begin{notechapter}
+\chapter{The Geometry of the Gradient}\label{ch:gradient-tangent-space}\label{ch:gradient-misconception}
+\chaptersubtitle{Where the gradient lives, what it depends on, and why common pictures mislead}
+
+\begin{chapterintro}
+Gradient descent, $\theta\leftarrow\theta - \eta\nabla L(\theta)$, is the workhorse of machine learning, and
+its geometry is often misrepresented: the gradient is drawn as an arrow sliding down the loss
+surface. This chapter sets the picture straight and shows that the gradient depends on a
+choice of inner product --- which is exactly what preconditioning, Newton's method and the
+natural gradient change. You will learn
+\begin{itemize}[nosep]
+  \item the difference between the differential (a linear form) and the gradient (a vector),
+        and how an inner product turns one into the other;
+  \item why the gradient is the direction of steepest ascent and is orthogonal to level sets;
+  \item why the gradient lives in parameter space and not on the graph of the loss;
+  \item how changing the metric changes the gradient: preconditioning, Newton, natural gradient;
+  \item gradients on curved parameter spaces (manifolds), with the example of the sphere and the
+        link to PCA.
+\end{itemize}
+\prerequisites{multivariable calculus; \cref{ch:adjoint-operator} (inner products, Riesz,
+projections); \cref{ch:pca-overview} for the last example.}
+\end{chapterintro}
+
+\section{Differential and gradient}\label{gradient-tangent-space:sec:differential}
+
+Let $f:\R^n\to\R$ be differentiable at $\theta$. Its \emph{differential} is the linear map
+$df_\theta:\R^n\to\R$ that best approximates $f$ near $\theta$:
+\[
+  f(\theta + v) = f(\theta) + df_\theta(v) + o(\norm v),\qquad
+  df_\theta(v) = \sum_{k=1}^n\frac{\partial f}{\partial\theta_k}(\theta)\,v_k
+  = \lim_{t\to0}\frac{f(\theta + tv) - f(\theta)}{t} .
+\]
+$df_\theta(v)$ is the \emph{directional derivative} of $f$ in the direction $v$. The differential is a
+\emph{linear form} --- an element of the dual space, a ``row vector'' --- and it is defined without any
+inner product. To get a \emph{vector} that can be added to $\theta$, we need an inner product and the
+Riesz theorem (\cref{adjoint-operator:thm:riesz}).
+
+\begin{definition}[Gradient with respect to an inner product]
+Given an inner product $\inner{\cdot}{\cdot}$ on $\R^n$, the gradient $\nabla f(\theta)$ is the unique vector
+such that
+\[
+  \inner{\nabla f(\theta)}{v} = df_\theta(v)\qquad\text{for all }v\in\R^n .
+\]
+\end{definition}
+
+\begin{proposition}[Gradient for the metric $M$]\label{gradient-tangent-space:prop:metric}
+For the dot product, $\nabla f(\theta) = \bigl(\frac{\partial f}{\partial\theta_1},\dots,\frac{\partial f}{\partial\theta_n}\bigr)^\top$, the vector of
+partial derivatives. For $\inner uv_M = u^\top Mv$, the gradient is $\nabla_Mf(\theta) = M^{-1}\nabla f(\theta)$.
+\end{proposition}
+
+\begin{proof}
+$df_\theta(v) = \sum_k\partial_kf\,v_k = (\nabla f)^\top v$, which is the defining identity for the dot
+product. For $M$: we need $u^\top Mv = (\nabla f)^\top v$ for all $v$, i.e.\ $Mu = \nabla f$, so $u = M^{-1}\nabla f$.
+\end{proof}
+
+\begin{keyidea}
+The partial derivatives define the differential, which is intrinsic. The \emph{gradient vector}
+depends on how we measure lengths and angles. ``The'' gradient of calculus is the gradient for
+the Euclidean dot product in the chosen coordinates.
+\end{keyidea}
+
+\begin{theorem}[Steepest ascent]\label{gradient-tangent-space:thm:steepest}
+If $\nabla f(\theta)\neq0$, then among all unit vectors $v$ (unit for the chosen inner product), the
+directional derivative $df_\theta(v)$ is maximal for $v = \nabla f(\theta)/\norm{\nabla f(\theta)}$, where it equals
+$\norm{\nabla f(\theta)}$, and minimal for the opposite direction.
+\end{theorem}
+
+\begin{proof}
+By Cauchy--Schwarz, $df_\theta(v) = \inner{\nabla f(\theta)}{v}\leq\norm{\nabla f(\theta)}\norm v = \norm{\nabla f(\theta)}$, with equality iff $v$ is a
+positive multiple of $\nabla f(\theta)$.
+\end{proof}
+
+``Steepest'' is relative to the notion of unit step: changing the metric changes which direction
+is steepest. This is the whole idea behind preconditioned methods
+(\cref{gradient-tangent-space:sec:metric}).
+
+\section{Level sets}\label{gradient-tangent-space:sec:level-sets}
+
+\begin{proposition}[The gradient is orthogonal to level sets]\label{gradient-tangent-space:prop:level}
+Let $\gamma$ be a differentiable curve with $\gamma(0) = \theta$ that stays in the level set
+$\{f = f(\theta)\}$. Then $\inner{\nabla f(\theta)}{\gamma'(0)} = 0$.
+\end{proposition}
+
+\begin{proof}
+$f(\gamma(t))$ is constant, so its derivative at $0$ vanishes: $0 = df_\theta(\gamma'(0)) = \inner{\nabla f(\theta)}{\gamma'(0)}$.
+\end{proof}
+
+So in parameter space the gradient crosses the contour lines at right angles, and gradient
+descent steps across them (\cref{gradient-tangent-space:fig:contours}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth]
+\begin{axis}[width=8.5cm, height=6cm, axis equal image, xmin=-3.3, xmax=3.3, ymin=-1.8, ymax=1.8,
+  xlabel={$\theta_1$}, ylabel={$\theta_2$}, axis lines=middle, xtick=\empty, ytick=\empty]
+  \foreach \c in {0.5,1.5,3,5,7.25,10}{
+    \addplot[thin, bookaccent!70, domain=0:360, samples=80] ({sqrt(\c)*cos(x)}, {sqrt(\c)/2*sin(x)});
+  }
+  \addplot[thick, mark=*, mark size=1.4pt, bookpitfall] coordinates
+    {(2.5,1.0) (2.0,0.2) (1.6,0.04) (1.28,0.008) (1.024,0.0016) (0.8192,0.0003) (0.6554,0.0001)};
+  \draw[->, very thick, bookexample] (axis cs:2.5,1.0) -- (axis cs:2.5+0.1*5,1.0+0.1*8);
+  \node[bookexample, right] at (axis cs:3.0,1.75) {$\nabla L$};
+  \node[above left] at (axis cs:2.5,1.0) {$\theta_0$};
+\end{axis}
+\end{tikzpicture}
+\caption{Level curves of $L(\theta) = \theta_1^2 + 4\theta_2^2$ in parameter space. The gradient at
+$\theta_0 = (2.5,1)$ (green) is orthogonal to the level curve through $\theta_0$. Gradient descent with
+$\eta = 0.1$ (red) multiplies $\theta_1$ by $0.8$ and $\theta_2$ by $0.2$ at each step: it first kills the steep
+direction, then crawls along the flat one.}
+\label{gradient-tangent-space:fig:contours}
+\end{figure}
+
+\section{The gradient lives in parameter space}\label{gradient-tangent-space:sec:graph}
+
+The loss $L:\R^n\to\R$ has a graph $\Gamma = \{(\theta, L(\theta))\}\subset\R^{n+1}$. For $n = 2$ we can draw it as a
+surface over the parameter plane, and it is tempting to draw the gradient as an arrow on that
+surface, pointing downhill. That picture is wrong.
+
+\begin{pitfall}[The gradient does not slide down the surface]
+$\nabla L(\theta)\in\R^n$ has as many components as $\theta$; the graph lives in $\R^{n+1}$. The gradient is an
+arrow in the \emph{parameter plane} (the floor of the 3D picture), orthogonal to the contour lines
+there; gradient descent moves the point $\theta$ in that plane, and the loss value merely
+follows. An arrow drawn on the surface is a tangent vector of the graph, with $n+1$ components ---
+a different object (\cref{gradient-tangent-space:fig:surface}).
+\end{pitfall}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth]
+\begin{axis}[width=9cm, height=7cm, view={-30}{30}, xmin=-2.5, xmax=2.5, ymin=-1.3, ymax=1.3, zmin=0, zmax=8,
+  xlabel={$\theta_1$}, ylabel={$\theta_2$}, zlabel={$L$}, xtick=\empty, ytick=\empty, ztick=\empty]
+  \addplot3[surf, opacity=0.35, draw=bookaccent!40, fill=bookaccent!15, domain=-2.2:2.2, y domain=-1.1:1.1, samples=17, samples y=13] {x^2 + 4*y^2};
+  \addplot3[thin, bookaccent, domain=0:360, samples=40, samples y=1] ({1.0*cos(x)}, {0.5*sin(x)}, 0);
+  \addplot3[thin, bookaccent, domain=0:360, samples=40, samples y=1] ({1.7321*cos(x)}, {0.86605*sin(x)}, 0);
+  \addplot3[thin, bookaccent, domain=0:360, samples=40, samples y=1] ({2.2361*cos(x)}, {1.11805*sin(x)}, 0);
+  \addplot3[only marks, mark=*, mark size=1.6pt] coordinates {(1.5,0.6,3.69)};
+  \addplot3[dashed, gray] coordinates {(1.5,0.6,0) (1.5,0.6,3.69)};
+  \addplot3[only marks, mark=*, mark size=1.6pt, bookpitfall] coordinates {(1.5,0.6,0)};
+  \draw[->, very thick, bookexample] (axis cs:1.5,0.6,0) -- (axis cs:1.5+0.25*3,0.6+0.25*4.8,0);
+  \node[bookexample] at (axis cs:2.3,1.3,0.4) {$\nabla L(\theta)$};
+  \node[bookpitfall] at (axis cs:1.5,0.4,-0.6) {$\theta$};
+  \node at (axis cs:1.5,0.6,4.4) {$(\theta, L(\theta))$};
+\end{axis}
+\end{tikzpicture}
+\caption{The graph of $L$ lives in $\R^3$, but the parameter $\theta$ and the gradient $\nabla L(\theta)$ live in the
+floor $\R^2$, where the level curves are.}
+\label{gradient-tangent-space:fig:surface}
+\end{figure}
+
+If one insists on relating the gradient to the graph, the precise statement is the following.
+
+\begin{proposition}[Gradient and the tangent space of the graph]\label{gradient-tangent-space:prop:graph}
+The tangent vectors of $\Gamma$ at $(\theta_0, L(\theta_0))$ are the vectors $(v, \nabla L(\theta_0)^\top v)$, $v\in\R^n$. The
+orthogonal projection of the vertical unit vector $e_{n+1}$ onto this tangent space --- the steepest
+ascent direction \emph{on the surface} --- is
+\[
+  \frac1{1 + \norm{\nabla L(\theta_0)}^2}\begin{bmatrix}\nabla L(\theta_0)\\ \norm{\nabla L(\theta_0)}^2\end{bmatrix},
+\]
+whose first $n$ components are proportional to $\nabla L(\theta_0)$.
+\end{proposition}
+
+\begin{proof}
+A curve $t\mapsto(\theta_0 + tv, L(\theta_0 + tv))$ on $\Gamma$ has velocity $(v, \nabla L^\top v)$ at $t = 0$. The tangent
+space is the hyperplane orthogonal to $\mathbf n = (\nabla L, -1)$. Projecting $e_{n+1}$:
+$e_{n+1} - \frac{\inner{e_{n+1}}{\mathbf n}}{\norm{\mathbf n}^2}\mathbf n = e_{n+1} + \frac{1}{1 + \norm{\nabla L}^2}(\nabla L, -1)$, which is the stated
+vector.
+\end{proof}
+
+So the downhill arrow on the surface \emph{projects} onto a multiple of $-\nabla L$ in the floor, which is
+what popular pictures are trying to show. For $n$ in the millions there is no surface to look at,
+and only the parameter-space view remains.
+
+\subsection{The hidden identification}
+
+In $\theta\leftarrow\theta - \eta\nabla L(\theta)$ we add a gradient (a tangent vector at $\theta$, a velocity) to a point
+$\theta$. This is legitimate because $\R^n$ is flat: the tangent space at every point is canonically
+identified with $\R^n$ itself, and we use that identification without saying so. Already for
+$f:\R\to\R$, the derivative $f'(a)$ is a velocity at $a$ that we read as a displacement along the
+axis. On a curved parameter space the identification fails, and the update must be rethought
+(\cref{gradient-tangent-space:sec:manifolds}).
+
+\section{Changing the metric}\label{gradient-tangent-space:sec:metric}
+
+By \cref{gradient-tangent-space:prop:metric}, gradient descent for the metric $M$ is
+\[
+  \theta\leftarrow\theta - \eta\,M^{-1}\nabla L(\theta):
+\]
+\emph{preconditioned} gradient descent is ordinary gradient descent for another inner product.
+Three choices of $M$ are classical.
+\begin{itemize}
+  \item \textbf{Diagonal rescaling}, $M = \diag(m_1,\dots,m_n)$: one learning rate per coordinate. Adaptive
+        methods (AdaGrad, RMSProp, Adam) estimate such a diagonal from past gradients
+        (Part~VI).
+  \item \textbf{Newton's method}, $M = \nabla^2L(\theta)$ (when positive definite): the gradient for the metric
+        defined by the local curvature.
+  \item \textbf{Natural gradient}, $M = F(\theta)$, the Fisher information matrix of a probabilistic model:
+        the metric that measures parameter changes by the change they cause in the model's
+        distribution (locally, the KL divergence), independently of the parametrization.
+\end{itemize}
+
+\begin{example}[The right metric removes the zig-zag]
+For $L(\theta) = \theta_1^2 + 4\theta_2^2$, the Euclidean gradient is $(2\theta_1, 8\theta_2)$ and gradient descent crawls
+(\cref{gradient-tangent-space:fig:contours}). With $M = \nabla^2L = \diag(2, 8)$,
+$M^{-1}\nabla L(\theta) = (\theta_1, \theta_2) = \theta$: the gradient for this metric points straight at the minimum, and
+one step with $\eta = 1$ reaches it. In the metric $M$ the level sets are circles.
+\end{example}
+
+\section{Gradients on manifolds}\label{gradient-tangent-space:sec:manifolds}
+
+Some parameters are constrained to curved sets: unit vectors (the sphere), orthonormal frames
+(the Stiefel manifold $\{\Theta\in\R^{n\times p} : \Theta^\top\Theta = I\}$), rotations, probability vectors.
+
+\begin{definition}[Tangent space]
+Let $\mathcal M\subset\R^d$ be a smooth surface (submanifold) and $\theta\in\mathcal M$. The tangent space $T_\theta\mathcal M$ is the set
+of velocities $\gamma'(0)$ of smooth curves $\gamma$ that stay in $\mathcal M$ with $\gamma(0) = \theta$.
+\end{definition}
+
+$T_\theta\mathcal M$ is a vector space: the directions in which one can move \emph{while staying on} $\mathcal M$. A
+\emph{Riemannian metric} assigns an inner product $g_\theta$ to each tangent space; on a submanifold of
+$\R^d$ the natural choice is the restriction of the dot product. The Riemannian gradient
+$\operatorname{grad}f(\theta)\in T_\theta\mathcal M$ is then defined, as before, by $g_\theta(\operatorname{grad}f(\theta), v) = df_\theta(v)$ for all
+$v\in T_\theta\mathcal M$. It lies in the tangent space by construction, and the steepest-ascent theorem holds
+within $T_\theta\mathcal M$.
+
+\begin{proposition}[Riemannian gradient = projected Euclidean gradient]\label{gradient-tangent-space:prop:projection}
+If $f$ is the restriction to $\mathcal M$ of a function $F$ defined on $\R^d$, and $\mathcal M$ carries the induced
+metric, then $\operatorname{grad}f(\theta) = P_\theta\nabla F(\theta)$, the orthogonal projection of the Euclidean gradient onto
+$T_\theta\mathcal M$.
+\end{proposition}
+
+\begin{proof}
+For $v\in T_\theta\mathcal M$, $df_\theta(v) = dF_\theta(v) = \inner{\nabla F(\theta)}{v} = \inner{P_\theta\nabla F(\theta)}{v}$, because
+$\nabla F - P_\theta\nabla F$ is orthogonal to $T_\theta\mathcal M$. Since $P_\theta\nabla F(\theta)\in T_\theta\mathcal M$, it satisfies the defining
+property of the Riemannian gradient.
+\end{proof}
+
+So a projection is needed only when the function was defined on the surrounding space: the
+\emph{ambient} gradient $\nabla F$ may point off the surface, and projecting it gives the intrinsic one.
+An update $\theta - \eta\operatorname{grad}f(\theta)$ still leaves $\mathcal M$ (a tangent step leaves a curved surface), so it is
+followed by a \emph{retraction} $R_\theta$ back to $\mathcal M$:
+$\theta\leftarrow R_\theta\bigl(-\eta\operatorname{grad}f(\theta)\bigr)$. In $\R^n$, $R_\theta(v) = \theta + v$ and we recover gradient descent.
+
+\begin{example}[The sphere and PCA]\label{gradient-tangent-space:ex:sphere}
+On the unit sphere $S^{d-1} = \{\theta : \norm\theta = 1\}$, curves with $\norm{\gamma(t)}^2 = 1$ satisfy
+$2\theta^\top\gamma'(0) = 0$, so $T_\theta S^{d-1} = \{v : \theta^\top v = 0\}$ and $P_\theta = I - \theta\theta^\top$. A simple retraction is
+normalization, $R_\theta(v) = (\theta + v)/\norm{\theta + v}$.
+
+Take $F(\theta) = \theta^\top S\theta$ with $S$ symmetric (a covariance matrix). Then $\nabla F = 2S\theta$ and
+\[
+  \operatorname{grad}f(\theta) = (I - \theta\theta^\top)\,2S\theta = 2\bigl(S\theta - (\theta^\top S\theta)\,\theta\bigr).
+\]
+It vanishes iff $S\theta$ is a multiple of $\theta$: the critical points on the sphere are the unit eigenvectors
+of $S$, and the maximum of the variance $\theta^\top S\theta$ is reached at the leading one --- the first principal
+axis of \cref{ch:pca-overview}. Riemannian gradient ascent with the normalization retraction is
+a smoothed version of the power method.
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth, scale=1.5]
+  \draw[thick, bookaccent] (0,0) circle (1);
+  \coordinate (T) at (0.6,0.8);
+  \draw[gray] ($(T)+(-1.2,0.9)$) -- ($(T)+(1.2,-0.9)$) node[right, black] {$T_\theta S^1$};
+  \fill (T) circle (1.3pt) node[above left] {$\theta$};
+  \draw[->, thick] (T) -- ($(T)+(1.0,0.5)$) node[right] {$\nabla F(\theta)$};
+  \draw[->, very thick, bookexample] (T) -- ($(T)+(0.4,-0.3)$) node[below right] {$\operatorname{grad}f(\theta)$};
+  \draw[dashed] ($(T)+(1.0,0.5)$) -- ($(T)+(0.4,-0.3)$);
+  \fill (0,0) circle (1pt);
+\end{tikzpicture}
+\caption{On a circle, the ambient gradient $\nabla F(\theta)$ is split into a normal part (which would push
+$\theta$ off the circle) and a tangent part, the Riemannian gradient.}
+\label{gradient-tangent-space:fig:sphere}
+\end{figure}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item The differential $df_\theta$ is a linear form; the gradient is the vector representing it for a chosen
+        inner product: $\nabla f$ for the dot product, $M^{-1}\nabla f$ for $u^\top Mv$.
+  \item The gradient is the steepest-ascent direction for the chosen notion of unit step, and it is
+        orthogonal to the level sets.
+  \item The gradient lives in parameter space, not on the graph of the loss; the downhill arrow on
+        the surface only projects onto a multiple of $-\nabla L$.
+  \item Preconditioning, Newton's method and the natural gradient are gradient descent in other
+        metrics.
+  \item On a manifold, the Riemannian gradient lies in the tangent space; for an embedded surface it
+        is the projection of the ambient gradient, and steps are followed by a retraction. On the sphere,
+        maximizing $\theta^\top S\theta$ recovers the first principal axis.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{gradient-tangent-space:exr:1}
+Let $f(\theta) = \theta_1\theta_2$. Compute its gradient for the dot product and for $M = \diag(1, 4)$, at
+$\theta = (1,1)$, and the corresponding unit steepest-ascent directions.
+\solutionlink{gradient-tangent-space:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{gradient-tangent-space:exr:2}
+Show that if $\theta = A\phi$ with $A$ invertible (a reparametrization), Euclidean gradient descent on $\phi$
+corresponds to gradient descent on $\theta$ for the metric $M = (AA^\top)^{-1}$. Conclude that plain gradient
+descent depends on the parametrization.
+\solutionlink{gradient-tangent-space:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{gradient-tangent-space:exr:3}
+For $S = \diag(3, 1)$ and $\theta = (\cos\alpha, \sin\alpha)$ on the unit circle, compute $\operatorname{grad}f(\theta)$ for
+$f(\theta) = \theta^\top S\theta$, and check that it vanishes exactly at the four points $(\pm1,0)$, $(0,\pm1)$.
+\solutionlink{gradient-tangent-space:exr:3}
+\end{exercise}
+\end{notechapter}

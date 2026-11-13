@@ -439,3 +439,117 @@ $c_j = (1-\pi)\binom m{k_j}q^{k_j}(1-q)^{m-k_j}$, the E-step is $\gamma_j = b_j/
 \]
 For $m\geq2$ the distribution of $k_j$ is no longer determined by a single number,
 and the parameters become identifiable (up to swapping B and C).
+
+% =====================================================================
+\section{\nameref*{ch:adjoint-operator}}
+
+\solution{adjoint-operator:exr:1}
+For all $v$, $w$: $\inner{ABv}{w} = \inner{Bv}{A^*w} = \inner{v}{B^*A^*w}$, so by uniqueness of the adjoint
+$(AB)^* = B^*A^*$. And $\inner{A^*w}{v} = \inner{v}{A^*w} = \inner{Av}{w} = \inner{w}{Av}$ (by symmetry of the inner
+product), which says that the adjoint of $A^*$ is $A$.
+
+\solution{adjoint-operator:exr:2}
+$P = \begin{psmallmatrix}1&1\\0&0\end{psmallmatrix}$ satisfies $P^2 = P$ but $P^\top\neq P$. It maps $(x,y)$ to $(x+y, 0)$: it projects
+onto the horizontal axis $\operatorname{Im}(P)$ \emph{along} the direction $\ker(P) = \operatorname{span}(1,-1)$, i.e.\ along
+lines of slope $-1$ instead of vertical lines. The residual $(I-P)v$ is not orthogonal to the axis.
+
+\solution{adjoint-operator:exr:3}
+$P_A = A(A^\top A)^{-1}A^\top = \frac16\begin{psmallmatrix}5&2&-1\\2&2&2\\-1&2&5\end{psmallmatrix}$. Then
+$P_Ay = \frac16(5+4-2,\ 2+4+4,\ -1+4+10) = (\frac76,\frac53,\frac{13}6)$, the fitted values. Direct multiplication gives
+$P_A^2 = P_A$, and $\tr P_A = \frac{5+2+5}6 = 2$, the number of fitted parameters.
+
+\solution{adjoint-operator:exr:4}
+Apply \cref{adjoint-operator:thm:ker} to $A^\top$: $\ker(A) = \operatorname{Im}(A^\top)^\perp$; taking orthogonal complements
+(in finite dimension $(E^\perp)^\perp = E$) gives $\operatorname{Im}(A^\top) = \ker(A)^\perp$. The least-squares solutions form
+$\hat x + \ker(A)$. Write $\hat x = x_0 + z$ with $x_0\in\ker(A)^\perp$, $z\in\ker(A)$; every solution is $x_0 + z'$ with
+$z'\in\ker(A)$, and $\norm{x_0 + z'}^2 = \norm{x_0}^2 + \norm{z'}^2$ is minimal for $z' = 0$. So the minimum-norm solution
+is $x_0\in\ker(A)^\perp = \operatorname{Im}(A^\top)$.
+
+% =====================================================================
+\section{\nameref*{ch:svd}}
+
+\solution{svd:exr:1}
+$\norm A_F^2 = \tr(A^\top A) = \tr(V\Sigma^\top\Sigma V^\top) = \tr(\Sigma^\top\Sigma) = \sum_i\sigma_i^2$, using $\tr(XY) = \tr(YX)$ and
+$V^\top V = I$. For square $A$, $\abs{\det A} = \abs{\det U}\abs{\det\Sigma}\abs{\det V} = \prod_i\sigma_i$, since orthogonal
+matrices have determinant $\pm1$.
+
+\solution{svd:exr:2}
+$A^\top A = \begin{psmallmatrix}2&2\\2&2\end{psmallmatrix}$ has eigenvalues $4$ and $0$, so $\sigma_1 = 2$, $\sigma_2 = 0$, with
+$v_1 = \frac1{\sqrt2}(1,1)$, $v_2 = \frac1{\sqrt2}(1,-1)$. Then $u_1 = Av_1/2 = \frac1{\sqrt2}(1,1,0)$, completed by
+$u_2 = \frac1{\sqrt2}(1,-1,0)$ and $u_3 = (0,0,1)$. Thus $A = 2\,u_1v_1^\top$ and
+$A^+ = \frac12v_1u_1^\top = \frac14\begin{psmallmatrix}1&1&0\\1&1&0\end{psmallmatrix}$.
+
+\solution{svd:exr:3}
+$AA^+A = U\Sigma\Sigma^+\Sigma V^\top = U\Sigma V^\top = A$ and $A^+AA^+ = V\Sigma^+\Sigma\Sigma^+U^\top = A^+$, because
+$\Sigma\Sigma^+\Sigma = \Sigma$ and $\Sigma^+\Sigma\Sigma^+ = \Sigma^+$ (check on the diagonal: $\sigma\cdot\sigma^{-1}\cdot\sigma = \sigma$). Moreover
+$AA^+ = U(\Sigma\Sigma^+)U^\top$ and $A^+A = V(\Sigma^+\Sigma)V^\top$, where $\Sigma\Sigma^+$ and $\Sigma^+\Sigma$ are diagonal with
+entries $0$ or $1$: both products are symmetric (they are orthogonal projections).
+
+% =====================================================================
+\section{\nameref*{ch:pca-overview}}
+
+\solution{pca-overview:exr:1}
+$\mathbf c_k^\top W\mathbf c_l = \mathbf u_k^\top M\mathbf X_c^\top W\mathbf X_cM\mathbf u_l = \mathbf u_k^\top MVM\mathbf u_l = \mathbf u_k^\top M(\lambda_l\mathbf u_l) = \lambda_l\,\mathbf u_k^\top M\mathbf u_l$,
+using $VM\mathbf u_l = \lambda_l\mathbf u_l$. By $M$-orthonormality this is $\lambda_l$ if $k = l$ and $0$ otherwise.
+
+\solution{pca-overview:exr:2}
+With two individuals every centred variable is a multiple of $(-1, 1)$: height $\propto(-5,5)$, weight
+$\propto(2.5,-2.5)$, blood pressure $\propto(-10,10)$. Hence $\mathrm{corr}(\text{height},\text{BP}) = 1$ and the two
+correlations with weight are $-1$. The correlation matrix has eigenvalues $3, 0, 0$, and the first normed axis
+captures all the inertia. Two points always lie on a line, so with $n = 2$ any PCA has a single non-zero axis.
+
+\solution{pca-overview:exr:3}
+Multiplying $\mathbf x_1$ by $100$ multiplies its variance by $10^4$:
+$V = \begin{psmallmatrix}6047 & -22.59\\ -22.59 & 0.347\end{psmallmatrix}$. The first covariance axis becomes almost exactly the
+$X_1$ axis and captures $99.996\%$ of the inertia: the analysis now only says that $X_1$ has the larger
+numbers. Normed PCA is unchanged, because correlations do not depend on units.
+
+\solution{pca-overview:exr:4}
+Regression of $x_2$ on $x_1$ minimizes $\sum_i(x_{i2} - bx_{i1})^2$, giving $b = s_{12}/s_1^2$. The first principal axis is
+the eigenvector of $\begin{psmallmatrix}s_1^2 & s_{12}\\ s_{12} & s_2^2\end{psmallmatrix}$ for $\lambda_1$, of slope $(\lambda_1 - s_1^2)/s_{12}$
+(when $s_{12}\neq0$). For the running example, $b = -0.2259/0.6047\approx-0.37$, while the principal axis has
+slope $-0.5022/0.8648\approx-0.58$. They coincide only if the points are exactly aligned (then both are the line
+through the points), or in degenerate cases such as $s_{12} = 0$ with $s_1^2\geq s_2^2$ (both horizontal).
+
+% =====================================================================
+\section{\nameref*{ch:matrix-factorization}}
+
+\solution{matrix-factorization:exr:1}
+$(PT)(QT^{-\top})^\top = PTT^{-1}Q^\top = PQ^\top$. The penalty is unchanged when $\norm{PT}_F = \norm P_F$ and
+$\norm{QT^{-\top}}_F = \norm Q_F$ for all $P$, $Q$, which holds for orthogonal $T$ (then $T^{-\top} = T$). So the
+regularized problem still has a rotational symmetry: individual factors have no intrinsic meaning,
+only the subspace they span.
+
+\solution{matrix-factorization:exr:2}
+The terms involving $b_i = b_i^{\text{user}}$ are $\frac12\sum_{j\in\mathcal J_i}(r_{ij} - \mu - b_i - b_j^{\text{item}} - \mathbf p_i^\top\mathbf q_j)^2 + \frac\lambda2b_i^2$.
+Setting the derivative to zero,
+$b_i = \dfrac{\sum_{j\in\mathcal J_i}(r_{ij} - \mu - b_j^{\text{item}} - \mathbf p_i^\top\mathbf q_j)}{\abs{\mathcal J_i} + \lambda}$: the mean residual
+of the user, shrunk toward $0$ when the user has few ratings.
+
+\solution{matrix-factorization:exr:3}
+$q_3 = \dfrac{2.55\times2 + 1\times1}{2.55^2 + 1^2 + 0.1} = \dfrac{6.1}{7.6025}\approx0.80$.
+
+% =====================================================================
+\section{\nameref*{ch:gradient-tangent-space}}
+
+\solution{gradient-tangent-space:exr:1}
+$\nabla f = (\theta_2, \theta_1) = (1,1)$, with unit direction $\frac1{\sqrt2}(1,1)$. For $M = \diag(1,4)$,
+$\nabla_Mf = M^{-1}(1,1) = (1, \frac14)$; its $M$-norm is $\sqrt{1 + 4\cdot\frac1{16}} = \sqrt{1.25}$, so the $M$-unit
+steepest-ascent direction is $(1, 0.25)/\sqrt{1.25}\approx(0.89, 0.22)$. Steps in $\theta_2$ are ``expensive'' in this
+metric, so the steepest direction favours $\theta_1$.
+
+\solution{gradient-tangent-space:exr:2}
+With $\ell(\phi) = L(A\phi)$, the chain rule gives $\nabla\ell(\phi) = A^\top\nabla L(\theta)$. The step
+$\phi\leftarrow\phi - \eta A^\top\nabla L(\theta)$ becomes, after multiplying by $A$,
+$\theta\leftarrow\theta - \eta\,AA^\top\nabla L(\theta) = \theta - \eta\,M^{-1}\nabla L(\theta)$ with $M = (AA^\top)^{-1}$: gradient descent in another
+metric. Different parametrizations of the same model therefore give different trajectories, unless the
+metric is changed accordingly --- which is what the natural gradient does.
+
+\solution{gradient-tangent-space:exr:3}
+$S\theta = (3\cos\alpha, \sin\alpha)$ and $\theta^\top S\theta = 1 + 2\cos^2\alpha$, so
+\[
+  \operatorname{grad}f = 2\bigl(3\cos\alpha - (1 + 2\cos^2\alpha)\cos\alpha,\ \sin\alpha - (1 + 2\cos^2\alpha)\sin\alpha\bigr)
+  = 4\cos\alpha\sin\alpha\,(\sin\alpha, -\cos\alpha),
+\]
+a multiple of the tangent vector $(\sin\alpha, -\cos\alpha)$. It vanishes iff $\sin\alpha\cos\alpha = 0$, i.e.\ at $(\pm1, 0)$
+(maxima, eigenvalue $3$) and $(0, \pm1)$ (minima, eigenvalue $1$).

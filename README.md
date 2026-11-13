@@ -7,7 +7,7 @@ graph neural networks.
 
 The notes started as ~100 standalone LaTeX documents, Markdown files and
 notebooks. They are organised here as a single LaTeX book (11 parts,
-89 chapters, ~860 pages), with the accompanying code and notebooks.
+84 chapters, ~840 pages), with the accompanying code and notebooks.
 
 **[📕 Download the PDF](https://github.com/CL-BZH/ml-notes-book/releases/latest/download/Notes_on_Machine_Learning.pdf)**
 
@@ -35,108 +35,103 @@ notebooks. They are organised here as a single LaTeX book (11 parts,
 
 **Part III — Linear Algebra, Geometry and Calculus**
 
-15. The Adjoint Operator and the Dual Space
-16. Projections, Adjoints and the Geometry of Least Squares
-17. The Singular Value Decomposition
+15. Adjoints, Projections and Least Squares
+16. The Singular Value Decomposition
+17. Principal Component Analysis
 18. Matrix Factorization
-19. Principal Component Analysis: Setting and Inertia
-20. PCA: Pairwise Distances and Total Inertia
-21. PCA and Data Reconstruction
-22. PCA through Affine Spaces
-23. The Gradient and the Tangent Space
-24. The Gradient in Machine Learning
+19. The Geometry of the Gradient
 
 **Part IV — Loss Functions, Likelihood and Output Units**
 
-25. Cross-Entropy
-26. Cross-Entropy Minimization and Maximum Likelihood
-27. Empirical Distribution, Maximum Likelihood and Cost Functions
-28. Bayes Classification and Surrogate Losses
-29. The 0–1, Cross-Entropy and Hinge Losses
-30. The Multinomial Logistic Loss
-31. Any Distribution is a Softmax
-32. The Softmax Function and its Numerical Stability
-33. Sigmoid, Softmax and Other Output Units
+20. Cross-Entropy
+21. Cross-Entropy Minimization and Maximum Likelihood
+22. Empirical Distribution, Maximum Likelihood and Cost Functions
+23. Bayes Classification and Surrogate Losses
+24. The 0–1, Cross-Entropy and Hinge Losses
+25. The Multinomial Logistic Loss
+26. Any Distribution is a Softmax
+27. The Softmax Function and its Numerical Stability
+28. Sigmoid, Softmax and Other Output Units
 
 **Part V — Classical Models**
 
-34. The Perceptron Trick
-35. Support Vector Machines
-36. Support Vector Methods: SVDD, OCSVM and SVR
-37. Decision Trees
-38. Ensemble Methods
-39. A Mathematical Justification of Gradient Boosting
-40. Dynamic Time Warping
-41. Some Linear Time Series Models
-42. Time Series with Multiplicative Seasonality
-43. Open-Loop versus Closed-Loop Prediction
+29. The Perceptron Trick
+30. Support Vector Machines
+31. Support Vector Methods: SVDD, OCSVM and SVR
+32. Decision Trees
+33. Ensemble Methods
+34. A Mathematical Justification of Gradient Boosting
+35. Dynamic Time Warping
+36. Some Linear Time Series Models
+37. Time Series with Multiplicative Seasonality
+38. Open-Loop versus Closed-Loop Prediction
 
 **Part VI — Neural Networks: Fundamentals and Training**
 
-44. Deep Learning: An Overview
-45. Desirable Properties of Activation Functions
-46. A Catalogue of Activation Functions
-47. Backpropagation in a Network with Two Hidden Layers
-48. Backpropagation: A Worked Example
-49. Backpropagation and the Chain Rule
-50. Backpropagation as Dynamic Programming
-51. Gradient Descent and its Variants
-52. Normalization in Neural Networks
-53. Dropout as a Regularization Method
-54. Dropout: From Theory to Implementation
+39. Deep Learning: An Overview
+40. Desirable Properties of Activation Functions
+41. A Catalogue of Activation Functions
+42. Backpropagation in a Network with Two Hidden Layers
+43. Backpropagation: A Worked Example
+44. Backpropagation and the Chain Rule
+45. Backpropagation as Dynamic Programming
+46. Gradient Descent and its Variants
+47. Normalization in Neural Networks
+48. Dropout as a Regularization Method
+49. Dropout: From Theory to Implementation
 
 **Part VII — Convolutional Networks and Computer Vision**
 
-55. Convolution versus Cross-Correlation
-56. Convolution in CNNs
-57. Image Gradients by Convolution
-58. Transpose Convolution
-59. Normalization in Convolutional Networks
-60. The Evolution of CNNs
-61. Instance Segmentation
-62. Transfer Learning
+50. Convolution versus Cross-Correlation
+51. Convolution in CNNs
+52. Image Gradients by Convolution
+53. Transpose Convolution
+54. Normalization in Convolutional Networks
+55. The Evolution of CNNs
+56. Instance Segmentation
+57. Transfer Learning
 
 **Part VIII — Recurrent Networks**
 
-63. Gradient Computation in RNNs
-64. From the Chain Rule to Backpropagation Through Time
-65. Long Short-Term Memory
+58. Gradient Computation in RNNs
+59. From the Chain Rule to Backpropagation Through Time
+60. Long Short-Term Memory
 
 **Part IX — Language Modeling and Structured Prediction**
 
-66. Bigram Language Modeling with Multinomial Logistic Regression
-67. Bigram Logistic Regression: Loss and Gradient
-68. A One-Hidden-Layer Neural Bigram Model
-69. Word Embeddings
-70. Hierarchical Softmax and Huffman Trees
-71. Noise Contrastive Estimation and Negative Sampling
-72. Structured Prediction
-73. The Viterbi Algorithm for Part-of-Speech Tagging
-74. Conditional Random Fields for Part-of-Speech Tagging
+61. Bigram Language Modeling with Multinomial Logistic Regression
+62. Bigram Logistic Regression: Loss and Gradient
+63. A One-Hidden-Layer Neural Bigram Model
+64. Word Embeddings
+65. Hierarchical Softmax and Huffman Trees
+66. Noise Contrastive Estimation and Negative Sampling
+67. Structured Prediction
+68. The Viterbi Algorithm for Part-of-Speech Tagging
+69. Conditional Random Fields for Part-of-Speech Tagging
 
 **Part X — Contrastive and Self-Supervised Learning**
 
-75. Contrastive Learning: An Overview
-76. Contrastive Learning: A Mathematical Treatment
+70. Contrastive Learning: An Overview
+71. Contrastive Learning: A Mathematical Treatment
 
 **Part XI — Machine Learning on Graphs**
 
-77. The Laplacian, Local Averages and Graphs
-78. From Harmonic Functions to Graph Laplacians
-79. Graph Laplacians and Spectral Methods
-80. A Unified View of Spectral Decomposition
-81. Fourier Analysis
-82. From the DFT to Graph Neural Networks
-83. Random-Walk Node Similarity
-84. The Leicht–Holme–Newman Similarity
-85. Reproducing Kernel Hilbert Spaces
-86. Semi-Supervised Learning on Graphs
-87. Shallow Graph Embedding Methods
-88. Graph Autoencoders
+72. The Laplacian, Local Averages and Graphs
+73. From Harmonic Functions to Graph Laplacians
+74. Graph Laplacians and Spectral Methods
+75. A Unified View of Spectral Decomposition
+76. Fourier Analysis
+77. From the DFT to Graph Neural Networks
+78. Random-Walk Node Similarity
+79. The Leicht–Holme–Newman Similarity
+80. Reproducing Kernel Hilbert Spaces
+81. Semi-Supervised Learning on Graphs
+82. Shallow Graph Embedding Methods
+83. Graph Autoencoders
 
 **Appendix**
 
-89. Darboux's Theorem
+84. Darboux's Theorem
 
 ## Building the book
 

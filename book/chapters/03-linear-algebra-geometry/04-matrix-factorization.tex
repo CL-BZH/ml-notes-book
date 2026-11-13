@@ -1,222 +1,262 @@
-% Source: matrix_factorization.tex
 \begin{notechapter}
 \chapter{Matrix Factorization}\label{ch:matrix-factorization}
+\chaptersubtitle{Low-rank models for incomplete matrices}
 
-\section{Foundations of Matrix Factorization}
-\subsection{Core Problem Formulation}
-Given partial observation matrix $R \in \mathbb{R}^{m \times n}$ with:
-\begin{itemize}
-\item $m$ users (rows) and $n$ items/terms (columns)
-\item Observed entries $\Omega = \{(i,j) | r_{ij} \text{ exists}\}$
+\begin{chapterintro}
+A recommender system observes a few ratings of a huge user--item matrix and must
+predict the rest. Assuming that the matrix is approximately of low rank turns this into
+a regularized least-squares problem that the SVD cannot solve directly, because most
+entries are missing. You will learn
+\begin{itemize}[nosep]
+  \item the latent-factor model, with user and item biases, and its regularized loss;
+  \item stochastic gradient updates, and alternating least squares (ALS) as a sequence
+        of ridge regressions, with a worked step;
+  \item why filling missing entries with zeros is not the same model;
+  \item the probabilistic reading: regularization is a Gaussian prior (MAP), and
+        Bayesian matrix factorization by Gibbs sampling;
+  \item the relation with the truncated SVD, and the computational costs.
 \end{itemize}
+\prerequisites{\cref{ch:svd}; ridge regression (\cref{erm:sec:bias-variance}); MAP
+estimation (\cref{bayesian-reasoning:sec:map}).}
+\end{chapterintro}
 
-Goal: Find low-rank approximation $R \approx P Q^\top$ where:
+\section{The model}\label{matrix-factorization:sec:model}
+
+Let $R\in\R^{m\times n}$ hold the ratings of $m$ users on $n$ items (or term counts of $m$
+documents on $n$ words). Only the entries in a set $\Omega = \{(i,j) : r_{ij}\text{ observed}\}$ are known,
+typically far less than $1\%$ of them. We look for a rank-$k$ approximation
+\[
+  R\approx PQ^\top,\qquad P\in\R^{m\times k}\ \text{(user factors)},\quad Q\in\R^{n\times k}\ \text{(item factors)},
+\]
+so that the predicted rating of user $i$ for item $j$ is the inner product of their factor
+vectors, $\hat r_{ij} = \mathbf p_i^\top\mathbf q_j$. With $k$ small (say $10$--$200$), each user and each item is
+described by $k$ latent ``tastes'' and ``properties''.
+
+\begin{intuition}[Latent factors]
+If the first factor measured, say, how much a film is an action film, then $q_{j1}$ would be
+large for action films, $p_{i1}$ large for users who like them, and their product would add to
+the predicted rating. The factors are learned, not specified, and need not have a clean
+meaning; but this is the mechanism.
+\end{intuition}
+
+Ratings also have systematic offsets: some users rate everything high, some items are liked
+by everyone. Adding a global mean $\mu$ and biases gives
+\[
+  \hat r_{ij} = \mu + b_i^{\text{user}} + b_j^{\text{item}} + \mathbf p_i^\top\mathbf q_j .
+\]
+
+\subsection{The regularized loss}
+
+Only observed entries enter the data term, and all parameters are penalized:
+\[
+  \mathcal L = \frac12\sum_{(i,j)\in\Omega}(r_{ij} - \hat r_{ij})^2
+  + \frac\lambda2\Bigl(\norm P_F^2 + \norm Q_F^2 + \norm{\mathbf b^{\text{user}}}^2 + \norm{\mathbf b^{\text{item}}}^2\Bigr).
+\]
+Without regularization a user with three ratings could be fitted exactly by many factor
+vectors, most of them extreme; the penalty selects small ones, which generalize better.
+
+\section{Stochastic gradient descent}\label{matrix-factorization:sec:sgd}
+
+For one observed pair $(i,j)$, with $e_{ij} = r_{ij} - \hat r_{ij}$, the gradients of its term
+$\frac12e_{ij}^2$ plus the corresponding regularization are
+\[
+  \frac{\partial}{\partial\mathbf p_i} = -e_{ij}\mathbf q_j + \lambda\mathbf p_i,\quad
+  \frac{\partial}{\partial\mathbf q_j} = -e_{ij}\mathbf p_i + \lambda\mathbf q_j,\quad
+  \frac{\partial}{\partial b_i^{\text{user}}} = -e_{ij} + \lambda b_i^{\text{user}},\quad
+  \frac{\partial}{\partial b_j^{\text{item}}} = -e_{ij} + \lambda b_j^{\text{item}} .
+\]
+SGD visits the observed pairs in random order and updates, e.g.,
+$\mathbf p_i\leftarrow\mathbf p_i + \eta(e_{ij}\mathbf q_j - \lambda\mathbf p_i)$ (regularization applied at each visit). The full
+gradient for one user sums over the items $\mathcal J_i = \{j : (i,j)\in\Omega\}$ that the user rated:
+$\partial\mathcal L/\partial\mathbf p_i = -\sum_{j\in\mathcal J_i}e_{ij}\mathbf q_j + \lambda\mathbf p_i$.
+
+\section{Alternating least squares}\label{matrix-factorization:sec:als}
+
+The loss is not convex in $(P,Q)$ jointly, but it is a convex quadratic in $P$ for fixed $Q$,
+and vice versa. ALS exploits this.
+
+\subsection{The user update}
+
+Fix $Q$ and the biases, and write $r_{ij}$ for the residual rating
+$r_{ij} - \mu - b_i^{\text{user}} - b_j^{\text{item}}$ (or the raw rating in the model without biases). The
+terms involving $\mathbf p_i$ are
+\[
+  \sum_{j\in\mathcal J_i}\bigl(r_{ij} - \mathbf p_i^\top\mathbf q_j\bigr)^2 + \lambda\norm{\mathbf p_i}^2
+\]
+(with the factor $\frac12$ dropped). Setting the gradient to zero,
 \begin{align*}
-P &\in \mathbb{R}^{m \times k} \quad \text{(User latent factors)} \\
-Q &\in \mathbb{R}^{n \times k} \quad \text{(Item latent factors)}
+  2\sum_{j\in\mathcal J_i}\mathbf q_j(\mathbf q_j^\top\mathbf p_i - r_{ij}) + 2\lambda\mathbf p_i &= 0\\
+  \Bigl(\sum_{j\in\mathcal J_i}\mathbf q_j\mathbf q_j^\top + \lambda I\Bigr)\mathbf p_i &= \sum_{j\in\mathcal J_i}r_{ij}\mathbf q_j,
 \end{align*}
-
-\subsection{Enhanced Prediction Formula}
-Including biases and global mean:
+that is,
 \[
-\hat{r}_{ij} = \mu + b_i^{user} + b_j^{item} + \boldsymbol{p}_i^\top \boldsymbol{q}_j
+  \mathbf p_i = \bigl(Q_{\mathcal J_i}^\top Q_{\mathcal J_i} + \lambda I\bigr)^{-1}Q_{\mathcal J_i}^\top\mathbf r_i,
 \]
-where:
-\begin{itemize}
-\item $\mu$: Global average rating/term frequency
-\item $b_i^{user}$: User-specific bias
-\item $b_j^{item}$: Item-specific bias
-\end{itemize}
+where $Q_{\mathcal J_i}$ stacks the rows $\mathbf q_j^\top$, $j\in\mathcal J_i$, and $\mathbf r_i$ holds the corresponding ratings.
+This is exactly ridge regression (\cref{erm:sec:bias-variance}) of the user's ratings on the
+item factors: each user is a small regression problem with $\abs{\mathcal J_i}$ observations and $k$
+unknowns.
 
-\section{Complete Optimization Framework}
-\subsection{Regularized Loss Function}
+\subsection{The item update}
+
+By symmetry --- swap $P\leftrightarrow Q$, $\mathcal J_i\leftrightarrow\mathcal I_j = \{i : (i,j)\in\Omega\}$, $m\leftrightarrow n$ ---
 \[
-\mathcal{L} = \underbrace{\frac{1}{2}\sum_{(i,j)\in\Omega}(r_{ij}-\hat{r}_{ij})^2}_{\text{Data fidelity}} + 
-\underbrace{\frac{\lambda}{2}\left(\|P\|_F^2 + \|Q\|_F^2 + \|\boldsymbol{b}^{user}\|^2 + \|\boldsymbol{b}^{item}\|^2\right)}_{\text{Regularization}}
+  \Bigl(\sum_{i\in\mathcal I_j}\mathbf p_i\mathbf p_i^\top + \lambda I\Bigr)\mathbf q_j = \sum_{i\in\mathcal I_j}r_{ij}\mathbf p_i,
+  \qquad
+  \mathbf q_j = \bigl(P_{\mathcal I_j}^\top P_{\mathcal I_j} + \lambda I\bigr)^{-1}P_{\mathcal I_j}^\top\mathbf r_j .
 \]
 
-\subsection{Full Gradient Computations}
-For each observed pair $(i,j) \in \Omega$:
-\begin{align*}
-\frac{\partial\mathcal{L}}{\partial\boldsymbol{p}_i} &= -(r_{ij}-\hat{r}_{ij})\boldsymbol{q}_j + \lambda\boldsymbol{p}_i \\
-\frac{\partial\mathcal{L}}{\partial\boldsymbol{q}_j} &= -(r_{ij}-\hat{r}_{ij})\boldsymbol{p}_i + \lambda\boldsymbol{q}_j \\
-\frac{\partial\mathcal{L}}{\partial b_i^{user}} &= -(r_{ij}-\hat{r}_{ij}) + \lambda b_i^{user} \\
-\frac{\partial\mathcal{L}}{\partial b_j^{item}} &= -(r_{ij}-\hat{r}_{ij}) + \lambda b_j^{item}
-\end{align*}
-
-(In stochastic gradient descent, these per-observation gradients are used one pair at a time, the regularization term being applied at each visit.) Batch gradients aggregate over all $(i,j)\in\Omega$; for the $i$-th user vector:
-\[
-\frac{\partial\mathcal{L}}{\partial \boldsymbol{p}_i} = -\sum_{j\in\mathcal{J}_i}(r_{ij}-\hat{r}_{ij})\boldsymbol{q}_j + \lambda \boldsymbol{p}_i
-\]
-where $\mathcal{J}_i = \{j | (i,j)\in\Omega\}$
-
-\section{Alternating Least Squares (ALS) Derivation}
-\subsection{Complete Per-User Update}
-With \( Q \) and biases fixed, and writing \( r_{ij} \) for the residual rating \( r_{ij} - \mu - b_i^{user} - b_j^{item} \) (or for the raw rating in the model without biases), the user-specific objective becomes:
-\[
-\min_{\boldsymbol{p}_i} \sum_{j \in \mathcal{J}_i} \left(r_{ij} - \boldsymbol{p}_i^\top \boldsymbol{q}_j\right)^2 
-+ \lambda \|\boldsymbol{p}_i\|^2
-\]
-Taking the gradient w.r.t \( \boldsymbol{p}_i \) and setting to zero:
-\begin{align*}
-2\sum_{j \in \mathcal{J}_i} \boldsymbol{q}_j(\boldsymbol{q}_j^\top \boldsymbol{p}_i - r_{ij}) 
-+ 2\lambda \boldsymbol{p}_i &= 0 \\
-\left(\sum_{j \in \mathcal{J}_i} \boldsymbol{q}_j \boldsymbol{q}_j^\top + \lambda I\right)\boldsymbol{p}_i 
-&= \sum_{j \in \mathcal{J}_i} r_{ij} \boldsymbol{q}_j
-\end{align*}
-Closed-form solution:
-\[
-\boldsymbol{p}_i = \left(Q_{\mathcal{J}_i}^\top Q_{\mathcal{J}_i} + \lambda I\right)^{-1} Q_{\mathcal{J}_i}^\top \boldsymbol{r}_i
-\]
-where \( Q_{\mathcal{J}_i} \) contains the rows \( \boldsymbol{q}_j^\top \), \( j \in \mathcal{J}_i \), and \( \boldsymbol{r}_i \) the corresponding observed ratings of user \( i \): a ridge regression of the user's ratings on the item factors.
-
-\subsection{Complete Per-Item Update} 
-With \( P \) and biases fixed, the item-specific objective becomes:
-\[
-\min_{\boldsymbol{q}_j} \sum_{i \in \mathcal{I}_j} \left(r_{ij} - \boldsymbol{p}_i^\top \boldsymbol{q}_j\right)^2 
-+ \lambda \|\boldsymbol{q}_j\|^2
-\]
-Taking the gradient w.r.t \( \boldsymbol{q}_j \) and setting to zero:
-\begin{align*}
-2\sum_{i \in \mathcal{I}_j} \boldsymbol{p}_i(\boldsymbol{p}_i^\top \boldsymbol{q}_j - r_{ij}) 
-+ 2\lambda \boldsymbol{q}_j &= 0 \\
-\left(\sum_{i \in \mathcal{I}_j} \boldsymbol{p}_i \boldsymbol{p}_i^\top + \lambda I\right)\boldsymbol{q}_j 
-&= \sum_{i \in \mathcal{I}_j} r_{ij} \boldsymbol{p}_i
-\end{align*}
-Closed-form solution:
-\[
-\boldsymbol{q}_j = \left(P_{\mathcal{I}_j}^\top P_{\mathcal{I}_j} + \lambda I\right)^{-1} P_{\mathcal{I}_j}^\top \boldsymbol{r}_j
-\]
-
-\subsection{Matrix Block Formulation}
-If \emph{all} entries of \( R \) were observed (\( \mathcal{I}_j = \{1,\dots,m\} \) for every \( j \)), all items could be updated simultaneously:
-\[
-Q^\top = \left(P^\top P + \lambda I\right)^{-1} P^\top R
-\qquad\Longleftrightarrow\qquad
-Q = R^\top P \left(P^\top P + \lambda I\right)^{-1}.
-\]
-With missing entries this formula is \emph{not} equivalent to the per-item updates: filling the missing entries with zeros treats them as observed ratings equal to \( 0 \), which biases the factors (this is the implicit-feedback setting, where zero means ``no interaction''). In the explicit-rating setting each item has its own matrix \( P_{\mathcal{I}_j}^\top P_{\mathcal{I}_j} + \lambda I \).
-
-\subsection{Symmetry Analysis}
-The user and item updates exhibit perfect mathematical symmetry:
-\begin{itemize}
-\item Swap \( P \leftrightarrow Q \)
-\item Swap \( \mathcal{J}_i \leftrightarrow \mathcal{I}_j \)
-\item Transpose dimensions \( m \leftrightarrow n \)
-\end{itemize}
-
-\subsection{Algorithm Update}
-Revised ALS algorithm with explicit item updates:
-\begin{algorithm}[H]
-\caption{Symmetric ALS Implementation}
-\begin{algorithmic}[1]
-\State Initialize \( P \), \( Q \), \( \lambda \)
-\For{iter = 1 to max\_iters}
-    \State Update all \( \boldsymbol{p}_i \) via:
-    \[
-    \boldsymbol{p}_i \leftarrow \left(Q_{\mathcal{J}_i}^\top Q_{\mathcal{J}_i} + \lambda I\right)^{-1} Q_{\mathcal{J}_i}^\top \boldsymbol{r}_i
-    \]
-    \State Update all \( \boldsymbol{q}_j \) via:
-    \[
-    \boldsymbol{q}_j \leftarrow \left(P_{\mathcal{I}_j}^\top P_{\mathcal{I}_j} + \lambda I\right)^{-1} P_{\mathcal{I}_j}^\top \boldsymbol{r}_j
-    \]
-    
-\EndFor
-\end{algorithmic}
-\end{algorithm}
-
-\section{Probabilistic Matrix Factorization (PMF)}
-\subsection{Generative Model}
-\[
-p(R|P,Q,\sigma^2) = \prod_{(i,j)\in\Omega} \mathcal{N}(r_{ij}|\boldsymbol{p}_i^\top\boldsymbol{q}_j, \sigma^2)
-\]
-with Gaussian priors:
-\[
-p(P|\sigma_P^2) = \prod_{i=1}^m \mathcal{N}(\boldsymbol{p}_i|0,\sigma_P^2 I), \quad
-p(Q|\sigma_Q^2) = \prod_{j=1}^n \mathcal{N}(\boldsymbol{q}_j|0,\sigma_Q^2 I)
-\]
-
-\subsection{Maximum A Posteriori (MAP) Estimation}
-\[
-\log p(P,Q|R) = -\frac{1}{2\sigma^2}\sum_{(i,j)\in\Omega}(r_{ij}-\boldsymbol{p}_i^\top\boldsymbol{q}_j)^2 - \frac{1}{2\sigma_P^2}\|P\|_F^2 - \frac{1}{2\sigma_Q^2}\|Q\|_F^2 + \text{const.}
-\]
-Multiplying by \( -\sigma^2 \), maximizing the posterior is equivalent to minimizing the regularized loss of the previous sections with \( \lambda_P = \sigma^2/\sigma_P^2 \) and \( \lambda_Q = \sigma^2/\sigma_Q^2 \) (a single \( \lambda \) when \( \sigma_P = \sigma_Q \)).
-
-\section{Bayesian Matrix Factorization (BMF)}
-\subsection{Hierarchical Bayesian Model}
-\begin{align*}
-\tau &= 1/\sigma^2 \sim \text{Gamma}(\alpha,\beta) \\
-\tau_P &= 1/\sigma_P^2 \sim \text{Gamma}(\alpha_P,\beta_P) \\
-\tau_Q &= 1/\sigma_Q^2 \sim \text{Gamma}(\alpha_Q,\beta_Q)
-\end{align*}
-
-\subsection{Gibbs Sampling Full Conditionals}
-For each user vector $\boldsymbol{p}_i$:
-\[
-\boldsymbol{p}_i \mid \cdot \;\sim\; \mathcal{N}\left(\tau\,\Lambda_i^{-1}Q_i^\top\boldsymbol{r}_i^{adj}, \Lambda_i^{-1}\right)
-\]
-where:
-\[
-\Lambda_i = \tau Q_i^\top Q_i + \tau_P I, \quad \boldsymbol{r}_i^{adj} = \boldsymbol{r}_i - \mu - b_i^{user} - \boldsymbol{b}^{item}_{\mathcal{J}_i}
-\]
-(\( Q_i = Q_{\mathcal{J}_i} \) and \( \boldsymbol{r}_i \) restricted to the items rated by user \( i \)). The mean is the ridge solution of ALS with \( \lambda = \tau_P/\tau \): ALS computes the mode of this conditional, Gibbs sampling draws from it.
-
-\subsection{Gibbs Sampling Steps}
-\begin{algorithm}[H]
-\caption{Bayesian MF Inference}
-\begin{algorithmic}[1]
-\State Initialize parameters from priors
-\For{sample in 1..N\_samples}
-    \State Sample $\tau \sim \text{Gamma}(\alpha + \frac{|\Omega|}{2}, \beta + \frac{1}{2}\sum(r_{ij}-\hat{r}_{ij})^2)$
-    \For{each user $i$}
-        \State Sample $\boldsymbol{p}_i$ from full conditional
-    \EndFor
-    \For{each item $j$}
-        \State Sample $\boldsymbol{q}_j$ from full conditional
-    \EndFor
-    \State Sample hyperparameters $\tau_P, \tau_Q$
-\EndFor
-\end{algorithmic}
-\end{algorithm}
-
-\section{Implementation Guide}
-\subsection{Initialization Strategies}
-\begin{itemize}
-\item \textbf{Latent factors}: SVD initialization or $\mathcal{N}(0,0.1)$
-\item \textbf{Biases}: Initialize to user/item means
-\item \textbf{Hyperparameters}: Empirical Bayes estimation
-\end{itemize}
-
-\subsection{Convergence Monitoring}
-\begin{itemize}
-\item Track RMSE on validation set
-\item Monitor log-likelihood (for PMF/BMF)
-\item Check parameter change norms: $\|P^{(t)}-P^{(t-1)}\| < \epsilon$
-\end{itemize}
-
-\subsection{Computational Complexity}
 \begin{center}
-\begin{tabular}{lcc}
-Method & Time Complexity & Parallelizability \\
-\midrule
-SGD & $O(|\Omega|k)$ & Medium \\
-ALS & $O((m+n)k^3)$ & High \\
-Gibbs & $O((m+n)k^3)$ & Low \\
-\end{tabular}
+\begin{minipage}{0.85\linewidth}
+\begin{algorithm}[H]
+\caption{Alternating least squares}
+\begin{algorithmic}[1]
+\State Initialize $P$, $Q$ (small random values, or a truncated SVD)
+\For{$t = 1,\dots,T$}
+  \For{each user $i$} \State $\mathbf p_i\leftarrow(Q_{\mathcal J_i}^\top Q_{\mathcal J_i} + \lambda I)^{-1}Q_{\mathcal J_i}^\top\mathbf r_i$ \EndFor
+  \For{each item $j$} \State $\mathbf q_j\leftarrow(P_{\mathcal I_j}^\top P_{\mathcal I_j} + \lambda I)^{-1}P_{\mathcal I_j}^\top\mathbf r_j$ \EndFor
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+\end{minipage}
 \end{center}
 
-\section{Advanced Topics}
-\subsection{Relationship to SVD}
-MF generalizes truncated SVD:
-\[
-R \approx U_k \Sigma_k V_k^\top = (\underbrace{U_k \sqrt{\Sigma_k}}_P)(\underbrace{V_k \sqrt{\Sigma_k}}_Q)^\top
-\]
-Key differences: handles missing data, includes biases, and regularization
+Each step solves its subproblem exactly, so the loss never increases --- the same
+coordinate-ascent mechanism as EM (\cref{em-algorithm:sec:monotone}). The users are
+independent given $Q$, and the items given $P$, so both loops parallelize perfectly.
 
-\subsection{Temporal Extensions}
-Dynamic MF with time-varying factors:
+\begin{example}[One ALS step by hand]
+Take $k = 1$, $\lambda = 0.1$, item factors $q_1 = 1$, $q_2 = 2$, $q_3 = 0.5$, and a user who rated item~1
+with $3$ and item~2 with $5$ (item~3 unrated). The update is a scalar ridge regression:
 \[
-\boldsymbol{p}_i(t) = \boldsymbol{p}_i^{(0)} + \boldsymbol{v}_i t
+  p = \frac{\sum_{j\in\{1,2\}}q_jr_{ij}}{\sum_{j\in\{1,2\}}q_j^2 + \lambda} = \frac{1\cdot3 + 2\cdot5}{1 + 4 + 0.1} = \frac{13}{5.1}\approx2.55 .
 \]
-Requires extension of gradient updates and regularization
+The fitted ratings are $2.55$ and $5.10$, and the prediction for the unrated item is
+$pq_3\approx1.27$: the user's single factor, learned from two ratings, transfers to an item the user
+has never seen.
+\end{example}
+
+\begin{pitfall}[Missing is not zero]
+If every entry were observed, all items could be updated at once:
+$Q = R^\top P(P^\top P + \lambda I)^{-1}$. Applying this formula to a matrix whose missing entries are
+filled with zeros treats them as observed ratings of $0$, which biases the factors toward
+predicting low ratings. That is the right model only for \emph{implicit feedback}, where a zero
+genuinely means ``no interaction'' (and then usually with confidence weights). With explicit
+ratings, each user and each item has its own matrix $Q_{\mathcal J_i}^\top Q_{\mathcal J_i} + \lambda I$.
+\end{pitfall}
+
+\section{Probabilistic matrix factorization}\label{matrix-factorization:sec:pmf}
+
+The regularized loss has a probabilistic reading. Assume
+\[
+  r_{ij}\mid P,Q\sim\mathcal N(\mathbf p_i^\top\mathbf q_j,\ \sigma^2)\ \text{independently},\qquad
+  \mathbf p_i\sim\mathcal N(0,\sigma_P^2I),\qquad \mathbf q_j\sim\mathcal N(0,\sigma_Q^2I).
+\]
+The log-posterior is
+\[
+  \log p(P,Q\mid R) = -\frac1{2\sigma^2}\sum_{(i,j)\in\Omega}(r_{ij} - \mathbf p_i^\top\mathbf q_j)^2
+  - \frac1{2\sigma_P^2}\norm P_F^2 - \frac1{2\sigma_Q^2}\norm Q_F^2 + \text{const}.
+\]
+Multiplying by $-\sigma^2$, maximizing the posterior (MAP) is minimizing the regularized loss with
+$\lambda_P = \sigma^2/\sigma_P^2$ and $\lambda_Q = \sigma^2/\sigma_Q^2$ --- a single $\lambda$ when $\sigma_P = \sigma_Q$.
+This is the matrix version of ``a Gaussian prior is ridge regularization''
+(\cref{bayesian-reasoning:sec:map}).
+
+\subsection{Bayesian matrix factorization}
+
+Instead of a point estimate, Bayesian MF samples from the posterior, placing Gamma priors on the
+precisions $\tau = 1/\sigma^2$, $\tau_P = 1/\sigma_P^2$, $\tau_Q = 1/\sigma_Q^2$. Given everything else, a user
+vector has a Gaussian conditional distribution:
+\[
+  \mathbf p_i\mid\cdot\ \sim\ \mathcal N\bigl(\tau\Lambda_i^{-1}Q_{\mathcal J_i}^\top\mathbf r_i^{\text{adj}},\ \Lambda_i^{-1}\bigr),
+  \qquad \Lambda_i = \tau Q_{\mathcal J_i}^\top Q_{\mathcal J_i} + \tau_PI,
+\]
+with $\mathbf r_i^{\text{adj}} = \mathbf r_i - \mu - b_i^{\text{user}} - \mathbf b^{\text{item}}_{\mathcal J_i}$. Its mean is the ALS
+solution with $\lambda = \tau_P/\tau$: ALS computes the \emph{mode} of this conditional, Gibbs sampling
+\emph{draws} from it.
+
+\begin{center}
+\begin{minipage}{0.85\linewidth}
+\begin{algorithm}[H]
+\caption{Gibbs sampling for Bayesian MF}
+\begin{algorithmic}[1]
+\State Initialize parameters
+\For{$s = 1,\dots,S$}
+  \State Sample $\tau\sim\mathrm{Gamma}\bigl(\alpha + \frac{\abs\Omega}2,\ \beta + \frac12\sum_{\Omega}(r_{ij} - \hat r_{ij})^2\bigr)$
+  \For{each user $i$} \State sample $\mathbf p_i$ from its Gaussian conditional \EndFor
+  \For{each item $j$} \State sample $\mathbf q_j$ from its Gaussian conditional \EndFor
+  \State Sample $\tau_P$, $\tau_Q$ from their Gamma conditionals
+\EndFor
+\State Predict by averaging $\hat r_{ij}$ over the samples
+\end{algorithmic}
+\end{algorithm}
+\end{minipage}
+\end{center}
+
+Averaging predictions over posterior samples protects against overfitting and gives uncertainty
+estimates, at a higher computational cost.
+
+\section{Relation with the SVD, and practice}\label{matrix-factorization:sec:practice}
+
+If $R$ were fully observed and unregularized, the best rank-$k$ approximation would be the
+truncated SVD (\cref{svd:thm:eckart-young}), which factors as
+\[
+  R_k = U_k\Sigma_kV_k^\top = \bigl(U_k\Sigma_k^{1/2}\bigr)\bigl(V_k\Sigma_k^{1/2}\bigr)^\top = PQ^\top .
+\]
+Matrix factorization generalizes it in three ways: it fits only observed entries, it includes
+biases, and it is regularized. With missing entries there is no closed form, hence the iterative
+algorithms.
+
+\begin{table}[ht]
+\centering
+\caption{Cost of one pass over the data ($\abs\Omega$ observed entries, rank $k$).}
+\label{matrix-factorization:tab:cost}
+\begin{tabular}{@{}lll@{}}
+\toprule
+method & time per pass & parallelism \\
+\midrule
+SGD & $O(\abs\Omega\,k)$ & limited (asynchronous variants) \\
+ALS & $O(\abs\Omega\,k^2 + (m+n)k^3)$ & high: users (items) independent \\
+Gibbs (BMF) & $O(\abs\Omega\,k^2 + (m+n)k^3)$ & high, as ALS \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+In practice: initialize factors with small random values (or a truncated SVD of the filled
+matrix), biases with user and item means; choose $k$ and $\lambda$ on a validation set; monitor the
+validation RMSE. Extensions include time-dependent factors, e.g.\
+$\mathbf p_i(t) = \mathbf p_i^{(0)} + t\,\mathbf v_i$ for users whose tastes drift.
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Ratings are modelled as $\mu + b_i + b_j + \mathbf p_i^\top\mathbf q_j$, fitted on observed entries only, with
+        $\ell_2$ regularization.
+  \item For fixed item factors, each user's factor is a ridge regression on the items they rated;
+        ALS alternates these exact updates and never increases the loss.
+  \item Missing entries must not be treated as zeros (except for implicit feedback).
+  \item The regularized loss is the negative log-posterior of a Gaussian model (MAP); Bayesian MF
+        samples from the posterior with Gibbs sampling, whose conditional means are the ALS updates.
+  \item Without missing data or regularization, the solution is the truncated SVD.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{matrix-factorization:exr:1}
+Show that the factorization $R\approx PQ^\top$ is not unique: for any invertible $k\times k$ matrix $T$,
+$(PT)(QT^{-\top})^\top = PQ^\top$. Which choices of $T$ leave the penalty $\norm P_F^2 + \norm Q_F^2$ unchanged?
+\solutionlink{matrix-factorization:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{matrix-factorization:exr:2}
+Derive the ALS update for the user bias $b_i^{\text{user}}$ with everything else fixed.
+\solutionlink{matrix-factorization:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{matrix-factorization:exr:3}
+In the worked ALS step, update the factor of item~3 using two users with factors $p = 2.55$
+(rating $2$) and $p' = 1$ (rating $1$), with $\lambda = 0.1$.
+\solutionlink{matrix-factorization:exr:3}
+\end{exercise}
 \end{notechapter}

@@ -1,0 +1,726 @@
+\begin{notechapter}
+\chapter{Principal Component Analysis}\label{ch:pca-overview}
+\chaptersubtitle{Inertia, affine subspaces and the best low-dimensional view of a cloud of points}
+
+\forgetcs\horzbar\newcommand*{\horzbar}{\rule[.5ex]{4ex}{0.5pt}}%
+\forgetcs\vertbar\newcommand*{\vertbar}{\rule[-1ex]{0.5pt}{4ex}}%
+\forgetcs\Tr\newcommand{\Tr}{\operatorname{Tr}}%
+
+\begin{chapterintro}
+Principal component analysis (PCA) looks for the low-dimensional affine subspace on
+which a cloud of data points is least deformed by projection. This chapter builds PCA
+from that geometric question, in the general setting of the French school of data
+analysis (weighted individuals, a metric on the variables), and then specializes to
+the familiar ``eigenvectors of the covariance matrix''. You will learn
+\begin{itemize}[nosep]
+  \item the two readings of a data table: a cloud of individuals in $\R^p$ and a cloud
+        of variables in $\R^n$;
+  \item the role of the weights $W$ and of the metric $M$, and why centring is a change
+        of origin in an affine space;
+  \item the inertia of a cloud, and why it equals half the weighted mean of the pairwise
+        squared distances and the trace of $VM$;
+  \item why the best affine subspace passes through the centre of gravity, and why its
+        directions are the leading eigenvectors of $VM$;
+  \item data reconstruction, the reconstruction error and the link with the SVD;
+  \item normed PCA (on correlations) and the duality between the feature space and the
+        sample space.
+\end{itemize}
+\prerequisites{\cref{ch:covariance-estimation} (centring matrix, sample covariance),
+\cref{ch:adjoint-operator} (projections and metrics), \cref{ch:svd}.}
+\end{chapterintro}
+
+\section{The data table and its two clouds}\label{pca-overview:sec:data}
+
+We observe $p$ variables on $n$ individuals and store the values in a matrix
+\[
+  \mathbf X =
+  \begin{bmatrix}
+    x_{11} & x_{12} & \cdots & x_{1p}\\
+    x_{21} & x_{22} & \cdots & x_{2p}\\
+    \vdots & \vdots & & \vdots\\
+    x_{n1} & x_{n2} & \cdots & x_{np}
+  \end{bmatrix}
+  =
+  \begin{bmatrix}
+    \horzbar & \mathbf e_1^\top & \horzbar\\
+     & \vdots & \\
+    \horzbar & \mathbf e_n^\top & \horzbar
+  \end{bmatrix}
+  =
+  \begin{bmatrix}
+    \vertbar & & \vertbar\\
+    \mathbf x_1 & \cdots & \mathbf x_p\\
+    \vertbar & & \vertbar
+  \end{bmatrix}\in\R^{n\times p}.
+\]
+As in \cref{covariance-estimation:fig:datamatrix}, the table has two readings.
+\begin{itemize}
+  \item The rows $\mathbf e_i = (x_{i1},\dots,x_{ip})^\top\in\R^p$ are the \emph{individuals}
+        (observations, samples): a cloud of $n$ points in the \emph{feature space} $\R^p$.
+  \item The columns $\mathbf x_k = (x_{1k},\dots,x_{nk})^\top\in\R^n$ are the \emph{variables}
+        (features): a cloud of $p$ vectors in the \emph{sample space} $\R^n$.
+\end{itemize}
+
+\begin{example}[A running example]\label{pca-overview:ex:running}
+Three individuals, two variables:
+\[
+  \mathbf X = \begin{bmatrix}0.89 & 1.02\\ 1.63 & 1.90\\ -0.26 & 2.45\end{bmatrix},
+  \qquad \mathbf e_1 = \begin{bmatrix}0.89\\1.02\end{bmatrix},\ \dots,\qquad
+  \mathbf x_1 = \begin{bmatrix}0.89\\1.63\\-0.26\end{bmatrix},\quad
+  \mathbf x_2 = \begin{bmatrix}1.02\\1.90\\2.45\end{bmatrix}.
+\]
+\Cref{pca-overview:fig:clouds} shows both clouds: three points in the plane, two vectors
+in space. We shall compute every quantity of the chapter on this example.
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth, font=\small]
+\begin{axis}[name=ind, width=5.6cm, height=5.6cm, xmin=-0.6, xmax=2, ymin=0.6, ymax=2.8,
+  xlabel={$X_1$}, ylabel={$X_2$}, axis lines=left, title={individuals in $\R^p = \R^2$}]
+  \addplot[only marks, mark=*, bookaccent] coordinates {(0.89,1.02) (1.63,1.90) (-0.26,2.45)};
+  \node[right] at (axis cs:0.89,1.02) {$\mathbf e_1$};
+  \node[right] at (axis cs:1.63,1.90) {$\mathbf e_2$};
+  \node[right] at (axis cs:-0.26,2.45) {$\mathbf e_3$};
+  \addplot[only marks, mark=x, mark size=3pt, thick, bookpitfall] coordinates {(0.7533,1.79)};
+  \node[below] at (axis cs:0.7533,1.79) {$\mathbf g$};
+\end{axis}
+\begin{scope}[xshift=8.2cm, yshift=1.6cm, x={(-0.55cm,-0.45cm)}, y={(1cm,0cm)}, z={(0cm,1cm)}, scale=0.95]
+  \draw[->, gray] (0,0,0) -- (2.2,0,0) node[below left] {ind.~1};
+  \draw[->, gray] (0,0,0) -- (0,2.4,0) node[right] {ind.~2};
+  \draw[->, gray] (0,0,0) -- (0,0,2.8) node[above] {ind.~3};
+  \draw[->, very thick, bookexample] (0,0,0) -- (0.89,1.63,-0.26) node[right] {$\mathbf x_1$};
+  \draw[->, very thick, bookdef] (0,0,0) -- (1.02,1.90,2.45) node[above right] {$\mathbf x_2$};
+  \node at (0.3,1.3,-1.6) {variables in $\R^n = \R^3$};
+\end{scope}
+\end{tikzpicture}
+\caption{The two clouds of the running example. Left: the individuals are points of the
+feature space, with their centre of gravity $\mathbf g$. Right: the variables are vectors of
+the sample space, one axis per individual.}
+\label{pca-overview:fig:clouds}
+\end{figure}
+
+\section{Points, vectors and centring}\label{pca-overview:sec:affine}
+
+The individuals are best thought of as \emph{points}: positions in space, with no
+privileged origin. Differences of points are \emph{vectors} (displacements). This is the
+structure of an affine space.
+
+\begin{definition}[Affine space]
+An affine space is a set $\mathcal A$ of points together with a vector space $\mathcal V$ acting
+on it by translation, $(\mathbf a, \mathbf v)\mapsto\mathbf a + \mathbf v$, such that
+$(\mathbf a + \mathbf v) + \mathbf w = \mathbf a + (\mathbf v + \mathbf w)$ and, for any two points
+$\mathbf a$, $\mathbf b$, there is a unique vector $\mathbf v$ with $\mathbf a + \mathbf v = \mathbf b$. An
+\emph{affine subspace} is a set $\mathbf a + \mathbb V$, where $\mathbb V$ is a vector subspace (its
+\emph{direction}).
+\end{definition}
+
+For us $\mathcal A = \mathcal V = \R^p$. The distinction still matters: PCA looks for an
+\emph{affine} subspace $\mathbf a + \mathbb V[\mathbf u_1,\dots,\mathbf u_q]$, where
+$\mathbb V[\mathbf u_1,\dots,\mathbf u_q]$ denotes the span of orthonormal vectors
+$\mathbf u_1,\dots,\mathbf u_q$. Choosing a good origin $\mathbf a$ is part of the problem.
+
+\subsection{Weights and the centre of gravity}
+
+Each individual receives a weight $w_i>0$, with $\sum_iw_i = 1$ (usually $w_i = \frac1n$).
+Write $W = \diag(w_1,\dots,w_n)$ and $\bbone_n$ for the vector of ones.
+
+\begin{definition}[Centre of gravity]
+\[
+  \mathbf g = \sum_{i=1}^nw_i\mathbf e_i = \begin{bmatrix}\bar x_1\\ \vdots\\ \bar x_p\end{bmatrix},
+  \qquad \bar x_k = \sum_{i=1}^nw_ix_{ik} = \begin{bmatrix}w_1 & \cdots & w_n\end{bmatrix}
+  \begin{bmatrix}x_{1k}\\ \vdots\\ x_{nk}\end{bmatrix},
+  \qquad\text{i.e.}\quad \mathbf g = \mathbf X^\top W\bbone_n .
+\]
+\end{definition}
+
+$\mathbf g$ is the ``average individual''. Taking it as origin replaces each point by its
+displacement $\dot{\mathbf e}_i = \mathbf e_i - \mathbf g$:
+\[
+  \mathbf X_c = \mathbf X - \bbone_n\mathbf g^\top = \bigl(I_n - \bbone_n\bbone_n^\top W\bigr)\mathbf X
+  =
+  \begin{bmatrix}
+    \horzbar & (\mathbf e_1 - \mathbf g)^\top & \horzbar\\
+     & \vdots & \\
+    \horzbar & (\mathbf e_n - \mathbf g)^\top & \horzbar
+  \end{bmatrix}
+  =
+  \begin{bmatrix}
+    \horzbar & \dot{\mathbf e}_1^\top & \horzbar\\
+     & \vdots & \\
+    \horzbar & \dot{\mathbf e}_n^\top & \horzbar
+  \end{bmatrix}.
+\]
+For equal weights, $I_n - \bbone_n\bbone_n^\top W = I_n - \frac1n\bbone_n\bbone_n^\top$ is the
+centring matrix $A$ of \cref{ch:covariance-estimation}.
+
+\begin{example}[Centring two patients]\label{pca-overview:ex:patients}
+Two patients ($n = 2$, $w_i = \frac12$) with height (cm), weight (kg) and blood pressure
+(mmHg):
+\[
+  \mathbf X = \begin{bmatrix}170 & 70 & 120\\ 180 & 65 & 140\end{bmatrix}.
+\]
+The matrix of means is
+\[
+  \tfrac12\bbone_2\bbone_2^\top\mathbf X
+  = \tfrac12\begin{bmatrix}1&1\\1&1\end{bmatrix}\begin{bmatrix}170 & 70 & 120\\ 180 & 65 & 140\end{bmatrix}
+  = \tfrac12\begin{bmatrix}350 & 135 & 260\\ 350 & 135 & 260\end{bmatrix}
+  = \begin{bmatrix}175 & 67.5 & 130\\ 175 & 67.5 & 130\end{bmatrix},
+\]
+each row being $\mathbf g^\top = (175, 67.5, 130)$, and
+\[
+  \mathbf X_c = \begin{bmatrix}170 & 70 & 120\\ 180 & 65 & 140\end{bmatrix} - \begin{bmatrix}175 & 67.5 & 130\\ 175 & 67.5 & 130\end{bmatrix}
+  = \begin{bmatrix}-5 & 2.5 & -10\\ 5 & -2.5 & 10\end{bmatrix}.
+\]
+Patient~1 is $5$\,cm shorter, $2.5$\,kg heavier and $10$\,mmHg lower than average;
+patient~2 the opposite. Each column of $\mathbf X_c$ sums to zero.
+\end{example}
+
+In the running example, $\mathbf g = (0.7533,\ 1.7900)$ and
+\[
+  \mathbf X_c = \begin{bmatrix}0.1367 & -0.7700\\ 0.8767 & 0.1100\\ -1.0133 & 0.6600\end{bmatrix}.
+\]
+
+\subsection{The covariance matrix}
+
+\begin{definition}[Covariance matrix]
+$V = \mathbf X_c^\top W\mathbf X_c = \mathbf X^\top W\mathbf X - \mathbf g\mathbf g^\top\in\R^{p\times p}$.
+\end{definition}
+
+Writing the factors by columns and rows shows what $V$ is:
+\begin{align*}
+  V &=
+  \begin{bmatrix}
+    \vertbar & & \vertbar\\
+    \dot{\mathbf e}_1 & \cdots & \dot{\mathbf e}_n\\
+    \vertbar & & \vertbar
+  \end{bmatrix}
+  \begin{bmatrix}
+    w_1 & & 0\\ & \ddots & \\ 0 & & w_n
+  \end{bmatrix}
+  \begin{bmatrix}
+    \horzbar & \dot{\mathbf e}_1^\top & \horzbar\\
+     & \vdots & \\
+    \horzbar & \dot{\mathbf e}_n^\top & \horzbar
+  \end{bmatrix}
+  =
+  \begin{bmatrix}
+    \vertbar & & \vertbar\\
+    \dot{\mathbf e}_1 & \cdots & \dot{\mathbf e}_n\\
+    \vertbar & & \vertbar
+  \end{bmatrix}
+  \begin{bmatrix}
+    \horzbar & w_1\dot{\mathbf e}_1^\top & \horzbar\\
+     & \vdots & \\
+    \horzbar & w_n\dot{\mathbf e}_n^\top & \horzbar
+  \end{bmatrix}
+  = \sum_{i=1}^nw_i\,\dot{\mathbf e}_i\dot{\mathbf e}_i^\top ,
+\end{align*}
+a weighted sum of outer products, with entries
+$V_{kl} = \sum_iw_i(x_{ik} - \bar x_k)(x_{il} - \bar x_l) = s_{kl}$: the (weighted, divisor-$n$)
+sample covariances of \cref{ch:covariance-estimation}. In the running example ($w_i = \frac13$),
+\[
+  \mathbf X_c^\top\mathbf X_c = \begin{bmatrix}1.8141 & -0.6776\\ -0.6776 & 1.0406\end{bmatrix},
+  \qquad
+  V = \tfrac13\mathbf X_c^\top\mathbf X_c = \begin{bmatrix}0.6047 & -0.2259\\ -0.2259 & 0.3469\end{bmatrix}.
+\]
+
+\section{Two metrics}\label{pca-overview:sec:metrics}
+
+\subsection{In the sample space: the weights}
+
+On $\R^n$ the weights define the inner product $\inner{\mathbf u}{\mathbf v}_W = \mathbf u^\top W\mathbf v$.
+For two \emph{centred} variables it is their covariance:
+\[
+  \inner{\dot{\mathbf x}_k}{\dot{\mathbf x}_l}_W = \sum_{i=1}^nw_i(x_{ik} - \bar x_k)(x_{il} - \bar x_l) = s_{kl},
+  \qquad \norm{\dot{\mathbf x}_k}_W^2 = s_k^2 .
+\]
+Lengths of centred variables are standard deviations, and angles are correlations
+(\cref{pca-overview:sec:normed}).
+
+\subsection{In the feature space: the metric $M$}
+
+To compare individuals we need a distance on $\R^p$. Any symmetric positive definite
+$M$ gives an inner product $\inner{\mathbf e_i}{\mathbf e_j}_M = \mathbf e_i^\top M\mathbf e_j$ and
+\begin{align*}
+  d_M^2(\mathbf e_i,\mathbf e_j) &= (\mathbf e_i - \mathbf e_j)^\top M(\mathbf e_i - \mathbf e_j)
+  = \begin{bmatrix}x_{i1} - x_{j1} & \cdots & x_{ip} - x_{jp}\end{bmatrix}
+    \begin{bmatrix}
+      m_{11} & \cdots & m_{1p}\\
+      \vdots & & \vdots\\
+      m_{p1} & \cdots & m_{pp}
+    \end{bmatrix}
+    \begin{bmatrix}x_{i1} - x_{j1}\\ \vdots\\ x_{ip} - x_{jp}\end{bmatrix}\\
+  &= \sum_{k=1}^p\sum_{l=1}^pm_{kl}(x_{ik} - x_{jk})(x_{il} - x_{jl}),
+\end{align*}
+with $m_{kl} = m_{lk}$. Two choices are standard:
+\begin{itemize}
+  \item $M = I_p$: the Euclidean distance. Variables with large spread (or large units)
+        dominate.
+  \item $M = \diag(1/s_1^2,\dots,1/s_p^2)$: then
+        $d_M^2(\mathbf e_i,\mathbf e_j) = \sum_k(x_{ik} - x_{jk})^2/s_k^2$. Units disappear and every
+        variable counts equally.
+\end{itemize}
+
+\begin{proposition}[A metric is a change of coordinates]\label{pca-overview:prop:N}
+Write $M = N^\top N$ (e.g.\ a Cholesky factor, or $N = M^{1/2}$). Then
+$\inner{\mathbf e_i}{\mathbf e_j}_M = \inner{N\mathbf e_i}{N\mathbf e_j}$: using $M$ on $\mathbf X$ is the same as
+using the Euclidean metric on the transformed data $\mathbf X N^\top$.
+\end{proposition}
+
+\begin{proof}
+$\mathbf e_i^\top M\mathbf e_j = \mathbf e_i^\top N^\top N\mathbf e_j = (N\mathbf e_i)^\top(N\mathbf e_j)$, and the rows of
+$\mathbf XN^\top$ are the $(N\mathbf e_i)^\top$.
+\end{proof}
+
+For $M = \diag(1/s_k^2)$, $N = \diag(1/s_k)$, and $\mathbf XN^\top$ divides each variable by its
+standard deviation. Any PCA with metric $M$ is therefore an ordinary PCA of suitably
+transformed data; we keep $M$ general because the formulas show where it enters.
+
+\section{Inertia}\label{pca-overview:sec:inertia}
+
+The spread of the cloud of individuals is measured by its inertia.
+
+\begin{definition}[Inertia]
+The \emph{inertia about a point} $\mathbf a$ is $\mathcal I_{\mathbf a} = \sum_iw_i\norm{\mathbf e_i - \mathbf a}_M^2$.
+The \emph{total inertia} is $\mathcal I_{\mathbf g}$. The \emph{pairwise inertia} is
+\[
+  \mathcal I^* = \frac12\sum_{i=1}^n\sum_{j=1}^nw_iw_j\,d_M^2(\mathbf e_i,\mathbf e_j),
+\]
+half the weighted mean of the squared distances between pairs of individuals.
+\end{definition}
+
+\begin{proposition}[Pairwise inertia equals total inertia]\label{pca-overview:prop:pairwise}
+$\mathcal I^* = \mathcal I_{\mathbf g}$. With equal weights:
+$\frac1{2n^2}\sum_{i,j}d_M^2(\mathbf e_i,\mathbf e_j) = \frac1n\sum_i\norm{\mathbf e_i - \mathbf g}_M^2$.
+\end{proposition}
+
+\begin{proof}
+Insert $\mathbf g$ in each difference, $\mathbf e_i - \mathbf e_j = (\mathbf e_i - \mathbf g) + (\mathbf g - \mathbf e_j)$, and expand:
+\begin{align*}
+  \mathcal I^* &= \frac12\sum_{i,j}w_iw_j\norm{\mathbf e_i - \mathbf g + \mathbf g - \mathbf e_j}_M^2\\
+  &= \frac12\Bigl(\sum_{i,j}w_iw_j\norm{\mathbf e_i - \mathbf g}_M^2 + \sum_{i,j}w_iw_j\norm{\mathbf e_j - \mathbf g}_M^2
+     - 2\sum_{i,j}w_iw_j\inner{\mathbf e_i - \mathbf g}{\mathbf e_j - \mathbf g}_M\Bigr)\\
+  &= \frac12\Bigl(\underbrace{\sum_jw_j}_{=1}\sum_iw_i\norm{\mathbf e_i - \mathbf g}_M^2
+     + \underbrace{\sum_iw_i}_{=1}\sum_jw_j\norm{\mathbf e_j - \mathbf g}_M^2
+     - 2\Bigl\langle\underbrace{\sum_iw_i\mathbf e_i - \mathbf g\sum_iw_i}_{=\,\mathbf g - \mathbf g\,=\,0},\
+       \sum_jw_j\mathbf e_j - \mathbf g\sum_jw_j\Bigr\rangle_M\Bigr)\\
+  &= \frac12\bigl(\mathcal I_{\mathbf g} + \mathcal I_{\mathbf g}\bigr) = \mathcal I_{\mathbf g}. \qedhere
+\end{align*}
+\end{proof}
+
+\begin{keyidea}
+Spreading the individuals far from their centre and spreading them far from each other
+are the same thing. A projection that preserves the inertia also preserves, on average,
+the distances between individuals.
+\end{keyidea}
+
+\begin{proposition}[Inertia is a trace]\label{pca-overview:prop:trace}
+$\mathcal I_{\mathbf g} = \Tr(MV) = \Tr(VM)$.
+\end{proposition}
+
+\begin{proof}
+With $M = N^\top N$, set $\mathbf y_i = N\dot{\mathbf e}_i$, so that
+$w_i\,d_M^2(\mathbf e_i,\mathbf g) = w_i(N\dot{\mathbf e}_i)^\top(N\dot{\mathbf e}_i) = w_i\mathbf y_i^\top\mathbf y_i$, and
+\[
+  N\mathbf X_c^\top =
+  \begin{bmatrix}
+    \vertbar & & \vertbar\\
+    N\dot{\mathbf e}_1 & \cdots & N\dot{\mathbf e}_n\\
+    \vertbar & & \vertbar
+  \end{bmatrix}
+  =
+  \begin{bmatrix}
+    \vertbar & & \vertbar\\
+    \mathbf y_1 & \cdots & \mathbf y_n\\
+    \vertbar & & \vertbar
+  \end{bmatrix}
+  = Y .
+\]
+Using $\Tr(AB) = \Tr(BA)$,
+$\Tr(MV) = \Tr(N^\top N\mathbf X_c^\top W\mathbf X_c) = \Tr(N\mathbf X_c^\top W\mathbf X_cN^\top) = \Tr(YWY^\top)$, and
+\begin{align*}
+  \Tr(YWY^\top)
+  &= \Tr\left(
+    \begin{bmatrix}
+      \vertbar & & \vertbar\\
+      \mathbf y_1 & \cdots & \mathbf y_n\\
+      \vertbar & & \vertbar
+    \end{bmatrix}
+    \begin{bmatrix}
+      \horzbar & w_1\mathbf y_1^\top & \horzbar\\
+       & \vdots & \\
+      \horzbar & w_n\mathbf y_n^\top & \horzbar
+    \end{bmatrix}\right)
+  = \Tr\Bigl(\sum_{k=1}^nw_k\,\mathbf y_k\mathbf y_k^\top\Bigr)
+  = \sum_{k=1}^nw_k\Tr\bigl(\mathbf y_k\mathbf y_k^\top\bigr)\\
+  &= \sum_{k=1}^nw_k\Tr\bigl(\mathbf y_k^\top\mathbf y_k\bigr)
+  = \sum_{k=1}^nw_k\,\mathbf y_k^\top\mathbf y_k
+  = \sum_{k=1}^nw_k\,d_M^2(\mathbf e_k,\mathbf g) = \mathcal I_{\mathbf g}.
+\end{align*}
+The product of the columns $\mathbf y_k$ by the rows $w_k\mathbf y_k^\top$ is a sum of outer
+products, and the trace of the outer product $\mathbf y_k\mathbf y_k^\top$ is the inner product
+$\mathbf y_k^\top\mathbf y_k$. Finally $\Tr(MV) = \Tr(VM)$.
+\end{proof}
+
+With $M = I_p$ the total inertia is the sum of the variances, $\Tr V = \sum_ks_k^2$. In the
+running example, $\Tr V = 0.6047 + 0.3469 = 0.9516$. The squared distances between the
+three points are $1.3220$, $3.3674$ and $3.8746$, and indeed
+$\frac1{2\cdot9}\cdot2\,(1.3220 + 3.3674 + 3.8746) = 0.9516$.
+
+\section{The best affine subspace}\label{pca-overview:sec:best}
+
+We want to project the individuals on an affine subspace
+$E_{\mathbf a} = \mathbf a + \mathbb V[\mathbf u_1,\dots,\mathbf u_q]$, $q<p$, so that the projected cloud is as
+close as possible to the original one. Let $\hat{\mathbf e}_i$ be the $M$-orthogonal projection
+of $\mathbf e_i$ on $E_{\mathbf a}$, and measure the deformation by
+\[
+  \mathcal J_{E_{\mathbf a}} = \sum_{i=1}^nw_i\,d_M^2(\mathbf e_i,\hat{\mathbf e}_i).
+\]
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth, font=\small]
+\begin{axis}[width=7.6cm, height=6.2cm, xmin=-0.9, xmax=2.2, ymin=0.6, ymax=2.9,
+  axis equal image, xlabel={$X_1$}, ylabel={$X_2$}, axis lines=left]
+  \addplot[thick, bookaccent, domain=-0.8:2.1] {1.79 - 0.5807*(x-0.7533)};
+  \node[bookaccent, above right] at (axis cs:1.7,1.25) {$\mathbf g + \mathbb V[\mathbf u_1]$};
+  \draw[dashed, bookpitfall] (axis cs:0.89,1.02) -- (axis cs:1.1899,1.5365);
+  \fill[bookaccent] (axis cs:1.1899,1.5365) circle (1.6pt);
+  \draw[dashed, bookpitfall] (axis cs:1.63,1.90) -- (axis cs:1.3612,1.4370);
+  \fill[bookaccent] (axis cs:1.3612,1.4370) circle (1.6pt);
+  \draw[dashed, bookpitfall] (axis cs:-0.26,2.45) -- (axis cs:-0.2911,2.3965);
+  \fill[bookaccent] (axis cs:-0.2911,2.3965) circle (1.6pt);
+  \addplot[only marks, mark=*, black] coordinates {(0.89,1.02) (1.63,1.90) (-0.26,2.45)};
+  \addplot[only marks, mark=x, mark size=3pt, thick, bookpitfall] coordinates {(0.7533,1.79)};
+  \node[left] at (axis cs:0.7533,1.79) {$\mathbf g$};
+  \node[right] at (axis cs:0.89,1.02) {$\mathbf e_1$};
+  \node[right] at (axis cs:1.63,1.90) {$\mathbf e_2$};
+  \node[above] at (axis cs:-0.26,2.45) {$\mathbf e_3$};
+\end{axis}
+\end{tikzpicture}
+\caption{The first principal axis of the running example: the line through $\mathbf g$ along
+$\mathbf u_1$. The dashed segments are the projection errors; $\mathcal J$ is their weighted sum of
+squares, and no other line does better.}
+\label{pca-overview:fig:axis}
+\end{figure}
+
+\subsection{The subspace goes through the centre of gravity}
+
+\begin{proposition}\label{pca-overview:prop:through-g}
+Among all affine subspaces with a given direction $\mathbb V = \mathbb V[\mathbf u_1,\dots,\mathbf u_q]$, the one
+through $\mathbf g$ is best: if $H = \mathbf a + \mathbb V$ and $H_{\mathbf g} = \mathbf g + \mathbb V$, then
+\[
+  \mathcal J_{H_{\mathbf g}} = \mathcal J_H - \norm{\mathbf g - \hat{\mathbf g}}_M^2\leq\mathcal J_H,
+\]
+where $\hat{\mathbf g}$ is the projection of $\mathbf g$ on $H$, with equality iff $\mathbf g\in H$.
+\end{proposition}
+
+\begin{proof}
+Since $\mathbf g - \hat{\mathbf g}$ is $M$-orthogonal to $\mathbb V$, projecting on $H_{\mathbf g}$ is projecting on $H$
+and then translating by $\mathbf g - \hat{\mathbf g}$. Hence
+\begin{align*}
+  \mathcal J_{H_{\mathbf g}}
+  &= \sum_iw_i\norm{\mathbf e_i - \bigl(\hat{\mathbf e}_i + (\mathbf g - \hat{\mathbf g})\bigr)}_M^2\\
+  &= \sum_iw_i\norm{\mathbf e_i - \hat{\mathbf e}_i}_M^2 + \sum_iw_i\norm{\mathbf g - \hat{\mathbf g}}_M^2
+     - 2\sum_iw_i\inner{\mathbf e_i - \hat{\mathbf e}_i}{\mathbf g - \hat{\mathbf g}}_M\\
+  &= \sum_iw_i\norm{\mathbf e_i - \hat{\mathbf e}_i}_M^2 + \norm{\mathbf g - \hat{\mathbf g}}_M^2
+     - 2\Bigl\langle\sum_iw_i\mathbf e_i - \sum_iw_i\hat{\mathbf e}_i,\ \mathbf g - \hat{\mathbf g}\Bigr\rangle_M\\
+  &= \mathcal J_H + \norm{\mathbf g - \hat{\mathbf g}}_M^2 - 2\inner{\mathbf g - \hat{\mathbf g}}{\mathbf g - \hat{\mathbf g}}_M
+   = \mathcal J_H - \norm{\mathbf g - \hat{\mathbf g}}_M^2 .
+\end{align*}
+We used $\sum_iw_i\hat{\mathbf e}_i = \hat{\mathbf g}$: the centre of gravity of the projected points is the
+projection of the centre of gravity, because an affine projection $P$ preserves barycentres,
+$P(\sum_iw_i\mathbf e_i) = \sum_iw_iP(\mathbf e_i)$ when $\sum_iw_i = 1$.
+\end{proof}
+
+From now on we only consider subspaces through $\mathbf g$, i.e.\ we work with the centred data.
+
+\subsection{Least deformation is greatest projected inertia}
+
+\begin{proposition}\label{pca-overview:prop:max-inertia}
+For $H$ through $\mathbf g$, let $\mathcal I_H = \sum_iw_i\norm{\hat{\mathbf e}_i - \mathbf g}_M^2$ be the inertia of the
+projected cloud. Then $\mathcal J_H = \mathcal I_{\mathbf g} - \mathcal I_H$. Minimizing the deformation is therefore
+maximizing the projected inertia --- and, by \cref{pca-overview:prop:pairwise} applied to the
+projected cloud, maximizing the weighted mean of the squared distances between projected
+individuals.
+\end{proposition}
+
+\begin{proof}
+For each $i$, $\mathbf e_i - \mathbf g = (\mathbf e_i - \hat{\mathbf e}_i) + (\hat{\mathbf e}_i - \mathbf g)$ with the first vector
+$M$-orthogonal to $H$ and the second in its direction, so by Pythagoras
+$\norm{\mathbf e_i - \mathbf g}_M^2 = \norm{\mathbf e_i - \hat{\mathbf e}_i}_M^2 + \norm{\hat{\mathbf e}_i - \mathbf g}_M^2$. Multiply by $w_i$ and sum.
+\end{proof}
+
+\section{The principal axes}\label{pca-overview:sec:axes}
+
+\paragraph{One axis.} Let $H = \mathbf g + \mathbb V[\mathbf u]$ with $\norm{\mathbf u}_M^2 = \mathbf u^\top M\mathbf u = 1$. By
+\cref{adjoint-operator:prop:line}, the projection is $\hat{\mathbf e}_i = \mathbf g + \inner{\dot{\mathbf e}_i}{\mathbf u}_M\,\mathbf u$, so
+\[
+  \mathcal I_H = \sum_iw_i\inner{\dot{\mathbf e}_i}{\mathbf u}_M^2
+  = \sum_iw_i\,\mathbf u^\top M\dot{\mathbf e}_i\dot{\mathbf e}_i^\top M\mathbf u
+  = \mathbf u^\top M\Bigl(\sum_iw_i\dot{\mathbf e}_i\dot{\mathbf e}_i^\top\Bigr)M\mathbf u
+  = \mathbf u^\top MVM\mathbf u .
+\]
+To maximize it under $\mathbf u^\top M\mathbf u = 1$, set the gradient of the Lagrangian
+$\mathbf u^\top MVM\mathbf u - \lambda(\mathbf u^\top M\mathbf u - 1)$ to zero: $2MVM\mathbf u = 2\lambda M\mathbf u$. Since $M$ is
+invertible,
+\[
+  VM\mathbf u = \lambda\mathbf u,\qquad\text{and then}\qquad\mathcal I_H = \mathbf u^\top M(\lambda\mathbf u) = \lambda .
+\]
+The first principal axis $\mathbf u_1$ is the eigenvector of $VM$ for its largest eigenvalue
+$\lambda_1$, and $\lambda_1$ is the inertia it captures.
+
+\paragraph{The spectrum of $VM$.} $VM$ is not symmetric, but it is $M$-symmetric:
+$M(VM) = (VM)^\top M$. With $M = N^\top N$, the matrix $NVN^\top$ is symmetric positive semi-definite and
+\[
+  VM\mathbf u = \lambda\mathbf u\iff NVN^\top(N\mathbf u) = \lambda(N\mathbf u).
+\]
+Hence $VM$ is diagonalizable with real eigenvalues $\lambda_1\geq\dots\geq\lambda_p\geq0$, and its
+eigenvectors can be chosen $M$-orthonormal.
+
+\paragraph{Next axes.} For $M$-orthonormal $\mathbf u_1,\dots,\mathbf u_q$, the projection on
+$\mathbf g + \mathbb V[\mathbf u_1,\dots,\mathbf u_q]$ is the sum of the projections on the axes, and by Pythagoras
+$\mathcal I_H = \sum_{k\leq q}\mathbf u_k^\top MVM\mathbf u_k$. Maximizing over $\mathbf u_2$ with the additional constraint
+$\mathbf u_2^\top M\mathbf u_1 = 0$ gives the eigenvector of $\lambda_2$, and so on. This greedy, axis-by-axis
+solution is also the best $q$-dimensional subspace: by Ky Fan's maximum principle (applied to
+$NVN^\top$), the maximum of $\mathcal I_H$ over all $q$-dimensional subspaces through $\mathbf g$ is
+$\lambda_1 + \dots + \lambda_q$. For $M = I$ this is proved directly in \cref{pca-overview:thm:best}.
+
+\begin{theorem}[Summary of PCA]\label{pca-overview:thm:summary}
+\begin{enumerate}
+  \item The principal axes are the $M$-orthonormal eigenvectors $\mathbf u_k$ of $VM$, ordered by
+        eigenvalue.
+  \item The total inertia is $\mathcal I_{\mathbf g} = \Tr(VM) = \sum_k\lambda_k$; axis $k$ captures the
+        fraction $\lambda_k/\sum_j\lambda_j$ of it.
+  \item The \emph{principal components} --- the coordinates of the individuals on the axes ---
+        are $\mathbf c_k = \mathbf X_cM\mathbf u_k\in\R^n$, with weighted variance $\mathbf c_k^\top W\mathbf c_k = \lambda_k$.
+        Distinct components are uncorrelated.
+  \item $M = I$ gives the usual PCA on the covariance matrix;
+        $M = \diag(1/s_1^2,\dots,1/s_p^2)$ gives normed PCA, on the correlation matrix.
+\end{enumerate}
+\end{theorem}
+
+\begin{example}[Principal axes of the running example]\label{pca-overview:ex:axes}
+With $M = I$, the eigenvalues of
+$V = \begin{psmallmatrix}0.6047 & -0.2259\\ -0.2259 & 0.3469\end{psmallmatrix}$ are
+$\lambda_1 = 0.7358$ and $\lambda_2 = 0.2157$ (their sum is $\Tr V = 0.9516$), with eigenvectors
+$\mathbf u_1 = (0.8648, -0.5022)$ and $\mathbf u_2 = (0.5022, 0.8648)$. The first axis captures
+$0.7358/0.9516 = 77\%$ of the inertia. The principal components are
+\[
+  \mathbf c_1 = \mathbf X_c\mathbf u_1 = \begin{bmatrix}0.5048\\0.7029\\-1.2077\end{bmatrix},\qquad
+  \mathbf c_2 = \mathbf X_c\mathbf u_2 = \begin{bmatrix}-0.5973\\0.5353\\0.0619\end{bmatrix},
+\]
+with mean squares $\frac13\norm{\mathbf c_1}^2 = 0.7358$ and $\frac13\norm{\mathbf c_2}^2 = 0.2157$: the variance of each
+component is its eigenvalue. \Cref{pca-overview:fig:axis} shows the first axis and the
+projections $\hat{\mathbf e}_i = \mathbf g + c_{i1}\mathbf u_1$.
+\end{example}
+
+\section{The usual PCA: covariance, reconstruction and SVD}\label{pca-overview:sec:usual}
+
+From now on $M = I_p$ and $w_i = \frac1n$. The data are centred, so $\mathbf X$ denotes $\mathbf X_c$,
+and $S = \frac1n\mathbf X^\top\mathbf X$ is the covariance matrix.
+
+\begin{theorem}[Best subspace]\label{pca-overview:thm:best}
+Let $S = \sum_j\lambda_j\mathbf v_j\mathbf v_j^\top$ with $\lambda_1\geq\dots\geq\lambda_p$. Over all $k$-dimensional
+subspaces $\mathbb W$,
+\[
+  \min_{\mathbb W}\ \frac1n\sum_{i=1}^n\norm{\mathbf e_i - \operatorname{proj}_{\mathbb W}\mathbf e_i}^2 = \sum_{j>k}\lambda_j,
+\]
+attained by $\mathbb W = \operatorname{span}(\mathbf v_1,\dots,\mathbf v_k)$; equivalently the retained variance
+$\frac1n\sum_i\norm{\operatorname{proj}_{\mathbb W}\mathbf e_i}^2$ is at most $\sum_{j\leq k}\lambda_j$.
+\end{theorem}
+
+\begin{proof}
+Let $\mathbf w_1,\dots,\mathbf w_k$ be an orthonormal basis of $\mathbb W$ and $Q = [\mathbf w_1,\dots,\mathbf w_k]$. By Pythagoras
+the error is $\frac1n\sum_i\norm{\mathbf e_i}^2 - \frac1n\sum_i\norm{Q^\top\mathbf e_i}^2 = \Tr S - \Tr(Q^\top SQ)$, since
+$\frac1n\sum_i\norm{Q^\top\mathbf e_i}^2 = \sum_j\mathbf w_j^\top\bigl(\frac1n\sum_i\mathbf e_i\mathbf e_i^\top\bigr)\mathbf w_j$. It remains to show
+$\Tr(Q^\top SQ)\leq\sum_{j\leq k}\lambda_j$. Write $\Tr(Q^\top SQ) = \sum_j\lambda_j\,a_j$ with
+$a_j = \norm{Q^\top\mathbf v_j}^2$. Each $a_j\in[0,1]$ (the norm of a projection of a unit vector), and
+$\sum_ja_j = \norm{Q}_F^2 = k$. A sum $\sum_j\lambda_ja_j$ with such weights is largest when the
+weight $1$ is put on the $k$ largest $\lambda_j$; this value is attained by $Q = [\mathbf v_1,\dots,\mathbf v_k]$.
+\end{proof}
+
+\subsection{Projection and reconstruction}
+
+Let $V = [\mathbf v_1,\dots,\mathbf v_p]$ be the orthogonal matrix of eigenvectors. The coordinates of the
+data in the eigenbasis are
+\[
+  U = \mathbf XV\qquad(\text{row } i\text{ of } U = \text{coordinates of }\mathbf e_i\text{ on the principal axes}),
+\]
+and since $VV^\top = I$, the data are recovered exactly: $UV^\top = \mathbf XVV^\top = \mathbf X$. Keeping the first
+$k$ columns, $V_k = [\mathbf v_1,\dots,\mathbf v_k]$ and $U_k = \mathbf XV_k$, gives the rank-$k$ reconstruction
+\[
+  \hat{\mathbf X}_k = U_kV_k^\top = \mathbf XV_kV_k^\top,
+  \qquad
+  \frac1n\norm{\mathbf X - \hat{\mathbf X}_k}_F^2 = \sum_{j>k}\lambda_j :
+\]
+each point is projected on the first $k$ axes ($V_kV_k^\top$ is the projection matrix), and the mean
+squared error is the sum of the discarded eigenvalues (\cref{pca-overview:thm:best}).
+
+\begin{example}[Points on a line]\label{pca-overview:ex:line}
+For the centred $\mathbf X = \begin{psmallmatrix}-1&-1\\0&0\\1&1\end{psmallmatrix}$,
+$\mathbf X^\top\mathbf X = \begin{psmallmatrix}2&2\\2&2\end{psmallmatrix}$ has $\det(\mathbf X^\top\mathbf X - \lambda I) = \lambda^2 - 4\lambda$,
+eigenvalues $4$ and $0$, and eigenvectors $\mathbf v_1 = \frac1{\sqrt2}(1,1)$, $\mathbf v_2 = \frac1{\sqrt2}(1,-1)$. Then
+\[
+  U = \mathbf XV = \frac1{\sqrt2}\begin{bmatrix}-2&0\\0&0\\2&0\end{bmatrix},\qquad
+  \hat{\mathbf X}_1 = \mathbf X\mathbf v_1\mathbf v_1^\top = \frac1{\sqrt2}\begin{bmatrix}-2\\0\\2\end{bmatrix}\frac1{\sqrt2}\begin{bmatrix}1&1\end{bmatrix} = \mathbf X:
+\]
+one component reconstructs the data exactly, because the points lie on the line spanned by
+$\mathbf v_1$ ($\lambda_2 = 0$). The covariance $S = \frac13\mathbf X^\top\mathbf X$ has the same eigenvectors and
+eigenvalues $\frac43$, $0$.
+\end{example}
+
+In the running example, the one-axis reconstruction
+$\hat{\mathbf e}_i = \mathbf g + c_{i1}\mathbf u_1$ gives $(1.19, 1.54)$, $(1.36, 1.44)$, $(-0.29, 2.40)$, with mean squared
+error $0.2157 = \lambda_2$.
+
+\subsection{The SVD connection}
+
+Let $\mathbf X = U_\sigma\Sigma V^\top$ be the SVD of the centred data. Then
+\[
+  S = \frac1n\mathbf X^\top\mathbf X = V\,\frac{\Sigma^\top\Sigma}{n}\,V^\top :
+\]
+the principal directions are the right singular vectors, $\lambda_j = \sigma_j^2/n$, and the principal
+components are $\mathbf XV = U_\sigma\Sigma$ (the columns of $U_\sigma$ scaled by the $\sigma_j$). The rank-$k$
+reconstruction $\mathbf XV_kV_k^\top = U_{\sigma,k}\Sigma_kV_k^\top$ is the truncated SVD, and
+\cref{pca-overview:thm:best} is the Frobenius case of the Eckart--Young theorem
+(\cref{svd:thm:eckart-young}). In practice PCA is computed from the SVD of $\mathbf X$, never by
+forming $\mathbf X^\top\mathbf X$.
+
+\section{Normed PCA: angles are correlations}\label{pca-overview:sec:normed}
+
+When the variables have different units, the covariance PCA is dominated by the variables with
+the largest numbers. Normed PCA uses $M = \diag(1/s_k^2)$, i.e.\ standardizes each variable:
+$\mathbf X_{\text{std}} = \mathbf X_cD^{-1}$ with $D = \diag(s_1,\dots,s_p)$ and $s_k^2 = \frac1n\sum_i(x_{ik} - \bar x_k)^2$.
+
+\begin{proposition}[Correlation is a cosine]\label{pca-overview:prop:cosine}
+Each standardized variable $\mathbf f_k$ (column of $\mathbf X_{\text{std}}$) has $\norm{\mathbf f_k}^2 = n$, and
+\[
+  \mathrm{corr}(\mathbf x_k,\mathbf x_l) = \frac1n\inner{\mathbf f_k}{\mathbf f_l} = \cos\theta_{kl},
+\]
+where $\theta_{kl}$ is the angle between $\mathbf f_k$ and $\mathbf f_l$ in the sample space $\R^n$.
+\end{proposition}
+
+\begin{proof}
+$\norm{\mathbf f_k}^2 = \sum_i(x_{ik} - \bar x_k)^2/s_k^2 = ns_k^2/s_k^2 = n$. Then
+$\frac1n\inner{\mathbf f_k}{\mathbf f_l} = \frac1n\sum_i\frac{x_{ik} - \bar x_k}{s_k}\frac{x_{il} - \bar x_l}{s_l}$ is the correlation,
+and it equals $\inner{\mathbf f_k}{\mathbf f_l}/(\norm{\mathbf f_k}\norm{\mathbf f_l}) = \cos\theta_{kl}$.
+\end{proof}
+
+After scaling by $1/\sqrt n$, all variables lie on the unit sphere of $\R^n$, and normed PCA studies
+only their angles. The correlation matrix is $R = \frac1n\mathbf X_{\text{std}}^\top\mathbf X_{\text{std}}$; its trace is $p$.
+In the running example, $s_1 = 0.778$, $s_2 = 0.589$, the correlation is $-0.493$, and $R$ has
+eigenvalues $1.493$ and $0.507$: the first normed axis captures $75\%$ of the (normed) inertia.
+
+\begin{pitfall}[Which PCA?]
+Covariance PCA and normed PCA generally give different axes. Use the covariance version when all
+variables share a unit and their spreads are meaningful (pixels, coordinates); use the normed version
+when units differ (height in cm and weight in kg) --- otherwise changing centimetres into metres
+would change the result.
+\end{pitfall}
+
+\section{Two dual views: feature space and sample space}\label{pca-overview:sec:duality}
+
+The cloud of individuals in $\R^p$ is described by the covariance $S = \frac1n\mathbf X^\top\mathbf X$
+($p\times p$). The cloud of variables in $\R^n$ is described by the \emph{Gram matrix}
+$G = \mathbf X\mathbf X^\top$ ($n\times n$), whose entries $G_{ij} = \inner{\dot{\mathbf e}_i}{\dot{\mathbf e}_j}$ are inner products
+between centred individuals: $G_{ii}$ is the squared distance of individual $i$ to $\mathbf g$, and the sign of
+$G_{ij}$ tells whether $i$ and $j$ lie on the same side of $\mathbf g$.
+
+\begin{theorem}[Duality]\label{pca-overview:thm:duality}
+$S$ and $\frac1nG$ have the same non-zero eigenvalues. If $S\mathbf v = \lambda\mathbf v$ with $\lambda>0$, then
+$G(\mathbf X\mathbf v) = n\lambda\,(\mathbf X\mathbf v)$; conversely, if $G\mathbf u = \mu\mathbf u$ with $\mu>0$, then $\mathbf X^\top\mathbf u$ is an
+eigenvector of $S$ for $\mu/n$.
+\end{theorem}
+
+\begin{proof}
+$G(\mathbf X\mathbf v) = \mathbf X(\mathbf X^\top\mathbf X\mathbf v) = \mathbf X(n\lambda\mathbf v) = n\lambda\,\mathbf X\mathbf v$, and $\mathbf X\mathbf v\neq0$ because
+$\norm{\mathbf X\mathbf v}^2 = n\lambda>0$. The converse is symmetric. In SVD terms, $S = \frac1nV\Sigma^\top\Sigma V^\top$ and
+$G = U_\sigma\Sigma\Sigma^\top U_\sigma^\top$ share the $\sigma_j^2$.
+\end{proof}
+
+\begin{example}[Duality for the two patients]
+With $\mathbf X_c$ from \cref{pca-overview:ex:patients},
+\[
+  S = \frac12\mathbf X_c^\top\mathbf X_c = \frac12\begin{bmatrix}50 & -25 & 100\\ -25 & 12.5 & -50\\ 100 & -50 & 200\end{bmatrix}
+    = \begin{bmatrix}25 & -12.5 & 50\\ -12.5 & 6.25 & -25\\ 50 & -25 & 100\end{bmatrix},
+\]
+\[
+  G = \mathbf X_c\mathbf X_c^\top = \begin{bmatrix}131.25 & -131.25\\ -131.25 & 131.25\end{bmatrix}.
+\]
+$S$ has rank one: $\lambda_1 = \Tr S = 131.25$ with $\mathbf v_1 = \frac1{\sqrt{21}}(2,-1,4)$ --- height, weight and
+blood pressure vary together in the proportions $2:-1:4$. $G$ has $\mu_1 = 262.5 = 2\lambda_1$ with
+$\mathbf u_1 = \frac1{\sqrt2}(1,-1)$, the contrast between the two patients. And
+$\mathbf X_c\mathbf v_1 = \frac1{\sqrt{21}}(-52.5, 52.5)\propto\mathbf u_1$, as the theorem predicts.
+\end{example}
+
+When $n\ll p$ (few samples, many features, e.g.\ images or genes), it is cheaper to diagonalize the
+$n\times n$ matrix $G$ and map its eigenvectors back with $\mathbf X^\top$. The Gram matrix depends on the
+data only through inner products, which is the door to \emph{kernel PCA}: replace
+$\inner{\dot{\mathbf e}_i}{\dot{\mathbf e}_j}$ by a kernel $k(\mathbf e_i,\mathbf e_j)$ (Part~XI).
+
+\section{PCA is not regression}\label{pca-overview:sec:regression}
+
+Both PCA and least squares fit a line (or subspace) to a cloud of points, but they minimize
+different distances.
+\begin{itemize}
+  \item \textbf{PCA} treats all variables symmetrically and minimizes the \emph{perpendicular}
+        distances from the points to the subspace in the feature space.
+  \item \textbf{Linear regression} singles out a response $y$ and minimizes the \emph{vertical}
+        distances $\sum_i(y_i - \hat y_i)^2$, measured along the $y$-axis only.
+\end{itemize}
+Both are orthogonal projections, but in different spaces: PCA projects each individual in
+$\R^p$; regression projects the response vector $y\in\R^n$ onto the span of the predictor columns
+(\cref{ch:adjoint-operator}). In two dimensions, the regression line of $y$ on $x$, the regression
+line of $x$ on $y$ and the first principal axis are three different lines through $\mathbf g$ (unless
+the points are exactly aligned).
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item A data table is a cloud of $n$ individuals in $\R^p$ (with weights $w_i$) and a cloud of $p$
+        variables in $\R^n$; a metric $M$ on $\R^p$ is a change of coordinates $\mathbf X N^\top$.
+  \item Inertia: $\mathcal I_{\mathbf g} = \sum_iw_i\norm{\mathbf e_i - \mathbf g}_M^2 = \frac12\sum_{i,j}w_iw_jd_M^2(\mathbf e_i,\mathbf e_j) = \Tr(VM)$,
+        with $V = \mathbf X_c^\top W\mathbf X_c$.
+  \item The least-deformed projection is on an affine subspace through $\mathbf g$; least deformation
+        $=$ greatest projected inertia $=$ greatest spread of the projected individuals.
+  \item The principal axes are the eigenvectors of $VM$; axis $k$ captures $\lambda_k$, and the first $k$
+        axes the maximum possible $\lambda_1 + \dots + \lambda_k$.
+  \item For $M = I$: $\hat{\mathbf X}_k = \mathbf XV_kV_k^\top$ with error $\sum_{j>k}\lambda_j$; this is the truncated SVD.
+  \item Normed PCA works with correlations, i.e.\ angles between standardized variables.
+  \item $\mathbf X^\top\mathbf X$ and $\mathbf X\mathbf X^\top$ share their non-zero eigenvalues: PCA can be done in either space.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Further reading}
+G.~Saporta, \emph{Probabilit\'es, analyse des donn\'ees et statistique}; B.~Escofier and
+J.~Pag\`es, \emph{Analyses factorielles simples et multiples}.
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{pca-overview:exr:1}
+Show that the principal components are uncorrelated: $\mathbf c_k^\top W\mathbf c_l = 0$ for $k\neq l$, and
+$\mathbf c_k^\top W\mathbf c_k = \lambda_k$.
+\hint{$\mathbf c_k^\top W\mathbf c_l = \mathbf u_k^\top MVM\mathbf u_l$.}
+\solutionlink{pca-overview:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{pca-overview:exr:2}
+For the patients of \cref{pca-overview:ex:patients}, perform normed PCA. What are the correlations
+between the three variables, and why?
+\solutionlink{pca-overview:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{pca-overview:exr:3}
+Multiply the first variable of the running example by $100$ (a change of unit). How do the
+covariance PCA and the normed PCA change?
+\solutionlink{pca-overview:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{pca-overview:exr:4}
+For centred data in $\R^2$, show that the regression line of $x_2$ on $x_1$ has slope $s_{12}/s_1^2$,
+and find the slope of the first principal axis. When do they coincide?
+\solutionlink{pca-overview:exr:4}
+\end{exercise}
+\end{notechapter}
