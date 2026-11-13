@@ -603,3 +603,41 @@ $S\theta = (3\cos\alpha, \sin\alpha)$ and $\theta^\top S\theta = 1 + 2\cos^2\alp
 \]
 a multiple of the tangent vector $(\sin\alpha, -\cos\alpha)$. It vanishes iff $\sin\alpha\cos\alpha = 0$, i.e.\ at $(\pm1, 0)$
 (maxima, eigenvalue $3$) and $(0, \pm1)$ (minima, eigenvalue $1$).
+
+\solution{gradient-tangent-space:exr:4}
+\begin{enumerate}[nosep]
+  \item A change of origin leaves the coordinates of vectors unchanged, and
+        $\nabla L'(x') = \nabla L(x' + w)$ (\cref{gradient-tangent-space:prop:origin}). So the gradients, hence $m$, $s$ and
+        the step $\hat m\oslash(\sqrt{\hat s} + \varepsilon)$, are the same in both coordinate systems: Adam adds the same
+        vector to the same point.
+  \item After one step, $m = (1 - \beta_1)g$ and $s = (1 - \beta_2)\,g\odot g$; the bias corrections divide by
+        $1 - \beta_1$ and $1 - \beta_2$, so $\hat m = g$ and $\hat s = g\odot g$. Coordinate-wise,
+        $\hat m_i/\sqrt{\hat s_i} = g_i/\abs{g_i} = \mathrm{sign}(g_i)$ for $g_i\neq0$ (and $0$ when $g_i = 0$, the limit with $\varepsilon>0$).
+  \item Standard basis: step $-\eta(1, 1)$. In the basis $u_1 = \frac1{\sqrt2}(1,1)$, $u_2 = \frac1{\sqrt2}(-1,1)$, the
+        coordinates of $g$ are $\inner g{u_1} = \frac3{\sqrt2}$ and $\inner g{u_2} = -\frac1{\sqrt2}$, so the step has coordinates
+        $-\eta(1, -1)$: it is $-\eta(u_1 - u_2) = -\eta(\sqrt2, 0)$ in the standard basis. The two steps differ in
+        length and are not even parallel. The dot product is the same in both orthonormal bases, so
+        the difference does not come from the inner product but from the coordinate-wise operations,
+        which depend on the basis itself.
+\end{enumerate}
+
+\solution{gradient-tangent-space:exr:5}
+From $x$ (and $x' = x - w$), the first computation gives $x_1 = (1 - \eta\lambda)x - \eta\nabla L(x)$, whose new
+coordinates are
+\[
+  x_1 - w = (1 - \eta\lambda)(x' + w) - \eta\nabla L'(x') - w = \bigl[(1 - \eta\lambda)x' - \eta\nabla L'(x')\bigr] - \eta\lambda w .
+\]
+The bracket is the second computation, so the two new points differ by the vector $\eta\lambda w$: each
+version contracts towards its own origin. For $L\equiv0$ and $0<\eta\lambda<2$, $x_k = (1 - \eta\lambda)^kx\to0$ and
+$x'_k\to0$, that is, $x_k\to w$ in the original coordinates: two different limits, the two origins.
+
+\solution{gradient-tangent-space:exr:6}
+If $y - x\in\Z$ then $(y + v) - (x + v)\in\Z$, so $[x + v]$ depends only on $[x]$. Axioms 1 and 2 hold
+because they hold in $\R$. Axiom 3 fails: $[0.1] + v = [0.3]$ for every $v\in0.2 + \Z$, so the displacement
+from $[0.1]$ to $[0.3]$ is not unique. The action of $\R$ on $\mathcal C$ is transitive but not free; an affine
+space is exactly a set on which $V$ acts freely and transitively. A differentiable $f$ on $\mathcal C$ is a
+$1$-periodic $\tilde f$ on $\R$, and the step is still meaningful: $[x] - \eta\tilde f'(x)$ is the class of
+$x - \eta\tilde f'(x)$, independent of the representative because $\tilde f'$ is periodic. What is lost is the
+difference of two points: the heavy-ball term $\theta_k - \theta_{k-1}$ or an average of iterates requires
+choosing a representative (for small steps, the shortest one), a choice the affine structure of
+$\R^n$ makes for us.

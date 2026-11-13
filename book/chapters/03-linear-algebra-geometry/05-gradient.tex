@@ -13,6 +13,8 @@ natural gradient change. You will learn
         and how an inner product turns one into the other;
   \item why the gradient is the direction of steepest ascent and is orthogonal to level sets;
   \item why the gradient lives in parameter space and not on the graph of the loss;
+  \item which structure the update $\theta - \eta\nabla L(\theta)$ really uses (an affine space with an inner product),
+        and how to detect formulas that secretly depend on the origin, such as weight decay;
   \item how changing the metric changes the gradient: preconditioning, Newton, natural gradient;
   \item gradients on curved parameter spaces (manifolds), with the example of the sphere and the
         link to PCA.
@@ -177,14 +179,164 @@ So the downhill arrow on the surface \emph{projects} onto a multiple of $-\nabla
 what popular pictures are trying to show. For $n$ in the millions there is no surface to look at,
 and only the parameter-space view remains.
 
-\subsection{The hidden identification}
+\subsection{The hidden identification}\label{gradient-tangent-space:sec:affine}
 
-In $\theta\leftarrow\theta - \eta\nabla L(\theta)$ we add a gradient (a tangent vector at $\theta$, a velocity) to a point
-$\theta$. This is legitimate because $\R^n$ is flat: the tangent space at every point is canonically
-identified with $\R^n$ itself, and we use that identification without saying so. Already for
-$f:\R\to\R$, the derivative $f'(a)$ is a velocity at $a$ that we read as a displacement along the
-axis. On a curved parameter space the identification fails, and the update must be rethought
-(\cref{gradient-tangent-space:sec:manifolds}).
+The update $\theta\leftarrow\theta - \eta\nabla L(\theta)$ involves objects of two different kinds: $\theta$ is a
+\emph{point} (a state of the model), while $\nabla L(\theta)$ and $-\eta\nabla L(\theta)$ are \emph{vectors} (a velocity at
+$\theta$, and a displacement). The formula adds a displacement to a point. When parameters are
+stored as arrays of $n$ numbers, points and vectors are both elements of $\R^n$ and the
+distinction is invisible; it is worth making explicit, because the structure that legitimates
+the update is not the one usually invoked.
+
+\paragraph{Affine spaces.}
+
+\begin{definition}[Affine space]\label{gradient-tangent-space:def:affine}
+An \emph{affine space} is a set $\mathcal A$ (the \emph{points}) together with a real vector space $V$ (the
+\emph{displacements}, or translations) and an operation $\mathcal A\times V\to\mathcal A$, written $(a, v)\mapsto a + v$,
+such that for all $a, b\in\mathcal A$ and $u, v\in V$:
+\begin{enumerate}[nosep]
+  \item $a + 0 = a$;
+  \item $(a + u) + v = a + (u + v)$;
+  \item there is exactly one $v\in V$ with $a + v = b$; it is written $b - a$.
+\end{enumerate}
+The dimension of $\mathcal A$ is that of $V$.
+\end{definition}
+
+Point $+$ vector is a point and point $-$ point is a vector; that is all. There is no sum of two
+points, no multiple of a point, and no distinguished point. Choosing a point $o\in\mathcal A$ as
+\emph{origin} gives a bijection $\mathcal A\to V$, $a\mapsto a - o$, and choosing in addition a basis of $V$ gives
+coordinates in $\R^n$. Both choices are arbitrary, like the zero of a temperature scale: the zero
+of the Celsius scale is a point, whereas a difference of zero degrees is a vector, and it means the
+same in every scale (an example of Hubbard and Hubbard). A vector space $V$ is an affine space over itself, with $a + v$ the vector
+addition; this is how $\R^n$ is usually used, origin included.
+
+Textbooks differ in how openly they say so. Hubbard and Hubbard (\emph{Vector Calculus, Linear
+Algebra, and Differential Forms}, 5th ed., §1.1) separate ``positional data'' (points) from
+``incremental data'' (vectors), give them different notations, and state that points cannot be
+added while vectors can --- the axioms above without the name. Loomis and Sternberg
+(\emph{Advanced Calculus}, §1.2) build the coordinate correspondence between Euclidean space and
+$\R^3$ from a chosen origin, then deliberately transfer the geometric language to $\R^3$, where a
+translation becomes the addition of a constant vector; from then on, as in
+their definition of the differential (§3.6), a point and an increment are both elements of the
+same normed vector space. Both are legitimate. The second is what our arrays do.
+
+\begin{proposition}[Affine combinations]\label{gradient-tangent-space:prop:affine-comb}
+Let $a_1,\dots,a_k\in\mathcal A$, $\lambda_1,\dots,\lambda_k\in\R$ and $o\in\mathcal A$.
+\begin{enumerate}[nosep]
+  \item If $\sum_i\lambda_i = 1$, the point $o + \sum_i\lambda_i(a_i - o)$ does not depend on $o$. It is written
+        $\sum_i\lambda_ia_i$ (an \emph{affine combination}, or barycentre).
+  \item If $\sum_i\lambda_i = 0$, the vector $\sum_i\lambda_i(a_i - o)$ does not depend on $o$.
+  \item Otherwise both depend on $o$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+Replace $o$ by $o' = o + w$. Then $a_i - o' = (a_i - o) - w$, so
+$\sum_i\lambda_i(a_i - o') = \sum_i\lambda_i(a_i - o) - \bigl(\sum_i\lambda_i\bigr)w$ and
+\[
+  o' + \sum_i\lambda_i(a_i - o') = o + \sum_i\lambda_i(a_i - o) + \Bigl(1 - \sum_i\lambda_i\Bigr)w .
+\]
+The vector is unchanged for every $w$ iff $\sum_i\lambda_i = 0$, and the point iff $\sum_i\lambda_i = 1$.
+\end{proof}
+
+The midpoint $\frac12a + \frac12b$ and the mean of a cloud of points are affine combinations; $a + b$ and
+$2a$ are not, and $b - a$ (coefficients $1$ and $-1$) is a vector.
+
+\paragraph{Tangent vectors and the identification.} Let $\gamma$ be a curve in $\mathcal A$ with $\gamma(0) = \theta$.
+For each $t$, $\gamma(t) - \theta$ is a vector of $V$, so the velocity
+\[
+  \gamma'(0) = \lim_{t\to0}\frac{\gamma(t) - \theta}{t}
+\]
+is a limit in the finite-dimensional space $V$ (whose topology does not depend on the norm). The
+tangent space at $\theta$ --- the set of velocities of curves through $\theta$ --- is therefore $V$ itself,
+for every $\theta$: the curve $t\mapsto\theta + tv$ has velocity $v$, and every velocity arises this way. This
+identification of each tangent space $T_\theta\mathcal A$ with the one space $V$ involves no choice; it is the
+identification that $\theta - \eta\nabla L(\theta)$ uses without saying so. Already for $f:\R\to\R$, the derivative
+$f'(a)$ is a velocity at $a$ that we read as a displacement along the axis.
+
+\paragraph{Three structures, three objects.} Each object in the update needs one more piece of
+structure than the previous one.
+\begin{itemize}[nosep]
+  \item \emph{Affine structure} $(\mathcal A, V)$. Points, displacements, and the identification
+        $T_\theta\mathcal A = V$. Enough to write $\theta + v$ and to define velocities.
+  \item \emph{The dual space} $V^*$, which needs nothing more. For $L:\mathcal A\to\R$, the differential is the linear
+        form $dL_\theta\in V^*$ with $L(\theta + v) = L(\theta) + dL_\theta(v) + o(\norm v)$
+        (\cref{gradient-tangent-space:sec:differential}); like the velocity, it involves no inner
+        product and no origin.
+  \item \emph{An inner product on $V$.} It turns the form $dL_\theta$ into the vector $\nabla L(\theta)\in V$, by
+        $\inner{\nabla L(\theta)}{v} = dL_\theta(v)$. Different inner products give different gradients
+        (\cref{gradient-tangent-space:prop:metric}).
+\end{itemize}
+An affine space whose space of displacements carries an inner product is a \emph{Euclidean affine
+space}. This, not $\R^n$ with its origin and its standard basis, is the structure that gradient
+descent requires: the origin is never used, and the basis enters only through the inner
+product.
+
+\begin{pitfall}[``$\R^n$ is flat'' is true, but it is not the reason]
+Flatness is a property of a Riemannian metric (zero curvature). It is neither necessary nor
+sufficient for $\theta + v$ to make sense.
+\begin{itemize}[nosep]
+  \item An affine space without inner product has no curvature at all, flat or not, and $\theta + v$
+        is defined.
+  \item A circle of length $1$, $\R/\Z$, is flat (every one-dimensional Riemannian manifold is), yet
+        it is not an affine space: the displacement from $0.1$ to $0.3$ could be $0.2$, $1.2$ or $-0.8$
+        (\cref{gradient-tangent-space:exr:6}). Flatness gives the affine picture only locally.
+\end{itemize}
+What the update uses is the affine structure; the inner product then supplies the gradient.
+\end{pitfall}
+
+\paragraph{A test for hidden origins.} Since the origin is arbitrary, a formula has a geometric
+meaning only if it gives the same result whichever origin is used to compute it. Concretely, move
+the origin by $w$: a point with coordinates $x$ gets coordinates $x' = x - w$, a vector keeps its
+coordinates, and the loss becomes $L'(x') = L(x' + w)$.
+
+\begin{proposition}[Gradient descent ignores the origin]\label{gradient-tangent-space:prop:origin}
+$\nabla L'(x') = \nabla L(x' + w)$. Consequently, if $x_{k+1} = x_k - \eta\nabla L(x_k)$ and $x'_k = x_k - w$, then
+$x'_{k+1} = x'_k - \eta\nabla L'(x'_k)$: the two computations describe the same points.
+\end{proposition}
+
+\begin{proof}
+A translation has the identity as differential, so the chain rule gives $\nabla L'(x') = \nabla L(x' + w)$.
+Then $x'_{k+1} = x_{k+1} - w = (x_k - w) - \eta\nabla L(x_k) = x'_k - \eta\nabla L'(x'_k)$.
+\end{proof}
+
+The test is useful because the computer does not apply it: on arrays, $x + y$ and $2x$ are as
+easy to write as $x + v$. Here is how common updates fare.
+\begin{itemize}[nosep]
+  \item \emph{Momentum} (heavy ball), $\theta_{k+1} = \theta_k - \eta\nabla L(\theta_k) + \beta(\theta_k - \theta_{k-1})$: the added term is a
+        difference of points, a vector. It passes.
+  \item \emph{Iterate averaging}, $\bar\theta_K = \frac1K\sum_{k=1}^K\theta_k$ (Polyak averaging), and the exponential moving
+        average $\bar\theta\leftarrow\beta\bar\theta + (1 - \beta)\theta$: affine combinations, with weights summing to $1$. They pass.
+  \item \emph{Weight decay}, $\theta\leftarrow\theta - \eta\bigl(\nabla L(\theta) + \lambda\theta\bigr) = (1 - \eta\lambda)\theta - \eta\nabla L(\theta)$: the
+        coefficients of $\theta$ do not sum to $1$. It fails (\cref{gradient-tangent-space:ex:decay}).
+\end{itemize}
+
+\begin{example}[Weight decay has a hidden origin]\label{gradient-tangent-space:ex:decay}
+Written honestly, the term $\lambda\theta$ is $\lambda(\theta - o)$, where $o$ is the point whose coordinates are $0$:
+\[
+  \theta\leftarrow\theta - \eta\bigl(\nabla L(\theta) + \lambda(\theta - o)\bigr)
+  = \bigl(o + (1 - \eta\lambda)(\theta - o)\bigr) - \eta\nabla L(\theta),
+\]
+a contraction of ratio $1 - \eta\lambda$ towards $o$, followed by a gradient step. It is gradient descent
+on $L(\theta) + \frac\lambda2\norm{\theta - o}^2$, that is, MAP estimation with a Gaussian prior centred at $o$
+(\cref{bayesian-reasoning:sec:map}). The test does not say that weight decay is wrong; it says that
+the formula contains a modelling choice --- the centre of the prior --- that the notation $\lambda\theta$ hides.
+For a network trained from scratch, decaying towards the zero weights is a reasonable prior. For a
+network fine-tuned from pre-trained weights $\theta_0$, decaying towards $\theta_0$, i.e.\ replacing $\lambda\theta$ by
+$\lambda(\theta - \theta_0)$, is often the better one (the ``L2-SP'' regularizer of Li, Grandvalet and Davoine,
+2018).
+\end{example}
+
+The same test applied to a change of \emph{basis} rather than of origin is the subject of
+\cref{gradient-tangent-space:exr:2}. Plain gradient descent is unchanged by an orthonormal change
+of basis but not by a general one, because ``the dot product of the coordinates'' is a different
+inner product in each non-orthonormal basis. Coordinate-wise methods such as Adam pass the origin
+test but are changed even by a rotation of an orthonormal basis
+(\cref{gradient-tangent-space:exr:4}): they use the basis itself, not only an inner product.
+
+On a curved parameter space there is no space of displacements at all: the tangent spaces at
+different points are different vector spaces, $\theta + v$ is not defined, and the update must be
+rethought (\cref{gradient-tangent-space:sec:manifolds}).
 
 \section{Changing the metric}\label{gradient-tangent-space:sec:metric}
 
@@ -287,6 +439,9 @@ $\theta$ off the circle) and a tangent part, the Riemannian gradient.}
         orthogonal to the level sets.
   \item The gradient lives in parameter space, not on the graph of the loss; the downhill arrow on
         the surface only projects onto a multiple of $-\nabla L$.
+  \item The update adds a displacement to a point: it needs an affine structure (for $\theta + v$ and
+        velocities), nothing more for the differential, and an inner product for the gradient. It
+        never uses the origin, whereas weight decay does: it is a prior centred at the zero weights.
   \item Preconditioning, Newton's method and the natural gradient are gradient descent in other
         metrics.
   \item On a manifold, the Riemannian gradient lies in the tangent space; for an embedded surface it
@@ -315,5 +470,35 @@ descent depends on the parametrization.
 For $S = \diag(3, 1)$ and $\theta = (\cos\alpha, \sin\alpha)$ on the unit circle, compute $\operatorname{grad}f(\theta)$ for
 $f(\theta) = \theta^\top S\theta$, and check that it vanishes exactly at the four points $(\pm1,0)$, $(0,\pm1)$.
 \solutionlink{gradient-tangent-space:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{gradient-tangent-space:exr:4}
+Adam updates $m\leftarrow\beta_1m + (1 - \beta_1)g$, $s\leftarrow\beta_2s + (1 - \beta_2)\,g\odot g$ from the gradient $g = \nabla L(\theta)$ and steps
+$\theta\leftarrow\theta - \eta\,\hat m\oslash(\sqrt{\hat s} + \varepsilon)$, coordinate-wise, with the bias-corrected $\hat m$, $\hat s$.
+\begin{enumerate}[nosep]
+  \item Show that Adam passes the origin test of \cref{gradient-tangent-space:prop:origin}.
+  \item Show that its first step (from $m = s = 0$) is $-\eta\,\mathrm{sign}(g)$ coordinate-wise when $\varepsilon = 0$
+        (with $\mathrm{sign}(0) = 0$).
+  \item In $\R^2$ let $g = (2, 1)$. Compute the first step in the standard basis, then in the orthonormal
+        basis rotated by $45^\circ$, and express the second back in the standard basis. Are the two steps
+        the same? Parallel?
+\end{enumerate}
+\solutionlink{gradient-tangent-space:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{gradient-tangent-space:exr:5}
+Run weight decay, $x\leftarrow(1 - \eta\lambda)x - \eta\nabla L(x)$, in the coordinates $x$ and in the coordinates $x' = x - w$
+of a shifted origin, i.e.\ $x'\leftarrow(1 - \eta\lambda)x' - \eta\nabla L'(x')$ with $L'(x') = L(x' + w)$. Starting from the same
+point, by how much do the two new points differ after one step? For $L\equiv0$, where do the two
+sequences converge?
+\solutionlink{gradient-tangent-space:exr:5}
+\end{exercise}
+
+\begin{exercise}\label{gradient-tangent-space:exr:6}
+On the circle $\mathcal C = \R/\Z$, whose points are the classes $[x] = x + \Z$, let $v\in\R$ act by $[x] + v = [x + v]$.
+Show that this is well defined and satisfies axioms 1 and 2 of
+\cref{gradient-tangent-space:def:affine}, but not axiom 3. Is $\theta - \eta\nabla f(\theta)$ still meaningful for a
+differentiable $f$ on $\mathcal C$?
+\solutionlink{gradient-tangent-space:exr:6}
 \end{exercise}
 \end{notechapter}
