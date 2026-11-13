@@ -127,23 +127,30 @@ a different object (\cref{gradient-tangent-space:fig:surface}).
 \begin{figure}[ht]
 \centering
 \begin{tikzpicture}[>=Stealth]
-\begin{axis}[width=9cm, height=7cm, view={-30}{30}, xmin=-2.5, xmax=2.5, ymin=-1.3, ymax=1.3, zmin=0, zmax=8,
+\begin{axis}[width=9cm, height=7cm, view={-30}{30}, xmin=-2.6, xmax=2.6, ymin=-1.6, ymax=1.6, zmin=-4, zmax=8,
   xlabel={$\theta_1$}, ylabel={$\theta_2$}, zlabel={$L$}, xtick=\empty, ytick=\empty, ztick=\empty]
-  \addplot3[surf, opacity=0.35, draw=bookaccent!40, fill=bookaccent!15, domain=-2.2:2.2, y domain=-1.1:1.1, samples=17, samples y=13] {x^2 + 4*y^2};
-  \addplot3[thin, bookaccent, domain=0:360, samples=40, samples y=1] ({1.0*cos(x)}, {0.5*sin(x)}, 0);
-  \addplot3[thin, bookaccent, domain=0:360, samples=40, samples y=1] ({1.7321*cos(x)}, {0.86605*sin(x)}, 0);
-  \addplot3[thin, bookaccent, domain=0:360, samples=40, samples y=1] ({2.2361*cos(x)}, {1.11805*sin(x)}, 0);
-  \addplot3[only marks, mark=*, mark size=1.6pt] coordinates {(1.5,0.6,3.69)};
-  \addplot3[dashed, gray] coordinates {(1.5,0.6,0) (1.5,0.6,3.69)};
-  \addplot3[only marks, mark=*, mark size=1.6pt, bookpitfall] coordinates {(1.5,0.6,0)};
-  \draw[->, very thick, bookexample] (axis cs:1.5,0.6,0) -- (axis cs:1.5+0.25*3,0.6+0.25*4.8,0);
-  \node[bookexample] at (axis cs:2.3,1.3,0.4) {$\nabla L(\theta)$};
-  \node[bookpitfall] at (axis cs:1.5,0.4,-0.6) {$\theta$};
-  \node at (axis cs:1.5,0.6,4.4) {$(\theta, L(\theta))$};
+  % the floor: a copy of the parameter plane R^2, drawn below the graph
+  \addplot3[fill=gray!12, draw=gray!50, thin] coordinates {(-2.6,-1.6,-4) (2.6,-1.6,-4) (2.6,1.6,-4) (-2.6,1.6,-4) (-2.6,-1.6,-4)};
+  \node[gray, anchor=south west, font=\small] at (axis cs:-2.5,-1.5,-4) {$\R^2$};
+  % level curves in the floor; the middle one passes through theta (L = 3.4)
+  \addplot3[thin, bookaccent, domain=0:360, samples=40, samples y=1] ({1.0*cos(x)}, {0.5*sin(x)}, -4);
+  \addplot3[thin, bookaccent, domain=0:360, samples=40, samples y=1] ({1.8439*cos(x)}, {0.92195*sin(x)}, -4);
+  \addplot3[thin, bookaccent, domain=0:360, samples=40, samples y=1] ({2.4495*cos(x)}, {1.22474*sin(x)}, -4);
+  % the graph of L
+  \addplot3[surf, opacity=0.45, faceted color=bookaccent!40, colormap={flat}{color=(bookaccent!15) color=(bookaccent!15)}, domain=-2.2:2.2, y domain=-1.1:1.1, samples=17, samples y=13] {x^2 + 4*y^2};
+  \addplot3[only marks, mark=*, mark size=1.6pt] coordinates {(1.8,0.2,3.4)};
+  \addplot3[dashed, gray] coordinates {(1.8,0.2,-4) (1.8,0.2,3.4)};
+  % gradient (3.6, 1.6) at theta = (1.8, 0.2), scaled by 0.2, drawn in the floor
+  \draw[->, very thick, bookexample] (axis cs:1.8,0.2,-4) -- (axis cs:2.52,0.52,-4);
+  \addplot3[only marks, mark=*, mark size=1.6pt, bookpitfall] coordinates {(1.8,0.2,-4)};
+  \node[bookexample, anchor=south west] at (axis cs:2.52,0.52,-4) {$\nabla L(\theta)$};
+  \node[bookpitfall, anchor=north] at (axis cs:1.8,0.2,-4) {$\theta$};
+  \node[anchor=west] at (axis cs:1.8,0.2,3.4) {$(\theta, L(\theta))$};
 \end{axis}
 \end{tikzpicture}
 \caption{The graph of $L$ lives in $\R^3$, but the parameter $\theta$ and the gradient $\nabla L(\theta)$ live in the
-floor $\R^2$, where the level curves are.}
+floor $\R^2$ (drawn below the graph for readability), where the level curves are. The gradient is
+orthogonal to the level curve through $\theta$; it is not tangent to the surface.}
 \label{gradient-tangent-space:fig:surface}
 \end{figure}
 
