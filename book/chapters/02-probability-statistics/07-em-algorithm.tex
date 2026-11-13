@@ -18,11 +18,16 @@ the smallest possible example, three coins. You will learn
   \item a proof that EM never decreases the likelihood, and the view of EM as
         coordinate ascent on the ELBO;
   \item what EM does on real numbers, and why the three-coin model is a
-        cautionary tale about identifiability.
+        cautionary tale about identifiability;
+  \item how the ELBO is estimated by Monte Carlo when it has no closed form: why
+        one sample is unbiased for the ELBO but not for the log-evidence, how
+        ancestral sampling handles a chain of latent states, the
+        reparametrization trick and importance-weighted bounds.
 \end{itemize}
 \prerequisites{maximum likelihood (\cref{generative-discriminative:sec:likelihood});
 the Kullback--Leibler divergence and Gibbs' inequality
-(\cref{bayes-decision-theory:prop:logloss}); Bayes' rule.}
+(\cref{bayes-decision-theory:prop:logloss}); Bayes' rule; for the last section,
+\cref{ch:monte-carlo}.}
 \end{chapterintro}
 
 \section{The three-coin problem}\label{em-algorithm:sec:problem}
@@ -189,7 +194,8 @@ the likelihood improves at least as much as $Q$ does. It is therefore enough to
 Each step can only increase the ELBO, and after each E-step the ELBO equals the
 log-likelihood. When the exact posterior is intractable, restricting $Q$ to a
 simpler family gives \emph{variational} EM; amortizing $Q$ with a neural network
-gives the variational autoencoder. Mixtures of Gaussians and hidden Markov models
+gives the variational autoencoder. The ELBO then has no closed form and is
+estimated by sampling (\cref{em-algorithm:sec:mc-elbo}). Mixtures of Gaussians and hidden Markov models
 (the Baum--Welch algorithm) are classical exact instances.
 \end{keyidea}
 
@@ -274,6 +280,207 @@ print(em_three_coins([1, 1, 0, 1, 0, 0, 1, 0, 1, 1], 0.4, 0.6, 0.7))
 # ((0.4064..., 0.5368..., 0.6432...), -6.7301...)
 \end{lstlisting}
 
+\section{When the ELBO has no closed form: Monte Carlo estimation}\label{em-algorithm:sec:mc-elbo}
+
+For the three coins, $Q$ lives on two points and every expectation is a sum of
+two terms. In variational inference the latent variable $z$ is continuous and
+high-dimensional, $Q$ is restricted to a parametric family (often produced by a
+neural network, the \emph{inference network}), and the ELBO is an integral with no
+closed form. Sums become integrals and $P$, $Q$ become densities $p$, $q$; the bound
+\cref{em-algorithm:eq:elbo} reads
+\[
+  \mathrm{ELBO}(\theta, q) = \E_{z\sim q}\bigl[\log w(z)\bigr],\qquad
+  w(z) = \frac{p(y,z\mid\theta)}{q(z)}\quad\text{(the \emph{importance weight})},
+\]
+while the log-evidence is $\log p(y\mid\theta) = \log\E_{z\sim q}[w(z)]$. Both are
+estimated from samples of $q$, and the place of the logarithm decides everything.
+
+\begin{keyidea}[Where the logarithm sits]
+\begin{itemize}[nosep]
+  \item The ELBO has the logarithm \emph{inside} the expectation. It is a plain
+        Monte Carlo target (\cref{monte-carlo:sec:plain}):
+        $\frac1K\sum_k\log w(z_k)$, $z_k\sim q$, is unbiased for every $K$ --- one
+        sample suffices for unbiasedness.
+  \item The log-evidence has the logarithm \emph{outside}. Its natural estimator
+        $\log\bigl(\frac1K\sum_kw(z_k)\bigr)$ is a nested estimator with $f = \log$
+        (\cref{monte-carlo:sec:nested}), biased downward for every finite $K$
+        (\cref{monte-carlo:exr:2}).
+\end{itemize}
+Optimizing the ELBO instead of the likelihood is what makes unbiased stochastic
+estimates, and hence stochastic gradient methods, available.
+\end{keyidea}
+
+\subsection{A Markov chain of latent states}
+
+Unbiasedness of the plain estimator requires samples of $q$. When the latent
+variable is a sequence, as in state-space models, $q$ is itself given as a chain of
+conditionals and the ELBO involves its \emph{marginals}, which have no closed form.
+Ancestral sampling (\cref{monte-carlo:def:ancestral}) solves the problem. Consider
+\[
+  p(y_{1:T}, z_{1:T}\mid\theta) = \prod_{t=1}^Tp(z_t\mid z_{t-1})\,p(y_t\mid z_t),\qquad
+  q(z_{1:T}) = \prod_{t=1}^Tq(z_t\mid z_{t-1}),
+\]
+with $z_0$ fixed. The conditionals of $q$ may depend on the observations; in the
+deep Kalman filter, for instance, $q(z_t\mid z_{t-1}, y_{t:T})$ is computed by a
+neural network from the previous state and a backward summary of the future
+observations. We omit the dependence on $y$ and $\theta$ to lighten the formulas.
+
+\paragraph{Step 1: substitute the factorizations.} The log-weight splits into terms
+that involve one or two consecutive states,
+\[
+  \log\frac{p(y_{1:T},z_{1:T})}{q(z_{1:T})}
+  = \sum_{t=1}^T\log p(y_t\mid z_t) - \sum_{t=1}^Tr_t(z_{t-1},z_t),\qquad
+  r_t(z_{t-1},z_t) = \log\frac{q(z_t\mid z_{t-1})}{p(z_t\mid z_{t-1})},
+\]
+and by linearity of expectation
+\[
+  \mathrm{ELBO} = \sum_{t=1}^T\E_{q(z_{1:T})}\bigl[\log p(y_t\mid z_t)\bigr]
+  - \sum_{t=1}^T\E_{q(z_{1:T})}\bigl[r_t(z_{t-1},z_t)\bigr].
+\]
+
+\paragraph{Step 2: integrate out the states a term does not depend on.}
+
+\begin{proposition}\label{em-algorithm:prop:marginalize}
+Let $q_t$ denote the marginal of $z_t$ under $q$. For all functions $f$ and $g$,
+\[
+  \E_{q(z_{1:T})}\bigl[f(z_t)\bigr] = \E_{q_t}\bigl[f(z_t)\bigr],\qquad
+  \E_{q(z_{1:T})}\bigl[g(z_{t-1},z_t)\bigr] = \E_{z_{t-1}\sim q_{t-1}}\Bigl[\E_{z_t\sim q(\cdot\mid z_{t-1})}\bigl[g(z_{t-1},z_t)\bigr]\Bigr].
+\]
+\end{proposition}
+
+\begin{proof}
+Write the expectation as an integral against $\prod_sq(z_s\mid z_{s-1})$.
+\emph{Future states:} the integrand does not depend on $z_T$ (for $t<T$), which
+appears only in the last factor, a density in $z_T$; so
+$\int q(z_T\mid z_{T-1})\,dz_T = 1$ and $z_T$ disappears. Repeating this for
+$z_{T-1},\dots,z_{t+1}$ leaves the integral against $q(z_{1:t})$. \emph{Past states:}
+split $q(z_{1:t}) = q(z_{1:t-1})\,q(z_t\mid z_{t-1})$. The integral over $z_t$ is the
+inner expectation; the resulting function of $z_{t-1}$, integrated against
+$q(z_{1:t-1})$, depends on $z_{t-1}$ only, and integrating out $z_{1:t-2}$ leaves the
+marginal $q_{t-1}$ by definition. The case of $f(z_t)$ is the same with one state
+fewer.
+\end{proof}
+
+\paragraph{Step 3: the result.} With $f = \log p(y_t\mid\cdot)$ and $g = r_t$, the inner
+expectation of $r_t$ is a KL divergence, and
+\begin{equation}\label{em-algorithm:eq:seq-elbo}
+  \boxed{\;
+  \mathrm{ELBO} = \sum_{t=1}^T\E_{q_t}\bigl[\log p(y_t\mid z_t)\bigr]
+  - \sum_{t=1}^T\E_{z_{t-1}\sim q_{t-1}}\Bigl[\mathrm{KL}\bigl(q(\cdot\mid z_{t-1})\,\Vert\,p(\cdot\mid z_{t-1})\bigr)\Bigr]\;}
+\end{equation}
+a sum of \emph{reconstruction} terms and of \emph{regularization} terms. The second
+sum is the chain rule of the KL divergence between the two Markov chains $q$ and
+$p(z_{1:T})$.
+
+\paragraph{Step 4: sample the marginals.} The marginals are integrals over all
+earlier states,
+\[
+  q_t(z_t) = \int q(z_t\mid z_{t-1})\,q_{t-1}(z_{t-1})\,dz_{t-1},
+\]
+and with nonlinear networks they are neither Gaussian nor available in any closed
+form. But \cref{em-algorithm:eq:seq-elbo} needs only \emph{samples} of them. Draw one
+trajectory by ancestral sampling,
+\[
+  \dot z_1\sim q(z_1\mid z_0),\quad \dot z_2\sim q(z_2\mid\dot z_1),\quad\dots,\quad
+  \dot z_T\sim q(z_T\mid\dot z_{T-1}).
+\]
+It is an exact sample of $q(z_{1:T})$, so each $\dot z_t$ is an exact sample of $q_t$:
+one trajectory samples every marginal at once. Evaluate both sums along it:
+\begin{equation}\label{em-algorithm:eq:elbo-estimator}
+  \widehat{\mathrm{ELBO}} = \sum_{t=1}^T\log p(y_t\mid\dot z_t)
+  - \sum_{t=1}^T\mathrm{KL}\bigl(q(\cdot\mid\dot z_{t-1})\,\Vert\,p(\cdot\mid\dot z_{t-1})\bigr),
+\end{equation}
+each KL being computed in closed form (between two Gaussians, typically) at the
+sampled previous state.
+
+\begin{proposition}[One trajectory gives an unbiased ELBO]\label{em-algorithm:prop:unbiased}
+$\E\bigl[\widehat{\mathrm{ELBO}}\bigr] = \mathrm{ELBO}$.
+\end{proposition}
+
+\begin{proof}
+By linearity it is enough to treat each term. Since $\dot z_t\sim q_t$,
+$\E[\log p(y_t\mid\dot z_t)] = \E_{q_t}[\log p(y_t\mid z_t)]$. Since
+$\dot z_{t-1}\sim q_{t-1}$, the expectation of the $t$-th KL is the outer expectation in
+\cref{em-algorithm:eq:seq-elbo}.
+\end{proof}
+
+\begin{intuition}[Why there is no bias here]
+Applied to all time steps, \cref{em-algorithm:prop:marginalize} writes the ELBO as
+iterated conditional expectations, $\E_{q(z_1)}\bigl[\E_{q(z_2\mid z_1)}[\cdots\E_{q(z_T\mid z_{T-1})}[\,\cdot\,]\cdots]\bigr]$,
+in which each inner expectation is passed to the next level \emph{as it is}. This is
+the two-stage situation of \cref{monte-carlo:sec:hierarchical} with $T$ levels, and
+one sample per level ($M = 1$) is unbiased (\cref{monte-carlo:prop:two-stage}).
+Computing the KL in closed form instead of sampling $r_t(\dot z_{t-1},\dot z_t)$ is
+Rao--Blackwellization of the innermost level: same mean, smaller variance.
+\end{intuition}
+
+This is the estimator of the deep Kalman filter (Krishnan, Shalit and Sontag,
+\emph{Structured Inference Networks for Nonlinear State Space Models}, 2017),
+derived in detail in the report of the repository \texttt{CL-BZH/Deep-Kalman-Filters}.
+Several trajectories can be averaged to reduce the variance, but one per sequence
+and per gradient step is the usual choice: the minibatch already averages over
+sequences.
+
+\subsection{Gradients: the reparametrization trick}
+
+Training maximizes the ELBO over $\theta$ and over the parameters $\phi$ of $q$. The
+difficulty is that the samples themselves depend on $\phi$. For Gaussian
+conditionals, write each draw as a deterministic function of $\phi$ and of a noise
+that does not depend on $\phi$:
+\[
+  \dot z_t = \mu_\phi(\dot z_{t-1}) + \sigma_\phi(\dot z_{t-1})\odot\varepsilon_t,\qquad
+  \varepsilon_t\sim\mathcal N(0, I)\ \text{i.i.d.}
+\]
+For fixed $\varepsilon_{1:T}$, \cref{em-algorithm:eq:elbo-estimator} is then a
+differentiable function of $(\theta,\phi)$; since its expectation over $\varepsilon$ is
+the ELBO, its gradient is (under mild regularity) an unbiased estimate of the
+gradient of the ELBO, which is all that stochastic gradient ascent needs --- exactly
+the one-sample situation of the pitfall in \cref{monte-carlo:sec:plain}. Ancestral
+sampling with reparametrized draws is one forward pass through the inference
+network.
+
+\subsection{Tighter bounds by importance weighting}
+
+Averaging the weights \emph{before} taking the logarithm gives the
+importance-weighted bound
+\[
+  \mathcal L_K = \E\Bigl[\log\frac1K\sum_{k=1}^Kw(z_k)\Bigr],\qquad z_1,\dots,z_K\sim q\ \text{i.i.d.}
+\]
+(Burda, Grosse and Salakhutdinov, \emph{Importance Weighted Autoencoders}, 2016). This
+is the nested estimator of $\log p(y)$, and the results of \cref{ch:monte-carlo}
+translate directly:
+\begin{itemize}[nosep]
+  \item $\mathcal L_1 = \mathrm{ELBO}$;
+  \item $\mathcal L_K\leq\log p(y)$ for every $K$ (Jensen, \cref{monte-carlo:thm:bias});
+  \item $\mathcal L_K$ is nondecreasing in $K$ (the subset-average argument of
+        \cref{monte-carlo:ex:running-nested});
+  \item $\log p(y) - \mathcal L_K\approx\Var_q(w)/(2K\,p(y)^2)$ (\cref{monte-carlo:exr:2}).
+\end{itemize}
+In variational inference the bias of the nested estimator is not a nuisance but the
+object of interest: a family of lower bounds that tighten as $K$ grows.
+
+\begin{example}[Three lower bounds in the running model]\label{em-algorithm:ex:running}
+Return to the model of \cref{monte-carlo:ex:running}: $(z_1,z_2)$ correlated
+Gaussians with $\rho = 0.5$, $x\mid z_1,z_2\sim\mathcal N(z_1^2 + z_2^2, 1)$, $x = 1$. Each
+choice of $q$ gives an ELBO.
+\begin{itemize}[nosep]
+  \item $q(z_1,z_2) = p(z_1,z_2)$, the prior. Then $w = p(x\mid z_1,z_2)$, the KL term
+        vanishes, and $\mathrm{ELBO} = \E[\log p(x\mid z_1,z_2)] = \mu\approx-3.9189$. It is
+        estimated without bias by ancestral sampling, $z_1$ then $z_2\mid z_1$.
+  \item $q(z_1,z_2) = p(z_1)\,p(z_2\mid z_1,x)$: the prior on $z_1$, but the exact
+        posterior on $z_2$ given $z_1$. Then $w = p(x\mid z_1)$ (\cref{em-algorithm:exr:5})
+        and $\mathrm{ELBO} = \E[\log p(x\mid z_1)] = J\approx-2.2087$.
+  \item $q = p(z_1,z_2\mid x)$, the exact posterior: $\mathrm{ELBO} = \log p(x)\approx-1.4183$.
+\end{itemize}
+By \cref{em-algorithm:prop:gap} the gaps are KL divergences: $J - \mu\approx1.71$ is
+$\E_{z_1}\bigl[\mathrm{KL}(p(z_2\mid z_1)\,\Vert\,p(z_2\mid z_1,x))\bigr]$, the price of not
+updating $z_2$ on the observation, and $\log p(x) - J\approx0.79$ is
+$\mathrm{KL}(p(z_1)\,\Vert\,p(z_1\mid x))$. The chain $\mu\leq J\leq\log p(x)$ of
+\cref{monte-carlo:ex:running-nested} is a sequence of ever better variational
+distributions. With the prior as $q$, the importance-weighted bound $\mathcal L_K$
+climbs from $\mathcal L_1 = \mu$ towards $\log p(x)$ as $K$ grows.
+\end{example}
+
 \begin{chaptersummary}
 \begin{itemize}[nosep]
   \item With hidden variables the log-likelihood is a log of a sum; the
@@ -288,6 +495,14 @@ print(em_three_coins([1, 1, 0, 1, 0, 0, 1, 0, 1, 1], 0.4, 0.6, 0.7))
   \item In the three-coin model only $\pi p + (1-\pi)q$ is identifiable: EM reaches
         a maximum-likelihood estimate in one step, but which one depends on the
         initialization.
+  \item The ELBO $\E_q[\log w]$ has the logarithm inside the expectation, so plain
+        Monte Carlo estimates it without bias, even from one sample;
+        $\log\frac1K\sum_kw_k$ is a nested estimator of $\log p(y)$, biased low, and its
+        expectation is the importance-weighted bound $\mathcal L_K$, which tightens with $K$.
+  \item For a Markov chain of latent states, the ELBO is a sum of reconstruction
+        and KL terms under intractable marginals of $q$; one trajectory drawn by
+        ancestral sampling samples all of them and gives an unbiased estimate,
+        differentiable through the reparametrization trick.
 \end{itemize}
 \end{chaptersummary}
 
@@ -313,5 +528,19 @@ Modify the experiment: for each toss of coin~A, the selected coin is tossed $m$
 times and the number of heads $k_j\in\{0,\dots,m\}$ is recorded. Write the E-step
 and M-step.
 \solutionlink{em-algorithm:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{em-algorithm:exr:4}
+Show that $\mathcal L_1 = \mathrm{ELBO}$ and $\mathcal L_K\leq\log p(y)$ for every $K$. Show
+that $\frac1K\sum_kw(z_k)$ is unbiased for $p(y)$: the bias of $\mathcal L_K$ comes only from
+the logarithm.
+\solutionlink{em-algorithm:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{em-algorithm:exr:5}
+In \cref{em-algorithm:ex:running}, show that for $q(z_1,z_2) = p(z_1)\,p(z_2\mid z_1,x)$ the
+importance weight $w(z_1,z_2)$ equals $p(x\mid z_1)$ whatever $z_2$, so that the ELBO is
+$J = \E_{z_1}[\log p(x\mid z_1)]$ and its one-sample estimator has no $z_2$-noise at all.
+\solutionlink{em-algorithm:exr:5}
 \end{exercise}
 \end{notechapter}

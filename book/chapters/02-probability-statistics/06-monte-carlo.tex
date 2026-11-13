@@ -1,22 +1,27 @@
 \begin{notechapter}
 \chapter{Monte Carlo Methods}\label{ch:monte-carlo}
-\chaptersubtitle{Bias, variance and nested estimation}
+\chaptersubtitle{Bias, variance, ancestral sampling and nested estimation}
 
 \begin{chapterintro}
 Monte Carlo methods estimate expectations and integrals by averaging random
-draws. The basic estimator is unbiased and its error is easy to quantify; but as
-soon as a nonlinear function is applied to an inner Monte Carlo estimate --- a
-situation called \emph{nested} estimation --- a bias appears that no amount of
-outer sampling removes. You will learn
+draws. The basic estimator is unbiased and its error is easy to quantify. It stays
+unbiased for the iterated expectations of hierarchical models, sampled level by
+level; but as soon as a nonlinear function is applied to an inner Monte Carlo
+estimate --- a situation called \emph{nested} estimation --- a bias appears that no
+amount of outer sampling removes. You will learn
 \begin{itemize}[nosep]
   \item the plain Monte Carlo estimator, its unbiasedness, its variance and an
         error bar computed from the samples themselves;
   \item why a single sample is unbiased but useless;
+  \item ancestral sampling, which draws exact samples of a joint distribution and
+        of all its marginals from a chain of conditionals;
+  \item the two-stage estimator, its variance $\sigma_B^2/N + \sigma_W^2/(NM)$, the optimal
+        reuse of outer draws and Rao--Blackwellization;
   \item the nested Monte Carlo estimator and why it is biased, with the
         direction of the bias given by Jensen's inequality;
   \item an exact computation of the bias in a simple case, and how to remove it;
-  \item consistency, the $O(1/M)$ bias and how to split a computational budget
-        between inner and outer samples.
+  \item consistency, the $O(1/M)$ bias, how to split a computational budget
+        between inner and outer samples, and how to cancel the leading bias.
 \end{itemize}
 \prerequisites{\cref{ch:stats-and-proba,ch:lln-clt-inference}; Jensen's
 inequality; Taylor expansions.}
@@ -66,9 +71,188 @@ is close to the truth. Stochastic gradient descent relies on exactly such
 unbiased but noisy one-sample (or minibatch) estimates of a gradient.
 \end{pitfall}
 
+\section{Expectations of expectations: ancestral and two-stage sampling}\label{monte-carlo:sec:hierarchical}
+
+Latent-variable models are usually specified by a \emph{chain of conditional
+distributions} rather than by a joint density: first $X\sim p(x)$, then
+$Y\sim p(y\mid x)$, and so on. The quantity of interest is often an iterated
+expectation
+\[
+  \mu = \E_X\bigl[\E_{Y\mid X}[g(X,Y)]\bigr] = \E_X\bigl[\gamma(X)\bigr],\qquad
+  \gamma(x) = \E[g(X,Y)\mid X = x].
+\]
+By the tower property this is the plain expectation $\E[g(X,Y)]$ under the joint
+$p(x,y) = p(x)\,p(y\mid x)$, so we only need samples of the joint.
+
+\subsection{Ancestral sampling}
+
+\begin{definition}[Ancestral sampling]\label{monte-carlo:def:ancestral}
+Let $p(z_1,\dots,z_T) = \prod_{t=1}^Tp(z_t\mid\mathrm{pa}(z_t))$, where the parents
+$\mathrm{pa}(z_t)$ of each variable are among $z_1,\dots,z_{t-1}$ (a Bayesian network
+listed in a topological order, \cref{bayesian-reasoning:sec:explaining-away}).
+\emph{Ancestral sampling} draws
+\[
+  \dot z_1\sim p(z_1),\quad \dot z_2\sim p(z_2\mid\mathrm{pa}(\dot z_2)),\quad\dots,\quad
+  \dot z_T\sim p(z_T\mid\mathrm{pa}(\dot z_T)),
+\]
+each variable from its conditional distribution given the values \emph{already
+drawn} for its parents.
+\end{definition}
+
+The dot marks a sampled value. Two facts make ancestral sampling the workhorse of
+latent-variable models.
+\begin{enumerate}[nosep]
+  \item \emph{It is exact.} The probability of drawing $(\dot z_1,\dots,\dot z_T)$ is the
+        product of the conditionals used, which is the joint density. No
+        normalizing constant and no Markov chain are needed.
+  \item \emph{It samples every marginal at once.} Since the vector
+        $(\dot z_1,\dots,\dot z_T)$ is a draw from the joint, each component $\dot z_t$
+        is a draw from the marginal $p(z_t)$, and each pair $(\dot z_{t-1},\dot z_t)$
+        from the pair marginal $p(z_{t-1},z_t)$, \emph{even when these marginals have
+        no closed form}. We never need their densities, only their samples.
+\end{enumerate}
+
+\begin{example}[A Gaussian pair]\label{monte-carlo:ex:pair}
+For $(Z_1,Z_2)\sim\mathcal N\Bigl(0,\begin{psmallmatrix}1&\rho\\\rho&1\end{psmallmatrix}\Bigr)$, the
+conditional of $Z_2$ given $Z_1$ is $\mathcal N(\rho z_1, 1-\rho^2)$. Ancestral
+sampling is
+\[
+  \dot z_1 = \varepsilon_1,\qquad \dot z_2 = \rho\,\dot z_1 + \sqrt{1-\rho^2}\,\varepsilon_2,
+  \qquad \varepsilon_1,\varepsilon_2\sim\mathcal N(0,1)\text{ i.i.d.}
+\]
+In matrix form,
+\[
+  \begin{pmatrix}\dot z_1\\\dot z_2\end{pmatrix}
+  = \underbrace{\begin{pmatrix}1&0\\\rho&\sqrt{1-\rho^2}\end{pmatrix}}_{L}
+    \begin{pmatrix}\varepsilon_1\\\varepsilon_2\end{pmatrix},
+  \qquad
+  LL^\top = \begin{pmatrix}1&0\\\rho&\sqrt{1-\rho^2}\end{pmatrix}
+            \begin{pmatrix}1&\rho\\0&\sqrt{1-\rho^2}\end{pmatrix}
+          = \begin{pmatrix}1&\rho\\\rho&1\end{pmatrix}:
+\]
+$L$ is the Cholesky factor of the covariance. Sampling ``$z_1$, then $z_2$ given
+$z_1$'' and sampling the joint through its Cholesky factor are the same
+computation. The difference between the two views appears only when a value of
+$z_1$ is \emph{reused} for several values of $z_2$.
+\end{example}
+
+\subsection{The two-stage estimator}
+
+\begin{definition}[Two-stage estimator]
+Draw $N$ outer samples $X_i\sim p(x)$ and, for each, $M$ inner samples
+$Y_{i1},\dots,Y_{iM}\sim p(y\mid X_i)$. Set
+\[
+  \hat\mu_{N,M} = \frac1N\sum_{i=1}^N\hat\gamma_M(X_i),\qquad
+  \hat\gamma_M(X_i) = \frac1M\sum_{j=1}^Mg(X_i,Y_{ij}).
+\]
+\end{definition}
+
+For $M = 1$ this is plain ancestral sampling of $N$ independent pairs. Reusing each
+$X_i$ for $M>1$ inner draws is tempting when $X$ is expensive to produce (a forward
+pass through a large network, say) and $Y\mid X$ is cheap. Each pair $(X_i,Y_{ij})$
+is still an exact draw from the joint, but pairs that share an $X_i$ are no longer
+independent: they form a \emph{cluster}. The variance tells us what this costs. Let
+$\sigma^2 = \Var(g(X,Y))$ and split it with the law of total variance:
+\[
+  \sigma^2 = \underbrace{\Var\bigl(\gamma(X)\bigr)}_{\sigma_B^2\ \text{(between clusters)}}
+  + \underbrace{\E\bigl[\Var(g(X,Y)\mid X)\bigr]}_{\sigma_W^2\ \text{(within clusters)}} .
+\]
+
+\begin{proposition}[Two-stage sampling is unbiased]\label{monte-carlo:prop:two-stage}
+For every $N\geq1$ and $M\geq1$, $\E[\hat\mu_{N,M}] = \mu$ and
+\[
+  \Var(\hat\mu_{N,M}) = \frac{\sigma_B^2}N + \frac{\sigma_W^2}{NM} .
+\]
+\end{proposition}
+
+\begin{proof}
+Given $X_i$, the $g(X_i,Y_{ij})$ are i.i.d.\ with mean $\gamma(X_i)$ and variance
+$v(X_i) = \Var(g\mid X_i)$, so $\E[\hat\gamma_M(X_i)\mid X_i] = \gamma(X_i)$ and
+$\Var(\hat\gamma_M(X_i)\mid X_i) = v(X_i)/M$. Taking expectations over $X_i$,
+$\E[\hat\gamma_M(X_i)] = \E[\gamma(X)] = \mu$, and by the law of total variance
+\[
+  \Var\bigl(\hat\gamma_M(X_i)\bigr) = \Var\bigl(\gamma(X_i)\bigr) + \E\Bigl[\frac{v(X_i)}M\Bigr]
+  = \sigma_B^2 + \frac{\sigma_W^2}M .
+\]
+The $N$ clusters are independent, so the outer average is unbiased with variance
+$1/N$ times this.
+\end{proof}
+
+The inner average is passed to the outer level \emph{as it is}: no function is
+applied to it, so the iterated expectations collapse into one and there is no bias,
+whatever $M$ --- including $M = 1$, one sample per level.
+
+\begin{intuition}[Reusing a draw is not a free sample]
+Increasing $M$ only shrinks the within term. The between term $\sigma_B^2/N$ is a
+floor that only more \emph{outer} samples can lower. Pairs sharing an $X_i$ have
+correlation $\sigma_B^2/\sigma^2$ (the \emph{intra-class correlation} of survey
+statistics, where this is called two-stage or cluster sampling): when it is large,
+the $M$ pairs of a cluster carry little more information than one pair.
+\end{intuition}
+
+\paragraph{Allocating a budget.} If outer and inner draws cost the same, a budget of
+$T = NM$ evaluations gives $\Var = (M\sigma_B^2 + \sigma_W^2)/T$, which increases with
+$M$: $M = 1$ is optimal, and spending everything on one $X$ ($M = T$) is the worst
+design. If an outer draw costs $c_1$ and an inner draw $c_2$, a budget $C$ buys
+$N = C/(c_1 + Mc_2)$ clusters, and
+\[
+  \Var = \frac1C\Bigl(\sigma_B^2 + \frac{\sigma_W^2}M\Bigr)(c_1 + Mc_2)
+  = \frac1C\Bigl(\sigma_B^2c_1 + \sigma_W^2c_2 + M\sigma_B^2c_2 + \frac{\sigma_W^2c_1}M\Bigr).
+\]
+Setting the derivative in $M$ to zero, $\sigma_B^2c_2 = \sigma_W^2c_1/M^2$, so
+\[
+  \boxed{\;M^\star = \sqrt{\frac{c_1}{c_2}\cdot\frac{\sigma_W^2}{\sigma_B^2}}\;}
+\]
+(rounded to an integer at least $1$): reuse outer draws more when they are expensive
+and when most of the variability is within clusters.
+
+\paragraph{Rao--Blackwellization.} As $M\to\infty$ the within term vanishes. If
+$\gamma(x)$ is available in closed form, that limit is free: the \emph{conditional
+Monte Carlo} or \emph{Rao--Blackwellized} estimator
+\[
+  \hat\mu_N^{\mathrm{RB}} = \frac1N\sum_{i=1}^N\gamma(X_i),\qquad
+  \Var\bigl(\hat\mu_N^{\mathrm{RB}}\bigr) = \frac{\sigma_B^2}N\;\leq\;\frac{\sigma^2}N,
+\]
+is unbiased and never worse than sampling $Y$. The rule: integrate out analytically
+whatever you can, and sample only the rest.
+
+\begin{example}[A running model]\label{monte-carlo:ex:running}
+The companion repository \texttt{CL-BZH/Nested-Monte-Carlo-sampling} uses a toy
+latent-variable model small enough for every quantity to be computed exactly:
+$(Z_1,Z_2)$ is the Gaussian pair of \cref{monte-carlo:ex:pair} with $\rho = 0.5$, and
+an observation $x$ is drawn as
+\[
+  x\mid z_1,z_2\sim\mathcal N\bigl(z_1^2 + z_2^2,\ 1\bigr),
+  \qquad\text{observed value } x = 1 .
+\]
+Take $g = \ell(z_1,z_2) = \log p(x\mid z_1,z_2) = -\tfrac12\log2\pi - \tfrac12(1 - S)^2$ with
+$S = z_1^2 + z_2^2$. Here $\mu = \E[\ell]$ is available by hand. Since $\E[Z_k^2] = 1$,
+$\E[Z_k^4] = 3$ and $\E[Z_1^2Z_2^2] = 1 + 2\rho^2$ (Isserlis' theorem),
+\begin{align*}
+  \E[S] &= 2,\qquad \E[S^2] = 3 + 3 + 2(1 + 2\rho^2) = 8 + 4\rho^2,\\
+  \E[(1-S)^2] &= 1 - 2\E[S] + \E[S^2] = 1 - 4 + 8 + 4\rho^2 = 5 + 4\rho^2,
+\end{align*}
+so $\mu = -\tfrac12\log2\pi - \tfrac12(5 + 4\rho^2) = -0.9189 - 3 = -3.9189$. Gauss--Hermite
+quadrature gives the variance components $\sigma^2 = 107$, $\sigma_B^2\approx59.77$ and
+$\sigma_W^2\approx47.23$.
+\begin{itemize}[nosep]
+  \item With $N = 100$ outer and $M = 10$ inner samples, the standard deviation of
+        $\hat\mu_{N,M}$ is $\sqrt{59.77/100 + 47.23/1000}\approx0.80$. With $1000$ independent
+        joint draws it is $\sqrt{107/1000}\approx0.33$: for the same $1000$ likelihood
+        evaluations, the two-stage design is about $2.5$ times noisier, because $\ell$
+        depends strongly on $z_1$ (through $z_1^2$) and $\sigma_B^2$ is large.
+  \item $Z_2\mid Z_1$ is Gaussian and $\ell$ is a polynomial in $z_2$, so $\gamma(z_1)$ has a
+        closed form, and Rao--Blackwellizing $z_2$ removes the fraction
+        $\sigma_W^2/\sigma^2\approx44\%$ of the variance. Integrating out the variable that
+        carries \emph{less} of the variability is the less profitable choice --- a
+        lesson in itself.
+\end{itemize}
+\end{example}
+
 \section{Nested Monte Carlo}\label{monte-carlo:sec:nested}
 
-Many quantities are expectations of a \emph{nonlinear} function of a conditional
+The two-stage estimator applies no function to the inner average. Many quantities,
+however, are expectations of a \emph{nonlinear} function of a conditional
 expectation:
 \[
   \theta = \E\bigl[f\bigl(\E[g(X,Y)\mid X]\bigr)\bigr]
@@ -156,6 +340,38 @@ $\max$, ratios --- do not, and their nested estimators are biased for every
 finite $M$.
 \end{keyidea}
 
+\begin{example}[The running model, nested]\label{monte-carlo:ex:running-nested}
+In the model of \cref{monte-carlo:ex:running}, integrate out $z_2$ \emph{inside} the
+logarithm: the likelihood of $x$ given $z_1$ alone is
+$I(z_1) = p(x\mid z_1) = \E_{Z_2\mid z_1}\bigl[p(x\mid z_1,Z_2)\bigr]$, and the target is
+\[
+  J = \E_{Z_1}\bigl[\log I(Z_1)\bigr]\approx-2.2087 .
+\]
+This is a nested expectation with $f = \log$ and $g = p(x\mid z_1,z_2)$, a
+\emph{likelihood} rather than a log-likelihood. The nested estimator averages $M$
+likelihoods $p(x\mid Z_{1i},Z_{2ij})$ before taking the logarithm. Its bias
+$b(M) = \E[\hat J_{N,M}] - J$ is
+\begin{itemize}[nosep]
+  \item negative for every $M$, by \cref{monte-carlo:thm:bias} ($\log$ is concave);
+  \item at its worst for $M = 1$, where $\log$ of a single likelihood is the
+        log-likelihood and $\E[\hat J_{N,1}] = \mu$: $b(1) = \mu - J\approx-1.71$;
+  \item increasing in $M$ (an average of $M$ terms is the average of its
+        $(M-1)$-subset averages, and Jensen applies once more), and asymptotically
+        $b(M)\approx-0.239/M$, the constant being
+        $\E\bigl[\Var(p(x\mid Z_1,Z_2)\mid Z_1)/(2I(Z_1)^2)\bigr]$ by
+        \cref{monte-carlo:prop:taylor}.
+\end{itemize}
+The three numbers are ordered:
+\[
+  \underbrace{\E[\log p(x\mid Z_1,Z_2)]}_{\mu\,\approx\,-3.9189}\;\leq\;
+  \underbrace{\E[\log p(x\mid Z_1)]}_{J\,\approx\,-2.2087}\;\leq\;
+  \underbrace{\log p(x)}_{\approx\,-1.4183},
+\]
+each inequality being Jensen's for one level of the hierarchy. Moving a
+logarithm outward past an expectation raises the value; \cref{em-algorithm:sec:mc-elbo}
+will read this chain as a sequence of evidence lower bounds.
+\end{example}
+
 \section{Consistency and the bias--variance trade-off}\label{monte-carlo:sec:tradeoff}
 
 \begin{proposition}[Size of the bias]\label{monte-carlo:prop:taylor}
@@ -180,9 +396,10 @@ $\E[v(X)]/M$ of \cref{monte-carlo:ex:square}.
 
 \paragraph{Consistency.} As $N, M\to\infty$, $\hat\theta_{N,M}\to\theta$ in mean square
 under mild conditions. A clean sufficient condition is that $f$ be $L$-Lipschitz
-and $\E[v(X)]<\infty$: then
-$\abs{\E[\hat\theta_{N,M}] - \theta}\leq L\,\E\abs{\hat\gamma_M(X) - \gamma(X)}\leq L\sqrt{\E[v(X)]/M}$
-by Jensen's inequality, and $\Var(\hat\theta_{N,M}) = \Var(f(\hat\gamma_M(X)))/N\to0$.
+and $\E[v(X)]<\infty$: then, by Jensen's inequality,
+\[
+  \abs{\E[\hat\theta_{N,M}] - \theta}\leq L\,\E\abs{\hat\gamma_M(X) - \gamma(X)}\leq L\sqrt{\E[v(X)]/M},
+\] and $\Var(\hat\theta_{N,M}) = \Var(f(\hat\gamma_M(X)))/N\to0$.
 (The naive argument ``inner LLN, then outer LLN'' needs care, because the terms of
 the outer average change with $M$.)
 
@@ -196,17 +413,29 @@ $\mathrm{MSE}\propto C^{-2/3}$ --- slower than the $C^{-1}$ of plain Monte Carlo
 (Rainforth et al., \emph{On Nesting Monte Carlo Estimators}, 2018). Both levels
 must grow: putting all the budget into $N$ leaves the bias untouched.
 
+\paragraph{Removing the leading bias.} Since the bias is $b/M + O(1/M^2)$, combining two
+inner sample sizes cancels the leading term (Richardson extrapolation):
+\[
+  \hat\theta^{\mathrm{RE}}_{N,M} = \frac1N\sum_{i=1}^N\Bigl(2f\bigl(\hat\gamma_{2M}(X_i)\bigr) - f\bigl(\hat\gamma_M(X_i)\bigr)\Bigr),
+  \qquad \E\bigl[\hat\theta^{\mathrm{RE}}_{N,M}\bigr] - \theta = O\Bigl(\frac1{M^2}\Bigr),
+\]
+where $\hat\gamma_M$ reuses the first $M$ of the $2M$ inner samples, so nothing new is
+drawn. The expansion must already be accurate at $M$: for small $M$ the correction
+can overshoot and flip the sign of the bias. Applied over a whole ladder of inner
+sizes, the same idea gives multilevel Monte Carlo (Giles, 2015).
+
 \begin{table}[ht]
 \centering
 \caption{Plain versus nested Monte Carlo.}
 \label{monte-carlo:tab:comparison}
-\begin{tabular}{@{}lll@{}}
+\begin{tabular}{@{}llll@{}}
 \toprule
- & plain & nested ($M$ inner samples) \\
+ & plain & two-stage & nested \\
 \midrule
-bias & $0$ for every $N$ & $O(1/M)$, independent of $N$ \\
-variance & $\sigma^2/N$ & $O(1/N)$ \\
-best MSE for cost $C$ & $\propto C^{-1}$ & $\propto C^{-2/3}$, with $M\propto C^{1/3}$ \\
+target & $\E[g]$ & $\E[\E[g\mid X]]$ & $\E[f(\E[g\mid X])]$ \\
+bias & $0$ & $0$ for every $N, M$ & $O(1/M)$, independent of $N$ \\
+variance & $\sigma^2/N$ & $\sigma_B^2/N + \sigma_W^2/(NM)$ & $O(1/N)$ \\
+best MSE for cost $C$ & $\propto C^{-1}$ & $\propto C^{-1}$, $M^\star$ fixed & $\propto C^{-2/3}$, $M\propto C^{1/3}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -217,6 +446,14 @@ best MSE for cost $C$ & $\propto C^{-1}$ & $\propto C^{-2/3}$, with $M\propto C^
         $\sigma/\sqrt N$ estimated from the samples themselves.
   \item Unbiasedness concerns the average over repetitions; a one-sample
         estimator is unbiased but has variance $\sigma^2$.
+  \item Ancestral sampling draws each variable given its already-drawn parents;
+        it samples the joint exactly, and hence every marginal, without knowing
+        their densities.
+  \item Iterated expectations with no nonlinearity between the levels are plain
+        expectations (tower property): the two-stage estimator is unbiased for every
+        $N$ and $M$, with variance $\sigma_B^2/N + \sigma_W^2/(NM)$. Reuse outer draws only
+        when they are expensive, $M^\star = \sqrt{(c_1/c_2)(\sigma_W^2/\sigma_B^2)}$, and integrate
+        out analytically what you can.
   \item Nested Monte Carlo applies a nonlinear $f$ to an inner average; its
         expectation $\E[f(\hat\gamma_M(X))]$ does not depend on $N$, and by
         Jensen it is biased upward for convex $f$ and downward for concave $f$.
@@ -224,7 +461,7 @@ best MSE for cost $C$ & $\propto C^{-1}$ & $\propto C^{-2/3}$, with $M\propto C^
         $\E[\Var(Y\mid X)]/M$ and can be removed with products of distinct inner
         samples.
   \item Under a budget $C = NM$, the best choice is $M\propto C^{1/3}$, giving an
-        MSE of order $C^{-2/3}$.
+        MSE of order $C^{-2/3}$; Richardson extrapolation removes the $1/M$ term.
 \end{itemize}
 \end{chaptersummary}
 
@@ -249,5 +486,29 @@ Verify that $\frac{1}{M(M-1)}\sum_{j\neq k}Y_jY_k$ is an unbiased estimator of
 $(\E Y)^2$ for i.i.d.\ $Y_1,\dots,Y_M$ ($M\geq2$), and write it in terms of the
 sample mean and the unbiased sample variance.
 \solutionlink{monte-carlo:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{monte-carlo:exr:4}
+In the running model of \cref{monte-carlo:ex:running} ($\sigma_B^2\approx59.77$,
+$\sigma_W^2\approx47.23$), suppose drawing $z_1$ costs ten times as much as drawing
+$z_2\mid z_1$ and evaluating the likelihood. What is $M^\star$? By what factor does the
+two-stage design with $M^\star$ reduce the variance compared with $M = 1$, at equal
+cost?
+\solutionlink{monte-carlo:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{monte-carlo:exr:5}
+Show that the variance of $\hat\mu_{N,M}$ in \cref{monte-carlo:prop:two-stage} can be
+written $\frac{\sigma^2}{NM}\bigl(1 + (M-1)\,r\bigr)$, where $r = \sigma_B^2/\sigma^2$ is the
+correlation between two pairs $(X_i,Y_{ij})$ and $(X_i,Y_{ik})$, $j\neq k$, sharing the
+same $X_i$. Interpret the cases $r = 0$ and $r = 1$.
+\hint{Compute $\Cov(g(X,Y_j), g(X,Y_k))$ by conditioning on $X$.}
+\solutionlink{monte-carlo:exr:5}
+\end{exercise}
+
+\begin{exercise}\label{monte-carlo:exr:6}
+Assuming $\E[\hat\theta_{N,M}] - \theta = b/M + c/M^2 + o(1/M^2)$, show that the
+Richardson estimator $\hat\theta^{\mathrm{RE}}_{N,M}$ has bias $-c/(2M^2) + o(1/M^2)$.
+\solutionlink{monte-carlo:exr:6}
 \end{exercise}
 \end{notechapter}
