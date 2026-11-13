@@ -1,0 +1,368 @@
+\begin{notechapter}
+\chapter{Adjoints, Projections and Least Squares}\label{ch:adjoint-operator}\label{ch:least-squares-geometry}
+\chaptersubtitle{Why the transpose appears everywhere}
+
+\begin{chapterintro}
+The transpose $A^\top$ appears in almost every formula of machine learning: the
+normal equations $A^\top A\hat x = A^\top y$, the backpropagated gradient
+$W^\top\delta$, the covariance $\mathbf X^\top\mathbf X$. This chapter explains what
+the transpose \emph{is}: the matrix of the adjoint operator, defined by the inner
+product. With that notion, orthogonal projections and least squares become
+geometric statements with short proofs. You will learn
+\begin{itemize}[nosep]
+  \item the difference between the dual operator (algebraic) and the adjoint
+        operator (geometric), and how the Riesz theorem connects them;
+  \item why the matrix of the adjoint is $A^\top$ for the standard dot product,
+        and $M^{-1}A^\top N$ for other inner products;
+  \item that a projection is orthogonal exactly when it is self-adjoint, also for
+        a general inner product $\inner{x}{y}_M = x^\top My$;
+  \item the fundamental relation $\ker(A^\top) = \operatorname{Im}(A)^\perp$ and the
+        normal equations of least squares, with a worked example;
+  \item when the least-squares solution exists and is unique.
+\end{itemize}
+\prerequisites{vector spaces, linear maps and matrices; inner products.}
+\end{chapterintro}
+
+\section{The transpose and the dot product}\label{adjoint-operator:sec:transpose}
+
+For a real matrix $A\in\R^{n\times m}$, representing a linear map $\R^m\to\R^n$, the
+transpose $A^\top\in\R^{m\times n}$ swaps rows and columns: $(A^\top)_{ji} = A_{ij}$.
+This purely combinatorial definition hides a geometric property.
+
+\begin{proposition}[Moving a matrix across a dot product]\label{adjoint-operator:prop:transpose}
+For all $x\in\R^m$ and $y\in\R^n$, $\;(Ax)\cdot y = x\cdot(A^\top y)$.
+\end{proposition}
+
+\begin{proof}
+$(Ax)\cdot y = (Ax)^\top y = x^\top A^\top y = x\cdot(A^\top y)$, using $(Ax)^\top = x^\top A^\top$.
+In coordinates: both sides equal $\sum_{i,j}A_{ij}x_jy_i$.
+\end{proof}
+
+The rest of the chapter turns this property into a definition.
+
+\begin{definition}[Inner product space]
+An \emph{inner product} on a real vector space $V$ is a map
+$\inner{\cdot}{\cdot}:V\times V\to\R$ that is symmetric, linear in each argument and
+positive definite ($\inner xx>0$ for $x\neq0$). (Over $\C$, symmetry becomes
+conjugate symmetry $\inner xy = \overline{\inner yx}$ and linearity holds in the first
+argument only.)
+\end{definition}
+
+On $\R^p$, every inner product has the form $\inner xy_M = x^\top My$ for a symmetric
+positive definite matrix $M$; the dot product is $M = I$. Other choices appear in
+statistics: $M = \diag(1/s_1^2,\dots,1/s_p^2)$ makes all variables equally important
+in a distance (\cref{ch:pca-overview}).
+
+\section{Dual operator and adjoint operator}\label{adjoint-operator:sec:dual-adjoint}
+
+\subsection{The dual operator: algebra only}
+
+\begin{definition}[Dual space and dual operator]
+The \emph{dual space} $V^*$ of a vector space $V$ is the space of linear functionals
+$\phi:V\to\R$. For a linear map $T:V\to W$, the \emph{dual operator}
+$T^*_{\text{dual}}:W^*\to V^*$ is defined by
+\[
+  T^*_{\text{dual}}(\phi) = \phi\circ T,\qquad\text{i.e.}\quad T^*_{\text{dual}}(\phi)(v) = \phi(T v).
+\]
+\end{definition}
+
+The dual operator exists for every linear map and needs no inner product: it maps
+\emph{functionals} on $W$ to functionals on $V$ by pre-composition. In finite
+dimension, with bases of $V$, $W$ and the dual bases of $V^*$, $W^*$, its matrix is the
+transpose $A^\top$ of the matrix $A$ of $T$ --- also over $\C$, where no complex
+conjugation appears.
+
+\subsection{The adjoint operator: geometry}
+
+\begin{definition}[Adjoint]
+Let $V$, $W$ be inner product spaces (Hilbert spaces in infinite dimension) and
+$A:V\to W$ linear (and bounded). The \emph{adjoint} of $A$ is the unique linear map
+$A^*:W\to V$ such that
+\[
+  \inner{Av}{w}_W = \inner{v}{A^*w}_V\qquad\text{for all }v\in V,\ w\in W.
+\]
+\end{definition}
+
+The adjoint maps \emph{vectors} to vectors, in the reverse direction. Its matrix
+depends on the inner products.
+
+\begin{proposition}[Matrix of the adjoint]\label{adjoint-operator:prop:matrix}
+Let $A\in\R^{n\times m}$, with inner products $\inner xy_{M} = x^\top My$ on $\R^m$ and
+$\inner xy_N = x^\top Ny$ on $\R^n$. Then $A^* = M^{-1}A^\top N$. In particular, for the
+standard dot products ($M = I$, $N = I$), $A^* = A^\top$.
+\end{proposition}
+
+\begin{proof}
+We need $(Av)^\top Nw = v^\top M(A^*w)$ for all $v$, $w$, i.e.\ $A^\top N = MA^*$, hence
+$A^* = M^{-1}A^\top N$. Uniqueness holds because $v^\top Mu = 0$ for all $v$ forces $u = 0$.
+\end{proof}
+
+So ``the adjoint is the transpose'' is true only for the standard inner product.
+Over $\C^n$ with the standard Hermitian product, the adjoint is the conjugate
+transpose $A^\dagger = \bar A^\top$.
+
+\begin{example}[The adjoint of differentiation]
+On functions on $[a,b]$ vanishing at the endpoints, with $\inner fg = \int_a^bf(x)g(x)\,dx$,
+integration by parts gives
+\[
+  \inner{Df}{g} = \int_a^bf'g\,dx = \bigl[fg\bigr]_a^b - \int_a^bfg'\,dx = \inner{f}{-Dg},
+\]
+so the adjoint of $D = \frac{d}{dx}$ is $-D$. (Strictly, $D$ is unbounded on
+$L^2([a,b])$ --- $\norm{\sin kx}$ stays bounded while $\norm{D\sin kx}$ grows like $k$ ---
+so $-D$ is its \emph{formal} adjoint; the rigorous theory of unbounded operators makes
+the domain part of the definition.) This is the continuous analogue of the
+difference matrix and its transpose, and the reason why the adjoint of a
+convolution is a correlation (Part~VII).
+\end{example}
+
+\subsection{The Riesz theorem connects the two}
+
+\begin{theorem}[Riesz representation]\label{adjoint-operator:thm:riesz}
+In a Hilbert space $V$ (in particular any finite-dimensional inner product space),
+every continuous linear functional $\phi\in V^*$ is of the form
+$\phi(v) = \inner vw$ for a unique $w\in V$. The map $R_V:w\mapsto\inner{\cdot}{w}$ is
+an isomorphism $V\to V^*$ (conjugate-linear over $\C$).
+\end{theorem}
+
+In finite dimension the proof is short: if $e_1,\dots,e_p$ is an orthonormal basis,
+$w = \sum_i\phi(e_i)e_i$ works, since both sides of $\phi(v) = \inner vw$ are linear in
+$v$ and agree on the basis.
+
+The adjoint is the dual operator ``transported'' by the Riesz isomorphisms. Starting
+from $w\in W$, turn it into a functional, pull it back with the dual operator, and
+turn the result back into a vector:
+\[
+  A^* = R_V^{-1}\circ A^*_{\text{dual}}\circ R_W .
+\]
+\begin{center}
+\begin{tikzcd}[row sep=large, column sep=huge]
+V \arrow[r, "A"] & W \arrow[d, "R_W"] \\
+V^* \arrow[u, "R_V^{-1}"] & W^* \arrow[l, "A^*_{\text{dual}}"']
+\end{tikzcd}
+\qquad
+\raisebox{-1.5em}{$\Longrightarrow\quad A^*:W\to V$ goes ``around the square''.}
+\end{center}
+Indeed, for $v\in V$: $R_V(A^*w)(v) = \inner{v}{A^*w} = \inner{Av}{w} = R_W(w)(Av) = \bigl(A^*_{\text{dual}}R_W(w)\bigr)(v)$.
+
+\begin{keyidea}
+For $\R^m$ and $\R^n$ with the dot product and the standard bases, the Riesz maps
+are represented by identity matrices, so the dual operator and the adjoint have the
+same matrix, $A^\top$. This is why the two notions are routinely conflated. The
+distinction matters as soon as the inner product is not the standard one --- as in
+PCA with a metric $M$ (\cref{ch:pca-overview}) or the natural gradient
+(\cref{ch:gradient-tangent-space}) --- because the adjoint, unlike the dual
+operator, then changes.
+\end{keyidea}
+
+\section{Projections}\label{adjoint-operator:sec:projections}
+
+\begin{definition}[Projection]
+A linear map $P:V\to V$ is a \emph{projection} (or projector) if $P^2 = P$: projecting
+twice is projecting once. It projects onto $\operatorname{Im}(P)$ along $\ker(P)$,
+and $V = \operatorname{Im}(P)\oplus\ker(P)$ via $v = Pv + (I-P)v$.
+\end{definition}
+
+A projection is \emph{orthogonal} if the two pieces are orthogonal:
+$\inner{Px}{(I-P)y} = 0$ for all $x,y$. Otherwise it is \emph{oblique}.
+
+\begin{proposition}[Orthogonal $\iff$ self-adjoint]\label{adjoint-operator:prop:orthogonal}
+A projection $P$ is orthogonal if and only if $P^* = P$. For the inner product
+$\inner xy_M = x^\top My$ on $\R^p$, this reads $MP = P^\top M$ (``$P$ is
+$M$-symmetric''); for the dot product, $P^\top = P$.
+\end{proposition}
+
+\begin{proof}
+($\Leftarrow$) If $P^* = P$, then
+$\inner{Px}{(I-P)y} = \inner{x}{P(I-P)y} = \inner{x}{(P - P^2)y} = 0$.
+
+($\Rightarrow$) Orthogonality says $\inner{Px}{y} = \inner{Px}{Py}$ for all $x,y$
+(write $y = Py + (I-P)y$). The right-hand side is symmetric in $x$ and $y$, hence so
+is the left: $\inner{Px}{y} = \inner{Py}{x} = \inner{x}{Py}$. Thus $P^* = P$.
+
+With $\inner xy_M$, \cref{adjoint-operator:prop:matrix} gives $P^* = M^{-1}P^\top M$, and
+$P^* = P$ becomes $MP = P^\top M$.
+\end{proof}
+
+\begin{proposition}[Projection onto a line, any metric]\label{adjoint-operator:prop:line}
+The $M$-orthogonal projection onto $\operatorname{span}(a)$, $a\neq0$, is
+\[
+  P_a = a\,(a^\top Ma)^{-1}a^\top M,\qquad\text{i.e.}\quad P_ay = \frac{\inner ay_M}{\inner aa_M}\,a .
+\]
+More generally, onto the column space of a full-rank $A\in\R^{p\times q}$:
+$P_A = A(A^\top MA)^{-1}A^\top M$.
+\end{proposition}
+
+\begin{proof}
+Write $P_ay = \alpha a$. Orthogonality of the residual to $a$ requires
+$\inner{a}{y - \alpha a}_M = 0$, i.e.\ $a^\top My = \alpha\,a^\top Ma$, which gives $\alpha$.
+For $P_A$, write $P_Ay = A\beta$ and require $A^\top M(y - A\beta) = 0$ (orthogonality to
+every column), giving $\beta = (A^\top MA)^{-1}A^\top My$. One checks $P_A^2 = P_A$ and
+$MP_A = P_A^\top M$ directly.
+\end{proof}
+
+With $M = I$: $P_A = A(A^\top A)^{-1}A^\top$, the ``hat matrix'' of least squares.
+
+\section{Least squares}\label{adjoint-operator:sec:least-squares}
+
+Given $A\in\R^{m\times n}$ and $y\in\R^m$, the system $Ax = y$ usually has no solution
+when $m>n$: $y$ is not in the column space $\operatorname{Im}(A)$. Least squares
+looks for the $x$ that makes $Ax$ as close as possible to $y$:
+\[
+  \hat x\in\argmin_{x\in\R^n}\norm{y - Ax}^2 .
+\]
+Geometrically, $A\hat x$ is the point of the subspace $\operatorname{Im}(A)$ closest
+to $y$: its orthogonal projection (\cref{adjoint-operator:fig:ls}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=1.15, >=Stealth]
+  \fill[bookaccent!12] (-1.2,-0.6) -- (3.6,-0.6) -- (4.6,1.2) -- (-0.2,1.2) -- cycle;
+  \draw[bookaccent!60] (-1.2,-0.6) -- (3.6,-0.6) -- (4.6,1.2) -- (-0.2,1.2) -- cycle;
+  \node[bookaccent] at (3.9,0.95) {$\operatorname{Im}(A)$};
+  \coordinate (O) at (0,0);
+  \coordinate (P) at (2.2,0.35);
+  \coordinate (Y) at (2.2,2.6);
+  \draw[->, very thick] (O) -- (Y) node[above] {$y$};
+  \draw[->, very thick, bookpitfall] (O) -- (P) node[below right] {$A\hat x$};
+  \draw[->, thick, dashed, bookdef] (P) -- (Y) node[midway, right] {$e = y - A\hat x$};
+  \draw (2.2,0.6) -- (2.45,0.6) -- (2.45,0.35);
+  \fill (O) circle (1.5pt) node[below left] {$0$};
+\end{tikzpicture}
+\caption{Least squares: $A\hat x$ is the orthogonal projection of $y$ onto the column
+space of $A$; the residual $e$ is orthogonal to that space.}
+\label{adjoint-operator:fig:ls}
+\end{figure}
+
+The orthogonality of the residual to $\operatorname{Im}(A)$ is turned into equations by
+the adjoint.
+
+\begin{theorem}[The fundamental orthogonality relation]\label{adjoint-operator:thm:ker}
+For $A\in\R^{m\times n}$, $\ker(A^\top) = \operatorname{Im}(A)^\perp$.
+\end{theorem}
+
+\begin{proof}
+($\subseteq$) Let $A^\top z = 0$. Every element of $\operatorname{Im}(A)$ is $Ax$ for some
+$x$, and $\inner{Ax}{z} = \inner{x}{A^\top z} = \inner{x}{0} = 0$. So $z\perp\operatorname{Im}(A)$.
+
+($\supseteq$) Let $w\perp\operatorname{Im}(A)$. Then for every $v\in\R^n$,
+$0 = \inner{Av}{w} = \inner{v}{A^\top w}$. The only vector orthogonal to all of
+$\R^n$ is $0$ (take $v = A^\top w$), so $A^\top w = 0$.
+\end{proof}
+
+\begin{theorem}[Normal equations]\label{adjoint-operator:thm:normal}
+$\hat x$ minimizes $\norm{y - Ax}^2$ if and only if
+\[
+  A^\top A\hat x = A^\top y .
+\]
+Solutions always exist, and $A\hat x$ --- the orthogonal projection of $y$ onto
+$\operatorname{Im}(A)$ --- is the same for all of them.
+\end{theorem}
+
+\begin{proof}
+Let $p$ be the orthogonal projection of $y$ onto $\operatorname{Im}(A)$ (it exists in
+finite dimension). For any $x$, $y - Ax = (y - p) + (p - Ax)$ with $y - p\perp\operatorname{Im}(A)$
+and $p - Ax\in\operatorname{Im}(A)$, so by Pythagoras
+$\norm{y - Ax}^2 = \norm{y-p}^2 + \norm{p - Ax}^2$, minimal exactly when $Ax = p$.
+Since $p\in\operatorname{Im}(A)$, such $x$ exist. Finally, $Ax = p$ iff $y - Ax\perp\operatorname{Im}(A)$,
+iff $A^\top(y - Ax) = 0$ by \cref{adjoint-operator:thm:ker}.
+\end{proof}
+
+\begin{example}[Fitting a line through three points]\label{adjoint-operator:ex:line}
+Fit $y\approx\beta_0 + \beta_1t$ to the points $(t,y) = (0,1)$, $(1,2)$, $(2,2)$. Then
+\[
+  A = \begin{bmatrix}1&0\\1&1\\1&2\end{bmatrix},\quad
+  y = \begin{bmatrix}1\\2\\2\end{bmatrix},\quad
+  A^\top A = \begin{bmatrix}3&3\\3&5\end{bmatrix},\quad
+  A^\top y = \begin{bmatrix}5\\6\end{bmatrix}.
+\]
+Solving, $\hat\beta = \frac16\begin{psmallmatrix}5&-3\\-3&3\end{psmallmatrix}\begin{psmallmatrix}5\\6\end{psmallmatrix} = \bigl(\frac76,\frac12\bigr)$.
+The fitted values are $A\hat\beta = (\frac76,\frac53,\frac{13}6)$ and the residual is
+$e = (-\frac16,\frac13,-\frac16)$. Check: $A^\top e = (-\frac16+\frac13-\frac16,\ \frac13-\frac13) = (0,0)$ ---
+the residual is orthogonal to both columns, as the theorem requires. Its first
+component says that the residuals sum to zero, a consequence of having an intercept
+(\cref{measuring-performance:prop:anova}).
+\end{example}
+
+\subsection{Existence and uniqueness}
+
+\begin{proposition}\label{adjoint-operator:prop:unique}
+$\ker(A^\top A) = \ker(A)$. Hence the least-squares solution is unique iff the columns
+of $A$ are linearly independent, and then $\hat x = (A^\top A)^{-1}A^\top y$ and
+$A\hat x = P_Ay$ with $P_A = A(A^\top A)^{-1}A^\top$.
+\end{proposition}
+
+\begin{proof}
+If $Ax = 0$ then $A^\top Ax = 0$. Conversely, if $A^\top Ax = 0$ then
+$0 = x^\top A^\top Ax = \norm{Ax}^2$, so $Ax = 0$. The set of solutions of the normal
+equations is $\hat x + \ker(A^\top A) = \hat x + \ker(A)$.
+\end{proof}
+
+\begin{table}[ht]
+\centering
+\caption{The four cases of $Ax = y$.}
+\label{adjoint-operator:tab:cases}
+\begin{tabular}{@{}lll@{}}
+\toprule
+ & $y\in\operatorname{Im}(A)$ (exact solution) & $y\notin\operatorname{Im}(A)$ (least squares) \\
+\midrule
+$\ker(A) = \{0\}$ & unique $x$ & unique $\hat x$ \\
+$\ker(A)\neq\{0\}$ & infinitely many $x$ & infinitely many $\hat x$, one $A\hat x$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Linearly independent columns require $m\geq n$; with more unknowns than equations
+($n>m$), $\ker(A)\neq\{0\}$ always. When $\ker(A)\neq\{0\}$, the projection $A\hat x$ is still
+unique, and among all solutions there is one of minimum norm, $\hat x = A^+y$, given by
+the Moore--Penrose pseudoinverse of \cref{ch:svd}.
+
+\begin{pitfall}[Do not form $A^\top A$ blindly]
+Mathematically, the normal equations characterize the solution. Numerically,
+forming $A^\top A$ squares the condition number of $A$, so small singular values are
+lost to rounding. Libraries solve least squares with a QR or SVD factorization of $A$
+itself (\texttt{numpy.linalg.lstsq}).
+\end{pitfall}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item The dual operator $\phi\mapsto\phi\circ A$ is algebraic; the adjoint, defined by
+        $\inner{Av}{w} = \inner{v}{A^*w}$, is geometric. Riesz maps vectors to functionals and
+        $A^* = R_V^{-1}A^*_{\text{dual}}R_W$.
+  \item For inner products $x^\top My$ and $x^\top Ny$, $A^* = M^{-1}A^\top N$; the familiar
+        $A^* = A^\top$ holds for the dot product.
+  \item A projection ($P^2 = P$) is orthogonal iff it is self-adjoint; with a metric $M$,
+        iff $MP = P^\top M$. The $M$-orthogonal projector on $\operatorname{Im}(A)$ is
+        $A(A^\top MA)^{-1}A^\top M$.
+  \item $\ker(A^\top) = \operatorname{Im}(A)^\perp$; hence least squares $\iff$ normal equations
+        $A^\top A\hat x = A^\top y$. The projection $A\hat x$ always exists and is unique;
+        $\hat x$ is unique iff $\ker(A) = \{0\}$.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{adjoint-operator:exr:1}
+Show that $(AB)^* = B^*A^*$ and $(A^*)^* = A$ for linear maps between finite-dimensional
+inner product spaces.
+\solutionlink{adjoint-operator:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{adjoint-operator:exr:2}
+Give a $2\times2$ projection matrix that is not orthogonal, and describe geometrically
+what it does.
+\solutionlink{adjoint-operator:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{adjoint-operator:exr:3}
+In \cref{adjoint-operator:ex:line}, compute the hat matrix $P_A$ and check that
+$P_Ay$ gives the fitted values, that $P_A^2 = P_A$ and that $\tr P_A = 2$.
+\solutionlink{adjoint-operator:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{adjoint-operator:exr:4}
+Show that $\operatorname{Im}(A^\top) = \ker(A)^\perp$, and deduce that the
+least-squares solution of minimum norm lies in $\operatorname{Im}(A^\top)$.
+\solutionlink{adjoint-operator:exr:4}
+\end{exercise}
+\end{notechapter}

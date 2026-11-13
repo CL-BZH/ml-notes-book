@@ -95,3 +95,11 @@
 \newcommand{\solutionlink}[1]{\par\nopagebreak\hfill{\small\hyperref[sol:#1]{Solution, p.~\pageref*{sol:#1}}}}
 \newcommand{\solution}[1]{\par\medskip\noindent\textbf{Exercise~\ref*{#1}}\label{sol:#1}%
   \hfill{\small\hyperref[#1]{statement, p.~\pageref*{#1}}}\par\nopagebreak\smallskip}
+
+% ---------- lists right after a run-in theorem head start on a new line ------
+\makeatletter
+\newcommand{\book@listnewline}{\if@inlabel\leavevmode\fi}
+\AtBeginEnvironment{enumerate}{\book@listnewline}
+\AtBeginEnvironment{itemize}{\book@listnewline}
+\AtBeginEnvironment{description}{\book@listnewline}
+\makeatother
