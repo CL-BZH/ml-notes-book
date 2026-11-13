@@ -7,7 +7,7 @@ graph neural networks.
 
 The notes started as ~100 standalone LaTeX documents, Markdown files and
 notebooks. They are organised here as a single LaTeX book (11 parts,
-84 chapters, ~840 pages), with the accompanying code and notebooks.
+84 chapters, ~850 pages), with the accompanying code and notebooks.
 
 **[📕 Download the PDF](https://github.com/CL-BZH/ml-notes-book/releases/latest/download/Notes_on_Machine_Learning.pdf)**
 
