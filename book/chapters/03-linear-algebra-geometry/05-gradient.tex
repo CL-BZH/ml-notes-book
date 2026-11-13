@@ -93,22 +93,26 @@ descent steps across them (\cref{gradient-tangent-space:fig:contours}).
 \begin{figure}[ht]
 \centering
 \begin{tikzpicture}[>=Stealth]
-\begin{axis}[width=8.5cm, height=6cm, axis equal image, xmin=-3.3, xmax=3.3, ymin=-1.8, ymax=1.8,
-  xlabel={$\theta_1$}, ylabel={$\theta_2$}, axis lines=middle, xtick=\empty, ytick=\empty]
-  \foreach \c in {0.5,1.5,3,5,7.25,10}{
-    \addplot[thin, bookaccent!70, domain=0:360, samples=80] ({sqrt(\c)*cos(x)}, {sqrt(\c)/2*sin(x)});
+\begin{axis}[width=10cm, axis equal image, xmin=-3.5, xmax=3.5, ymin=-1.9, ymax=2.1,
+  xlabel={$\theta_1$}, ylabel={$\theta_2$}, axis lines=middle, xtick=\empty, ytick=\empty, clip=false]
+  \foreach \c in {0.5,1.5,3,5,7.25}{
+    \addplot[thin, bookaccent!50, domain=0:360, samples=80] ({sqrt(\c)*cos(x)}, {sqrt(\c)/2*sin(x)});
   }
+  % the level curve through theta_0 = (2.5, 1): L = 10.25
+  \addplot[thick, bookaccent, domain=0:360, samples=100] ({sqrt(10.25)*cos(x)}, {sqrt(10.25)/2*sin(x)});
   \addplot[thick, mark=*, mark size=1.4pt, bookpitfall] coordinates
     {(2.5,1.0) (2.0,0.2) (1.6,0.04) (1.28,0.008) (1.024,0.0016) (0.8192,0.0003) (0.6554,0.0001)};
-  \draw[->, very thick, bookexample] (axis cs:2.5,1.0) -- (axis cs:2.5+0.1*5,1.0+0.1*8);
-  \node[bookexample, right] at (axis cs:3.0,1.75) {$\nabla L$};
-  \node[above left] at (axis cs:2.5,1.0) {$\theta_0$};
+  % gradient (5, 8) at theta_0, scaled by 0.1
+  \draw[->, very thick, bookdef] (axis cs:2.5,1.0) -- (axis cs:3.0,1.8);
+  \node[bookdef, anchor=west] at (axis cs:3.0,1.8) {$\nabla L(\theta_0)$};
+  \fill (axis cs:2.5,1.0) circle (1.6pt);
+  \node[anchor=east] at (axis cs:2.45,1.15) {$\theta_0$};
 \end{axis}
 \end{tikzpicture}
-\caption{Level curves of $L(\theta) = \theta_1^2 + 4\theta_2^2$ in parameter space. The gradient at
-$\theta_0 = (2.5,1)$ (green) is orthogonal to the level curve through $\theta_0$. Gradient descent with
-$\eta = 0.1$ (red) multiplies $\theta_1$ by $0.8$ and $\theta_2$ by $0.2$ at each step: it first kills the steep
-direction, then crawls along the flat one.}
+\caption{Level curves of $L(\theta) = \theta_1^2 + 4\theta_2^2$ in parameter space; the thick one passes through
+$\theta_0 = (2.5,1)$. The gradient $\nabla L(\theta_0) = (5, 8)$ (green arrow, drawn at scale $0.1$) is orthogonal to that
+level curve. Gradient descent with $\eta = 0.1$ (red) multiplies $\theta_1$ by $0.8$ and $\theta_2$ by $0.2$ at each step:
+it first kills the steep direction, then crawls along the flat one.}
 \label{gradient-tangent-space:fig:contours}
 \end{figure}
 
@@ -143,9 +147,9 @@ a different object (\cref{gradient-tangent-space:fig:surface}).
   \addplot3[only marks, mark=*, mark size=1.6pt] coordinates {(1.8,0.2,3.4)};
   \addplot3[dashed, gray] coordinates {(1.8,0.2,-4) (1.8,0.2,3.4)};
   % gradient (3.6, 1.6) at theta = (1.8, 0.2), scaled by 0.2, drawn in the floor
-  \draw[->, very thick, bookexample] (axis cs:1.8,0.2,-4) -- (axis cs:2.52,0.52,-4);
+  \draw[->, very thick, bookdef] (axis cs:1.8,0.2,-4) -- (axis cs:2.52,0.52,-4);
   \addplot3[only marks, mark=*, mark size=1.6pt, bookpitfall] coordinates {(1.8,0.2,-4)};
-  \node[bookexample, anchor=south west] at (axis cs:2.52,0.52,-4) {$\nabla L(\theta)$};
+  \node[bookdef, anchor=south west] at (axis cs:2.52,0.52,-4) {$\nabla L(\theta)$};
   \node[bookpitfall, anchor=north] at (axis cs:1.8,0.2,-4) {$\theta$};
   \node[anchor=west] at (axis cs:1.8,0.2,3.4) {$(\theta, L(\theta))$};
 \end{axis}
@@ -280,7 +284,9 @@ sufficient for $\theta + v$ to make sense.
         is defined.
   \item A circle of length $1$, $\R/\Z$, is flat (every one-dimensional Riemannian manifold is), yet
         it is not an affine space: the displacement from $0.1$ to $0.3$ could be $0.2$, $1.2$ or $-0.8$
-        (\cref{gradient-tangent-space:exr:6}). Flatness gives the affine picture only locally.
+        (\cref{gradient-tangent-space:exr:6}). Flatness gives the affine picture only locally.%
+        \footnote{Why $\R/\Z$ is a circle, why it is flat although it closes up on itself, and what
+        this means for parameters such as angles: \cref{ch:flat-circle}.}
 \end{itemize}
 What the update uses is the affine structure; the inner product then supplies the gradient.
 \end{pitfall}
@@ -357,12 +363,168 @@ Three choices of $M$ are classical.
         distribution (locally, the KL divergence), independently of the parametrization.
 \end{itemize}
 
-\begin{example}[The right metric removes the zig-zag]
-For $L(\theta) = \theta_1^2 + 4\theta_2^2$, the Euclidean gradient is $(2\theta_1, 8\theta_2)$ and gradient descent crawls
-(\cref{gradient-tangent-space:fig:contours}). With $M = \nabla^2L = \diag(2, 8)$,
-$M^{-1}\nabla L(\theta) = (\theta_1, \theta_2) = \theta$: the gradient for this metric points straight at the minimum, and
-one step with $\eta = 1$ reaches it. In the metric $M$ the level sets are circles.
-\end{example}
+\subsection{Worked example: the zig-zag and its cure}\label{gradient-tangent-space:sec:zigzag}
+
+Take again $L(\theta) = \theta_1^2 + 4\theta_2^2 = \frac12\theta^\top H\theta$, with constant Hessian $H = \diag(2, 8)$, and start from
+$\theta_0 = (2.5, 1)$.
+
+\paragraph{Euclidean gradient descent.} Since $\nabla L(\theta) = H\theta$, one step is linear in $\theta$:
+\[
+  \theta_{k+1} = \theta_k - \eta H\theta_k = (I - \eta H)\,\theta_k,\qquad
+  \begin{pmatrix}\theta_{1,k+1}\\\theta_{2,k+1}\end{pmatrix}
+  = \begin{pmatrix}1 - 2\eta & 0\\0 & 1 - 8\eta\end{pmatrix}
+    \begin{pmatrix}\theta_{1,k}\\\theta_{2,k}\end{pmatrix},
+\]
+so the coordinates evolve independently, $\theta_{1,k} = (1 - 2\eta)^k\,\theta_{1,0}$ and $\theta_{2,k} = (1 - 8\eta)^k\,\theta_{2,0}$. One learning
+rate must serve two curvatures, and the factor $1 - 8\eta$ of the steep direction decides the regime:
+\begin{itemize}[nosep]
+  \item $0<\eta\leq\frac18$: both factors lie in $[0, 1)$. The iterates approach the minimum monotonically, the
+        steep coordinate quickly, the flat one slowly: the method \emph{crawls}.
+  \item $\frac18<\eta<\frac14$: $1 - 8\eta\in(-1, 0)$, so $\theta_2$ changes sign at every step. The iterates jump from one
+        side of the valley to the other: the \emph{zig-zag}.
+  \item $\eta>\frac14$: $\abs{1 - 8\eta}>1$ and $\theta_2$ diverges, however well $\theta_1$ behaves.
+\end{itemize}
+The error is governed by the larger factor, $\max(\abs{1 - 2\eta}, \abs{1 - 8\eta})$. It is smallest when
+$1 - 2\eta = -(1 - 8\eta)$, at $\eta = \frac15$, where it equals $\frac35$. In general, for eigenvalues $\mu_{\min}\leq\mu_{\max}$ of $H$, the
+best learning rate is $\eta = 2/(\mu_{\min} + \mu_{\max})$ and the best factor is
+\[
+  \frac{\kappa - 1}{\kappa + 1},\qquad \kappa = \frac{\mu_{\max}}{\mu_{\min}}\quad\text{(the \emph{condition number})};
+\]
+here $\kappa = 4$. The cost is easy to count: to divide the error by $10^6$ takes
+\begin{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+ & factor per step & regime & steps \\
+\midrule
+$\eta = 0.1$ & $0.8$ & crawl & $62$ \\
+$\eta = 0.2$ (best) & $0.6$ & zig-zag & $28$ \\
+$\eta = 0.24$ & $0.92$ & strong zig-zag & $166$ \\
+$M = H$, $\eta = 1$ & $0$ & --- & $1$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+The best fixed learning rate already zig-zags: it accepts oscillations in the steep direction to
+move faster in the flat one (\cref{gradient-tangent-space:fig:zigzag}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth]
+\begin{axis}[width=11cm, axis equal image, xmin=-0.4, xmax=3.4, ymin=-1.15, ymax=1.35,
+  xlabel={$\theta_1$}, ylabel={$\theta_2$}, axis lines=middle, xtick=\empty, ytick=\empty]
+  \foreach \c in {0.5,1.5,3,5,7.25,10.25}{
+    \addplot[thin, bookaccent!50, domain=0:360, samples=80] ({sqrt(\c)*cos(x)}, {sqrt(\c)/2*sin(x)});
+  }
+  \addplot[thick, mark=*, mark size=1.2pt, bookpitfall] coordinates
+    {(2.5,1.0) (2.0,0.2) (1.6,0.04) (1.28,0.008) (1.024,0.0016) (0.8192,0.0003) (0.6554,0.0001) (0.5243,0) (0.4194,0) (0.3355,0)};
+  \addplot[thick, mark=*, mark size=1.2pt, bookexample] coordinates
+    {(2.5,1.0) (1.3,-0.92) (0.676,0.8464) (0.3515,-0.7787) (0.1828,0.7164) (0.0951,-0.6591) (0.0494,0.6064) (0.0257,-0.5578)};
+  \draw[->, very thick, dashed, bookdef] (axis cs:2.5,1.0) -- (axis cs:0.05,0.02);
+  \fill (axis cs:2.5,1.0) circle (1.6pt);
+  \node[anchor=south west] at (axis cs:2.5,1.0) {$\theta_0$};
+  \node[bookpitfall, anchor=north, font=\small] at (axis cs:2.0,-0.12) {$\eta = 0.1$: crawl};
+  \node[bookexample, anchor=west, font=\small] at (axis cs:1.38,-0.95) {$\eta = 0.24$: zig-zag};
+  \node[bookdef, anchor=south, font=\small, rotate=21.8] at (axis cs:1.75,0.72) {$M = H$: one step};
+\end{axis}
+\end{tikzpicture}
+\caption{Gradient descent on $L(\theta) = \theta_1^2 + 4\theta_2^2$ from $\theta_0 = (2.5, 1)$. With $\eta = 0.1$ (red, first nine
+steps) the steep coordinate $\theta_2$ is killed at once and $\theta_1$ then shrinks by only $0.8$ per step. With
+$\eta = 0.24$, close to the stability limit $\frac14$ (orange, seven steps), $\theta_1$ converges fast but $\theta_2$ is multiplied by
+$-0.92$: the iterates bounce between the walls of the valley. Gradient descent for the metric $M = H$
+(green) reaches the minimum in one step.}
+\label{gradient-tangent-space:fig:zigzag}
+\end{figure}
+
+\paragraph{Why the metric $M = H$ fixes it.} By \cref{gradient-tangent-space:thm:steepest}, ``steepest'' means
+steepest among the vectors of unit length, and the unit ball depends on the metric. For the inner
+product $\inner uv_H = u^\top Hv$, the unit ball is the ellipse $\{v : 2v_1^2 + 8v_2^2\leq1\}$, which is short in the steep
+direction: a step in $\theta_2$ is ``expensive''. The gradient for this metric is
+\[
+  \nabla_HL(\theta) = H^{-1}\nabla L(\theta) = H^{-1}H\theta = \theta,
+\]
+which points from the minimum to $\theta$, so $\theta - \eta\theta = (1 - \eta)\theta$: every coordinate is multiplied by the same
+factor $1 - \eta$, there is nothing left to zig-zag, and $\eta = 1$ reaches the minimum.
+
+The two steepest directions have a common geometric description. The steepest-descent unit
+vector minimizes the linear form $v\mapsto dL_{\theta_0}(v) = \nabla L(\theta_0)^\top v$ over the unit ball. The level lines of this
+form are the lines orthogonal (for the dot product) to $\nabla L(\theta_0) = (5, 8)$, all parallel to the tangent of
+the contour through $\theta_0$, and the minimum is reached where the unit ball touches the lowest line of
+this family that it meets.
+\begin{itemize}[nosep]
+  \item For the Euclidean disc, the contact point lies along $-\nabla L(\theta_0) = -(5, 8)$.
+  \item For the ellipse $v^\top Hv = 1$, the contact point $v$ is where the normal to the ellipse, $Hv$, is parallel to
+        $(5, 8) = H\theta_0$, that is, $v\parallel\theta_0$; descent takes $v\parallel-\theta_0$.
+\end{itemize}
+The family of lines is the same, because $dL_{\theta_0}$ does not depend on the metric; only the ball changes.
+In \cref{gradient-tangent-space:fig:balls} (left) the two balls are scaled so as to touch the same
+line, at two different points.
+Orthogonality changes with it. The contour through $\theta_0$ has tangent $t = (8, -5)$, since
+$\nabla L(\theta_0)^\top t = 40 - 40 = 0$, and the $H$-gradient is $H$-orthogonal to it:
+\[
+  \inner{\theta_0}{t}_H = \begin{pmatrix}2.5 & 1\end{pmatrix}\begin{pmatrix}2 & 0\\0 & 8\end{pmatrix}\begin{pmatrix}8\\-5\end{pmatrix}
+  = \begin{pmatrix}2.5 & 1\end{pmatrix}\begin{pmatrix}16\\-40\end{pmatrix} = 40 - 40 = 0 .
+\]
+\Cref{gradient-tangent-space:prop:level} holds in every metric, provided ``orthogonal'' is understood in
+that metric.
+
+\paragraph{The same thing in better coordinates.} Set $\phi = H^{1/2}\theta$, i.e.\ $\phi_1 = \sqrt2\,\theta_1$ and $\phi_2 = 2\sqrt2\,\theta_2$.
+Then
+\[
+  L = \theta_1^2 + 4\theta_2^2 = \tfrac12\bigl(2\theta_1^2 + 8\theta_2^2\bigr) = \tfrac12\bigl(\phi_1^2 + \phi_2^2\bigr):
+\]
+in the coordinates $\phi$ the level sets are circles, the Euclidean gradient is $\phi$ itself, and plain
+gradient descent with $\eta = 1$ reaches the minimum. Mapped back by $\theta = H^{-1/2}\phi$, this is exactly
+gradient descent for the metric $H$ in $\theta$ (\cref{gradient-tangent-space:exr:2} with $A = H^{-1/2}$, which gives
+$M = (AA^\top)^{-1} = H$). Conversely, the Euclidean step in $\theta$, $-0.1\,\nabla L(\theta_0) = (-0.5, -0.8)$, becomes in
+$\phi$ the vector $H^{1/2}(-0.5, -0.8) = (-0.71, -2.26)$, which does not point at the centre of the circles
+(\cref{gradient-tangent-space:fig:balls}, right). Preconditioning is a change of coordinates that makes
+the problem round; the condition number $\kappa$ measures how far from round it was.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth]
+\begin{axis}[name=left, width=7.6cm, axis equal image, xmin=1.0, xmax=3.75, ymin=0.05, ymax=1.85,
+  hide axis, clip=false, title={coordinates $\theta$ (near $\theta_0$)}]
+  \begin{scope}
+  \clip (axis cs:1.0,0.05) rectangle (axis cs:3.75,1.85);
+  \addplot[thick, bookaccent, domain=0:90, samples=100] ({sqrt(10.25)*cos(x)}, {sqrt(10.25)/2*sin(x)});
+  \end{scope}
+  % Euclidean ball (radius 0.8) and H-ball (rho = 1.6668), scaled to touch the same level line of dL
+  \addplot[thin, gray, domain=0:360, samples=80] ({2.5+0.8*cos(x)}, {1+0.8*sin(x)});
+  \addplot[thin, bookdef, domain=0:360, samples=80] ({2.5+1.1786*cos(x)}, {1+0.5893*sin(x)});
+  % that level line, parallel to the contour tangent (8,-5)
+  \addplot[densely dashed, black, domain=-0.95:0.6, samples=2] ({2.076+0.848*x}, {0.322-0.530*x});
+  % steepest descent directions = contact points
+  \draw[->, very thick, black] (axis cs:2.5,1) -- (axis cs:2.076,0.322);
+  \draw[->, very thick, bookdef] (axis cs:2.5,1) -- (axis cs:1.580,0.632);
+  \draw[densely dotted, bookdef] (axis cs:1.580,0.632) -- (axis cs:1.15,0.46) node[anchor=north, font=\footnotesize] {towards $0$};
+  \fill (axis cs:2.5,1) circle (1.5pt);
+  \node[anchor=south west] at (axis cs:2.5,1.02) {$\theta_0$};
+  \node[font=\footnotesize, anchor=west] at (axis cs:2.33,0.62) {$-\nabla L$};
+  \node[font=\footnotesize, bookdef, anchor=south east] at (axis cs:2.0,0.84) {$-\nabla_HL$};
+\end{axis}
+\begin{axis}[at={(left.east)}, anchor=west, xshift=1.2cm, width=7.2cm, axis equal image,
+  xmin=-0.5, xmax=5.0, ymin=-0.8, ymax=4.6,
+  xlabel={$\phi_1$}, ylabel={$\phi_2$}, axis lines=middle, xtick=\empty, ytick=\empty, clip=false,
+  title={coordinates $\phi = H^{1/2}\theta$}]
+  \foreach \r in {1,1.732,2.449,3.162,3.808}{
+    \addplot[thin, bookaccent!50, domain=0:90, samples=40] ({\r*cos(x)}, {\r*sin(x)});
+  }
+  \addplot[thick, bookaccent, domain=-10:100, samples=60] ({4.528*cos(x)}, {4.528*sin(x)});
+  \draw[->, very thick, black] (axis cs:3.536,2.828) -- (axis cs:2.829,0.565);
+  \draw[->, very thick, bookdef] (axis cs:3.536,2.828) -- (axis cs:2.652,2.121);
+  \draw[densely dotted, bookdef] (axis cs:2.652,2.121) -- (axis cs:0,0);
+  \fill (axis cs:3.536,2.828) circle (1.5pt);
+  \fill (axis cs:0,0) circle (1.2pt);
+  \node[anchor=south west] at (axis cs:3.536,2.828) {$\phi_0$};
+\end{axis}
+\end{tikzpicture}
+\caption{The steepest-descent direction depends on the unit ball. Left: at $\theta_0$, a Euclidean disc (grey)
+and an $H$-ellipse (green), scaled to touch the same level line of $dL_{\theta_0}$ (dashed, parallel to the
+contour). The contact points give the directions of $-\nabla L(\theta_0)$ (black) and of
+$-\nabla_HL(\theta_0) = -\theta_0$ (green), which points at the minimum. Right: in the coordinates $\phi = H^{1/2}\theta$ the contours are circles; the preconditioned step
+(green, $\eta = 0.25$) is radial, while the Euclidean step of $\theta$ (black, $\eta = 0.1$) is not.}
+\label{gradient-tangent-space:fig:balls}
+\end{figure}
 
 \section{Gradients on manifolds}\label{gradient-tangent-space:sec:manifolds}
 
@@ -422,7 +584,7 @@ a smoothed version of the power method.
   \draw[gray] ($(T)+(-1.2,0.9)$) -- ($(T)+(1.2,-0.9)$) node[right, black] {$T_\theta S^1$};
   \fill (T) circle (1.3pt) node[above left] {$\theta$};
   \draw[->, thick] (T) -- ($(T)+(1.0,0.5)$) node[right] {$\nabla F(\theta)$};
-  \draw[->, very thick, bookexample] (T) -- ($(T)+(0.4,-0.3)$) node[below right] {$\operatorname{grad}f(\theta)$};
+  \draw[->, very thick, bookdef] (T) -- ($(T)+(0.4,-0.3)$) node[below right] {$\operatorname{grad}f(\theta)$};
   \draw[dashed] ($(T)+(1.0,0.5)$) -- ($(T)+(0.4,-0.3)$);
   \fill (0,0) circle (1pt);
 \end{tikzpicture}
