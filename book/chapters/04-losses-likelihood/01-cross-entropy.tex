@@ -1,146 +1,395 @@
-% Source: cross_entropy_from_IT_to_ML.tex
 \begin{notechapter}
-\chapter{Cross-Entropy}\label{ch:cross-entropy}
-\chaptersubtitle{From information theory to machine learning}
+\chapter{Entropy, Cross-Entropy and Maximum Likelihood}\label{ch:cross-entropy}
+\chaptersubtitle{One quantity, three names: code length, log-loss, likelihood}
 
-\begin{abstract}
-    This document provides a deep dive into the cross-entropy loss function, explaining its origins in information theory, its role as a dissimilarity measure, and its application in both discrete and continuous machine learning tasks. We will explore why it is the cornerstone of classification, extend the concept to continuous outputs, and illustrate its use in a practical natural language processing example.
-\end{abstract}
-
-\section{Information Theory Foundation}
-
-\subsection{Entropy: The Measure of Uncertainty}
-
-In information theory, entropy quantifies the uncertainty or "surprise" inherent in a random variable's possible outcomes.
-
-\begin{definition}[Entropy]
-For a discrete random variable $X$ with probability mass function $P(x)$, the \textbf{entropy} $H(X)$ is defined as:
-\[
-H(X) = -\sum_{x \in \mathcal{X}} P(x) \log P(x)
-\]
-where $\mathcal{X}$ is the set of all possible outcomes, and by convention, $0 \log 0 = 0$.
-\end{definition}
-
-\textbf{Why is $H(X)$ the minimum average number of bits?} \\
-Imagine you want to transmit the outcomes of $X$ over a channel. If you design an optimal code, you will assign shorter codes to more frequent outcomes and longer codes to less frequent ones. The Shannon source coding theorem states that the expected code length, under this optimal scheme, cannot be less than the entropy $H(X)$. It is the fundamental limit of lossless compression. For a fair coin flip ($P(H)=P(T)=0.5$), $H(X) = 1$ bit, meaning you cannot do better than using 1 bit per flip. If the coin is unfair ($P(H)=0.99$), the entropy is much lower ($\approx 0.08$ bits), reflecting the fact that you can create a very efficient code for a highly predictable source.
-
-\subsection{Cross-Entropy and KL Divergence}
-
-Now, suppose we don't know the true distribution $P$ and instead use a model distribution $Q$ to design our code.
-
-\begin{definition}[Cross-Entropy]
-The \textbf{cross-entropy} between two discrete distributions $P$ and $Q$ is the average number of bits needed to identify an event from $P$ when using a code optimized for $Q$.
-\[
-H(P, Q) = -\sum_{x} P(x) \log Q(x)
-\]
-\end{definition}
-
-If $Q$ is identical to $P$, then $H(P, Q) = H(P)$, the minimum. If not, we need more bits. This "extra number of bits" is a direct measure of the dissimilarity between $P$ and $Q$, known as the Kullback-Leibler (KL) Divergence.
-
-\begin{definition}[KL Divergence]
-The \textbf{KL Divergence} from $Q$ to $P$ is defined as:
-\[
-D_{KL}(P \parallel Q) = \sum_{x} P(x) \log \frac{P(x)}{Q(x)} = H(P, Q) - H(P)
-\]
-\end{definition}
-
-Since $H(P)$ is a constant determined by the data-generating process, \textbf{minimizing the cross-entropy $H(P, Q)$ is equivalent to minimizing the KL divergence $D_{KL}(P \parallel Q)$}. Thus, by minimizing cross-entropy, we are directly forcing $Q$ to become as similar as possible to $P$.
-
-\section{Application to Classification}
-
-In classification, for a given input $X$, we have:
-\begin{itemize}
-    \item \textbf{True Distribution:} $P(Y|X)$
-    \item \textbf{Predicted Distribution:} $Q(Y|X)$
+\begin{chapterintro}
+The loss used to train almost every probabilistic classifier, and many
+regression models, goes by three names. Information theory calls it the
+\emph{cross-entropy}: the average code length when data from one distribution
+are encoded with a code built for another. Decision theory calls it the
+\emph{log-loss}. Statistics calls its negative the \emph{log-likelihood}. This
+chapter shows that these are one quantity, and what each point of view
+explains. You will learn
+\begin{itemize}[nosep]
+  \item entropy as a lower bound on code length, and cross-entropy and the
+        Kullback--Leibler divergence as the cost of using the wrong code;
+  \item the empirical distribution, and the exact identity between the average
+        negative log-likelihood and a cross-entropy, which makes maximum likelihood
+        the minimization of a KL divergence to the data;
+  \item what changes for continuous variables (differential entropy can be
+        negative; the KL divergence does not change);
+  \item why the direction of the KL divergence matters: forward KL covers all the
+        modes, reverse KL picks one;
+  \item what maximum likelihood guarantees, and what it estimates when the model
+        is wrong.
 \end{itemize}
+\prerequisites{\cref{ch:bayes-decision-theory} (the log-loss and Gibbs' inequality,
+\cref{bayes-decision-theory:prop:logloss}); \cref{ch:generative-discriminative}
+(the conditional likelihood).}
+\end{chapterintro}
 
-The \textbf{population cross-entropy} is the expectation over all data:
+\section{Entropy: the cost of describing an outcome}\label{cross-entropy:sec:entropy}
+
+\begin{definition}[Entropy]\label{cross-entropy:def:entropy}
+Let $X$ take values in a finite or countable set $\Xs$ with probabilities
+$p(x)$. Its \emph{entropy} is
 \[
-H(P,Q) = \mathbb{E}_{(X,Y)\sim P(X,Y)}[-\log Q(Y|X)]
+  H(p) = -\sum_{x\in\Xs}p(x)\log p(x) = \E\bigl[-\log p(X)\bigr],
 \]
-In practice, we use the \textbf{empirical cross-entropy}, a Monte Carlo estimate from our dataset of size $n$:
-\[
-\hat{H}(P,Q) = -\frac{1}{n}\sum_{i=1}^{n}\log Q(Y=y_{i}|X=x_{i})
-\]
-
-\subsection{The Loss Function Perspective}
-
-For a single data point $(x_i, y_i)$ where the true label is $y_i$:
-\begin{itemize}
-    \item If $Q(Y=y_i|X=x_i) \to 1$, then $-\log Q(\cdot) \to 0$. \textbf{No penalty}.
-    \item If $Q(Y=y_i|X=x_i) \to 0$, then $-\log Q(\cdot) \to \infty$. \textbf{High penalty}.
-\end{itemize}
-This provides a smooth, differentiable measure of "wrongness" or dissimilarity, making it a perfect surrogate loss for the non-differentiable 0-1 loss.
-
-\section{Extension to Continuous Variables}
-
-The concepts of entropy and cross-entropy generalize to continuous random variables via differential entropy.
-
-\begin{definition}[Differential Entropy]
-The \textbf{differential entropy} $h(X)$ for a continuous random variable $X$ with probability density function $p(x)$ is:
-\[
-h(X) = -\int_{\mathcal{X}} p(x) \log p(x) dx
-\]
-\end{definition}
-Note: Differential entropy can be negative and does not represent a lower bound on bits (as quantization is required for digital representation), but it remains a useful measure of uncertainty.
-
-\begin{definition}[Differential Cross-Entropy and KL Divergence]
-The \textbf{differential cross-entropy} between two continuous distributions $p$ and $q$ is:
-\[
-h(p, q) = -\int p(x) \log q(x) dx
-\]
-The \textbf{KL Divergence} is:
-\[
-D_{KL}(p \parallel q) = \int p(x) \log \frac{p(x)}{q(x)} dx = h(p, q) - h(p)
-\]
+with the convention $0\log0 = 0$. With $\log_2$ it is measured in \emph{bits},
+with the natural logarithm in \emph{nats}; $1$ nat $= 1/\ln2\approx1.443$ bits.
 \end{definition}
 
-\subsection{Application: Regression with Gaussian Assumption}
-A common application is \textbf{maximum likelihood estimation} for regression. Assume our target $Y$ given $X$ is normally distributed around a mean predicted by our model $f(X)$ with a fixed variance $\sigma^2$.
+The quantity $-\log p(x)$ is the \emph{surprise} of the outcome $x$: zero for a
+certain event, large for a rare one. Entropy is the average surprise. Its
+operational meaning comes from coding. A binary code assigns to each outcome $x$
+a codeword of length $\ell(x)$ bits; if no codeword is a prefix of another, the
+lengths satisfy Kraft's inequality $\sum_x2^{-\ell(x)}\leq1$, and conversely any
+lengths satisfying it are achievable. Shannon's source coding theorem states
+that the expected length of such a code is at least $H(p)$ bits, and that
+lengths $\ell(x) = \lceil-\log_2p(x)\rceil$ come within one bit of it. Frequent
+outcomes get short codewords, rare ones long codewords, and $-\log_2p(x)$ is the
+ideal length.
+
+\begin{example}[Coins]\label{cross-entropy:ex:coins}
+A fair coin has $H = -2\times\frac12\log_2\frac12 = 1$ bit: one bit per toss cannot be
+improved. A coin with $p(\text{heads}) = 0.99$ has
 \[
-p(Y|X) = \mathcal{N}(Y; f(X), \sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(Y - f(X))^2}{2\sigma^2}\right)
+  H = -0.99\log_20.99 - 0.01\log_20.01 \approx 0.0144 + 0.0664 = 0.0808\ \text{bits}:
 \]
-If we predict a distribution $q(Y|X) = \mathcal{N}(Y; \hat{f}(X), \sigma^2)$, the negative log-likelihood (cross-entropy) for one sample is:
+by coding long runs of tosses together, a thousand tosses can be stored in about
+$81$ bits on average. \Cref{cross-entropy:fig:binary-entropy} shows the binary entropy
+$h(p) = -p\log_2p - (1-p)\log_2(1-p)$: it is $0$ for a certain outcome and maximal, $1$ bit,
+for a fair coin. More generally, $0\leq H(p)\leq\log\abs{\Xs}$, with equality on the
+right for the uniform distribution.
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=8cm, height=5cm, xmin=0, xmax=1, ymin=0, ymax=1.25,
+  xlabel={$p$}, ylabel={bits}, grid=major, grid style={gray!20}]
+  \addplot[very thick, bookaccent, domain=0.0005:0.9995, samples=200]
+    {-x*ln(x)/ln(2) - (1-x)*ln(1-x)/ln(2)};
+  \addplot[only marks, mark=*, mark size=1.5pt, bookexample] coordinates {(0.5,1) (0.99,0.0808)};
+  \node[anchor=south, font=\small] at (axis cs:0.5,1) {fair coin};
+  \node[anchor=south east, font=\small] at (axis cs:0.985,0.09) {$p = 0.99$};
+\end{axis}
+\end{tikzpicture}
+\caption{The binary entropy $h(p)$ in bits.}
+\label{cross-entropy:fig:binary-entropy}
+\end{figure}
+
+\section{Cross-entropy and the Kullback--Leibler divergence}\label{cross-entropy:sec:ce-kl}
+
+Suppose the data come from $p$ but the code is designed for a model $q$, with
+ideal lengths $-\log q(x)$. The average length is then the cross-entropy.
+
+\begin{definition}[Cross-entropy and KL divergence]\label{cross-entropy:def:ce}
+For two distributions $p$ and $q$ on $\Xs$,
 \[
--\log q(y_i|x_i) = \frac{1}{2}\log(2\pi\sigma^2) + \frac{(y_i - \hat{f}(x_i))^2}{2\sigma^2}
+  H(p, q) = -\sum_xp(x)\log q(x) = \E_{X\sim p}\bigl[-\log q(X)\bigr],\qquad
+  \mathrm{KL}(p\Vert q) = \sum_xp(x)\log\frac{p(x)}{q(x)} = \E_{X\sim p}\Bigl[\log\frac{p(X)}{q(X)}\Bigr].
 \]
-Minimizing this over the whole dataset is equivalent to minimizing the \textbf{Mean Squared Error (MSE)}. Thus, MSE can be viewed as a cross-entropy loss under a Gaussian noise assumption.
+\end{definition}
 
-\section{Practical Application: Language Modeling with Bigrams}
+Adding and subtracting $\log p(x)$ inside the sum gives the decomposition on which
+this whole part of the book rests:
+\begin{equation}\label{cross-entropy:eq:decomposition}
+  H(p, q) = H(p) + \mathrm{KL}(p\Vert q).
+\end{equation}
+The cross-entropy is the unavoidable cost $H(p)$ plus the extra cost of using the
+wrong code, $\mathrm{KL}(p\Vert q)$. By Gibbs' inequality
+(\cref{bayes-decision-theory:prop:logloss}), $\mathrm{KL}(p\Vert q)\geq0$ with equality iff
+$q = p$. Hence:
 
-Let's consider a simple character-level language model based on bigrams. The task is to predict the next character given the previous one.
+\begin{keyidea}[Minimizing a cross-entropy over $q$]
+For fixed $p$, $q\mapsto H(p,q)$ and $q\mapsto\mathrm{KL}(p\Vert q)$ differ by the constant $H(p)$:
+they have the same minimizers, and the minimum over all distributions is reached
+at $q = p$, where $H(p, p) = H(p)$.
+\end{keyidea}
 
-\subsection{Setup}
-\begin{itemize}
-    \item \textbf{Tokens:} Characters from a vocabulary $\mathcal{V}$ (e.g., $\{a, b, ..., z\}$).
-    \item \textbf{Model:} A bigram model defined by conditional probabilities $P(c_t | c_{t-1})$.
-    \item \textbf{Example Word:} `emma`
-\end{itemize}
+\begin{pitfall}[KL is not a distance]
+$\mathrm{KL}(p\Vert q)\neq\mathrm{KL}(q\Vert p)$ in general, and the triangle inequality fails. It
+is infinite as soon as $q(x) = 0$ for some $x$ with $p(x)>0$: a code with no codeword
+for an outcome that occurs cannot encode it. For $p = (\frac12,\frac12)$ and $q = (0.9, 0.1)$,
+$\mathrm{KL}(p\Vert q) = \frac12\ln\frac{0.5}{0.9} + \frac12\ln\frac{0.5}{0.1}\approx0.511$ nats while
+$\mathrm{KL}(q\Vert p) = 0.9\ln\frac{0.9}{0.5} + 0.1\ln\frac{0.1}{0.5}\approx0.368$ nats.
+\end{pitfall}
 
-The word `emma` is decomposed into bigrams: `e m`, `m m`, `m a`.
+\section{The empirical distribution and maximum likelihood}\label{cross-entropy:sec:mle}
 
-\subsection{True vs. Model Distribution}
-For a given context (previous character), the \textbf{true distribution} $P(Y|X=\text{context})$ is deterministic in our training data. For the context `e`, the next character is always `m`, so:
+In learning, $p$ is unknown and only a sample is available. The sample defines a
+distribution of its own.
+
+\begin{definition}[Empirical distribution]\label{cross-entropy:def:empirical}
+The \emph{empirical distribution} of $d_n = \{z_1,\dots,z_n\}$ puts mass $\frac1n$ on
+each observation:
 \[
-P(Y=\text{m} | X=\text{e}) = 1, \quad P(Y=k|X=\text{e}) = 0 \ \forall k \neq \text{m}
+  \hat p_n = \frac1n\sum_{i=1}^n\delta_{z_i},\qquad
+  \E_{Z\sim\hat p_n}[g(Z)] = \frac1n\sum_{i=1}^ng(z_i)\quad\text{for every function }g.
 \]
-However, the \textbf{model's predicted distribution} $Q(Y|X)$ is learned. For the context `m', the model must learn that while `m' is likely (as in `mm'), `a' is also possible (as in `ma').
+\end{definition}
 
-\subsection{Calculating the Cross-Entropy Loss}
-Let's define our model's parameters $\theta$ which output probabilities $Q_\theta(Y|X)$.
+Here $\delta_z$ is the unit point mass at $z$. On a discrete space, $\hat p_n(z)$ is
+the fraction of observations equal to $z$, repeated values counting several times.
+For continuous data, $\hat p_n$ has no density: it is a probability measure
+concentrated on $n$ points (the ``Dirac delta function'' notation
+$\frac1n\sum_i\delta(z - z_i)$ means exactly this). The defining property is the
+second formula: expectations under $\hat p_n$ are sample averages. Every empirical
+risk is an expectation under $\hat p_n$, and by the law of large numbers it tends
+to the corresponding expectation under the true distribution.
 
-For the word `emma`:
+Now take a conditional model $Q_\theta(y\mid x)$ and a dataset
+$d_n = \{(x_i,y_i)\}_{i=1}^n$. By \cref{generative-discriminative:sec:likelihood}, the
+conditional log-likelihood is $\log\mathcal L(\theta) = \sum_i\log Q_\theta(y_i\mid x_i)$.
+
+\begin{theorem}[Maximum likelihood is minimum cross-entropy]\label{cross-entropy:thm:mle}
+Let $\hat p_n$ be the empirical distribution of the pairs $(x_i,y_i)$, $\hat p_n(x)$ its
+marginal and $\hat p_n(y\mid x)$ the empirical frequency of $y$ among the observations
+with input $x$. Then
 \begin{align*}
-\text{Loss} = & \ -\big[ \log Q_\theta(\text{m} | \text{e}) \quad & \text{(for `e m`)} \\
-              & + \log Q_\theta(\text{m} | \text{m}) \quad & \text{(for `m m`)} \\
-              & + \log Q_\theta(\text{a} | \text{m}) \big] & \text{(for `m a`)}
+  -\frac1n\log\mathcal L(\theta)
+  &= \E_{(X,Y)\sim\hat p_n}\bigl[-\log Q_\theta(Y\mid X)\bigr]\\
+  &= \underbrace{\E_{X\sim\hat p_n}\bigl[H\bigl(\hat p_n(\cdot\mid X)\bigr)\bigr]}_{\text{does not depend on }\theta}
+  + \E_{X\sim\hat p_n}\Bigl[\mathrm{KL}\bigl(\hat p_n(\cdot\mid X)\,\Vert\,Q_\theta(\cdot\mid X)\bigr)\Bigr].
 \end{align*}
+Consequently, maximizing the likelihood, minimizing the empirical cross-entropy
+and minimizing the average KL divergence from the empirical conditional
+distributions to the model are the same problem.
+\end{theorem}
 
-The model is penalized if:
-\begin{itemize}
-    \item It assigns low probability to the correct next character (e.g., $Q(\text{m}|\text{e})$ is low).
-    \item It fails to capture the fact that from `m', both `m' and `a' are plausible, but with different frequencies. If `mm' is more common in the training corpus than `ma', the model should learn $Q(\text{m}|\text{m}) > Q(\text{a}|\text{m})$.
+\begin{proof}
+The first equality is the defining property of $\hat p_n$ with
+$g(x,y) = -\log Q_\theta(y\mid x)$. For the second, group the observations by their
+distinct input values: if $n_x$ observations have input $x$, and $n_{x,y}$ of them
+have label $y$, then $\hat p_n(x) = n_x/n$, $\hat p_n(y\mid x) = n_{x,y}/n_x$, and
+\[
+  \frac1n\sum_{i=1}^n-\log Q_\theta(y_i\mid x_i) = \sum_x\frac{n_x}n\sum_y\frac{n_{x,y}}{n_x}\bigl(-\log Q_\theta(y\mid x)\bigr)
+  = \sum_x\hat p_n(x)\,H\bigl(\hat p_n(\cdot\mid x), Q_\theta(\cdot\mid x)\bigr).
+\]
+Apply \cref{cross-entropy:eq:decomposition} to each inner cross-entropy.
+\end{proof}
+
+\begin{example}[Three predictions]\label{cross-entropy:ex:three}
+A binary classifier predicts $Q_\theta(1\mid x_i) = 0.8, 0.3, 0.9$ on three points with labels
+$y = 1, 0, 1$. The probabilities of the observed labels are $0.8$, $1 - 0.3 = 0.7$ and $0.9$, so
+\[
+  \log\mathcal L = \ln0.8 + \ln0.7 + \ln0.9\approx-0.223 - 0.357 - 0.105 = -0.685,\qquad
+  -\tfrac13\log\mathcal L\approx0.228\ \text{nats}.
+\]
+The three inputs are distinct and each has one label, so every
+$\hat p_n(\cdot\mid x_i)$ is a point mass, its entropy is $0$, and the cross-entropy $0.228$
+is entirely KL divergence: it could be driven to $0$ by predicting the labels with
+certainty.
+\end{example}
+
+\begin{example}[Repeated inputs]\label{cross-entropy:ex:repeated}
+Suppose an input $x$ appears $10$ times in the data, with labels $1$, $2$, $3$
+occurring $3$, $2$, $5$ times. The part of the cross-entropy due to $x$ is
+$H\bigl((0.3,0.2,0.5), Q_\theta(\cdot\mid x)\bigr)$, minimized at
+$Q_\theta(\cdot\mid x) = (0.3, 0.2, 0.5)$, where it equals the entropy
+$-0.3\ln0.3 - 0.2\ln0.2 - 0.5\ln0.5\approx1.030$ nats. No model can do better on these
+points: the labels themselves are random given $x$. A model flexible enough to
+fit every input separately therefore reproduces the empirical frequencies,
+which is what an unregularized network with a softmax output does on its
+training set (\cref{sigmoid-softmax:sec:frequencies}).
+\end{example}
+
+\begin{intuition}[Two readings of the same number]
+The average negative log-likelihood is an average code length: the number of
+nats needed, on average, to transmit the training labels to someone who knows
+the inputs and the model. Maximum likelihood looks for the model that compresses
+the labels best.
+\end{intuition}
+
+\paragraph{What maximum likelihood guarantees.} The population version of the
+objective is, by the same computation with $P$ in place of $\hat p_n$,
+\[
+  \E_{(X,Y)\sim P}\bigl[-\log Q_\theta(Y\mid X)\bigr]
+  = \E_X\bigl[H(P(\cdot\mid X))\bigr] + \E_X\bigl[\mathrm{KL}\bigl(P(\cdot\mid X)\,\Vert\,Q_\theta(\cdot\mid X)\bigr)\bigr].
+\] Two cases must be distinguished.
+\begin{itemize}[nosep]
+  \item \emph{Well-specified model}: $P(\cdot\mid x) = Q_{\theta^*}(\cdot\mid x)$ for some $\theta^*$. Under
+        regularity conditions (identifiability, smoothness, $\theta^*$ interior), the
+        maximum-likelihood estimator $\hat\theta_n$ is \emph{consistent},
+        $\hat\theta_n\to\theta^*$, and \emph{asymptotically normal},
+        $\sqrt n(\hat\theta_n - \theta^*)\to\mathcal N(0, I(\theta^*)^{-1})$, where $I$ is the Fisher
+        information; its asymptotic variance attains the Cramér--Rao bound. It is
+        also \emph{invariant}: the estimate of $g(\theta)$ is $g(\hat\theta_n)$.
+  \item \emph{Misspecified model}: no $\theta$ gives $P$. Then $\hat\theta_n$ converges (under
+        similar conditions) to the minimizer of $\E_X[\mathrm{KL}(P(\cdot\mid X)\Vert Q_\theta(\cdot\mid X))]$, the
+        model closest to the truth in this particular divergence (White, \emph{Maximum Likelihood
+        Estimation of Misspecified Models}, Econometrica, 1982). The
+        guarantee is not ``the right answer'' but ``the best approximation, in
+        forward KL''.
+\end{itemize}
+Neural networks are rarely well-specified in this sense and often have
+non-identifiable parameters, so the second reading is the relevant one for
+them; the first explains why maximum likelihood is the default in classical
+statistics.
+
+\section{Continuous variables}\label{cross-entropy:sec:continuous}
+
+For a random variable with density $p$, the sums become integrals.
+
+\begin{definition}[Differential entropy, cross-entropy, KL]
+\[
+  h(p) = -\int p(x)\log p(x)\,dx,\qquad
+  h(p, q) = -\int p(x)\log q(x)\,dx,\qquad
+  \mathrm{KL}(p\Vert q) = \int p(x)\log\frac{p(x)}{q(x)}\,dx,
+\]
+and again $h(p, q) = h(p) + \mathrm{KL}(p\Vert q)$.
+\end{definition}
+
+The formulas look the same, but the first two quantities behave differently.
+A density has units (probability per unit of $x$), so $\log p(x)$ depends on the
+units of $x$, and so do $h(p)$ and $h(p,q)$. Changing $x$ to $ax$ adds $\log\abs a$ to
+the differential entropy. The uniform density on $[0, \frac12]$ equals $2$, so its
+differential entropy is $-\log2<0$: differential entropy can be negative, and it is
+not a code length (a real number needs infinitely many bits). The KL divergence,
+on the other hand, is a ratio of densities: the units cancel, it is invariant
+under any smooth invertible change of variables, it is nonnegative, and it is the
+limit of the discrete KL divergence between finer and finer quantizations. It is
+the quantity that keeps its meaning.
+
+\begin{pitfall}[Comparing log-likelihoods of continuous models]
+Differences of log-likelihoods between two models of the same data, in the same
+units, are meaningful; a single value of $-\frac1n\log\mathcal L$ is not comparable
+across datasets or across rescalings of the target, and it can be negative.
+\end{pitfall}
+
+\begin{example}[Gaussian noise gives the squared error]\label{cross-entropy:ex:gaussian}
+Model $y$ given $x$ as $\mathcal N(f_\theta(x), \sigma^2)$ with fixed $\sigma$. Then
+\[
+  -\log q_\theta(y_i\mid x_i) = \frac12\log(2\pi\sigma^2) + \frac{(y_i - f_\theta(x_i))^2}{2\sigma^2},
+\]
+and the average negative log-likelihood is an affine function of the mean squared
+error, with positive slope $1/(2\sigma^2)$: maximum likelihood is least squares.
+\Cref{ch:output-distributions} derives this and its relatives systematically.
+\end{example}
+
+\section{Forward and reverse KL}\label{cross-entropy:sec:forward-reverse}
+
+Maximum likelihood minimizes $\mathrm{KL}(p\Vert q_\theta)$, with the data distribution first.
+Variational inference (\cref{ch:em-algorithm}) minimizes $\mathrm{KL}(q\Vert p)$, with the model
+first. When the model family cannot represent $p$, the two directions select
+different approximations.
+\begin{itemize}[nosep]
+  \item \emph{Forward KL}, $\E_p[\log p - \log q]$, averages over the data. Wherever $p$ has mass
+        and $q$ is small, $-\log q$ is large: $q$ is forced to \emph{cover} every region where
+        the data live, even if this means putting mass between them. It is
+        \emph{mode-covering} (or mean-seeking).
+  \item \emph{Reverse KL}, $\E_q[\log q - \log p]$, averages over the model. Wherever $q$ has mass
+        and $p$ is small, $-\log p$ is large: $q$ is forced to \emph{avoid} regions without data,
+        even if this means ignoring some of them. It is \emph{mode-seeking}.
 \end{itemize}
 
-By minimizing the total cross-entropy over a large corpus, the model $Q_\theta$ learns to approximate the \textbf{empirical} bigram distribution of the language, which is our best estimate of the true $P$. This demonstrates how cross-entropy drives the model to capture the complex, non-deterministic conditional probabilities found in real-world data like language.
+\begin{example}[Fitting one Gaussian to two bumps]\label{cross-entropy:ex:bimodal}
+Let $p = \frac12\mathcal N(-2, 0.6^2) + \frac12\mathcal N(2, 0.6^2)$ and fit $q = \mathcal N(\mu, s^2)$.
+\begin{itemize}[nosep]
+  \item \emph{Forward KL.} $\mathrm{KL}(p\Vert q) = \text{const} + \frac12\log(2\pi s^2) + \E_p[(X - \mu)^2]/(2s^2)$, which is
+        minimized by matching the first two moments: $\mu = \E_p[X] = 0$ and
+        $s^2 = \Var_p(X) = 0.6^2 + 2^2 = 4.36$, so $s\approx2.09$ (\cref{cross-entropy:exr:moments}). The fit
+        straddles both bumps and puts its peak where $p$ has almost no mass;
+        numerically, $\mathrm{KL}(p\Vert q)\approx0.555$ nats.
+  \item \emph{Reverse KL.} Numerical minimization gives $\mu\approx\pm2.00$, $s\approx0.605$: one bump,
+        fitted almost exactly. The other is ignored, at a cost of
+        $\mathrm{KL}(q\Vert p)\approx0.692$ nats, close to $\ln2\approx0.693$: on its bump, $q$ is about twice
+        $p$, because $p$ gives that bump only half of its mass. The symmetric
+        solution $\mu = 0$ is a stationary point here (with $s\approx1.79$ and
+        $\mathrm{KL}\approx1.14$), not the minimum.
+\end{itemize}
+\Cref{cross-entropy:fig:bimodal} shows both fits.
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=11cm, height=5.5cm, xmin=-5.5, xmax=5.5, ymin=0, ymax=0.72,
+  xlabel={$x$}, ytick=\empty, legend style={font=\small, draw=none, at={(0.98,0.98)}, anchor=north east},
+  legend cell align=left]
+  \addplot[very thick, black, domain=-5.5:5.5, samples=301]
+    {0.5*exp(-(x+2)^2/(2*0.36))/sqrt(2*pi*0.36) + 0.5*exp(-(x-2)^2/(2*0.36))/sqrt(2*pi*0.36)};
+  \addlegendentry{data $p$}
+  \addplot[very thick, bookaccent, dashed, domain=-5.5:5.5, samples=201]
+    {exp(-x^2/(2*4.36))/sqrt(2*pi*4.36)};
+  \addlegendentry{forward KL fit: $\mathcal N(0, 2.09^2)$}
+  \addplot[very thick, bookexample, densely dotted, domain=-5.5:5.5, samples=301]
+    {exp(-(x-1.997)^2/(2*0.6049^2))/sqrt(2*pi*0.6049^2)};
+  \addlegendentry{reverse KL fit: $\mathcal N(2.00, 0.605^2)$}
+\end{axis}
+\end{tikzpicture}
+\caption{The best single Gaussian for a two-bump distribution depends on the
+direction of the KL divergence. Forward KL (maximum likelihood) covers both bumps;
+reverse KL (variational inference) picks one.}
+\label{cross-entropy:fig:bimodal}
+\end{figure}
+
+\begin{pitfall}[Reverse KL to the empirical distribution]
+$\mathrm{KL}(q\Vert\hat p_n)$ is infinite for any $q$ with a density: $q$ puts mass where $\hat p_n$ has
+none. Reverse KL is used only against targets whose density can be evaluated,
+such as an unnormalized posterior in variational inference; data enter through
+forward KL, that is, through the likelihood.
+\end{pitfall}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Entropy $H(p) = \E[-\log p(X)]$ is the minimal average code length; cross-entropy
+        $H(p, q)$ is the length with a code built for $q$, and
+        $H(p, q) = H(p) + \mathrm{KL}(p\Vert q)$ with $\mathrm{KL}\geq0$, zero iff $q = p$.
+  \item The empirical distribution turns sample averages into expectations. The
+        average negative log-likelihood is the cross-entropy between the empirical
+        distribution and the model; maximum likelihood minimizes the average KL
+        divergence from the empirical conditional distributions to the model. The
+        entropy part is irreducible; it is zero when each input carries a single
+        label.
+  \item A well-specified MLE is consistent, asymptotically normal and efficient; a
+        misspecified one converges to the forward-KL projection of the truth on the
+        model.
+  \item Differential entropy depends on units and can be negative; KL does not and
+        cannot.
+  \item Forward KL (maximum likelihood) is mode-covering; reverse KL (variational
+        inference) is mode-seeking.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{cross-entropy:exr:1}
+A die has probabilities $p = (\frac12, \frac14, \frac18, \frac1{16}, \frac1{32}, \frac1{32})$.
+\begin{enumerate}[nosep]
+  \item Compute $H(p)$ in bits, and give a prefix code whose expected length equals it.
+  \item Compute $H(p, u)$ and $\mathrm{KL}(p\Vert u)$ for the uniform distribution $u$, and interpret
+        both as code lengths.
+\end{enumerate}
+\solutionlink{cross-entropy:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{cross-entropy:exr:moments}
+Show that for any distribution $p$ on $\R$ with finite variance, the Gaussian
+$\mathcal N(\mu, s^2)$ minimizing $\mathrm{KL}(p\Vert\mathcal N(\mu, s^2))$ has $\mu = \E_p[X]$ and $s^2 = \Var_p(X)$.
+\solutionlink{cross-entropy:exr:moments}
+\end{exercise}
+
+\begin{exercise}\label{cross-entropy:exr:3}
+Show that the differential entropy of $\mathcal N(\mu, s^2)$ is $\frac12\log(2\pi es^2)$. For which
+$s$ is it negative? What is $\mathrm{KL}\bigl(\mathcal N(\mu_1, s_1^2)\,\Vert\,\mathcal N(\mu_2, s_2^2)\bigr)$, and check
+that it does not change when both distributions are rescaled by the same factor.
+\solutionlink{cross-entropy:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{cross-entropy:exr:4}
+A character bigram model predicts the next character from the previous one,
+$Q(c_t\mid c_{t-1})$. Its training corpus consists of the words \texttt{emma} and
+\texttt{mama}, each read as the bigrams it contains.
+\begin{enumerate}[nosep]
+  \item List the bigrams, and give the empirical conditional distributions
+        $\hat p(\cdot\mid\texttt e)$, $\hat p(\cdot\mid\texttt m)$ and $\hat p(\cdot\mid\texttt a)$.
+  \item What is the smallest achievable average negative log-likelihood per bigram,
+        and which model achieves it?
+\end{enumerate}
+\solutionlink{cross-entropy:exr:4}
+\end{exercise}
 \end{notechapter}

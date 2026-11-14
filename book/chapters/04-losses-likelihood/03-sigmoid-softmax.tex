@@ -1,0 +1,413 @@
+\begin{notechapter}
+\chapter{Sigmoid and Softmax Output Units}\label{ch:sigmoid-softmax}
+\chaptersubtitle{Logits, the cross-entropy, its gradient and its numerics}
+
+\begin{chapterintro}
+Classifiers end with a sigmoid (two classes) or a softmax (several classes),
+trained with the cross-entropy. This chapter takes that pair apart: where the
+two functions come from, why the logarithm of the loss cancels their
+exponentials, why the resulting gradient is so simple, why the squared error is
+a poor partner for them, and how to compute everything without overflow. You
+will learn
+\begin{itemize}[nosep]
+  \item the sigmoid as the inverse of the log-odds, and the binary cross-entropy
+        written in terms of the logit, $\ell = \log(1 + e^{(1-2y)z})$;
+  \item why the squared error on a sigmoid output stalls when the model is
+        confidently wrong;
+  \item the softmax, its invariance to shifts, and why every distribution with
+        positive entries is a softmax;
+  \item the multinomial logistic loss $\log\sum_ke^{z_k} - z_y$, its gradient
+        $\softmax(z) - e_y$, its Hessian $\diag(p) - pp^\top$, and its convexity;
+  \item what unregularized maximum likelihood does to a softmax, and the
+        log-sum-exp trick.
+\end{itemize}
+\prerequisites{\cref{ch:cross-entropy,ch:output-distributions}.}
+\end{chapterintro}
+
+\section{The sigmoid unit}\label{sigmoid-softmax:sec:sigmoid}
+
+\begin{definition}[Sigmoid and logit]
+The \emph{sigmoid} (or logistic function) and its inverse, the \emph{logit}, are
+\[
+  \sigma(z) = \frac1{1 + e^{-z}} = \frac{e^z}{1 + e^z},\qquad
+  \sigma^{-1}(\pi) = \log\frac\pi{1 - \pi}\quad(0<\pi<1).
+\]
+\end{definition}
+
+The sigmoid maps $\R$ onto $(0,1)$, with $\sigma(0) = \frac12$, and has three properties that
+are used constantly:
+\[
+  \sigma(-z) = 1 - \sigma(z),\qquad
+  \sigma'(z) = \sigma(z)\bigl(1 - \sigma(z)\bigr) = \sigma(z)\,\sigma(-z),\qquad
+  \log\sigma(z) = -\log(1 + e^{-z}).
+\]
+The logit of a probability is its \emph{log-odds}: $\pi = 0.8$ has odds $0.8/0.2 = 4$ and
+log-odds $\log4\approx1.39$. A model whose output $z$ is passed through a sigmoid is
+therefore a model of the log-odds, an unbounded quantity that a linear function
+or a network can produce freely. Logistic regression is the case $z = w^\top x + b$: each
+unit of feature $x_j$ multiplies the odds by $e^{w_j}$.
+
+\paragraph{Where the sigmoid comes from.} Let the network produce one number $z$
+and ask that the \emph{unnormalized} log-probability of $y\in\{0, 1\}$ be linear in $y$ and
+$z$, the simplest coupling of the two: $\log\tilde P(y) = yz$, i.e.\ $\tilde P(1) = e^z$,
+$\tilde P(0) = 1$. Normalizing,
+\[
+  P(y) = \frac{e^{yz}}{1 + e^z},\qquad P(1) = \frac{e^z}{1 + e^z} = \sigma(z),\qquad P(0) = \frac1{1 + e^z} = \sigma(-z),
+\]
+or in one formula $P(y) = \sigma\bigl((2y - 1)z\bigr)$. This is the Bernoulli distribution in its
+exponential-family form (\cref{output-distributions:sec:expfam}), with $z$ the natural
+parameter.
+
+\paragraph{The loss in terms of the logit.} The negative log-likelihood of a label
+$y$ is the binary cross-entropy. Written with the logit, the logarithm undoes
+the exponential of the sigmoid:
+\[
+  \ell(z, y) = -\log\sigma\bigl((2y - 1)z\bigr) = \log\bigl(1 + e^{-(2y-1)z}\bigr) = \zeta\bigl((1 - 2y)z\bigr),
+  \qquad \zeta(t) = \log(1 + e^t),
+\]
+where $\zeta$ is the \emph{softplus} function. For $y = 1$ the loss is $\zeta(-z)$, for $y = 0$ it is
+$\zeta(z)$; equivalently $\ell = \zeta(z) - yz$. Since $\zeta(t)\approx0$ for $t\ll0$ and $\zeta(t)\approx t$ for
+$t\gg0$, the loss is nearly zero when the model is confidently right and grows
+\emph{linearly} in $\abs z$ when it is confidently wrong. Its derivatives are
+\[
+  \frac{\partial\ell}{\partial z} = \sigma(z) - y,\qquad
+  \frac{\partial^2\ell}{\partial z^2} = \sigma(z)\bigl(1 - \sigma(z)\bigr)>0:
+\]
+the loss is convex in $z$, and its gradient is the predicted probability minus
+the label --- bounded by $1$ in absolute value and never small when the
+prediction is wrong.
+
+\section{Why not the squared error?}\label{sigmoid-softmax:sec:mse}
+
+One could instead train $\pi = \sigma(z)$ with the squared error $(\pi - y)^2$ (whose expectation
+is the Brier score). Its gradient with respect to $z$ is, by the chain rule,
+\[
+  \frac{\partial}{\partial z}(\sigma(z) - y)^2 = 2\bigl(\sigma(z) - y\bigr)\,\sigma(z)\bigl(1 - \sigma(z)\bigr).
+\]
+The extra factor $\sigma(z)(1 - \sigma(z))\leq\frac14$ is the derivative of the sigmoid, and it vanishes
+when $\abs z$ is large, \emph{whether or not the prediction is right}. For $y = 1$ and $z = -5$
+(the model is $99.3\%$ sure of the wrong class), the cross-entropy gradient is
+$\sigma(-5) - 1\approx-0.993$, while the squared-error gradient is
+$2(0.0067 - 1)(0.0067)(0.9933)\approx-0.013$, seventy-five times smaller.
+\Cref{sigmoid-softmax:fig:mse} shows the two losses and their gradients.
+
+The squared error on $\sigma(z)$ is also not convex in $z$. For $y = 1$, with $s = \sigma(z)$,
+\[
+  \frac{d^2}{dz^2}(s - 1)^2 = -2s(1 - s)^2(1 - 3s),
+\]
+which is negative when $s<\frac13$, i.e.\ $z<-\log2$: the loss is concave on the
+whole region where the model is wrong enough. The cross-entropy has neither
+problem.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[name=l, width=7cm, height=5cm, xmin=-6, xmax=6, ymin=0, ymax=6.5,
+  xlabel={logit $z$}, title={loss, $y = 1$}, legend style={font=\footnotesize, draw=none, at={(0.98,0.98)}, anchor=north east},
+  legend cell align=left]
+  \addplot[very thick, bookaccent, domain=-6:6, samples=200] {ln(1+exp(-x))};
+  \addlegendentry{cross-entropy}
+  \addplot[very thick, bookexample, dashed, domain=-6:6, samples=200] {(1/(1+exp(-x))-1)^2};
+  \addlegendentry{squared error}
+\end{axis}
+\begin{axis}[at={(l.east)}, anchor=west, xshift=1.3cm, width=7cm, height=5cm, xmin=-6, xmax=6, ymin=0, ymax=1.05,
+  xlabel={logit $z$}, title={$\abs{\partial\ell/\partial z}$, $y = 1$}]
+  \addplot[very thick, bookaccent, domain=-6:6, samples=200] {1/(1+exp(x))};
+  \addplot[very thick, bookexample, dashed, domain=-6:6, samples=200] {2*(1/(1+exp(-x)))*(1/(1+exp(x)))^2};
+  \draw[gray, densely dotted] (axis cs:-0.693,0) -- (axis cs:-0.693,1.05);
+\end{axis}
+\end{tikzpicture}
+\caption{Binary cross-entropy and squared error as functions of the logit, for a
+positive example. Left: the cross-entropy grows linearly for very wrong
+predictions, the squared error flattens out at $1$. Right: the cross-entropy
+gradient tends to $1$ as the prediction gets worse, the squared-error gradient
+tends to $0$. Left of the dotted line ($z = -\log2$) the squared error is concave.}
+\label{sigmoid-softmax:fig:mse}
+\end{figure}
+
+\begin{pitfall}[The squared error is not wrong, it is slow]
+The Brier score is a proper scoring rule: its expectation is minimized by the true
+probability, like the log-loss (\cref{surrogate-losses:sec:proper}). The objection to it is
+optimization, not consistency: saturated, wrong predictions receive almost no
+gradient. The cross-entropy's logarithm is exactly what removes the saturating
+factor.
+\end{pitfall}
+
+\section{The softmax unit}\label{sigmoid-softmax:sec:softmax}
+
+\begin{definition}[Softmax]
+For logits $z\in\R^K$, the softmax is the probability vector
+\[
+  \softmax(z)_k = \frac{e^{z_k}}{\sum_{j=1}^Ke^{z_j}},\qquad k = 1,\dots,K .
+\]
+\end{definition}
+
+The same reasoning as for the sigmoid leads to it: take unnormalized
+log-probabilities $\log\tilde P(y = k) = z_k$ and normalize. All entries are in $(0,1)$
+and sum to $1$; the largest logit gets the largest probability, and the name
+comes from the fact that $\softmax(z/T)$ tends to the one-hot vector of the
+$\argmax$ as the \emph{temperature} $T\to0$ (\cref{sigmoid-softmax:exr:6}).
+
+\begin{proposition}[Shift invariance; every positive distribution is a softmax]\label{sigmoid-softmax:prop:shift}
+\begin{enumerate}[nosep]
+  \item $\softmax(z + c\bbone) = \softmax(z)$ for every $c\in\R$, where $\bbone = (1,\dots,1)$.
+  \item $\softmax(z) = \softmax(z')$ if and only if $z' - z = c\bbone$ for some $c$.
+  \item A probability vector $p$ is a softmax if and only if all its entries are
+        positive; the logits are then $z_k = \log p_k + c$, for an arbitrary $c$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(1) The factor $e^c$ cancels between numerator and denominator. (2) If
+$\softmax(z) = \softmax(z')$, then $z'_k - z_k = \log\sum_je^{z'_j} - \log\sum_je^{z_j}$, which does not depend on $k$.
+(3) A softmax has positive entries. Conversely, if $p_k>0$, then $z_k = \log p_k$ gives
+$\sum_je^{z_j} = \sum_jp_j = 1$ and $\softmax(z)_k = p_k$; by (2) all other logits differ by a constant.
+\end{proof}
+
+For example, $p = (0.7, 0.2, 0.1)$ is the softmax of
+$z = (\log0.7, \log0.2, \log0.1)\approx(-0.357, -1.609, -2.303)$, and also of $z + \log10\approx(1.946, 0.693, 0)$. A distribution
+with a zero entry is never reached: it is only a limit, with the corresponding
+logit tending to $-\infty$.
+
+Shift invariance means the $K$ logits carry only $K - 1$ numbers of information.
+One may fix a reference class, $z_K = 0$; in statistics this is the usual
+parametrization of multinomial logistic regression. For $K = 2$,
+\[
+  \softmax(z_1, z_2)_1 = \frac{e^{z_1}}{e^{z_1} + e^{z_2}} = \frac1{1 + e^{-(z_1 - z_2)}} = \sigma(z_1 - z_2):
+\]
+the two-class softmax is the sigmoid of the difference of the logits, and with
+$z_2 = 0$ it is exactly the sigmoid unit.
+
+\section{The multinomial logistic loss}\label{sigmoid-softmax:sec:loss}
+
+For a label $y\in\{1,\dots,K\}$, write $e_y$ for the one-hot vector and
+$\mathrm{LSE}(z) = \log\sum_je^{z_j}$ (log-sum-exp). The negative log-likelihood of the softmax
+model is
+\begin{equation}\label{sigmoid-softmax:eq:loss}
+  \ell(z, y) = -\log\softmax(z)_y = \mathrm{LSE}(z) - z_y = \mathrm{LSE}(z) - \inner{e_y}{z}.
+\end{equation}
+The first form is the categorical cross-entropy $-\sum_k(e_y)_k\log p_k$ between the one-hot
+target and $p = \softmax(z)$; the last is the \emph{multinomial logistic loss}. For
+$K = 2$ and $y = 1$ it is $\log(e^{z_1} + e^{z_2}) - z_1 = \log(1 + e^{-(z_1 - z_2)})$, the binary
+cross-entropy of \cref{sigmoid-softmax:sec:sigmoid} with logit $z_1 - z_2$; for $y = 2$ it is
+$\log(1 + e^{z_1 - z_2})$, the other case (\cref{sigmoid-softmax:exr:5}).
+
+\paragraph{Gradient.} The derivative of the log-sum-exp is the softmax:
+\[
+  \frac{\partial\,\mathrm{LSE}}{\partial z_k} = \frac{e^{z_k}}{\sum_je^{z_j}} = p_k,
+  \qquad\text{hence}\qquad
+  \nabla_z\ell = p - e_y,\quad
+  \frac{\partial\ell}{\partial z_k} = \begin{cases}p_y - 1<0 & k = y,\\ p_k>0 & k\neq y.\end{cases}
+\]
+Gradient descent raises the logit of the true class in proportion to the
+probability it is still missing, and lowers every other logit in proportion to the
+probability it wrongly holds. The components of the gradient sum to zero, as they
+must: moving all logits together changes nothing.
+
+\paragraph{Hessian.} Differentiating $p_k = e^{z_k}/\sum_je^{z_j}$ by the quotient rule gives
+$\partial p_k/\partial z_j = p_k\bbone[k = j] - p_kp_j$, that is, the Jacobian of the softmax, which is also
+the Hessian of $\ell$ (the term $-z_y$ is linear):
+\[
+  \nabla^2_z\ell = \frac{\partial p}{\partial z} = \diag(p) - pp^\top .
+\]
+For $K = 3$ it reads
+\begin{align*}
+  \diag(p) - pp^\top
+  &= \begin{pmatrix}p_1&0&0\\0&p_2&0\\0&0&p_3\end{pmatrix}
+  - \begin{pmatrix}p_1^2&p_1p_2&p_1p_3\\p_2p_1&p_2^2&p_2p_3\\p_3p_1&p_3p_2&p_3^2\end{pmatrix}\\[4pt]
+  &= \begin{pmatrix}p_1(1 - p_1)&-p_1p_2&-p_1p_3\\-p_2p_1&p_2(1 - p_2)&-p_2p_3\\-p_3p_1&-p_3p_2&p_3(1 - p_3)\end{pmatrix}.
+\end{align*}
+Each row sums to $p_k - p_k\sum_jp_j = 0$, so $\bbone$ is in the kernel: the shift
+invariance again. On the diagonal stands the Bernoulli variance $p_k(1 - p_k)$.
+
+\begin{proposition}[Convexity]\label{sigmoid-softmax:prop:convex}
+For every $v\in\R^K$, $v^\top(\diag(p) - pp^\top)v = \sum_kp_kv_k^2 - \bigl(\sum_kp_kv_k\bigr)^2 = \Var_{k\sim p}(v_k)\geq0$, with
+equality iff $v$ is a multiple of $\bbone$. Hence $\ell(\cdot, y)$ is convex on $\R^K$, and strictly
+convex on every hyperplane transverse to $\bbone$ (for instance $\{z_K = 0\}$).
+\end{proposition}
+
+\begin{proof}
+The quadratic form is the variance of the random variable taking value $v_k$ with
+probability $p_k$. Since all $p_k>0$, it vanishes only if all $v_k$ are equal.
+\end{proof}
+
+This is the exponential-family statement of \cref{output-distributions:prop:expfam} with
+$T(y) = e_y$: the Hessian is the covariance of the one-hot vector, $\diag(p) - pp^\top$.
+
+\begin{example}[One gradient step on the logits]\label{sigmoid-softmax:ex:step}
+Let $z = (2, 1, 0.1)$ and $y = 1$. Then $e^z\approx(7.389, 2.718, 1.105)$, the sum is $11.212$, and
+\[
+  p\approx(0.659, 0.242, 0.099),\qquad
+  \ell = -\log0.659\approx0.417,\qquad
+  \nabla_z\ell = p - e_1\approx(-0.341, 0.242, 0.099),
+\]
+\[
+  \diag(p) - pp^\top\approx\begin{pmatrix}0.225&-0.160&-0.065\\-0.160&0.184&-0.024\\-0.065&-0.024&0.089\end{pmatrix}.
+\]
+A step with learning rate $1$ on the logits gives $z\approx(2.341, 0.758, 0.001)$ and
+$p\approx(0.768, 0.158, 0.074)$: the loss drops to $0.264$.
+\end{example}
+
+\section{What maximum likelihood does to a softmax}\label{sigmoid-softmax:sec:frequencies}
+
+Suppose the model is flexible enough to choose the logits of each distinct input
+freely. By \cref{cross-entropy:thm:mle}, the part of the empirical cross-entropy
+belonging to an input $x$ is $H(\hat p_n(\cdot\mid x), \softmax(z(x)))$, minimized when
+$\softmax(z(x)) = \hat p_n(\cdot\mid x)$, the empirical frequencies of the labels seen with $x$.
+In \cref{cross-entropy:ex:repeated}, $(3, 2, 5)$ observations of the three classes give
+logits $z(x) = (\log0.3, \log0.2, \log0.5) + c$.
+
+Two consequences follow.
+\begin{itemize}[nosep]
+  \item \emph{Unregularized training memorizes.} With a large network and distinct
+        inputs, each $\hat p_n(\cdot\mid x_i)$ is a point mass, and the training cross-entropy can
+        approach $0$ only by driving the softmax to one-hot vectors.
+  \item \emph{Zero frequencies mean infinite logits.} A one-hot target, or any class never
+        observed with $x$, cannot be reached (\cref{sigmoid-softmax:prop:shift}): the optimal logits
+        diverge, and the loss decreases forever without attaining its infimum. For
+        logistic regression on linearly separable data, the maximum-likelihood
+        estimate does not exist: $\norm w\to\infty$ along the separating direction.
+\end{itemize}
+This is why classifiers are trained with weight decay, early stopping or label
+smoothing (\cref{surrogate-losses:sec:beyond}), and why their raw probabilities on the
+training set are overconfident.
+
+\section{Computing without overflow}\label{sigmoid-softmax:sec:numerics}
+
+In floating point, $e^{z}$ overflows to infinity for $z$ above about $88.7$ in single
+precision ($709.8$ in double), and underflows to $0$ for $z$ below about $-103$ ($-745$).
+Logits of a few hundred are not unusual in a badly scaled network, and the naive
+formulas fail: $\softmax(1000, 1001, 1002)$ computes $\infty/\infty$.
+
+\begin{proposition}[The log-sum-exp trick]\label{sigmoid-softmax:prop:lse}
+Let $m = \max_jz_j$. Then
+\[
+  \mathrm{LSE}(z) = m + \log\sum_{j=1}^Ke^{z_j - m},\qquad
+  m\leq\mathrm{LSE}(z)\leq m + \log K,
+\]
+and $\log\softmax(z)_k = z_k - m - \log\sum_je^{z_j - m}$.
+\end{proposition}
+
+\begin{proof}
+Factor $e^m$ out of the sum. The remaining sum contains the term $e^0 = 1$ and $K$ terms at
+most $1$, so it lies in $[1, K]$.
+\end{proof}
+
+After the shift, every exponent is $\leq0$, so nothing overflows; the sum is at least
+$1$, so its logarithm is finite. Terms with $z_j - m\ll0$ may underflow to $0$, which is
+harmless: they are negligible in the sum. Computing $\log\softmax$ directly in this
+form, rather than $\log$ of a computed softmax, also avoids $\log0 = -\infty$ when a
+probability underflows: the log-probability $z_k - \mathrm{LSE}(z)$ stays finite and accurate.
+
+\begin{example}[Large logits]\label{sigmoid-softmax:ex:large}
+For $z = (1000, 1001, 1002)$, $m = 1002$ and $z - m = (-2, -1, 0)$:
+\[
+  \sum_je^{z_j - m} = e^{-2} + e^{-1} + 1\approx0.1353 + 0.3679 + 1 = 1.5032,
+\]
+so $\softmax(z)\approx(0.0900, 0.2447, 0.6652)$, and the cross-entropy for the third class is
+$\log1.5032\approx0.4076$.
+\end{example}
+
+For the binary loss, the same idea gives a stable softplus,
+$\zeta(t) = \max(t, 0) + \log\bigl(1 + e^{-\abs t}\bigr)$, and $1 - \sigma(z)$ should be computed as $\sigma(-z)$: for
+large $z$, $\sigma(z)$ rounds to $1$ and the subtraction returns $0$, whose logarithm is
+$-\infty$. The following functions implement these formulas.
+
+\begin{lstlisting}[language=Python]
+import numpy as np
+
+def log_softmax(z):
+    """Stable log-softmax of a 1-D array of logits."""
+    c = np.max(z)
+    return z - c - np.log(np.sum(np.exp(z - c)))
+
+def cross_entropy(z, y):
+    """-log softmax(z)_y, computed from the logits."""
+    return -log_softmax(z)[y]
+
+def softplus(z):
+    """log(1 + e^z) without overflow or loss of precision."""
+    return np.maximum(z, 0.0) + np.log1p(np.exp(-np.abs(z)))
+
+def binary_cross_entropy(z, y):
+    """-log P(y | z) for y in {0, 1}, from the logit z."""
+    return softplus((1 - 2 * y) * z)
+
+z = np.array([1000.0, 1001.0, 1002.0])
+print(np.exp(log_softmax(z)))           # [0.09  0.2447 0.6652]
+print(cross_entropy(z, 2))              # 0.4076...
+print(binary_cross_entropy(-800.0, 1))  # 800.0  (the naive formula gives inf)
+\end{lstlisting}
+
+\begin{pitfall}[Logits in, not probabilities]
+Deep learning libraries fuse the output unit with the loss for exactly these
+reasons. PyTorch's \texttt{CrossEntropyLoss} takes \emph{logits} and applies the log-softmax
+internally, and so does TensorFlow's
+\texttt{sparse\_softmax\_cross\_entropy\_with\_logits}; \texttt{BCEWithLogitsLoss} does the same with the stable
+softplus. Applying a softmax in the model and then passing its output to such a
+loss applies the softmax twice. The code runs, the loss decreases, but the
+gradients are compressed and the probabilities are wrong.
+\end{pitfall}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item The sigmoid is the inverse of the log-odds; it arises by normalizing
+        $\log\tilde P(y) = yz$. In terms of the logit, the binary cross-entropy is the
+        softplus $\log(1 + e^{(1-2y)z})$, convex, with gradient $\sigma(z) - y$.
+  \item The squared error on $\sigma(z)$ multiplies the gradient by $\sigma'(z)$, which vanishes for
+        confident wrong predictions, and is not convex in $z$.
+  \item The softmax is invariant to adding a constant to all logits; every distribution
+        with positive entries is a softmax, with logits $\log p_k + c$. For two classes it is
+        the sigmoid of the difference of logits.
+  \item The categorical cross-entropy is $\mathrm{LSE}(z) - z_y$, with gradient $\softmax(z) - e_y$ and
+        Hessian $\diag(p) - pp^\top$, the covariance of the one-hot label: convex, flat only
+        along $\bbone$.
+  \item Unregularized maximum likelihood drives the softmax to the empirical label
+        frequencies, and the logits to infinity where those are $0$ or $1$.
+  \item Compute $\mathrm{LSE}$ and $\log\softmax$ after subtracting the largest logit, the softplus in
+        its stable form, and pass logits, not probabilities, to library losses.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{sigmoid-softmax:exr:1}
+Prove $\sigma(-z) = 1 - \sigma(z)$ and $\sigma'(z) = \sigma(z)(1 - \sigma(z))$, and show that the logit is the inverse of the
+sigmoid. What is the derivative of the logit?
+\solutionlink{sigmoid-softmax:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{sigmoid-softmax:exr:2}
+Derive $\nabla^2_z\ell = \diag(p) - pp^\top$ for the loss \cref{sigmoid-softmax:eq:loss} by computing
+$\partial p_k/\partial z_j$ separately for $j = k$ and $j\neq k$.
+\solutionlink{sigmoid-softmax:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{sigmoid-softmax:exr:3}
+Show that $\mathrm{LSE}$ is a smooth approximation of the maximum: $\max_jz_j\leq\mathrm{LSE}(z)\leq\max_jz_j + \log K$,
+and $T\,\mathrm{LSE}(z/T)\to\max_jz_j$ as $T\to0^+$.
+\solutionlink{sigmoid-softmax:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{sigmoid-softmax:exr:4}
+For logistic regression with a single feature, $P(Y = 1\mid x) = \sigma(wx)$, and the two
+data points $(x, y) = (1, 1)$ and $(-1, 0)$, write the average cross-entropy as a function of
+$w$ and show that it has no minimizer. What happens if the point $(2, 0)$ is added?
+\solutionlink{sigmoid-softmax:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{sigmoid-softmax:exr:5}
+Check that for $K = 2$ the multinomial logistic loss with logits $(z_1, z_2)$ equals the binary
+cross-entropy with logit $z_1 - z_2$, for both labels, and that the two gradient
+components of $\softmax(z) - e_y$ are opposite, equal to $\pm(\sigma(z_1 - z_2) - \bbone[y = 1])$.
+\solutionlink{sigmoid-softmax:exr:5}
+\end{exercise}
+
+\begin{exercise}\label{sigmoid-softmax:exr:6}
+For $z = (2, 1, 0.1)$, compute $\softmax(z/T)$ for $T = 0.5, 1, 2$. Show that as $T\to0^+$ the softmax
+tends to the one-hot vector of $\argmax_kz_k$ (assumed unique), and as $T\to\infty$ to the
+uniform distribution.
+\solutionlink{sigmoid-softmax:exr:6}
+\end{exercise}
+\end{notechapter}

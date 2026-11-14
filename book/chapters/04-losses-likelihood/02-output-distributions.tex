@@ -1,0 +1,309 @@
+\begin{notechapter}
+\chapter{Output Distributions and their Losses}\label{ch:output-distributions}
+\chaptersubtitle{Choose a distribution, read off the loss}
+
+\begin{chapterintro}
+\Cref{ch:cross-entropy} showed that maximum likelihood minimizes a cross-entropy.
+Turned around, this gives a recipe for designing losses: decide which family of
+distributions the target should follow given the input, let the network output
+the parameters of that distribution, and use the negative log-likelihood as the
+loss. The squared error, the absolute error, the binary and categorical
+cross-entropies and the Poisson loss are all instances. You will learn
+\begin{itemize}[nosep]
+  \item the recipe, and the role of the \emph{output unit} that maps unconstrained
+        network outputs to valid parameters;
+  \item the losses of the Gaussian (with fixed or learned variance), Laplace,
+        Bernoulli, categorical and Poisson models, with their gradients;
+  \item why all of these gradients have the form ``prediction minus target'': the
+        exponential family and canonical links;
+  \item mixture density networks for multimodal targets, and a word on structured
+        outputs.
+\end{itemize}
+\prerequisites{\cref{ch:cross-entropy}; basic probability distributions.}
+\end{chapterintro}
+
+\section{The recipe}\label{output-distributions:sec:recipe}
+
+A network computes from the input $x$ a vector of real numbers $z = g_\theta(x)$,
+unconstrained in sign and size. A probabilistic model of $Y$ given $X = x$ needs
+parameters with constraints: a probability lies in $(0,1)$, a variance is
+positive, the probabilities of $K$ classes sum to $1$. The \emph{output unit} is a
+fixed map $\omega = u(z)$ from the network's outputs to the parameters $\omega$ of the
+chosen distribution $p(y\mid\omega)$. The loss of one example is the negative
+log-likelihood
+\[
+  \ell(z, y) = -\log p\bigl(y\mid u(z)\bigr),
+\]
+and training minimizes its average over the data, which by
+\cref{cross-entropy:thm:mle} is maximum likelihood. Three choices are involved: the
+family, the output unit, and the network. \Cref{output-distributions:tab:summary}
+at the end of the chapter collects the usual combinations.
+
+\section{Real-valued targets}\label{output-distributions:sec:real}
+
+\paragraph{Gaussian, fixed variance.} With $p(y\mid\mu) = \mathcal N(y;\mu,\sigma^2)$, $\sigma$ fixed, and
+the identity output unit $\mu = z$,
+\[
+  \ell(z, y) = \frac{(y - z)^2}{2\sigma^2} + \frac12\log(2\pi\sigma^2),\qquad
+  \frac{\partial\ell}{\partial z} = \frac{z - y}{\sigma^2}.
+\]
+Up to an additive constant and the factor $1/\sigma^2$, this is half the squared error, and
+its average is half the mean squared error: least squares is maximum likelihood
+under Gaussian noise of constant variance. The value of $\sigma$ does not change the
+minimizer in $\mu$, and once $\mu$ is fitted the likelihood is maximized by
+$\hat\sigma^2 = \frac1n\sum_i(y_i - \hat\mu(x_i))^2$, the mean squared residual
+(\cref{output-distributions:exr:1}).
+
+\paragraph{Gaussian, learned variance.} When the noise level depends on $x$
+(\emph{heteroscedasticity}), the network outputs two numbers, $z = (z_1, z_2)$, with
+$\mu = z_1$ and $\sigma^2 = e^{z_2}$; the output unit $\exp$ guarantees a positive variance,
+and $z_2 = \log\sigma^2$ is unconstrained. The loss and its gradients are
+\[
+  \ell = \frac12z_2 + \frac{(y - z_1)^2}{2e^{z_2}} + \frac12\log2\pi,\qquad
+  \frac{\partial\ell}{\partial z_1} = \frac{z_1 - y}{\sigma^2},\qquad
+  \frac{\partial\ell}{\partial z_2} = \frac12\Bigl(1 - \frac{(y - \mu)^2}{\sigma^2}\Bigr).
+\]
+The second gradient vanishes when the predicted variance equals the squared
+residual: the network learns to predict its own error. Points with a large
+predicted variance contribute less to the gradient of the mean, which makes the
+fit robust to regions of high noise.
+
+\begin{pitfall}[The variance can collapse]
+On a single example the loss is unbounded below: if $\mu = y$ exactly, letting
+$\sigma^2\to0$ sends $\ell\to-\infty$. A flexible network can fit some training points
+exactly and shrink their variance without limit. Remedies are a lower bound on
+$\sigma^2$, weight decay, fitting the mean first, or a prior on the variance. With a
+single variance shared by all points the problem disappears as long as the
+residuals are not all zero.
+\end{pitfall}
+
+\paragraph{Laplace.} With $p(y\mid\mu) = \frac1{2b}e^{-\abs{y - \mu}/b}$, $b$ fixed, and $\mu = z$,
+\[
+  \ell(z, y) = \frac{\abs{y - z}}b + \log(2b),\qquad
+  \frac{\partial\ell}{\partial z} = \frac{\sign(z - y)}b\quad(z\neq y).
+\]
+Maximum likelihood is least absolute deviations. The best constant prediction
+is a median of the targets (\cref{output-distributions:exr:2},
+\cref{bayes-decision-theory:sec:other}), which is insensitive to outliers: the gradient
+of each point has the same size however far away it is, whereas under the
+Gaussian it grows with the residual. The Laplace density has heavier tails than
+the Gaussian, so a large residual is less surprising under it and costs less.
+
+\section{Discrete targets}\label{output-distributions:sec:discrete}
+
+\paragraph{Bernoulli.} For $y\in\{0, 1\}$, $p(y\mid\pi) = \pi^y(1 - \pi)^{1-y}$ with
+$\pi = \sigma(z) = 1/(1 + e^{-z})$, the sigmoid. The loss is the binary cross-entropy
+\[
+  \ell(z, y) = -y\log\sigma(z) - (1 - y)\log\bigl(1 - \sigma(z)\bigr) = \log\bigl(1 + e^{z}\bigr) - yz,\qquad
+  \frac{\partial\ell}{\partial z} = \sigma(z) - y .
+\]
+
+\paragraph{Categorical.} For $y\in\{1,\dots,K\}$, $p(y\mid\pi) = \pi_y$ with
+$\pi = \softmax(z)$, $\pi_k = e^{z_k}/\sum_je^{z_j}$. The loss is the categorical cross-entropy
+\[
+  \ell(z, y) = -\log\softmax(z)_y = \log\sum_{j=1}^Ke^{z_j} - z_y,\qquad
+  \frac{\partial\ell}{\partial z_k} = \softmax(z)_k - \bbone[k = y].
+\]
+Both output units, and the derivations of these formulas, are the subject of
+\cref{ch:sigmoid-softmax}.
+
+\paragraph{Poisson.} For counts $y\in\{0, 1, 2, \dots\}$ (visits, arrivals, mutations),
+$p(y\mid\lambda) = \lambda^ye^{-\lambda}/y!$ with a positive rate $\lambda = e^z$:
+\[
+  \ell(z, y) = e^z - yz + \log y!,\qquad
+  \frac{\partial\ell}{\partial z} = e^z - y = \lambda - y,\qquad
+  \frac{\partial^2\ell}{\partial z^2} = e^z>0 .
+\]
+The term $\log y!$ does not depend on the parameters and is dropped in practice.
+With a linear model $z = w^\top x$ this is Poisson regression, and the loss is convex
+in $w$.
+
+\begin{example}[A Poisson step]\label{output-distributions:ex:poisson}
+A shop has $y = 7$ visitors in an hour, and the model predicts $z = \log5$, i.e.\
+$\lambda = 5$. Then $\ell = 5 - 7\log5 + \log7!\approx5 - 11.266 + 8.525 = 2.259$, and
+$\partial\ell/\partial z = 5 - 7 = -2$: gradient descent increases $z$, hence the predicted rate. At
+$\lambda = 7$ the gradient vanishes; the minimizer of the loss over $\lambda$ is the observed
+count.
+\end{example}
+
+\section{Why the gradients look alike: the exponential family}\label{output-distributions:sec:expfam}
+
+The gradients above are $(z - y)/\sigma^2$, $\sigma(z) - y$, $\softmax(z) - e_y$ and $\lambda - y$: in
+each case, \emph{predicted mean minus observation}. This is not a coincidence.
+
+\begin{definition}[Exponential family]\label{output-distributions:def:expfam}
+A family of distributions is an \emph{exponential family} with \emph{natural
+parameter} $\eta\in\R^m$ and \emph{sufficient statistic} $T(y)\in\R^m$ if
+\[
+  p(y\mid\eta) = h(y)\exp\bigl(\eta^\top T(y) - A(\eta)\bigr),\qquad
+  A(\eta) = \log\int h(y)e^{\eta^\top T(y)}\,dy
+\]
+(a sum for discrete $y$). The \emph{log-partition function} $A$ makes $p$ integrate
+to $1$.
+\end{definition}
+
+\begin{proposition}[Gradient of the negative log-likelihood]\label{output-distributions:prop:expfam}
+For an exponential family, $\ell(\eta, y) = -\log p(y\mid\eta) = A(\eta) - \eta^\top T(y) - \log h(y)$, and
+\[
+  \nabla_\eta\ell = \nabla A(\eta) - T(y) = \E_\eta[T(Y)] - T(y),\qquad
+  \nabla^2_\eta\ell = \nabla^2A(\eta) = \Cov_\eta\bigl(T(Y)\bigr)\succeq0 .
+\]
+In particular, $\ell$ is convex in the natural parameter.
+\end{proposition}
+
+\begin{proof}
+Differentiate $A(\eta) = \log Z(\eta)$, $Z(\eta) = \int h(y)e^{\eta^\top T(y)}\,dy$, under the integral sign:
+\[
+  \nabla A = \frac{\nabla Z}{Z} = \int T(y)\,\frac{h(y)e^{\eta^\top T(y)}}{Z(\eta)}\,dy = \E_\eta[T(Y)],
+\]
+\[
+  \nabla^2A = \frac{\nabla^2Z}Z - \frac{\nabla Z\,\nabla Z^\top}{Z^2} = \E_\eta[T(Y)T(Y)^\top] - \E_\eta[T(Y)]\,\E_\eta[T(Y)]^\top = \Cov_\eta(T(Y)).
+\]
+A covariance matrix is positive semidefinite.
+\end{proof}
+
+When the output unit is chosen so that the network output \emph{is} the natural
+parameter, $\eta = z$, the gradient with respect to $z$ is $\E[T(Y)] - T(y)$ and the loss
+is convex in $z$. Such a choice is called the \emph{canonical link} (in the language
+of generalized linear models). The four examples are of this kind:
+\begin{center}
+\begin{tabular}{@{}lllll@{}}
+\toprule
+distribution & $T(y)$ & natural parameter $\eta$ & $A(\eta)$ & output unit (mean) \\
+\midrule
+Gaussian, $\sigma = 1$ & $y$ & $\mu$ & $\eta^2/2$ & identity \\
+Bernoulli & $y$ & $\log\frac\pi{1-\pi}$ (logit) & $\log(1 + e^\eta)$ & sigmoid \\
+Poisson & $y$ & $\log\lambda$ & $e^\eta$ & exponential \\
+categorical & $e_y$ & logits $z$ & $\log\sum_ke^{z_k}$ & softmax \\
+\bottomrule
+\end{tabular}
+\end{center}
+(For the categorical family the logits are defined only up to an additive
+constant, a point taken up in \cref{sigmoid-softmax:sec:softmax}.) The Gaussian with
+learned variance is also an exponential family, with $T(y) = (y, y^2)$, but the
+parametrization $(\mu,\log\sigma^2)$ used above is not the natural one, and its loss is not
+convex in $(z_1, z_2)$ jointly.
+
+\begin{keyidea}[Canonical links]
+Pairing an exponential family with its canonical output unit gives a loss that is
+convex in the network's last pre-activation, with gradient
+``predicted mean minus observed statistic''. The gradient vanishes exactly when
+the model's prediction matches the data on average --- the same moment-matching
+condition as in \cref{cross-entropy:exr:moments}.
+\end{keyidea}
+
+\section{Multimodal targets: mixture density networks}\label{output-distributions:sec:mdn}
+
+A single Gaussian per input cannot represent a target with several plausible
+values for the same $x$, as in inverse problems (the joint angles of a robot arm
+that reach a given position), or in the trajectory of a car that may turn left
+or right. Fitted by maximum likelihood, a single Gaussian then does what forward
+KL does in \cref{cross-entropy:ex:bimodal}: it predicts the average of the
+modes, which may be an impossible value. A \emph{mixture density network} (Bishop,
+\emph{Mixture Density Networks}, Aston University technical report NCRG/94/004, 1994) outputs the parameters of a mixture
+\[
+  p(y\mid x) = \sum_{k=1}^K\pi_k(x)\,\mathcal N\bigl(y;\mu_k(x), \sigma_k^2(x)\bigr),
+\]
+with $\pi = \softmax(z^\pi)$, $\mu_k = z^\mu_k$ and $\sigma_k = e^{z^\sigma_k}$. The loss is
+\[
+  \ell = -\log\sum_{k=1}^K\exp\Bigl(\log\pi_k + \log\mathcal N(y;\mu_k,\sigma_k^2)\Bigr),
+\]
+computed with the log-sum-exp trick of \cref{sigmoid-softmax:sec:numerics}. Its
+gradient involves the posterior probability that $y$ came from component $k$,
+\[
+  r_k = \frac{\pi_k\,\mathcal N(y;\mu_k,\sigma_k^2)}{\sum_j\pi_j\,\mathcal N(y;\mu_j,\sigma_j^2)},\qquad
+  \frac{\partial\ell}{\partial\mu_k} = r_k\,\frac{\mu_k - y}{\sigma_k^2},\qquad
+  \frac{\partial\ell}{\partial z^\pi_k} = \pi_k - r_k,
+\]
+the \emph{responsibilities} of the EM algorithm (\cref{ch:em-algorithm}): each component is
+pulled towards $y$ in proportion to how much it claims the point
+(\cref{output-distributions:exr:5}). Mixture density networks inherit the
+collapse of the variance described above, now per component.
+
+\paragraph{Other targets.} The same recipe applies to any family: a Beta
+distribution for targets in $(0,1)$, with positive shape parameters $\alpha = e^{z_1}$,
+$\beta = e^{z_2}$; a von Mises distribution for angles (\cref{ch:flat-circle}); a
+negative binomial for overdispersed counts. For \emph{structured} outputs ---
+a sentence, an image, a graph --- the joint distribution of the components is
+factorized by the chain rule, $p(y_1,\dots,y_T\mid x) = \prod_tp(y_t\mid y_{<t}, x)$, and each factor
+is one of the distributions above, typically a categorical over a vocabulary.
+The loss is then a sum of cross-entropies, one per position; this is the loss of
+the language models of \cref{part:language}.
+
+\begin{table}[ht]
+\centering
+\caption{Output distributions, output units and losses. In each row the gradient
+with respect to the (first) output is ``prediction minus target'', scaled.}
+\label{output-distributions:tab:summary}
+\small\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lllll@{}}
+\toprule
+target & distribution & output unit & loss (up to constants) & $\partial\ell/\partial z$ \\
+\midrule
+real & Gaussian, $\sigma$ fixed & $\mu = z$ & $(y - z)^2/2\sigma^2$ & $(z - y)/\sigma^2$ \\
+real & Laplace, $b$ fixed & $\mu = z$ & $\abs{y - z}/b$ & $\sign(z - y)/b$ \\
+real & Gaussian, $\sigma$ learned & $\mu = z_1$, $\sigma^2 = e^{z_2}$ & $\frac{z_2}2 + \frac{(y - z_1)^2}{2e^{z_2}}$ & $(z_1 - y)/\sigma^2$ \\
+binary & Bernoulli & $\pi = \sigma(z)$ & $\log(1 + e^z) - yz$ & $\sigma(z) - y$ \\
+class & categorical & $\pi = \softmax(z)$ & $\log\sum_ke^{z_k} - z_y$ & $\softmax(z) - e_y$ \\
+count & Poisson & $\lambda = e^z$ & $e^z - yz$ & $e^z - y$ \\
+multimodal & mixture & softmax, id., exp & $-\log\sum_k\pi_k\mathcal N(y;\mu_k,\sigma_k^2)$ & $r_k(\mu_k - y)/\sigma_k^2$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Designing a loss is choosing a conditional distribution for the target and
+        an output unit that maps the network's outputs to valid parameters; the loss
+        is the negative log-likelihood.
+  \item Gaussian noise gives the squared error, Laplace noise the absolute error,
+        Bernoulli and categorical models the binary and categorical cross-entropies,
+        Poisson counts the Poisson loss.
+  \item Learning the variance lets the network report its uncertainty, but the
+        per-example loss is unbounded below: guard against collapse.
+  \item For an exponential family, the negative log-likelihood is convex in the natural
+        parameter with gradient $\E_\eta[T(Y)] - T(y)$. With the canonical link this is the
+        familiar ``prediction minus target''.
+  \item Multimodal targets need a mixture; its gradient weights each component by
+        its responsibility.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{output-distributions:exr:1}
+For the model $y_i\sim\mathcal N(\mu(x_i), \sigma^2)$ with a single $\sigma$, show that for fixed predictions
+$\mu(x_i)$ the log-likelihood is maximized by $\hat\sigma^2 = \frac1n\sum_i(y_i - \mu(x_i))^2$, and compute the maximal
+value of $\frac1n\log\mathcal L$ as a function of $\hat\sigma^2$.
+\solutionlink{output-distributions:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{output-distributions:exr:2}
+For the Laplace model with a constant prediction $\mu$ for all points, show that
+$\mu\mapsto\sum_i\abs{y_i - \mu}$ is minimized by any median of $y_1,\dots,y_n$. For the data
+$1, 2, 3, 4, 100$, compare the maximum-likelihood constant under the Gaussian and the
+Laplace models.
+\solutionlink{output-distributions:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{output-distributions:exr:3}
+Write the Bernoulli and Poisson distributions in the form of
+\cref{output-distributions:def:expfam}, identify $\eta$, $T$, $h$ and $A$, and check
+\cref{output-distributions:prop:expfam} by computing $A'$ and $A''$ directly.
+\solutionlink{output-distributions:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{output-distributions:exr:4}
+Show that for the Gaussian with learned variance, with $z_1$ fixed, the loss is convex
+in $z_2 = \log\sigma^2$, but that the loss is not jointly convex in $(z_1, z_2)$.
+\hint{Compute the Hessian at a point where $y\neq z_1$.}
+\solutionlink{output-distributions:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{output-distributions:exr:5}
+Derive the gradients of the mixture density loss with respect to $\mu_k$ and to the
+mixture logits $z^\pi_k$ given in \cref{output-distributions:sec:mdn}.
+\solutionlink{output-distributions:exr:5}
+\end{exercise}
+\end{notechapter}
