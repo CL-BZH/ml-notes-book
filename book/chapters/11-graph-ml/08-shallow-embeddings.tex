@@ -1,71 +1,11 @@
 % Source: Graph_ML/Shallow_Graph_Embedding/shallow_graph_embedding.tex
 \begin{notechapter}
 % ---- chapter-local definitions ----
-\definecolor{exampleblue}{RGB}{230,242,255}
-\definecolor{insightgreen}{RGB}{232,245,233}
-\definecolor{warningyellow}{RGB}{255,249,230}
-\definecolor{mathematicspurple}{RGB}{243,232,255}
 \definecolor{node1color}{RGB}{66,133,244}
 \definecolor{node2color}{RGB}{219,68,55}
 \definecolor{node3color}{RGB}{244,180,0}
 \definecolor{node4color}{RGB}{15,157,88}
 \definecolor{edgecolor}{RGB}{100,100,100}
-\forgetenv{keyinsight}\newtcolorbox{keyinsight}{
-    colback=insightgreen,
-    colframe=green!60!black,
-    fonttitle=\bfseries,
-    title={\textcolor{green!40!black}{$\blacktriangleright$} Key Insight},
-    breakable,
-    left=5pt, right=5pt, top=5pt, bottom=5pt
-}
-\forgetenv{example}\newtcolorbox{example}{
-    colback=exampleblue,
-    colframe=blue!60!black,
-    fonttitle=\bfseries,
-    title={\textcolor{blue!60!black}{$\triangleright$} Worked Example},
-    breakable,
-    left=5pt, right=5pt, top=5pt, bottom=5pt
-}
-\forgetenv{intuition}\newtcolorbox{intuition}{
-    colback=warningyellow,
-    colframe=orange!70!black,
-    fonttitle=\bfseries,
-    title={\textcolor{orange!70!black}{$\star$} Intuition},
-    breakable,
-    left=5pt, right=5pt, top=5pt, bottom=5pt
-}
-\forgetenv{mathbox}\newtcolorbox{mathbox}{
-    colback=mathematicspurple,
-    colframe=purple!60!black,
-    fonttitle=\bfseries,
-    breakable,
-    left=5pt, right=5pt, top=5pt, bottom=5pt
-}
-\forgetenv{whybox}\newtcolorbox{whybox}[1][]{
-    colback=gray!5,
-    colframe=gray!50!black,
-    fonttitle=\bfseries,
-    title={Why do we need this? #1},
-    breakable,
-    left=5pt, right=5pt, top=5pt, bottom=5pt
-}
-\forgetenv{alarmbox}\newtcolorbox{alarmbox}[1][]{
-    colback=gray!2,
-    colframe=gray!20!black,
-    fonttitle=\bfseries,
-    title={#1},
-    breakable,
-    left=5pt, right=5pt, top=5pt, bottom=5pt
-}
-\forgetcs\R\newcommand{\R}{\mathbb{R}}
-\forgetcs\N\newcommand{\N}{\mathbb{N}}
-\forgetcs\E\newcommand{\E}{\mathbb{E}}
-\forgetcs\Prob\newcommand{\Prob}{\mathbb{P}}
-\forgetcs\tr\newcommand{\tr}{\mathrm{tr}}
-\forgetcs\diag\newcommand{\diag}{\mathrm{diag}}
-\forgetcs\norm\newcommand{\norm}[1]{\left\| #1 \right\|}
-\forgetcs\abs\newcommand{\abs}[1]{\left| #1 \right|}
-\forgetcs\inner\newcommand{\inner}[2]{\langle #1, #2 \rangle}
 \forgetcs\frobnorm\newcommand{\frobnorm}[1]{\left\| #1 \right\|_F}
 \forgetcs\adj\newcommand{\adj}{\mathbf{A}}
 \forgetcs\degree\newcommand{\degree}{\mathbf{D}}
@@ -75,25 +15,24 @@
 \forgetcs\transition\newcommand{\transition}{\mathbf{P}}
 \forgetcs\identity\newcommand{\identity}{\mathbf{I}}
 \forgetcs\vect\newcommand{\vect}[1]{\mathbf{#1}}
-\lstset{
-    language=Python,
-    basicstyle=\ttfamily\small,
-    keywordstyle=\color{blue},
-    commentstyle=\color{green!60!black},
-    stringstyle=\color{red},
-    showstringspaces=false,
-    breaklines=true,
-    frame=single,
-    backgroundcolor=\color{gray!10}
-}
 % -----------------------------------
 \chapter{Shallow Graph Embedding Methods}\label{ch:shallow-embeddings}
+\chaptersubtitle{Matrix factorization, random walks and knowledge graph embeddings}
 
-\begin{abstract}
-This document provides a thorough treatment of shallow graph embedding methods, designed to build genuine understanding through concrete examples and visualizations. We develop the theoretical foundations of matrix factorization-based approaches (Graph Factorization, HOPE, GraRep) and skip-gram-based methods (DeepWalk, Node2Vec), followed by a comprehensive treatment of \textbf{multi-relational graph embeddings} for knowledge graphs (RESCAL, DistMult, TransE, ComplEx, RotatE). Throughout, we emphasize \emph{why} each concept matters and \emph{how} it connects to practical applications, with full mathematical derivations, proofs, and worked examples that go well beyond typical textbook coverage.
-\end{abstract}
+\begin{chapterintro}
+A \emph{shallow} embedding assigns to every node of a graph its own vector in $\R^d$, learned directly as a free parameter, so that similar nodes in the graph become nearby points. This chapter presents the two classical families of such methods and their extension to graphs with several edge types. Matrix-factorization methods (graph factorization, HOPE, GraRep) choose a node-similarity matrix and factorize it; random-walk methods (DeepWalk, node2vec) generate walks and train the skip-gram model of word embeddings on them, which, as Qiu et al.\ showed, also factorizes a matrix. Knowledge-graph embeddings (RESCAL, DistMult, TransE, ComplEx, RotatE) score typed triples $(h, \tau, t)$ and differ in which relation patterns (symmetry, inversion, composition) they can represent. We follow Hamilton (\emph{Graph Representation Learning}, 2020, Chapters~3 and~4) and use one six-node graph throughout. You will learn
+\begin{itemize}[nosep]
+  \item first-, second- and high-order proximity, and why factorizing the adjacency matrix must ignore its diagonal;
+  \item graph factorization, HOPE (Katz similarity and SVD) and GraRep (log-transformed $k$-step transition probabilities), with computed examples;
+  \item DeepWalk and node2vec, and the matrix that DeepWalk implicitly factorizes;
+  \item the multi-relational encoder--decoder framework, its losses, and the properties of the main decoders;
+  \item how to build edge and whole-graph embeddings from node embeddings.
+\end{itemize}
+\prerequisites{\cref{ch:graph-laplacians} (degree, transition matrix), \cref{ch:node-similarity} (Katz index), \cref{ch:word-embeddings,ch:nce-negative-sampling,ch:hierarchical-softmax} (skip-gram and its training), the SVD.}
+\end{chapterintro}
 
 % ============================================================================
+% SECTION 1: INTRODUCTION
 % SECTION 1: INTRODUCTION
 % ============================================================================
 \section{Introduction: Why Embed Graphs?}
@@ -110,15 +49,15 @@ Imagine you have a social network with millions of users. You want to:
 
 The problem is that graphs are \textbf{irregular structures}---unlike images (regular grids) or text (sequences), graphs have variable-size neighborhoods and no natural ordering. Most machine learning algorithms expect input as fixed-length vectors.
 
-\begin{keyinsight}
+\begin{keyidea}
 \textbf{Graph embedding} solves this by mapping each node to a point in a low-dimensional space $\R^d$ (typically $d = 64$ to $256$), such that \textbf{similar nodes in the graph become nearby points in the embedding space}.
 
 Once we have these vectors, we can use any standard ML algorithm: logistic regression for classification, $k$-means for clustering, or even simple nearest-neighbor search for recommendations.
-\end{keyinsight}
+\end{keyidea}
 
 \subsection{Our Running Example: A Small Social Network}
 
-Throughout this document, we'll use the following small graph to illustrate every concept:
+Throughout this chapter we use the following small graph to illustrate every concept:
 
 \begin{figure}[htbp]
 \centering
@@ -187,404 +126,13 @@ The key question is: \textbf{what does ``similar in the graph'' mean?} This lead
 % ============================================================================
 % SECTION 2: GRAPH CONCEPTS
 % ============================================================================
-\section{Essential Graph Concepts (With Purpose)}
+\section{Graph matrices for the running example}
 
-We introduce each concept with its \emph{motivation}---what problem it solves or what it helps us compute.
-
-\subsection{The Degree Matrix}
-
-\begin{whybox}
-The degree tells us how ``popular'' or ``connected'' a node is. High-degree nodes are often important hubs. We'll need the degree matrix to normalize things properly (so high-degree nodes don't dominate) and to define random walks.
-\end{whybox}
-
-\begin{definition}[Degree and Degree Matrix]
-The \textbf{degree} of node $v_i$ is $d_i = \sum_{j=1}^{n} A_{ij}$ (the number of neighbors). The \textbf{degree matrix} $\degree$ is diagonal:
+We use the matrices of \cref{ch:graph-laplacians}. For the running example the degrees are
 \[
-\degree = \diag(d_1, d_2, \ldots, d_n)
+\degree = \diag(2, 3, 2, 3, 2, 2):
 \]
-\end{definition}
-
-\begin{example}
-For our running example:
-\[
-\degree = \diag(2, 3, 2, 3, 2, 2)
-\]
-Node 2 and node 4 have degree 3 (they're the bridges connecting communities), while the others have degree 2.
-
-\begin{center}
-\begin{tikzpicture}[scale=0.8]
-    % Bar chart of degrees
-    \begin{axis}[
-        ybar,
-        bar width=0.5cm,
-        xlabel={Node},
-        ylabel={Degree},
-        ymin=0, ymax=4,
-        xtick={1,2,3,4,5,6},
-        ytick={0,1,2,3},
-        nodes near coords,
-        nodes near coords align={vertical},
-        width=8cm, height=5cm
-    ]
-    \addplot[fill=node1color!50] coordinates {(1,2) (2,3) (3,2)};
-    \addplot[fill=node2color!50] coordinates {(4,3) (5,2) (6,2)};
-    \end{axis}
-\end{tikzpicture}
-\end{center}
-\end{example}
-
-\subsection{The Graph Laplacian Family}
-
-\begin{whybox}
-The Laplacian matrices capture the ``smoothness'' of signals on graphs. They're fundamental to spectral graph theory and appear naturally when we analyze random walks, graph cuts, and clustering. Different normalizations serve different purposes.
-\end{whybox}
-
-\subsubsection*{First: What is a Signal on a Graph?}
-
-Before introducing the Laplacian, we need to understand \textbf{graph signals}---this concept is essential for understanding what the Laplacian measures.
-
-\begin{definition}[Graph Signal]
-A \textbf{graph signal} is simply a function that assigns a value to each node:
-\[
-\vect{x}: V \to \R, \quad \text{i.e., } \vect{x} = (x_1, x_2, \ldots, x_n)^\top \in \R^n
-\]
-where $x_i$ is the value at node $v_i$.
-\end{definition}
-
-\begin{example}
-On our 6-node social network, here are some example graph signals:
-
-\begin{center}
-\begin{tikzpicture}[
-    node distance=1.5cm,
-    main/.style={circle, draw, thick, minimum size=0.8cm, font=\small},
-]
-    % Temperature signal
-    \begin{scope}[xshift=0cm]
-        \node[font=\bfseries] at (1, 2.3) {Temperature signal};
-        \node[main, fill=red!60] (1) {72};
-        \node[main, fill=red!50, right of=1] (2) {70};
-        \node[main, fill=red!55, below of=1] (3) {71};
-        \node[main, fill=blue!40, right of=3] (4) {65};
-        \node[main, fill=blue!50, right of=2] (5) {62};
-        \node[main, fill=blue!45, right of=4] (6) {63};
-        \draw (1)--(2); \draw (1)--(3); \draw (2)--(3);
-        \draw (2)--(4); \draw (4)--(5); \draw (4)--(6); \draw (5)--(6);
-        \node[below of=3, yshift=0.3cm, xshift=1cm, font=\small] {$\vect{x} = (72, 70, 71, 65, 62, 63)$};
-    \end{scope}
-    
-    % Age signal
-    \begin{scope}[xshift=7cm]
-        \node[font=\bfseries] at (1, 2.3) {Age signal};
-        \node[main, fill=green!30] (1b) {25};
-        \node[main, fill=green!40, right of=1b] (2b) {28};
-        \node[main, fill=green!35, below of=1b] (3b) {26};
-        \node[main, fill=green!70, right of=3b] (4b) {45};
-        \node[main, fill=green!65, right of=2b] (5b) {42};
-        \node[main, fill=green!60, right of=4b] (6b) {40};
-        \draw (1b)--(2b); \draw (1b)--(3b); \draw (2b)--(3b);
-        \draw (2b)--(4b); \draw (4b)--(5b); \draw (4b)--(6b); \draw (5b)--(6b);
-        \node[below of=3b, yshift=0.3cm, xshift=1cm, font=\small] {$\vect{x} = (25, 28, 26, 45, 42, 40)$};
-    \end{scope}
-\end{tikzpicture}
-\end{center}
-
-\textbf{Key observation}: In many real graphs, connected nodes tend to have \emph{similar} signal values. Friends often have similar ages, neighboring sensors measure similar temperatures, etc. This property is called \textbf{smoothness}---the signal doesn't change abruptly across edges.
-\end{example}
-
-\begin{intuition}
-Graph signals are everywhere:
-\begin{itemize}
-    \item \textbf{Social network}: Each person's age, income, or political leaning
-    \item \textbf{Sensor network}: Temperature, humidity at each sensor location
-    \item \textbf{Citation network}: Number of citations for each paper
-    \item \textbf{Brain network}: Neural activity at each brain region
-\end{itemize}
-The Laplacian will help us measure how ``smooth'' a signal is---i.e., how much it varies across edges.
-\end{intuition}
-
-Now we can define the Laplacian and understand what it measures:
-
-\begin{definition}[Graph Laplacians]
-\leavevmode
-\begin{itemize}
-    \item The \textbf{combinatorial Laplacian}: $\lamark = \degree - \adj$
-    \item The \textbf{normalized Laplacian}: $\lamark_{\text{norm}} = 
-    \identity - \degree^{-1/2} \adj \degree^{-1/2}$
-    \item The \textbf{random walk Laplacian}: $\lamark_{\text{rw}} = \identity - \degree^{-1} \adj$
-\end{itemize}
-\end{definition}
-
-Let's see what each one does and why we need three versions:
-
-\begin{example}
-For our running example, the combinatorial Laplacian is:
-\[
-\lamark = \degree - \adj = \begin{pmatrix}
-2 & -1 & -1 & 0 & 0 & 0 \\
--1 & 3 & -1 & -1 & 0 & 0 \\
--1 & -1 & 2 & 0 & 0 & 0 \\
-0 & -1 & 0 & 3 & -1 & -1 \\
-0 & 0 & 0 & -1 & 2 & -1 \\
-0 & 0 & 0 & -1 & -1 & 2
-\end{pmatrix}
-\]
-
-\textbf{What does the Laplacian measure?} It measures the \textbf{smoothness} (or roughness) of a signal through a beautiful formula:
-\[
-\vect{x}^\top \lamark \vect{x} = \sum_{(i,j) \in E} (x_i - x_j)^2
-\]
-
-\begin{mathbox}
-\textbf{Proof of the Laplacian quadratic form.}
-
-We want to compute $\vect{x}^\top \lamark \vect{x}$ where $\lamark = \degree - \adj$.
-
-\textbf{Step 1:} Expand using linearity:
-\[
-\vect{x}^\top \lamark \vect{x} = \vect{x}^\top (\degree - \adj) \vect{x} = \vect{x}^\top \degree \vect{x} - \vect{x}^\top \adj \vect{x}
-\]
-
-\textbf{Step 2:} Compute the first term. Since $\degree$ is diagonal with $D_{ii} = d_i$:
-\[
-\vect{x}^\top \degree \vect{x} = \sum_{i=1}^{n} d_i x_i^2
-\]
-
-\textbf{Step 3:} Compute the second term:
-\[
-\vect{x}^\top \adj \vect{x} = \sum_{i=1}^{n} \sum_{j=1}^{n} A_{ij} x_i x_j = \sum_{(i,j) \in E} x_i x_j + \sum_{(j,i) \in E} x_j x_i = 2\sum_{(i,j) \in E} x_i x_j
-\]
-(The last equality holds for undirected graphs where each edge is counted twice.)
-
-\textbf{Step 4:} Recall that $d_i = \sum_j A_{ij}$, so:
-\[
-\sum_{i=1}^{n} d_i x_i^2 = \sum_{i=1}^{n} \sum_{j: (i,j) \in E} x_i^2 = \sum_{(i,j) \in E} x_i^2 + \sum_{(i,j) \in E} x_j^2 = \sum_{(i,j) \in E} (x_i^2 + x_j^2)
-\]
-(Again, each edge contributes $x_i^2$ from node $i$'s degree and $x_j^2$ from node $j$'s degree.)
-
-\textbf{Step 5:} Combine:
-\begin{align*}
-\vect{x}^\top \lamark \vect{x} &= \sum_{(i,j) \in E} (x_i^2 + x_j^2) - 2\sum_{(i,j) \in E} x_i x_j \\
-&= \sum_{(i,j) \in E} (x_i^2 - 2x_i x_j + x_j^2) \\
-&= \sum_{(i,j) \in E} (x_i - x_j)^2 \quad \blacksquare
-\end{align*}
-\end{mathbox}
-
-This formula tells us: the Laplacian quadratic form sums up the squared differences across all edges. It is small when connected nodes have similar values, and large when they differ.
-
-\textbf{Let's compare two signals on our graph:}
-
-\textit{Signal 1 (smooth):} $\vect{x}_{\text{smooth}} = (1, 1, 1, 0, 0, 0)$ --- Community A has value 1, Community B has value 0.
-\begin{align*}
-\vect{x}_{\text{smooth}}^\top \lamark \vect{x}_{\text{smooth}} &= (1-1)^2 + (1-1)^2 + (1-1)^2 + (1-0)^2 + (0-0)^2 + (0-0)^2 + (0-0)^2 \\
-&= 0 + 0 + 0 + 1 + 0 + 0 + 0 = \mathbf{1}
-\end{align*}
-Only the bridge edge (2--4) contributes because it connects different values!
-
-\textit{Signal 2 (rough):} $\vect{x}_{\text{rough}} = (1, 0, 1, 0, 1, 0)$ --- Alternating pattern.
-\begin{align*}
-\vect{x}_{\text{rough}}^\top \lamark \vect{x}_{\text{rough}} &= (1-0)^2 + (1-1)^2 + (0-1)^2 + (0-0)^2 + (0-1)^2 + (0-0)^2 + (1-0)^2 \\
-&= 1 + 0 + 1 + 0 + 1 + 0 + 1 = \mathbf{4}
-\end{align*}
-
-\begin{center}
-\begin{tikzpicture}[
-    node distance=1.4cm,
-    main/.style={circle, draw, thick, minimum size=0.7cm, font=\small},
-]
-    % Smooth signal
-    \begin{scope}[xshift=0cm]
-        \node[font=\bfseries] at (1, 2) {Smooth signal};
-        \node[main, fill=blue!50] (1) {1};
-        \node[main, fill=blue!50, right of=1] (2) {1};
-        \node[main, fill=blue!50, below of=1] (3) {1};
-        \node[main, fill=red!50, right of=3] (4) {0};
-        \node[main, fill=red!50, right of=2] (5) {0};
-        \node[main, fill=red!50, right of=4] (6) {0};
-        \draw (1)--(2); \draw (1)--(3); \draw (2)--(3);
-        \draw[very thick, orange] (2)--(4); 
-        \draw (4)--(5); \draw (4)--(6); \draw (5)--(6);
-        \node[below of=3, yshift=0.3cm, xshift=1cm] {$\vect{x}^\top \lamark \vect{x} = 1$};
-    \end{scope}
-    
-    % Rough signal
-    \begin{scope}[xshift=6.5cm]
-        \node[font=\bfseries] at (1, 2) {Rough signal};
-        \node[main, fill=blue!50] (1b) {1};
-        \node[main, fill=red!50, right of=1b] (2b) {0};
-        \node[main, fill=blue!50, below of=1b] (3b) {1};
-        \node[main, fill=red!50, right of=3b] (4b) {0};
-        \node[main, fill=blue!50, right of=2b] (5b) {1};
-        \node[main, fill=red!50, right of=4b] (6b) {0};
-        \draw[very thick, orange] (1b)--(2b); 
-        \draw (1b)--(3b); 
-        \draw[very thick, orange] (2b)--(3b);
-        \draw (2b)--(4b); 
-        \draw[very thick, orange] (4b)--(5b); 
-        \draw (4b)--(6b); 
-        \draw[very thick, orange] (5b)--(6b);
-        \node[below of=3b, yshift=0.3cm, xshift=1cm] {$\vect{x}^\top \lamark \vect{x} = 4$};
-    \end{scope}
-\end{tikzpicture}
-\end{center}
-
-The smooth signal respects the community structure (similar values within communities), while the rough signal changes value across many edges (shown in orange).
-\end{example}
-
-\begin{keyinsight}
-\textbf{Why does this matter for embeddings?} 
-
-If we think of each dimension of an embedding as a graph signal, then a \textbf{good embedding should be smooth}---nodes that are connected should have similar embedding coordinates. 
-
-This is exactly what matrix factorization methods optimize! When we minimize $\sum_{(i,j) \in E}(A_{ij} - \vect{y}_i^\top \vect{y}_j)^2$, we're encouraging connected nodes ($A_{ij} = 1$) to have high inner product, which means similar embeddings.
-\end{keyinsight}
-
-\begin{keyinsight}
-\textbf{Why three Laplacians?} Each normalization serves a purpose:
-\begin{itemize}
-    \item \textbf{Combinatorial} $\lamark$: Used in spectral clustering; eigenvalues relate to graph cuts
-    \item \textbf{Normalized} $\lamark_{\text{norm}}$: Eigenvalues in $[0, 2]$; better for comparing graphs of different sizes
-    \item \textbf{Random walk} $\lamark_{\text{rw}}$: Directly connected to random walks; we'll use this for DeepWalk!
-\end{itemize}
-\end{keyinsight}
-
-% -------------------------------------------------------------------------
-% NORMALIZED LAPLACIAN - Detailed explanation
-% -------------------------------------------------------------------------
-\subsubsection*{The Normalized Laplacian: Fixing the Degree Bias}
-
-\begin{whybox}
-The combinatorial Laplacian has a problem: \textbf{high-degree nodes dominate the quadratic form}. If node $i$ has degree 100 and node $j$ has degree 2, differences involving node $i$ contribute much more to $\vect{x}^\top \lamark \vect{x}$. This makes it hard to compare graphs of different sizes or densities.
-\end{whybox}
-
-The normalized Laplacian fixes this by scaling each node's contribution by its degree:
-\[
-\lamark_{\text{norm}} = \identity - \degree^{-1/2} \adj \degree^{-1/2}
-\]
-
-\begin{mathbox}
-\textbf{What does the normalized Laplacian measure?}
-
-The quadratic form becomes:
-\[
-\vect{x}^\top \lamark_{\text{norm}} \vect{x} = \sum_{(i,j) \in E} \left( \frac{x_i}{\sqrt{d_i}} - \frac{x_j}{\sqrt{d_j}} \right)^2
-\]
-
-\textbf{Proof:} Let $\vect{z} = \degree^{1/2} \vect{x}$, i.e., $z_i = \sqrt{d_i} \, x_i$. Then:
-\begin{align*}
-\vect{x}^\top \lamark_{\text{norm}} \vect{x} &= \vect{x}^\top (\identity - \degree^{-1/2} \adj \degree^{-1/2}) \vect{x} \\
-&= \vect{x}^\top \degree^{-1/2} (\degree - \adj) \degree^{-1/2} \vect{x} \\
-&= (\degree^{-1/2}\vect{x})^\top \lamark (\degree^{-1/2}\vect{x})
-\end{align*}
-
-Using our earlier result with $\tilde{\vect{x}} = \degree^{-1/2}\vect{x}$ (so $\tilde{x}_i = x_i / \sqrt{d_i}$):
-\[
-\vect{x}^\top \lamark_{\text{norm}} \vect{x} = \sum_{(i,j) \in E} (\tilde{x}_i - \tilde{x}_j)^2 = \sum_{(i,j) \in E} \left( \frac{x_i}{\sqrt{d_i}} - \frac{x_j}{\sqrt{d_j}} \right)^2 \quad \blacksquare
-\]
-\end{mathbox}
-
-\begin{example}
-Consider an edge between a ``celebrity'' node (degree 100) and a ``regular'' node (degree 3):
-\begin{itemize}
-    \item \textbf{Combinatorial}: The difference $(x_{\text{celebrity}} - x_{\text{regular}})^2$ is treated the same as any other edge.
-    \item \textbf{Normalized}: The difference becomes $\left( \frac{x_{\text{celebrity}}}{10} - \frac{x_{\text{regular}}}{\sqrt{3}} \right)^2$. The celebrity's value is scaled down by $\sqrt{100} = 10$, reducing its outsized influence.
-\end{itemize}
-
-\textbf{Key property}: The normalized Laplacian has eigenvalues in $[0, 2]$ regardless of graph size. This makes it ideal for:
-\begin{itemize}
-    \item Comparing spectral properties across different graphs
-    \item Spectral clustering (the famous ``normalized cuts'' algorithm)
-    \item Theoretical analysis (bounded spectrum simplifies proofs)
-\end{itemize}
-\end{example}
-
-% -------------------------------------------------------------------------
-% RANDOM WALK LAPLACIAN - Why define it?
-% -------------------------------------------------------------------------
-\subsubsection*{The Random Walk Laplacian: More Than Just $\identity - \transition$}
-
-\begin{whybox}
-You might wonder: if all we need for DeepWalk is the transition matrix $\transition = \degree^{-1}\adj$, why bother defining the random walk Laplacian $\lamark_{\text{rw}} = \identity - \transition$? The answer is that $\lamark_{\text{rw}}$ reveals a \textbf{deep connection between random walks and graph smoothness}.
-\end{whybox}
-
-\begin{mathbox}
-\textbf{The random walk Laplacian quadratic form:}
-\[
-\vect{x}^\top \lamark_{\text{rw}} \vect{x} = \sum_{(i,j) \in E} \frac{1}{d_i}(x_i - x_j)^2
-\]
-
-This is an \textbf{asymmetric} version of smoothness: differences are weighted by $1/d_i$, not $1/\sqrt{d_i d_j}$.
-
-\textbf{Interpretation}: This measures smoothness from the perspective of a random walker. A walker at node $i$ sees each neighbor with probability $1/d_i$, so edges from high-degree nodes contribute less.
-\end{mathbox}
-
-The key insight is the \textbf{relationship between all three Laplacians}:
-
-\begin{proposition}[Similarity of Laplacians]
-The three Laplacians share the same eigenvalues structure:
-\begin{itemize}
-    \item $\lamark_{\text{rw}}$ and $\lamark_{\text{norm}}$ have \textbf{exactly the same eigenvalues}
-    \item If $\vect{v}$ is an eigenvector of $\lamark_{\text{norm}}$ with eigenvalue $\lambda$, then $\degree^{-1/2}\vect{v}$ is an eigenvector of $\lamark_{\text{rw}}$ with the same eigenvalue $\lambda$
-\end{itemize}
-\end{proposition}
-
-\begin{proof}
-If $\lamark_{\text{norm}} \vect{v} = \lambda \vect{v}$, then:
-\begin{align*}
-(\identity - \degree^{-1/2}\adj\degree^{-1/2})\vect{v} &= \lambda \vect{v} \\
-\degree^{-1/2}(\identity - \degree^{-1/2}\adj\degree^{-1/2})\vect{v} &= \lambda \degree^{-1/2}\vect{v} \\
-(\degree^{-1/2} - \degree^{-1}\adj\degree^{-1/2})\vect{v} &= \lambda \degree^{-1/2}\vect{v} \\
-(\identity - \degree^{-1}\adj)\degree^{-1/2}\vect{v} &= \lambda \degree^{-1/2}\vect{v} \\
-\lamark_{\text{rw}} (\degree^{-1/2}\vect{v}) &= \lambda (\degree^{-1/2}\vect{v}) \quad \blacksquare
-\end{align*}
-\end{proof}
-
-\begin{keyinsight}
-\textbf{Why does this matter?}
-
-This connection explains why DeepWalk (which uses random walks, i.e., $\transition = \identity - \lamark_{\text{rw}}$) learns spectral information about the graph:
-\begin{enumerate}
-    \item Random walks sample nodes according to the transition matrix $\transition$
-    \item The transition matrix is directly related to $\lamark_{\text{rw}}$
-    \item $\lamark_{\text{rw}}$ shares eigenvalues with $\lamark_{\text{norm}}$
-    \item Therefore, \textbf{DeepWalk implicitly learns the spectral structure} of the normalized Laplacian!
-\end{enumerate}
-
-This is formalized in the theorem we'll see later: DeepWalk embeddings approximate eigenvectors of a matrix related to $\sum_{r=1}^{c} \transition^r$.
-\end{keyinsight}
-
-\begin{example}[Random Walk Laplacian in Action]
-The matrix $\transition = \degree^{-1}\adj = \identity - \lamark_{\text{rw}}$ is the \textbf{transition matrix} of a random walk:
-\[
-\transition = \begin{pmatrix}
-0 & 1/2 & 1/2 & 0 & 0 & 0 \\
-1/3 & 0 & 1/3 & 1/3 & 0 & 0 \\
-1/2 & 1/2 & 0 & 0 & 0 & 0 \\
-0 & 1/3 & 0 & 0 & 1/3 & 1/3 \\
-0 & 0 & 0 & 1/2 & 0 & 1/2 \\
-0 & 0 & 0 & 1/2 & 1/2 & 0
-\end{pmatrix}
-\]
-
-Entry $P_{ij}$ is the probability of jumping from node $i$ to node $j$. From node 2, we go to nodes 1, 3, or 4 each with probability $1/3$.
-
-\textbf{This is exactly what DeepWalk uses!} Random walks on graphs generate ``sentences'' of nodes, which we then feed to a skip-gram model.
-\end{example}
-
-\begin{table}[htbp]
-\centering
-\caption{Summary: The Three Laplacians}
-\begin{tabular}{@{}lccc@{}}
-\toprule
-\textbf{Laplacian} & \textbf{Formula} & \textbf{Quadratic Form} & \textbf{Main Use} \\
-\midrule
-Combinatorial & $\degree - \adj$ & $\sum_{(i,j)} (x_i - x_j)^2$ & Graph cuts, basic spectral \\
-Normalized & $\identity - \degree^{-1/2}\adj\degree^{-1/2}$ & $\sum_{(i,j)} \left(\frac{x_i}{\sqrt{d_i}} - \frac{x_j}{\sqrt{d_j}}\right)^2$ & Normalized cuts, comparison \\
-Random walk & $\identity - \degree^{-1}\adj$ & $\sum_{(i,j)} \frac{1}{d_i}(x_i - x_j)^2$ & Random walks, DeepWalk \\
-\bottomrule
-\end{tabular}
-\label{shallow-embeddings:tab:laplacians}
-\end{table}
+the bridge nodes $2$ and $4$ have degree $3$, all others degree $2$. The random-walk transition matrix is $\transition = \degree^{-1}\adj$ (rows sum to $1$; $P_{ij}$ is the probability of stepping from $i$ to $j$), and $(\transition^k)_{ij}$ is the probability that a walk started at $i$ is at $j$ after $k$ steps. Note that $\transition = \identity - \lamark_{\text{rw}}$, where $\lamark_{\text{rw}} = \identity - \degree^{-1}\adj$ is the random-walk Laplacian, so random-walk methods and spectral methods are built from the same matrices.
 
 \subsection{Notions of Proximity: How to Measure ``Similarity'' in Graphs}
 
@@ -675,45 +223,27 @@ Reading off: there are 3 paths of length 2 from node 2 to itself (2→1→2, 2�
 $(\adj^2)_{14} = 1$: there's exactly one path of length 2 from node 1 to node 4 (1→2→4).
 \end{example}
 
-\begin{definition}[High-Order Proximity: Katz Index]
-The \textbf{Katz index} combines all path lengths with decaying weights:
+\paragraph{High-order proximity.} Combining all path lengths with geometrically decaying weights gives the Katz index of \cref{ch:node-similarity},
 \[
-\similarity_{\text{Katz}} = \sum_{k=1}^{\infty} \beta^k \adj^k = \beta\adj + \beta^2\adj^2 + \beta^3\adj^3 + \cdots
+\similarity_{\text{Katz}} = \sum_{k=1}^{\infty} \beta^k \adj^k = (\identity - \beta\adj)^{-1} - \identity, \qquad 0 < \beta < 1/\lambda_{\max}(\adj).
 \]
-where $\beta < 1/\lambda_{\max}(\adj)$ ensures convergence. This can be computed in closed form:
-\[
-\similarity_{\text{Katz}} = (\identity - \beta\adj)^{-1} - \identity
-\]
-\end{definition}
+With $\beta = 0.1$, a path of length $k$ contributes $10^{-k}$. Other choices of a high-order similarity (personalized PageRank, the LHN index, the Adamic--Adar score) can be used in the same way.
 
-\begin{intuition}
-The Katz index says: ``nodes are similar if there are many paths between them, but longer paths count less.'' The parameter $\beta$ controls how quickly long paths are discounted. With $\beta = 0.1$:
-\begin{itemize}
-    \item Direct neighbors (length 1): contribute $0.1$
-    \item Length-2 paths: contribute $0.01$ each
-    \item Length-3 paths: contribute $0.001$ each
-\end{itemize}
-\end{intuition}
-
-
-% ============================================================================
-% SECTION 3: MATRIX FACTORIZATION METHODS
-% ============================================================================
 \section{Matrix Factorization Methods}
 
 The idea is beautifully simple: if we can write the adjacency (or similarity) matrix as a product of low-rank matrices, those factors give us embeddings!
 
 \subsection{The Core Idea}
 
-\begin{keyinsight}
+\begin{keyidea}
 If $\adj \approx \embed \embed^\top$ where $\embed \in \R^{n \times d}$, then:
 \[
 A_{ij} \approx \vect{y}_i^\top \vect{y}_j
 \]
 Connected nodes ($A_{ij} = 1$) should have $\vect{y}_i^\top \vect{y}_j \approx 1$, meaning their embeddings point in similar directions. Non-edges ($A_{ij} = 0$) should have $\vect{y}_i^\top \vect{y}_j \approx 0$, meaning orthogonal embeddings.
-\end{keyinsight}
+\end{keyidea}
 
-\begin{alarmbox}[The Diagonal Problem]
+\begin{pitfall}[The diagonal problem]
 There's an issue with the naive interpretation ``$\adj \approx \embed\embed^\top$''! 
 
 The diagonal entries of $\embed \embed^\top$ are:
@@ -725,7 +255,7 @@ But for graphs without self-loops, the diagonal of the adjacency matrix is zero:
 So a true factorization $\adj = \embed\embed^\top$ would require $\|\vect{y}_i\|^2 = 0$ for all nodes---meaning all embeddings are the zero vector! That's clearly useless.
 
 \textbf{Solution}: We \textbf{only fit the off-diagonal entries}. The Graph Factorization loss sums over edges $(i,j) \in E$ where $i \neq j$, completely ignoring the diagonal. We're not truly factorizing $\adj$; we're finding embeddings whose inner products approximate the \emph{edge weights}.
-\end{alarmbox}
+\end{pitfall}
 
 \begin{figure}[htbp]
 \centering
@@ -832,44 +362,25 @@ The embedding $\vect{y}_1$ moved \emph{toward} $\vect{y}_2$ because they're conn
 \centering
 \begin{tikzpicture}
     \begin{axis}[
-        width=10cm, height=8cm,
+        width=9cm, height=6.5cm,
         xlabel={Dimension 1},
         ylabel={Dimension 2},
-        xmin=-1.5, xmax=1.5,
-        ymin=-1.5, ymax=1.5,
+        xmin=0.6, xmax=1.2,
+        ymin=-0.5, ymax=0.75,
         grid=both,
-        title={GF Embedding of Our Running Example (Illustrative)}
     ]
-    % Community A - clustered together
-    \addplot[only marks, mark=*, mark size=4pt, color=node1color] 
-        coordinates {(-0.8, 0.6) (-0.5, 0.4) (-0.9, 0.3)};
-    \node[pin={[pin distance=0.3cm]90:{1}}] at (axis cs:-0.8,0.6) {};
-    \node[pin={[pin distance=0.3cm]45:{2}}] at (axis cs:-0.5,0.4) {};
-    \node[pin={[pin distance=0.3cm]180:{3}}] at (axis cs:-0.9,0.3) {};
-    
-    % Community B - clustered together  
-    \addplot[only marks, mark=*, mark size=4pt, color=node2color]
-        coordinates {(0.6, -0.5) (0.9, -0.3) (0.7, -0.7)};
-    \node[pin={[pin distance=0.3cm]135:{4}}] at (axis cs:0.6,-0.5) {};
-    \node[pin={[pin distance=0.3cm]0:{5}}] at (axis cs:0.9,-0.3) {};
-    \node[pin={[pin distance=0.3cm]-90:{6}}] at (axis cs:0.7,-0.7) {};
-    
-    % Draw edges as light lines
-    \draw[gray, thin, dashed] (axis cs:-0.8,0.6) -- (axis cs:-0.5,0.4);
-    \draw[gray, thin, dashed] (axis cs:-0.8,0.6) -- (axis cs:-0.9,0.3);
-    \draw[gray, thin, dashed] (axis cs:-0.5,0.4) -- (axis cs:-0.9,0.3);
-    \draw[gray, thin, dashed] (axis cs:-0.5,0.4) -- (axis cs:0.6,-0.5);
-    \draw[gray, thin, dashed] (axis cs:0.6,-0.5) -- (axis cs:0.9,-0.3);
-    \draw[gray, thin, dashed] (axis cs:0.6,-0.5) -- (axis cs:0.7,-0.7);
-    \draw[gray, thin, dashed] (axis cs:0.9,-0.3) -- (axis cs:0.7,-0.7);
-    
-    % Ellipses around communities
-    \draw[node1color, thick, dashed] (axis cs:-0.7,0.43) ellipse [x radius=0.4, y radius=0.3];
-    \draw[node2color, thick, dashed] (axis cs:0.73,-0.5) ellipse [x radius=0.35, y radius=0.35];
-    
+    \addplot[only marks, mark=*, mark size=3pt, color=node1color]
+        coordinates {(0.82,0.56) (0.98,0.34) (0.82,0.57)};
+    \addplot[only marks, mark=*, mark size=3pt, color=node2color]
+        coordinates {(1.03,-0.07) (0.94,-0.34) (0.94,-0.33)};
+    \node[anchor=east, font=\small] at (axis cs:0.81,0.565) {1, 3};
+    \node[anchor=west, font=\small] at (axis cs:0.99,0.34) {2};
+    \node[anchor=west, font=\small] at (axis cs:1.04,-0.07) {4};
+    \node[anchor=east, font=\small] at (axis cs:0.93,-0.335) {5, 6};
+    \draw[gray, thin, dashed] (axis cs:0.82,0.565) -- (axis cs:0.98,0.34) -- (axis cs:1.03,-0.07) -- (axis cs:0.94,-0.335);
     \end{axis}
 \end{tikzpicture}
-\caption{Illustrative GF embedding: nodes within the same community cluster together; the two communities are separated in embedding space.}
+\caption{GF embedding of the running example in $d = 2$, computed by the algorithm above ($\eta = 0.05$, $\lambda = 0.01$, $2000$ epochs, Gaussian initialization with seed $0$). Structurally equivalent nodes ($1$ and $3$; $5$ and $6$) coincide, and the communities are separated by angle. The fitted inner products are $\approx 0.99$ on every edge, but also $0.58$ to $0.81$ on non-edges: GF never sees the non-edges and has no reason to push them to $0$.}
 \label{shallow-embeddings:fig:gf_embedding}
 \end{figure}
 
@@ -882,9 +393,9 @@ The embedding $\vect{y}_1$ moved \emph{toward} $\vect{y}_2$ because they're conn
 
 \subsection{HOPE: High-Order Proximity Preserved Embedding}
 
-\begin{whybox}
+\begin{intuition}[Motivation]
 GF only looks at direct neighbors. But in many applications, we care about broader context: ``these two people aren't friends, but they have many mutual friends.'' HOPE captures this by factorizing a \emph{high-order similarity matrix} instead of just $\adj$.
-\end{whybox}
+\end{intuition}
 
 \begin{definition}[HOPE Objective]
 Given a high-order proximity matrix $\similarity$ (e.g., Katz index), find \textbf{source} embeddings $\embed_s$ and \textbf{target} embeddings $\embed_t$ minimizing:
@@ -893,13 +404,13 @@ Given a high-order proximity matrix $\similarity$ (e.g., Katz index), find \text
 \]
 \end{definition}
 
-\begin{keyinsight}
+\begin{keyidea}
 \textbf{Why two embedding matrices?} For directed graphs, ``node $i$ influences node $j$'' is different from ``node $j$ influences node $i$.'' Having separate source and target embeddings captures this asymmetry:
 \[
 S_{ij} \approx \vect{y}_{s,i}^\top \vect{y}_{t,j} \neq \vect{y}_{s,j}^\top \vect{y}_{t,i} \approx S_{ji}
 \]
 For undirected graphs, you can use $\embed_s = \embed_t$.
-\end{keyinsight}
+\end{keyidea}
 
 \begin{example}
 Let's compute the Katz similarity for our graph with $\beta = 0.1$:
@@ -910,24 +421,24 @@ Let's compute the Katz similarity for our graph with $\beta = 0.1$:
 After computation (using a calculator or computer):
 \[
 \similarity_{\text{Katz}} \approx \begin{pmatrix}
-0.06 & 0.14 & 0.14 & 0.05 & 0.02 & 0.02 \\
-0.14 & 0.10 & 0.14 & 0.14 & 0.05 & 0.05 \\
-0.14 & 0.14 & 0.06 & 0.05 & 0.02 & 0.02 \\
-0.05 & 0.14 & 0.05 & 0.10 & 0.14 & 0.14 \\
-0.02 & 0.05 & 0.02 & 0.14 & 0.06 & 0.14 \\
-0.02 & 0.05 & 0.02 & 0.14 & 0.14 & 0.06
+0.023 & 0.115 & 0.114 & 0.012 & 0.001 & 0.001 \\
+0.115 & 0.034 & 0.115 & 0.106 & 0.012 & 0.012 \\
+0.114 & 0.115 & 0.023 & 0.012 & 0.001 & 0.001 \\
+0.012 & 0.106 & 0.012 & 0.034 & 0.115 & 0.115 \\
+0.001 & 0.012 & 0.001 & 0.115 & 0.023 & 0.114 \\
+0.001 & 0.012 & 0.001 & 0.115 & 0.114 & 0.023
 \end{pmatrix}
 \]
 
 Notice:
 \begin{itemize}
-    \item $S_{12} = S_{23} = 0.14$ (directly connected nodes have high similarity)
-    \item $S_{14} = 0.05$ (not connected, but reachable via node 2)
-    \item $S_{16} = 0.02$ (far apart in the graph---low similarity)
-    \item $S_{24} = 0.14$ (the bridge edge creates strong similarity)
+    \item $S_{12} = S_{23} \approx 0.115$: directly connected nodes have the highest similarity, essentially $\beta = 0.1$ plus a little from longer paths;
+    \item $S_{14} \approx 0.012$: not connected, but reachable in two steps via node $2$ ($\beta^2 = 0.01$ plus longer paths);
+    \item $S_{16} \approx 0.001$: three steps apart, $\beta^3 = 0.001$;
+    \item $S_{24} \approx 0.106$: the bridge is an edge, but it lies on no triangle, so it gets slightly less than $S_{12}$.
 \end{itemize}
 
-HOPE would factorize this matrix, producing embeddings where these similarities are preserved.
+The largest eigenvalue of $\adj$ is $1 + \sqrt2 \approx 2.414$, so $\beta = 0.1 < 1/2.414$ and the series converges. HOPE factorizes this matrix. Its singular values are $0.318, 0.209, 0.148, 0.091, 0.091, 0.040$, and the rank-$2$ factor $\embed_s = \mathbf U_2\mathbf\Sigma_2^{1/2}$ gives (to three decimals) $(-0.199, \mp0.203)$ for nodes $1, 3$ and $5, 6$, and $(-0.282, \mp0.149)$ for nodes $2$ and $4$, with the minus sign in community A. The first coordinate is the same sign for everybody (it reflects overall connectedness, larger for the two bridge nodes); the second separates the communities exactly.
 \end{example}
 
 \textbf{Solution via SVD}: The optimal solution uses the Singular Value Decomposition:
@@ -938,10 +449,10 @@ Setting $\embed_s = \mathbf{U}_d \mathbf{\Sigma}_d^{1/2}$ and $\embed_t = \mathb
 
 \subsection{GraRep: Multi-Scale Proximity}
 
-\begin{whybox}
+\begin{intuition}[Motivation]
 Different applications need different scales of information. Community detection needs global structure; link prediction needs local structure.
 GraRep learns \emph{separate embeddings for each scale} and concatenates them.
-\end{whybox}
+\end{intuition}
 
 \begin{definition}[GraRep]
 For each $k \in \{1, 2, \ldots, K\}$, GraRep:
@@ -955,9 +466,9 @@ Final embedding: $\vect{y}_i = [\vect{y}_i^{(1)} | \vect{y}_i^{(2)} | \cdots | \
 
 \subsubsection*{The Log-Transformation: Why and What?}
 
-\begin{whybox}
+\begin{intuition}[Motivation]
 Why not just factorize $\transition^k$ directly? The issue is that transition probabilities are \textbf{not the right quantity to preserve}. GraRep draws inspiration from word2vec's skip-gram, which implicitly factorizes a \textbf{Pointwise Mutual Information (PMI)} matrix, not raw co-occurrence counts.
-\end{whybox}
+\end{intuition}
 
 The log-transformation converts transition probabilities into PMI-like quantities:
 
@@ -987,24 +498,17 @@ X^{(k)}_{ij} = \max\left( \log(n \cdot \tilde{P}^{(k)}_{ij}), \; 0 \right)
 \end{intuition}
 
 \begin{example}
-Consider nodes 1 and 4 in our graph at $k=2$:
-\begin{itemize}
-    \item $(\transition^2)_{14} = 0.17$ (probability of going from 1 to 4 in 2 steps)
-    \item Node 4 is reachable from many nodes, so $\sum_{\ell} (\transition^2)_{\ell 4}$ is relatively large
-    \item The log-ratio will be moderate: node 1 can reach node 4, but so can others
-\end{itemize}
-
-Compare to nodes 1 and 3:
-\begin{itemize}
-    \item $(\transition^2)_{13} = 0.17$ (same raw probability!)
-    \item But node 3 is only easily reachable from the small community A
-    \item The log-ratio will be higher: node 1 has a \emph{specific} relationship to node 3
-\end{itemize}
+Consider nodes $1$ and $4$, and nodes $1$ and $3$, at $k = 2$. Both have the same raw probability, $(\transition^2)_{14} = (\transition^2)_{13} = \frac16 \approx 0.167$. But node $4$ is a popular destination: the column sum $\sum_\ell(\transition^2)_{\ell4} = 1.28$ includes its own large return probability $0.44$ and contributions from community B. Node $3$'s column sums to $0.86$. Hence
+\begin{gather*}
+X^{(2)}_{14} = \max\bigl(\log(6\cdot0.167/1.28),\,0\bigr) = \max(-0.25, 0) = 0, \\
+X^{(2)}_{13} = \log(6\cdot0.167/0.86) \approx 0.15 .
+\end{gather*}
+The log-ratio keeps the specific relation of node $1$ to its community and discards its two-step contact with the popular node $4$.
 \end{example}
 
 \subsubsection*{The Concatenation: It's a Big Vector!}
 
-\begin{keyinsight}
+\begin{keyidea}
 If we use:
 \begin{itemize}
     \item $K$ scales (e.g., $K = 4$ for 1-hop, 2-hop, 3-hop, 4-hop)
@@ -1013,7 +517,7 @@ If we use:
 Then each node's final embedding has dimension $K \times d = 4 \times 64 = 256$.
 
 \textbf{This is by design}: each scale captures different information, and we want to preserve all of it. The downstream ML algorithm can learn which scales matter for the specific task.
-\end{keyinsight}
+\end{keyidea}
 
 \begin{figure}[htbp]
 \centering
@@ -1079,11 +583,11 @@ For our graph, let's see what different values of $k$ capture.
 \[
 \transition^2 \approx \begin{pmatrix}
 0.42 & 0.25 & 0.17 & 0.17 & 0 & 0 \\
-0.17 & 0.39 & 0.17 & 0 & 0.11 & 0.11 \\
+0.17 & 0.44 & 0.17 & 0 & 0.11 & 0.11 \\
 0.17 & 0.25 & 0.42 & 0.17 & 0 & 0 \\
-0.11 & 0 & 0.11 & 0.39 & 0.17 & 0.17 \\
-0 & 0.17 & 0 & 0.17 & 0.42 & 0.25 \\
-0 & 0.17 & 0 & 0.17 & 0.25 & 0.42
+0.11 & 0 & 0.11 & 0.44 & 0.17 & 0.17 \\
+0 & 0.17 & 0 & 0.25 & 0.42 & 0.17 \\
+0 & 0.17 & 0 & 0.25 & 0.17 & 0.42
 \end{pmatrix}
 \]
 
@@ -1091,7 +595,7 @@ Notice: at $k=2$, node 1 now has non-zero ``similarity'' to node 4 (via node 2),
 
 \textbf{$k=3$ (three-hop)}:
 \[
-(\transition^3)_{15} > 0 \text{ and } (\transition^3)_{16} > 0
+(\transition^3)_{15} = (\transition^3)_{16} = \tfrac1{18} \approx 0.056 > 0
 \]
 Now even nodes 1 and 5/6 are connected through paths!
 
@@ -1110,21 +614,21 @@ Now even nodes 1 and 5/6 are connected through paths!
     ]
     \addplot[fill=blue!60] coordinates {(1,0) (2,0.5) (3,0.5) (4,0) (5,0) (6,0)};
     \addplot[fill=green!60] coordinates {(1,0.42) (2,0.25) (3,0.17) (4,0.17) (5,0) (6,0)};
-    \addplot[fill=red!60] coordinates {(1,0.19) (2,0.33) (3,0.28) (4,0.08) (5,0.06) (6,0.06)};
+    \addplot[fill=red!60] coordinates {(1,0.17) (2,0.35) (3,0.29) (4,0.08) (5,0.06) (6,0.06)};
     \legend{$k=1$, $k=2$, $k=3$}
     \end{axis}
 \end{tikzpicture}
 \end{center}
 \end{example}
 
-\begin{keyinsight}
+\begin{keyidea}
 GraRep's multi-scale approach is powerful because:
 \begin{itemize}
     \item Small $k$: captures local structure (who are my immediate friends?)
     \item Large $k$: captures global structure (what community am I in?)
 \end{itemize}
 By concatenating embeddings from all scales, we get the best of both worlds.
-\end{keyinsight}
+\end{keyidea}
 
 
 % ============================================================================
@@ -1227,68 +731,13 @@ Training maximizes this probability for true (target, context) pairs from random
 
 \textbf{The problem}: The denominator sums over \emph{all $n$ nodes}. For each training pair, we need $O(n)$ operations. With millions of nodes and billions of training pairs, this is computationally infeasible.
 
-\subsubsection*{Negative Sampling: A Clever Approximation}
+\subsubsection*{Negative sampling}
 
-Instead of computing the expensive softmax, we reformulate the problem:
-
-\begin{keyinsight}
-\textbf{Key idea}: Instead of asking ``what's the probability of $v_j$ among all nodes?'', we ask a simpler question: ``can we distinguish true context nodes from random noise?''
-
-This turns a multi-class classification problem ($n$ classes) into a binary classification problem (true vs.\ fake).
-\end{keyinsight}
-
-\begin{definition}[Negative Sampling]
-For each true (target, context) pair $(v_i, v_j)$ from a random walk:
-\begin{enumerate}
-    \item \textbf{Positive sample}: The pair $(v_i, v_j)$ is real---these nodes co-occur in walks
-    \item \textbf{Negative samples}: Draw $K$ random ``fake'' context nodes $v_{k_1}, \ldots, v_{k_K}$ from a noise distribution $P_n$. These pairs $(v_i, v_{k_\ell})$ are (probably) not real co-occurrences.
-\end{enumerate}
-
-The theoretical \textbf{objective} (to be \textbf{maximized}) involves an expectation over the noise distribution:
+Negative sampling, derived in \cref{ch:nce-negative-sampling}, replaces the softmax by a binary task: distinguish the true context node from $K$ ``noise'' nodes drawn from a distribution $P_n$. For a true pair $(v_i, v_j)$ and noise nodes $v_{k_1}, \ldots, v_{k_K} \sim P_n$, it maximizes
 \[
-\mathcal{J}_{\text{theory}} = \log \sigma(\vect{y}_j^\top \vect{y}_i) + K \cdot \E_{v_{k} \sim P_n}\left[\log \sigma(-\vect{y}_{k}^\top \vect{y}_i)\right]
+\mathcal{J} = \log \sigma(\vect{y}_j^\top \vect{y}_i) + \sum_{\ell=1}^{K} \log \sigma(-\vect{y}_{k_\ell}^\top \vect{y}_i),
 \]
-
-In practice, we approximate this expectation with a \textbf{Monte Carlo sample}---just draw $K$ random nodes and average:
-\[
-\mathcal{J}_{\text{practice}} = \log \sigma(\vect{y}_j^\top \vect{y}_i) + \sum_{\ell=1}^{K} \log \sigma(-\vect{y}_{k_\ell}^\top \vect{y}_i)
-\]
-where $v_{k_1}, \ldots, v_{k_K} \overset{\text{iid}}{\sim} P_n$.
-
-This is an unbiased estimate: $\E[\mathcal{J}_{\text{practice}}] = \mathcal{J}_{\text{theory}}$.
-
-\textbf{Note}: The corresponding \textbf{loss} (to be \textbf{minimized}) is simply the negative: $\mathcal{L} = -\mathcal{J}$.
-\end{definition}
-
-\begin{remark}[Why Does the Monte Carlo Approximation Work?]
-The expectation $\E_{v_k \sim P_n}[\log \sigma(-\vect{y}_k^\top \vect{y}_i)]$ would require summing over all $n$ nodes---exactly what we wanted to avoid! Instead, we use a fundamental trick from statistics:
-\[
-\E_{v_k \sim P_n}[f(v_k)] \approx \frac{1}{K} \sum_{\ell=1}^{K} f(v_{k_\ell}) \quad \text{where } v_{k_\ell} \sim P_n
-\]
-This is the \textbf{Monte Carlo method}: estimate an expectation by averaging random samples. With enough samples (and over many training iterations), the noise averages out and we converge to the right solution.
-
-The $\sigma$ in the formula is the sigmoid function: $\sigma(x) = \frac{1}{1+e^{-x}}$.
-\end{remark}
-
-\begin{intuition}
-Let's unpack the objective $\mathcal{J}$:
-
-\textbf{First term}: $\log \sigma(\vect{y}_j^\top \vect{y}_i)$
-\begin{itemize}
-    \item $\sigma(\vect{y}_j^\top \vect{y}_i) \approx 1$ when $\vect{y}_j^\top \vect{y}_i$ is large (similar embeddings)
-    \item $\log(1) = 0$, so maximizing this term pushes $\vect{y}_i$ and $\vect{y}_j$ to be similar
-    \item This is the ``\textbf{attract}'' force for true pairs
-\end{itemize}
-
-\textbf{Second term}: $\sum_{\ell=1}^{K} \log \sigma(-\vect{y}_{k_\ell}^\top \vect{y}_i)$
-\begin{itemize}
-    \item $\sigma(-\vect{y}_{k_\ell}^\top \vect{y}_i) \approx 1$ when $\vect{y}_{k_\ell}^\top \vect{y}_i$ is small or negative (dissimilar embeddings)
-    \item Maximizing this pushes $\vect{y}_i$ and $\vect{y}_{k_\ell}$ to be dissimilar
-    \item This is the ``\textbf{repel}'' force for fake pairs
-\end{itemize}
-
-\textbf{Together}: True context nodes are pulled closer; random nodes are pushed away.
-\end{intuition}
+a Monte Carlo estimate of $\log\sigma(\vect y_j^\top\vect y_i) + K\,\E_{v\sim P_n}\log\sigma(-\vect y_v^\top\vect y_i)$, at cost $O(K)$ per pair instead of $O(n)$. The first term attracts the embeddings of true pairs, the second repels those of noise pairs. (word2vec, and DeepWalk after it, actually keeps two embeddings per node, one used as a target and one as a context; we write a single $\vect y$ to lighten the notation.)
 
 \begin{example}
 Continuing our example with target node 2 and true context node 1:
@@ -1325,262 +774,9 @@ where $d_v$ is the degree of node $v$. The exponent $3/4$ (found empirically in 
 Typical values are $K \in \{5, 10, 20\}$. More negatives give better gradient estimates but cost more computation. The cost per training pair is now $O(K)$ instead of $O(n)$---a huge improvement when $n$ is large!
 \end{remark}
 
-\subsubsection*{Hierarchical Softmax: An Alternative to Negative Sampling}
+\subsubsection*{Hierarchical softmax}
 
-Negative sampling isn't the only way to avoid the $O(n)$ softmax computation. \textbf{Hierarchical softmax} is an elegant alternative that was actually the original method used in word2vec. It's trickier to understand, so let's build up the intuition step by step.
-
-\paragraph{The Problem Recap.} Recall that we need to compute:
-\[
-P(v_j \mid v_i) = \frac{\exp(\vect{y}_j^\top \vect{y}_i)}{\sum_{k=1}^{n} \exp(\vect{y}_k^\top \vect{y}_i)}
-\]
-The denominator requires summing over all $n$ nodes. For $n = 1{,}000{,}000$ nodes, that's a million exponentials \emph{per training example}.
-
-\paragraph{The Key Insight: Binary Search.} Here's a simple question: if I'm thinking of a number between 1 and 1{,}000{,}000, how many yes/no questions do you need to find it? 
-
-Answer: about 20 (since $2^{20} \approx 1{,}000{,}000$).
-
-This is binary search! Each question eliminates half the possibilities. \textbf{Hierarchical softmax applies the same idea}: instead of computing one probability over $n$ choices, we make $\log_2 n$ binary choices.
-
-\paragraph{Step 1: Organize Nodes in a Binary Tree.}
-
-Place all $n$ nodes as \textbf{leaves} of a binary tree. For 8 nodes:
-
-\begin{center}
-\begin{tikzpicture}[
-    level distance=1cm,
-    level 1/.style={sibling distance=4cm},
-    level 2/.style={sibling distance=2cm},
-    level 3/.style={sibling distance=1cm},
-    inner/.style={circle, draw, fill=gray!20, minimum size=0.5cm, font=\tiny},
-    leaf/.style={circle, draw, fill=blue!20, minimum size=0.5cm, font=\tiny}
-]
-    \node[inner] (root) {}
-        child {
-            node[inner] {}
-            child {
-                node[inner] {}
-                child { node[leaf] {$v_1$} }
-                child { node[leaf] {$v_2$} }
-            }
-            child {
-                node[inner] {}
-                child { node[leaf] {$v_3$} }
-                child { node[leaf] {$v_4$} }
-            }
-        }
-        child {
-            node[inner] {}
-            child {
-                node[inner] {}
-                child { node[leaf] {$v_5$} }
-                child { node[leaf] {$v_6$} }
-            }
-            child {
-                node[inner] {}
-                child { node[leaf] {$v_7$} }
-                child { node[leaf] {$v_8$} }
-            }
-        };
-\end{tikzpicture}
-\end{center}
-
-Each node $v_j$ has a unique path from the root. For example, $v_5$ is reached by: Root $\to$ Right $\to$ Left $\to$ Left.
-
-\paragraph{Step 2: Turn ``Which Node?'' into a Sequence of ``Left or Right?''}
-
-Instead of asking ``Which of the 8 nodes is the context?'' (8-way choice), we ask:
-\begin{enumerate}
-    \item ``Is the context in the left or right subtree?'' (2-way choice)
-    \item ``Within that subtree, left or right?'' (2-way choice)
-    \item ``Within that subtree, left or right?'' (2-way choice)
-\end{enumerate}
-
-Three binary questions uniquely identify one of 8 leaves. In general, $\log_2 n$ questions for $n$ nodes.
-
-\paragraph{Step 3: Make Each Binary Decision a Learnable Classifier.}
-
-Here's the clever part. At each internal node of the tree, we place a \textbf{learnable vector} $\vect{u}$. This vector, combined with the target embedding $\vect{y}_i$, determines the probability of going left vs.\ right:
-
-\begin{align*}
-P(\text{go left}) &= \sigma(\vect{u}^\top \vect{y}_i) \\
-P(\text{go right}) &= 1 - \sigma(\vect{u}^\top \vect{y}_i) = \sigma(-\vect{u}^\top \vect{y}_i)
-\end{align*}
-
-where $\sigma(x) = 1/(1+e^{-x})$ is the sigmoid. Note that these two probabilities sum to 1 (valid binary distribution).
-
-\begin{center}
-\begin{tikzpicture}[
-    inner/.style={circle, draw, fill=gray!20, minimum size=0.8cm},
-    child_node/.style={circle, draw, minimum size=0.6cm},
-    prob/.style={font=\small, fill=white, inner sep=2pt}
-]
-    \node[inner] (u) {$\vect{u}$};
-    \node[child_node, below left=1.2cm and 1.5cm of u] (L) {L};
-    \node[child_node, below right=1.2cm and 1.5cm of u] (R) {R};
-    
-    \draw[-{Stealth}, thick, blue] (u) -- (L) node[midway, prob, left] {$\sigma(\vect{u}^\top \vect{y}_i)$};
-    \draw[-{Stealth}, thick, red] (u) -- (R) node[midway, prob, right] {$\sigma(-\vect{u}^\top \vect{y}_i)$};
-    
-    \node[below=0.3cm of L, font=\small, blue] {left subtree};
-    \node[below=0.3cm of R, font=\small, red] {right subtree};
-\end{tikzpicture}
-\end{center}
-
-\begin{intuition}
-\textbf{What's fixed vs.\ what depends on $v_i$?}
-
-\begin{itemize}
-    \item \textbf{Fixed (independent of $v_i$)}: The tree structure itself. Node $v_5$ is always reached by the path Root $\to$ Right $\to$ Left $\to$ Left, regardless of who the target is.
-    
-    \item \textbf{Depends on $v_i$}: The \emph{probability} of taking each branch. The target embedding $\vect{y}_i$ interacts with the internal vectors $\vect{u}$ to determine how likely each path is.
-\end{itemize}
-
-\textbf{Analogy}: Think of the tree as a fixed maze, and $\vect{y}_i$ as your ``personality.'' The maze layout doesn't change, but your personality determines how likely you are to turn left or right at each junction. Different targets $v_i$ have different ``personalities'' $\vect{y}_i$, so they have different probabilities of reaching each leaf---even though the maze is the same!
-\end{intuition}
-
-\paragraph{Step 4: Multiply the Probabilities Along the Path.}
-
-The probability of reaching a specific leaf is the \textbf{product} of all the binary decisions along the path. This is just the chain rule of probability!
-
-\begin{example}
-Let's compute $P(v_5 \mid v_i)$ step by step. The path to $v_5$ is: Root $\to$ Right $\to$ Left $\to$ Left.
-
-\begin{center}
-\begin{tikzpicture}[
-    level distance=1.1cm,
-    level 1/.style={sibling distance=4.5cm},
-    level 2/.style={sibling distance=2.2cm},
-    level 3/.style={sibling distance=1.1cm},
-    inner/.style={circle, draw, fill=gray!20, minimum size=0.6cm, font=\scriptsize},
-    inner_highlight/.style={circle, draw, fill=yellow!40, minimum size=0.6cm, font=\scriptsize, thick},
-    leaf/.style={circle, draw, fill=blue!20, minimum size=0.6cm, font=\scriptsize},
-    leaf_highlight/.style={circle, draw, fill=green!40, minimum size=0.6cm, font=\scriptsize, thick}
-]
-    \node[inner_highlight] {$\vect{u}_0$}
-        child {
-            node[inner] {$\vect{u}_1$}
-            child {
-                node[inner] {}
-                child { node[leaf] {$v_1$} edge from parent }
-                child { node[leaf] {$v_2$} edge from parent }
-                edge from parent
-            }
-            child {
-                node[inner] {}
-                child { node[leaf] {$v_3$} edge from parent }
-                child { node[leaf] {$v_4$} edge from parent }
-                edge from parent
-            }
-            edge from parent node[left, font=\tiny] {L}
-        }
-        child {
-            node[inner_highlight] {$\vect{u}_2$}
-            child {
-                node[inner_highlight] {$\vect{u}_5$}
-                child { node[leaf_highlight] {$v_5$} edge from parent node[left, font=\tiny] {L} }
-                child { node[leaf] {$v_6$} edge from parent node[right, font=\tiny] {R} }
-                edge from parent node[left, font=\tiny] {L}
-            }
-            child {
-                node[inner] {$\vect{u}_6$}
-                child { node[leaf] {$v_7$} edge from parent }
-                child { node[leaf] {$v_8$} edge from parent }
-                edge from parent node[right, font=\tiny] {R}
-            }
-            edge from parent node[right, font=\tiny] {R}
-        };
-\end{tikzpicture}
-\end{center}
-
-The computation:
-\begin{align*}
-P(v_5 \mid v_i) &= P(\text{Right at } \vect{u}_0) \times P(\text{Left at } \vect{u}_2) \times P(\text{Left at } \vect{u}_5) \\[0.5em]
-&= \underbrace{\sigma(-\vect{u}_0^\top \vect{y}_i)}_{\text{go right}} \times \underbrace{\sigma(+\vect{u}_2^\top \vect{y}_i)}_{\text{go left}} \times \underbrace{\sigma(+\vect{u}_5^\top \vect{y}_i)}_{\text{go left}}
-\end{align*}
-
-\textbf{Total cost}: 3 dot products and 3 sigmoids (instead of 8 exponentials + sum for regular softmax).
-\end{example}
-
-\begin{remark}[What Depends on What?]
-A common point of confusion: the \textbf{tree structure is fixed}---node $v_5$ is always reached by the path Root $\to$ Right $\to$ Left $\to$ Left, regardless of the target node.
-
-But the \textbf{probabilities at each branch depend on $v_i$}! For two different target nodes:
-\begin{align*}
-P(v_5 \mid v_i) &= \sigma(-\vect{u}_0^\top \textcolor{blue}{\vect{y}_i}) \cdot \sigma(\vect{u}_2^\top \textcolor{blue}{\vect{y}_i}) \cdot \sigma(\vect{u}_5^\top \textcolor{blue}{\vect{y}_i}) \\
-P(v_5 \mid v_k) &= \sigma(-\vect{u}_0^\top \textcolor{red}{\vect{y}_k}) \cdot \sigma(\vect{u}_2^\top \textcolor{red}{\vect{y}_k}) \cdot \sigma(\vect{u}_5^\top \textcolor{red}{\vect{y}_k})
-\end{align*}
-These give different probabilities because the embeddings $\vect{y}_i$ and $\vect{y}_k$ are different.
-
-\textbf{Intuition}: The tree defines the ``questions'' (left or right at each internal node), but the target embedding $\vect{y}_i$ determines the ``answers'' (the probability of each direction).
-\end{remark}
-
-\paragraph{Why Do the Probabilities Sum to 1?}
-
-This is crucial for hierarchical softmax to define a valid probability distribution. Here's why it works:
-
-At each internal node, probabilities of left and right sum to 1:
-\[
-P(\text{left}) + P(\text{right}) = \sigma(\vect{u}^\top \vect{y}_i) + \sigma(-\vect{u}^\top \vect{y}_i) = 1
-\]
-
-Now consider all 8 leaves. We can group them by the first decision:
-\begin{align*}
-\sum_{j=1}^{8} P(v_j \mid v_i) &= \underbrace{P(\text{left at root}) \times (\text{sum over } v_1, v_2, v_3, v_4)}_{\text{left subtree}} + \underbrace{P(\text{right at root}) \times (\text{sum over } v_5, v_6, v_7, v_8)}_{\text{right subtree}}
-\end{align*}
-
-By induction, each subtree's probabilities sum to 1 (conditioned on reaching that subtree). So the total is:
-\[
-P(\text{left}) \times 1 + P(\text{right}) \times 1 = 1 \quad \checkmark
-\]
-
-\paragraph{The Formal Definition (Now It Should Make Sense!)}
-
-\begin{definition}[Hierarchical Softmax]
-Let each node $v_j$ be a leaf in a binary tree, with path $(\pi_0, \pi_1, \ldots, \pi_{L_j})$ from root to $v_j$. Each internal node $\pi_\ell$ has a learnable vector $\vect{u}_{\pi_\ell}$. Then:
-\[
-P(v_j \mid v_i) = \prod_{\ell=0}^{L_j - 1} \sigma\bigl(s_\ell \cdot \vect{u}_{\pi_\ell}^\top \vect{y}_i\bigr)
-\]
-where $s_\ell = +1$ if the path goes left at $\pi_\ell$, and $s_\ell = -1$ if it goes right.
-\end{definition}
-
-\begin{intuition}
-\textbf{Summary}: Hierarchical softmax replaces one $n$-way classification with $\log n$ binary classifications. Each binary classifier asks ``left or right?'' based on the target embedding $\vect{y}_i$ and a learned vector $\vect{u}$ at that tree node. The final probability is the product of all binary decisions along the path to the context node.
-\end{intuition}
-
-\begin{keyinsight}
-\textbf{Comparing the two approaches}:
-
-\begin{center}
-\begin{tabular}{lcc}
-\toprule
- & \textbf{Negative Sampling} & \textbf{Hierarchical Softmax} \\
-\midrule
-Cost per update & $O(K)$ & $O(\log n)$ \\
-What's learned & Node embeddings $\vect{y}_i$ & Node embeddings $\vect{y}_i$ + tree vectors $\vect{u}_k$ \\
-Probability & Approximation & Exact (but different model) \\
-Hyperparameters & $K$ (num.\ negatives) & Tree structure \\
-Better for & Frequent nodes & Rare nodes \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\textbf{In practice}: Negative sampling is more commonly used because:
-\begin{itemize}
-    \item Simpler to implement
-    \item Often gives comparable or better results
-    \item The original DeepWalk paper used hierarchical softmax, but Node2Vec and most subsequent work use negative sampling
-\end{itemize}
-\end{keyinsight}
-
-\begin{remark}[How is the Tree Constructed?]
-The tree structure matters! Common choices:
-\begin{itemize}
-    \item \textbf{Huffman tree}: Frequent nodes get shorter paths (closer to root). This is what word2vec uses---frequent words need fewer computations.
-    \item \textbf{Random balanced tree}: Simple but not optimal.
-    \item \textbf{Semantic tree}: Cluster similar nodes into subtrees (rarely used in practice).
-\end{itemize}
-For graphs, a Huffman tree based on node degree (high-degree nodes closer to root) is a reasonable choice.
-\end{remark}
+The original DeepWalk used the other classical remedy, the hierarchical softmax of \cref{ch:hierarchical-softmax}: the nodes are the leaves of a binary tree, and $P(v_j \mid v_i)$ is the product of the $O(\log n)$ binary decisions on the path from the root to $v_j$, each a logistic function of $\vect y_i$ and of a vector attached to the inner node. The tree can be balanced or a Huffman tree built from node frequencies in the walks, which shortens the paths of frequent nodes.
 
 \subsection{DeepWalk}
 
@@ -1636,6 +832,7 @@ Target & Context \\
 2 & 1, 3 \\
 3 & 2, 1 \\
 1 & 3, 2 \\
+2 & 1 \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -1653,14 +850,14 @@ After many iterations, nodes that frequently co-occur in walks will have similar
 
 At first glance, DeepWalk (random walks + skip-gram) seems completely different from the matrix factorization methods we saw earlier (GF, HOPE, GraRep). One uses neural network training with stochastic gradient descent; the other uses linear algebra (SVD).
 
-\begin{whybox}
+\begin{intuition}[Motivation]
 But here's a remarkable fact: \textbf{they're secretly doing the same thing!} 
 
 A beautiful theoretical result shows that skip-gram with negative sampling implicitly factorizes a specific matrix. This explains why DeepWalk works so well---it's not just a heuristic, it has solid mathematical foundations.
-\end{whybox}
+\end{intuition}
 
-\begin{theorem}[What Does DeepWalk Actually Learn? {\cite{shallow-embeddings:qiu2018}}]
-When trained to convergence, DeepWalk's embeddings satisfy $\embed \embed^\top \approx \mathbf{M}$, where:
+\begin{theorem}[What DeepWalk learns (Qiu et al., 2018)]
+Consider DeepWalk with skip-gram and $K$ negative samples, with target embeddings $\embed$ and context embeddings $\mathbf C$. In the limit of infinitely many walks of infinite length, and if the embedding dimension is large enough for the optimum to be reached, the inner products satisfy $\embed\mathbf C^\top = \mathbf M$, where the logarithm is taken entrywise:
 \[
 \mathbf{M} = \log\left(\frac{\text{vol}(G)}{c} \sum_{r=1}^{c} \transition^r \degree^{-1}\right) - \log K
 \]
@@ -1686,7 +883,7 @@ Let's unpack what this matrix $\mathbf{M}$ captures:
 \textbf{In other words}: DeepWalk is approximately factorizing a matrix that looks a lot like what GraRep explicitly constructs! The random walks and skip-gram training are just a clever, scalable way to achieve the same goal.
 \end{intuition}
 
-\begin{keyinsight}
+\begin{keyidea}
 This theorem has profound implications:
 
 \begin{enumerate}
@@ -1694,18 +891,18 @@ This theorem has profound implications:
     \item \textbf{The Laplacian appears again}: Since $\transition = \identity - \lamark_{\text{rw}}$, DeepWalk implicitly encodes spectral information about the graph
     \item \textbf{Design insights}: Want to capture longer-range structure? Increase window size $c$. Want sharper embeddings? Increase negative samples $K$.
 \end{enumerate}
-\end{keyinsight}
+\end{keyidea}
 
 \subsection{Node2Vec: Controlling the Random Walk}
 
-\begin{whybox}
+\begin{intuition}[Motivation]
 DeepWalk uses uniform random walks. But sometimes we want more control:
 \begin{itemize}
     \item \textbf{Homophily}: Nodes nearby in the graph should be similar (DFS-like exploration)
     \item \textbf{Structural equivalence}: Nodes with similar roles should be similar (BFS-like, stay local)
 \end{itemize}
 Node2Vec lets us interpolate between these!
-\end{whybox}
+\end{intuition}
 
 \begin{definition}[Biased Random Walk in Node2Vec]
 Suppose the walk just traversed edge $(t, v)$, so we're now at node $v$ having come from node $t$. To choose the next node $x$, we can only go to neighbors of $v$. The transition probability depends on the relationship between $x$ and the \emph{previous} node $t$:
@@ -1802,7 +999,7 @@ P(4 \to 2) &= 0.5/4.5 \approx 0.11, \quad P(4 \to 5) = P(4 \to 6) = 2/4.5 \appro
 The second setting pushes the walk deeper into community B (away from where it came from)!
 \end{example}
 
-\begin{keyinsight}
+\begin{keyidea}
 \textbf{Choosing $p$ and $q$}:
 \begin{itemize}
     \item \textbf{Low $p$}: Encourage returning → very local exploration (BFS-like)
@@ -1816,7 +1013,7 @@ The second setting pushes the walk deeper into community B (away from where it c
     \item For community detection: use low $q$ (explore communities deeply)
     \item For role detection (hubs, bridges): use high $q$ (stay local, see structure)
 \end{itemize}
-\end{keyinsight}
+\end{keyidea}
 
 \begin{figure}[htbp]
 \centering
@@ -1857,7 +1054,7 @@ So far, we have considered \textbf{simple graphs} where edges are homogeneous---
 
 \subsection{What Are Multi-Relational Graphs?}
 
-\begin{whybox}
+\begin{intuition}[Motivation]
 Consider these scenarios where a single edge type is insufficient:
 \begin{itemize}
     \item \textbf{Social networks}: Alice can be Bob's ``friend,'' ``colleague,'' or ``spouse''---these are fundamentally different relationships
@@ -1865,7 +1062,7 @@ Consider these scenarios where a single edge type is insufficient:
     \item \textbf{Knowledge bases}: We might know that (Einstein, \textsc{BornIn}, Germany), (Einstein, \textsc{WonAward}, NobelPrize), (Einstein, \textsc{WorkedAt}, Princeton)
 \end{itemize}
 A simple adjacency matrix $\adj$ cannot capture these distinctions!
-\end{whybox}
+\end{intuition}
 
 \begin{definition}[Multi-Relational Graph]
 A \textbf{multi-relational graph} is a tuple $\mathcal{G} = (V, E, \mathcal{R})$ where:
@@ -1940,9 +1137,9 @@ A typical knowledge graph might have $n \sim 10^6$ entities, $R \sim 10^3$ relat
 
 \subsection{The Knowledge Graph Completion Problem}
 
-\begin{whybox}
-Knowledge graphs are inherently \textbf{incomplete}---they contain only a fraction of all true facts. For example, Freebase is missing 71\% of person birthplaces and 75\% of nationalities! The task of \textbf{knowledge graph completion} (or \emph{link prediction}) is to predict missing edges.
-\end{whybox}
+\begin{intuition}[Motivation]
+Knowledge graphs are inherently \textbf{incomplete}---they contain only a fraction of all true facts. For example, Dong et al.\ (\emph{Knowledge Vault}, 2014) report that $71\%$ of the people in Freebase had no recorded place of birth and $75\%$ no recorded nationality. The task of \textbf{knowledge graph completion} (or \emph{link prediction}) is to predict missing edges.
+\end{intuition}
 
 \begin{definition}[Knowledge Graph Completion]
 Given a knowledge graph $\mathcal{G} = (V, E, \mathcal{R})$, the goal is to predict whether a candidate triple $(h, \tau, t) \notin E$ is likely to be a true fact.
@@ -1986,7 +1183,7 @@ The decoder takes entity embeddings and a relation type to produce a score:
 The score $f(h, \tau, t)$ should be high for true triples and low for false ones.
 \end{definition}
 
-\begin{keyinsight}
+\begin{keyidea}
 The key distinction from simple graph embedding is that the decoder is now \textbf{relation-specific}. We can't just use $\vect{z}_h^\top \vect{z}_t$ because:
 \begin{enumerate}
     \item It ignores the relation type entirely
@@ -1994,7 +1191,7 @@ The key distinction from simple graph embedding is that the decoder is now \text
     \item Different relations require different notions of ``similarity''
 \end{enumerate}
 The art of knowledge graph embedding lies in designing decoders that capture the semantics of diverse relation types.
-\end{keyinsight}
+\end{keyidea}
 
 \subsection{Loss Functions for Multi-Relational Embedding}
 
@@ -2007,9 +1204,9 @@ One might try to directly minimize reconstruction error over all possible triple
 \mathcal{L}_{\text{naive}} = \sum_{h \in V} \sum_{\tau \in \mathcal{R}} \sum_{t \in V} \ell\bigl(\text{dec}(\vect{z}_h, \tau, \vect{z}_t), \mathcal{A}[h, \tau, t]\bigr)
 \]
 
-\begin{whybox}
+\begin{intuition}[Motivation]
 This is computationally infeasible! The sum has $O(n^2 R)$ terms. For a knowledge graph with $n = 10^6$ entities and $R = 10^3$ relations, that's $10^{15}$ terms per gradient step. We need smarter approaches.
-\end{whybox}
+\end{intuition}
 
 \subsubsection*{Cross-Entropy Loss with Negative Sampling}
 
@@ -2099,7 +1296,7 @@ f_{\text{RESCAL}}(h, \tau, t) = \vect{z}_h^\top \vect{R}_\tau \vect{z}_t = \sum_
 \end{equation}
 \end{definition}
 
-\begin{mathbox}
+\begin{intuition}
 \textbf{Understanding the Bilinear Form}
 
 Let's unpack what $\vect{z}_h^\top \vect{R}_\tau \vect{z}_t$ computes. If we write out the matrix multiplication:
@@ -2115,7 +1312,7 @@ Each entry $R_{\tau,ij}$ controls how the $i$-th dimension of the head interacts
     \item If $\vect{R}_\tau = \text{diag}(\vect{r}_\tau)$ is diagonal, we get DistMult (see below)
     \item If $\vect{R}_\tau$ is symmetric, the decoder is symmetric: $f(h, \tau, t) = f(t, \tau, h)$
 \end{itemize}
-\end{mathbox}
+\end{intuition}
 
 \begin{example}
 Let $d = 2$ with embeddings:
@@ -2137,10 +1334,10 @@ f(\text{Einstein}, \textsc{BornIn}, \text{Germany}) &= \begin{pmatrix} 0.8 & 0.3
 &= 0.152 + 0.204 = 0.356
 \end{align*}
 
-Note: $f(\text{Germany}, \textsc{BornIn}, \text{Einstein}) = 0.215 \neq 0.356$ because the relation matrix is not symmetric. This allows RESCAL to model asymmetric relations!
+Note: $f(\text{Germany}, \textsc{BornIn}, \text{Einstein}) = \vect z_{\text{Germany}}^\top\vect R_{\textsc{BornIn}}\vect z_{\text{Einstein}} = (0.2, 0.9)\cdot(0.43, 0.08) = 0.158 \neq 0.356$ because the relation matrix is not symmetric. This allows RESCAL to model asymmetric relations!
 \end{example}
 
-\begin{keyinsight}
+\begin{keyidea}
 \textbf{RESCAL's Expressiveness vs.\ Complexity Trade-off}
 
 \textbf{Pros}:
@@ -2151,13 +1348,13 @@ Note: $f(\text{Germany}, \textsc{BornIn}, \text{Einstein}) = 0.215 \neq 0.356$ b
 
 \textbf{Cons}:
 \begin{itemize}
-    \item $O(d^2)$ parameters \emph{per relation}---for $d = 200$ and $R = 1000$, that's 40 billion relation parameters!
+    \item $O(d^2)$ parameters \emph{per relation}: for $d = 200$ and $R = 1000$, that is $4\times10^7$ relation parameters, against $2\times10^5$ for a diagonal model
     \item Prone to overfitting on rare relations
     \item Quadratic computation per triple
 \end{itemize}
 
 This motivates more efficient variants.
-\end{keyinsight}
+\end{keyidea}
 
 \begin{definition}[DistMult: Diagonal Bilinear Model]
 Restrict $\vect{R}_\tau$ to be diagonal: $\vect{R}_\tau = \text{diag}(\vect{r}_\tau)$ where $\vect{r}_\tau \in \R^d$:
@@ -2171,7 +1368,7 @@ f_{\text{DistMult}}(h, \tau, t) = (\vect{z}_h \odot \vect{r}_\tau)^\top \vect{z}
 where $\odot$ denotes the Hadamard (element-wise) product.
 \end{definition}
 
-\begin{mathbox}
+\begin{intuition}
 \textbf{Why Diagonal Restriction?}
 
 With a diagonal relation matrix:
@@ -2187,7 +1384,7 @@ Each dimension $i$ contributes $z_{h,i} \cdot z_{t,i}$, weighted by $r_{\tau,i}$
 \end{itemize}
 
 The relation vector $\vect{r}_\tau$ thus acts as an \textbf{attention mask} over embedding dimensions.
-\end{mathbox}
+\end{intuition}
 
 \begin{proposition}[DistMult is Symmetric]
 For any head $h$ and tail $t$:
@@ -2203,13 +1400,13 @@ f_{\text{DistMult}}(h, \tau, t) = \sum_i z_{h,i} \cdot r_{\tau,i} \cdot z_{t,i} 
 since multiplication is commutative. $\blacksquare$
 \end{proof}
 
-\begin{keyinsight}
+\begin{keyidea}
 \textbf{DistMult's Limitation}: It can \emph{only} model symmetric relations.
 
 For the triple (Alice, \textsc{Supervises}, Bob), DistMult gives the same score as (Bob, \textsc{Supervises}, Alice). This is clearly wrong for asymmetric relations like \textsc{Supervises}, \textsc{ParentOf}, \textsc{BornIn}, etc.
 
 \textbf{However}, DistMult is very efficient: only $O(d)$ parameters per relation, and $O(d)$ computation per triple. It works surprisingly well for symmetric or near-symmetric relations.
-\end{keyinsight}
+\end{keyidea}
 
 
 \subsubsection{Translational Models: TransE and Extensions}
@@ -2318,7 +1515,7 @@ TransE can learn that $\vect{r}_{\textsc{GrandmotherOf}} \approx \vect{r}_{\text
 This is powerful: even if we've never seen (Alice, \textsc{GrandmotherOf}, Carol) in training, we can infer it!
 \end{example}
 
-\begin{keyinsight}
+\begin{keyidea}
 \textbf{TransE's Limitation: One-to-Many and Many-to-Many Relations}
 
 Consider a one-to-many relation like \textsc{HasCitizen}:
@@ -2336,7 +1533,7 @@ TransE requires:
 This forces all citizens of USA to have \emph{nearly identical} embeddings---collapsing distinct entities! This is clearly undesirable.
 
 Similarly, for many-to-one (e.g., \textsc{BornIn}) and symmetric relations (e.g., \textsc{Spouse}), TransE struggles.
-\end{keyinsight}
+\end{keyidea}
 
 \begin{definition}[TransE Extensions (TransX Family)]
 Several methods extend TransE to address its limitations:
@@ -2408,7 +1605,7 @@ f_{\text{ComplEx}}(h, \tau, t) = \text{Re}\left(\langle \vect{z}_h, \vect{r}_\ta
 where $\bar{\vect{z}}_t$ denotes the complex conjugate of $\vect{z}_t$, and $\text{Re}(\cdot)$ extracts the real part.
 \end{definition}
 
-\begin{mathbox}
+\begin{intuition}
 \textbf{Why Complex Numbers Enable Asymmetry}
 
 In $\mathbb{C}$, let $z = a + bi$ where $a, b \in \R$. The conjugate is $\bar{z} = a - bi$.
@@ -2431,15 +1628,19 @@ In ComplEx, using the relation embedding $r_\tau$ (also complex), we get:
 \]
 
 This asymmetry comes ``for free'' from the conjugate, without needing extra parameters!
-\end{mathbox}
+\end{intuition}
 
 \begin{proposition}[ComplEx Asymmetry]
 For ComplEx with embeddings $\vect{z}_h, \vect{z}_t, \vect{r}_\tau \in \mathbb{C}^d$:
 \begin{equation}
-f_{\text{ComplEx}}(h, \tau, t) - f_{\text{ComplEx}}(t, \tau, h) = 2 \sum_{i=1}^{d} \text{Re}(r_{\tau,i}) \cdot \text{Im}(z_{h,i}) \cdot \text{Im}(z_{t,i}) \cdot (-2)
+f_{\text{ComplEx}}(h, \tau, t) - f_{\text{ComplEx}}(t, \tau, h) = -2 \sum_{i=1}^{d} \text{Im}(r_{\tau,i})\,\text{Im}\bigl(z_{h,i}\,\bar z_{t,i}\bigr).
 \end{equation}
-This is generally non-zero, enabling asymmetric relations.
+It is generally nonzero, which allows asymmetric relations; it vanishes for every pair when $\vect r_\tau$ is real, so real relation vectors give symmetric relations (DistMult is the special case of real embeddings).
 \end{proposition}
+
+\begin{proof}
+For each coordinate, $z_t\bar z_h = \overline{z_h\bar z_t}$, so $z_h\bar z_t - z_t\bar z_h = 2i\,\text{Im}(z_h\bar z_t)$. Hence the difference is $\text{Re}\sum_i r_{\tau,i}\cdot 2i\,\text{Im}(z_{h,i}\bar z_{t,i})$, and $\text{Re}(r\cdot 2ic) = -2c\,\text{Im}(r)$ for real $c$.
+\end{proof}
 
 \begin{example}
 Let $d = 1$ with:
@@ -2459,13 +1660,12 @@ f_{\text{ComplEx}}(h, \tau, t) &= \text{Re}(2.5 + 5i) = 2.5
 \textbf{Backward}: $(t, \tau, h)$
 \begin{align*}
 z_t \cdot r_\tau \cdot \bar{z}_h &= (2 + i)(1 + 0.5i)(1 - 2i) \\
-&= (2 + i + i^2 + 0.5i)(1 - 2i) \\
-&= (1 + 2i)(1 - 2i) \\
-&= 1 - 4i^2 = 1 + 4 = 5 \\
-f_{\text{ComplEx}}(t, \tau, h) &= \text{Re}(5) = 5
+&= (2 + i + i + 0.5i^2)(1 - 2i) \\
+&= (1.5 + 2i)(1 - 2i) \\
+&= 1.5 - 3i + 2i - 4i^2 = 5.5 - i \\
+f_{\text{ComplEx}}(t, \tau, h) &= \text{Re}(5.5 - i) = 5.5
 \end{align*}
-
-We have $f(h, \tau, t) = 2.5 \neq 5 = f(t, \tau, h)$---asymmetry achieved!
+So $f(h, \tau, t) = 2.5 \neq 5.5 = f(t, \tau, h)$. The proposition predicts the difference: $\text{Im}(z_h\bar z_t) = \text{Im}((1+2i)(2-i)) = \text{Im}(4 + 3i) = 3$ and $\text{Im}(r_\tau) = 0.5$, so $f(h,\tau,t) - f(t,\tau,h) = -2\cdot0.5\cdot3 = -3$.
 \end{example}
 
 \begin{definition}[RotatE: Rotation-Based Embedding]
@@ -2554,7 +1754,7 @@ RotatE & $-\|\vect{z}_h \circ \vect{r}_\tau - \vect{z}_t\|$ & $O(d)$ & \checkmar
 \label{shallow-embeddings:tab:kg_comparison}
 \end{table}
 
-\begin{keyinsight}
+\begin{keyidea}
 \textbf{Choosing a Decoder}:
 \begin{itemize}
     \item \textbf{Few relations, lots of data}: RESCAL (most expressive)
@@ -2563,7 +1763,7 @@ RotatE & $-\|\vect{z}_h \circ \vect{r}_\tau - \vect{z}_t\|$ & $O(d)$ & \checkmar
     \item \textbf{Mixed symmetric/asymmetric}: ComplEx or RotatE
     \item \textbf{General recommendation}: RotatE is often a good default---it's efficient ($O(d)$ per relation) yet captures all common relation patterns
 \end{itemize}
-\end{keyinsight}
+\end{keyidea}
 
 \subsection{A Running Example: Small Knowledge Graph}
 
@@ -2616,7 +1816,7 @@ Gradients (for $L_2$ norm):
 
 With learning rate $\eta = 0.1$, updates push $\vect{z}_A + \vect{r}_{\tau_1}$ closer to $\vect{z}_B$.
 
-\textbf{After training} (converged embeddings):
+\textbf{An exact solution.} Training drives the three residuals to zero; one configuration with zero residuals (the solution is not unique, since translating all entities by the same vector changes nothing) is
 \begin{align*}
 \vect{z}_A &\approx (0.0, 0.0), \quad \vect{z}_B \approx (1.0, 0.0), \quad \vect{z}_C \approx (1.0, 1.0) \\
 \vect{r}_{\tau_1} &\approx (1.0, 0.0), \quad \vect{r}_{\tau_2} \approx (0.0, 1.0), \quad \vect{r}_{\tau_3} \approx (1.0, 1.0)
@@ -2705,14 +1905,14 @@ Suppose $\vect{y}_2 = (0.8, 0.3)$ and $\vect{y}_4 = (0.2, 0.7)$ for the bridge e
 
 \subsection{Graph2Vec: Embedding Entire Graphs}
 
-\begin{whybox}
+\begin{intuition}[Motivation]
 Sometimes we want to compare entire graphs, not just nodes:
 \begin{itemize}
     \item Is this molecule similar to that molecule?
     \item Is this social network similar to that one?
     \item Classify graphs by type (toxic vs. non-toxic compounds)
 \end{itemize}
-\end{whybox}
+\end{intuition}
 
 \begin{definition}[Graph2Vec]
 Idea: Treat a graph as a ``document'' and its subgraph patterns as ``words.''
@@ -2829,103 +2029,47 @@ RotatE & Rotation & General KG completion & Yes \\
 \caption{Choosing an embedding method.}
 \end{figure}
 
-\subsection{Key Takeaways}
-
-\begin{keyinsight}
-\begin{enumerate}
-    \item \textbf{All methods share a common goal}: Map nodes to vectors so that graph similarity becomes vector similarity.
-    
-    \item \textbf{Matrix factorization and skip-gram are deeply connected}: Skip-gram methods implicitly factorize a matrix related to random walk probabilities!
-    
-    \item \textbf{Different methods capture different structure}:
-    \begin{itemize}
-        \item First-order: direct connections (GF, LINE first-order)
-        \item Second-order: shared neighbors (LINE second-order)
-        \item High-order: paths, global structure (HOPE, DeepWalk, Node2Vec)
-    \end{itemize}
-    
-    \item \textbf{Random walks are powerful}: They naturally sample paths of varying lengths, capturing multi-scale structure without explicit matrix computation.
-    
-    \item \textbf{The Laplacian family keeps appearing}: Whether in spectral embedding, random walks, or graph signal processing, these matrices encode fundamental graph structure.
-\end{enumerate}
-\end{keyinsight}
-
-\subsection{What's Next?}
-
-Shallow methods have a key limitation: they learn a fixed embedding for each node. This means:
+\begin{chaptersummary}
 \begin{itemize}
-    \item No generalization to new nodes (must recompute everything)
-    \item No use of node features (attributes like age, location)
-    \item Limited expressive power for complex patterns
+\item A shallow embedding is a free vector $\vect y_i \in \R^d$ per node, trained so that a decoder of $(\vect y_i, \vect y_j)$ (usually an inner product) reproduces a chosen node similarity: first-order (edges), second-order (shared neighbours) or high-order (paths, walks).
+\item Graph factorization fits $\vect y_i^\top\vect y_j \approx A_{ij}$ on the edges only, since the diagonal of $\adj$ cannot be fitted; HOPE factorizes a high-order similarity such as Katz with a truncated SVD, with separate source and target factors for directed graphs; GraRep factorizes, for each $k$, a clipped log-ratio of $k$-step transition probabilities and concatenates the results.
+\item DeepWalk trains skip-gram on random walks (with negative sampling or hierarchical softmax); node2vec biases the walks with a return parameter $p$ and an in-out parameter $q$. DeepWalk implicitly factorizes $\log\bigl(\frac{\mathrm{vol}(G)}{c}\sum_{r=1}^c\transition^r\degree^{-1}\bigr) - \log K$, which unifies the two families.
+\item Knowledge-graph embeddings score typed triples. RESCAL ($\vect z_h^\top\vect R_\tau\vect z_t$) is the most expressive and costly; DistMult (diagonal $\vect R_\tau$) is symmetric; TransE ($-\norm{\vect z_h + \vect r_\tau - \vect z_t}$) models inversion and composition but collapses one-to-many relations; ComplEx breaks symmetry through $\mathrm{Im}(\vect r_\tau)$; RotatE rotates in $\C^d$ and models symmetry, antisymmetry, inversion and composition.
+\item Shallow embeddings are transductive and ignore node features; the graph neural networks of \cref{ch:dft-to-gnn} and the autoencoders of \cref{ch:graph-autoencoders} replace the lookup table by a function of the neighbourhood.
 \end{itemize}
+\end{chaptersummary}
 
-\textbf{Deep methods} (Graph Neural Networks) address these by learning a function that \emph{generates} embeddings from local neighborhood structure. But that's for the next chapter!
+\section*{Further reading}
+\addcontentsline{toc}{section}{Further reading}
+Hamilton (\emph{Graph Representation Learning}, 2020) is the main source for this chapter. The methods are due to Ahmed et al.\ (graph factorization, 2013), Ou et al.\ (HOPE, \emph{Asymmetric Transitivity Preserving Graph Embedding}, 2016), Cao, Lu and Xu (GraRep, 2015), Perozzi, Al-Rfou and Skiena (DeepWalk, 2014) and Grover and Leskovec (node2vec, 2016); the matrix-factorization view of DeepWalk is from Qiu et al.\ (\emph{Network Embedding as Matrix Factorization}, 2018). For knowledge graphs: Nickel, Tresp and Kriegel (RESCAL, 2011), Bordes et al.\ (TransE, 2013), Wang et al.\ (TransH, 2014), Yang et al.\ (DistMult, 2015), Trouillon et al.\ (ComplEx, 2016) and Sun et al.\ (RotatE, 2019). Graph2vec is due to Narayanan et al.\ (2017).
 
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
 
-% ============================================================================
-% BIBLIOGRAPHY
-% ============================================================================
-\begin{thebibliography}{99}
+\begin{exercise}\label{shallow-embeddings:exr:1}
+Show that the best rank-$d$ approximation of a symmetric similarity matrix $\similarity$ in Frobenius norm is $\mathbf U_d\mathbf\Sigma_d\mathbf V_d^\top$ from its SVD, and that for a positive semidefinite $\similarity$ one can take $\embed_s = \embed_t = \mathbf U_d\mathbf\Sigma_d^{1/2}$. Why can $\embed_s \ne \embed_t$ be needed when $\similarity$ is symmetric but indefinite, as the Katz matrix of the running example is?
+\hint{Eckart--Young; the Katz matrix has eigenvalues $\frac{1}{1-\beta\lambda} - 1$, negative when $\lambda < 0$.}
+\solutionlink{shallow-embeddings:exr:1}
+\end{exercise}
 
-\bibitem{shallow-embeddings:perozzi2014}
-B. Perozzi, R. Al-Rfou, and S. Skiena.
-\newblock DeepWalk: Online learning of social representations.
-\newblock In \emph{KDD}, 2014.
+\begin{exercise}\label{shallow-embeddings:exr:2}
+In node2vec, suppose the walk has just moved from node $1$ to node $2$ in the running example. Compute the transition probabilities to the neighbours $1, 3, 4$ of node $2$ for $(p, q) = (1, 1)$, $(4, 1)$ and $(1, 0.25)$, and say which setting keeps the walk inside community A.
+\solutionlink{shallow-embeddings:exr:2}
+\end{exercise}
 
-\bibitem{shallow-embeddings:grover2016}
-A. Grover and J. Leskovec.
-\newblock node2vec: Scalable feature learning for networks.
-\newblock In \emph{KDD}, 2016.
+\begin{exercise}\label{shallow-embeddings:exr:3}
+Show that TransE cannot model a symmetric relation with distinct entities exactly: if $\vect z_h + \vect r = \vect z_t$ and $\vect z_t + \vect r = \vect z_h$, then $\vect r = 0$ and $\vect z_h = \vect z_t$. Show that RotatE can, with $r_i = -1$ in every coordinate.
+\solutionlink{shallow-embeddings:exr:3}
+\end{exercise}
 
-\bibitem{shallow-embeddings:ou2016}
-M. Ou, P. Cui, J. Pei, Z. Zhang, and W. Zhu.
-\newblock Asymmetric transitivity preserving graph embedding.
-\newblock In \emph{KDD}, 2016.
+\begin{exercise}\label{shallow-embeddings:exr:4}
+Show that DistMult is the special case of ComplEx with real embeddings, and that ComplEx with a purely imaginary relation vector $\vect r_\tau$ gives an antisymmetric score, $f(h,\tau,t) = -f(t,\tau,h)$.
+\solutionlink{shallow-embeddings:exr:4}
+\end{exercise}
 
-\bibitem{shallow-embeddings:cao2015}
-S. Cao, W. Lu, and Q. Xu.
-\newblock GraRep: Learning graph representations with global structural information.
-\newblock In \emph{CIKM}, 2015.
+\begin{exercise}\label{shallow-embeddings:exr:5}
+For RESCAL, show that composition is representable: if $\vect z_h^\top\vect R_1 \approx \vect z_y^\top$ and $\vect z_y^\top\vect R_2 \approx \vect z_t^\top$ in the sense that the score is maximized by aligning these vectors, then $\vect R_3 = \vect R_1\vect R_2$ reproduces the two-hop relation. Count the parameters of RESCAL and DistMult for $n = 10^4$ entities, $R = 100$ relations and $d = 100$.
+\solutionlink{shallow-embeddings:exr:5}
+\end{exercise}
 
-\bibitem{shallow-embeddings:qiu2018}
-J. Qiu, Y. Dong, H. Ma, J. Li, K. Wang, and J. Tang.
-\newblock Network embedding as matrix factorization: Unifying DeepWalk, LINE, PTE, and node2vec.
-\newblock In \emph{WSDM}, 2018.
-
-\bibitem{shallow-embeddings:nickel2011}
-M. Nickel, V. Tresp, and H.-P. Kriegel.
-\newblock A three-way model for collective learning on multi-relational data.
-\newblock In \emph{ICML}, 2011.
-
-\bibitem{shallow-embeddings:bordes2013}
-A. Bordes, N. Usunier, A. Garcia-Duran, J. Weston, and O. Yakhnenko.
-\newblock Translating embeddings for modeling multi-relational data.
-\newblock In \emph{NeurIPS}, 2013.
-
-\bibitem{shallow-embeddings:yang2015}
-B. Yang, W.-t. Yih, X. He, J. Gao, and L. Deng.
-\newblock Embedding entities and relations for learning and inference in knowledge bases.
-\newblock In \emph{ICLR}, 2015.
-
-\bibitem{shallow-embeddings:trouillon2016}
-T. Trouillon, J. Welbl, S. Riedel, E. Gaussier, and G. Bouchard.
-\newblock Complex embeddings for simple link prediction.
-\newblock In \emph{ICML}, 2016.
-
-\bibitem{shallow-embeddings:sun2019}
-Z. Sun, Z.-H. Deng, J.-Y. Nie, and J. Tang.
-\newblock RotatE: Knowledge graph embedding by relational rotation in complex space.
-\newblock In \emph{ICLR}, 2019.
-
-\bibitem{shallow-embeddings:wang2014}
-Z. Wang, J. Zhang, J. Feng, and Z. Chen.
-\newblock Knowledge graph embedding by translating on hyperplanes.
-\newblock In \emph{AAAI}, 2014.
-
-\bibitem{shallow-embeddings:hamilton2020}
-W.~L. Hamilton.
-\newblock \emph{Graph Representation Learning}.
-\newblock Morgan \& Claypool Publishers, 2020.
-
-\end{thebibliography}
 \end{notechapter}

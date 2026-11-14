@@ -1,47 +1,45 @@
 % Source: fourier_course.tex
 \begin{notechapter}
 % ---- chapter-local definitions ----
-\forgetcs\sinc\newcommand{\sinc}{\operatorname{sinc}}
-\forgetcs\rect\newcommand{\rect}{\operatorname{rect}}
-\forgetcs\R\newcommand{\R}{\mathbb{R}}
-\forgetcs\C\newcommand{\C}{\mathbb{C}}
-\forgetcs\Z\newcommand{\Z}{\mathbb{Z}}
-\forgetcs\N\newcommand{\N}{\mathbb{N}}
-\forgetcs\fourier\newcommand{\fourier}{\mathcal{F}}
-\forgetcs\abs\newcommand{\abs}[1]{\left|#1\right|}
-\forgetcs\norm\newcommand{\norm}[1]{\left\|#1\right\|}
-\forgetcs\inner\newcommand{\inner}[2]{\left\langle #1, #2 \right\rangle}
+\providecommand{\sinc}{\operatorname{sinc}}
+\providecommand{\rect}{\operatorname{rect}}
+\providecommand{\fourier}{\mathcal{F}}
 % -----------------------------------
 \chapter{Fourier Analysis}\label{ch:fourier-analysis}
-\chaptersubtitle{From series to fast transforms}
+\chaptersubtitle{Series, transforms and the FFT}
 
-\begin{abstract}
-This document provides a mathematically rigorous treatment of the Fourier family of transforms: Fourier series, Fourier transform, Discrete-Time Fourier Transform (DTFT), Discrete Fourier Transform (DFT), and Fast Fourier Transform (FFT). We carefully establish the conditions under which each method applies, prove key theorems, and demonstrate the relationships between these techniques. The presentation assumes familiarity with real analysis, complex analysis, and linear algebra at the advanced undergraduate level.
-\end{abstract}
-
-\section{Introduction and Motivation}
-
-The Fourier family of techniques allows us to represent signals as superpositions of sinusoids. The choice of which technique to use depends on the nature of the signal:
-
-\begin{itemize}
-\item Is the signal continuous or discrete in time?
-\item Is the signal periodic or aperiodic?
-\item Is the signal of finite or infinite duration?
-\item Do we have practical computational constraints?
+\begin{chapterintro}
+Spectral graph learning (Chapter~\ref{ch:graph-laplacians} and the next chapter) borrows its vocabulary from classical Fourier analysis: \emph{frequency}, \emph{filter}, \emph{convolution theorem}, \emph{low-pass}. This chapter supplies that vocabulary. We treat the four members of the Fourier family (Fourier series, the Fourier transform, the discrete-time Fourier transform and the discrete Fourier transform) and the fast algorithm that makes the last one practical. For each we state when it exists, derive its inversion formula, and prove the properties that are used later: Parseval's identity, the shift rules and, above all, the convolution theorem, which says that a transform \emph{diagonalises} convolution. You will learn
+\begin{itemize}[nosep]
+  \item why the coefficients of a Fourier series are inner products with orthogonal exponentials, and in what sense the series converges;
+  \item the Fourier transform as the limit of the series, with Riemann--Lebesgue, inversion and Plancherel;
+  \item the shift, scaling, differentiation and convolution rules;
+  \item sampling, aliasing and the Nyquist--Shannon theorem through the DTFT;
+  \item the DFT as a matrix, circular convolution, and the radix-2 FFT with its $O(N\log N)$ cost.
 \end{itemize}
+\prerequisites{Lebesgue integral and $L^p$ spaces at the level of definitions; complex exponentials; linear algebra (unitary matrices).}
+\end{chapterintro}
+
+\section{The Fourier family}
+
+Every member of the family represents a signal as a superposition of complex exponentials $e^{i\omega t}$. Which member applies depends on two properties of the signal: whether time is continuous or discrete, and whether the signal is periodic. A rule worth remembering is that \emph{periodicity in one domain corresponds to discreteness in the other}.
 
 \begin{center}
-\begin{tabular}{|l|c|c|c|}
-\hline
-\textbf{Method} & \textbf{Time Domain} & \textbf{Periodicity} & \textbf{Frequency Domain} \\
-\hline
-Fourier Series & Continuous, Periodic & Periodic & Discrete \\
-Fourier Transform & Continuous, Aperiodic & Aperiodic & Continuous \\
-DTFT & Discrete, Aperiodic & Aperiodic & Continuous, Periodic \\
-DFT & Discrete, Periodic & Periodic & Discrete, Periodic \\
-\hline
+\begin{tabular}{lll}
+\toprule
+\textbf{Transform} & \textbf{Time domain} & \textbf{Frequency domain} \\
+\midrule
+Fourier series (FS) & continuous, periodic & discrete \\
+Fourier transform (FT) & continuous, aperiodic & continuous \\
+Discrete-time FT (DTFT) & discrete, aperiodic & continuous, $2\pi$-periodic \\
+Discrete FT (DFT) & discrete, $N$-periodic & discrete, $N$-periodic \\
+\bottomrule
 \end{tabular}
 \end{center}
+
+\begin{keyidea}
+All four transforms expand a signal in an orthogonal family of complex exponentials. Complex exponentials are the eigenfunctions of every shift-invariant linear operator, which is why each transform turns convolution into pointwise multiplication. On a graph, shifts are replaced by the Laplacian, and its eigenvectors play the role of the exponentials.
+\end{keyidea}
 
 \section{Mathematical Preliminaries}
 
@@ -72,9 +70,9 @@ If $p, q \geq 1$ satisfy $\frac{1}{p} + \frac{1}{q} = 1$, then for $f \in L^p$ a
 \]
 \end{theorem}
 
-\begin{corollary}
-$L^1(\R) \cap L^2(\R) \subset L^1(\R)$ and $L^2(\R) \subset L^1_{\text{loc}}(\R)$.
-\end{corollary}
+\begin{pitfall}[$L^1$ versus $L^2$]
+On a bounded interval, Cauchy--Schwarz (Hölder with $p=q=2$) gives $\int_0^T \abs{f} \le \sqrt{T}\,\norm{f}_{L^2([0,T])}$, so $L^2([0,T]) \subset L^1([0,T])$. On the whole line neither space contains the other: $f(t) = 1/(1+\abs{t})$ is in $L^2(\R)$ but not in $L^1(\R)$, while $f(t) = \abs{t}^{-1/2}\bbone[\abs{t}<1]$ is in $L^1(\R)$ but not in $L^2(\R)$. This is why the Fourier transform is defined first on $L^1$ and then extended to $L^2$ (Theorem~\ref{fourier-analysis:thm:plancherel}).
+\end{pitfall}
 
 \subsection{Periodic Functions}
 
@@ -138,7 +136,7 @@ If $n = m$:
 
 \subsection{Derivation of Fourier Coefficients}
 
-To find the coefficients $c_n$, we use the orthogonality relation. Multiply both sides of the Fourier series by $e^{-i 2\pi m t/T}$ and integrate:
+To find the coefficients $c_n$, we use the orthogonality relation. Suppose that $f$ equals its series and that the series may be integrated term by term (true, for instance, when $\sum_n \abs{c_n} < \infty$, by uniform convergence). Multiply both sides of the Fourier series by $e^{-i 2\pi m t/T}$ and integrate:
 
 \begin{align*}
 \int_0^T f(t) e^{-i 2\pi m t/T} \, dt &= \int_0^T \left( \sum_{n=-\infty}^{\infty} c_n e^{i 2\pi n t/T} \right) e^{-i 2\pi m t/T} \, dt \\
@@ -183,7 +181,7 @@ For $f \in L^2([0,T])$,
 \end{theorem}
 
 \begin{proof}
-Using the inner product structure:
+We give the computation when $f$ equals the sum of an absolutely convergent Fourier series, so that sum and integral may be exchanged; the general case follows from Bessel's inequality and the completeness of the exponentials in $L^2([0,T])$, which is the content of the mean-square convergence theorem.
 \begin{align*}
 \frac{1}{T} \int_0^T \abs{f(t)}^2 \, dt &= \frac{1}{T} \int_0^T f(t) \overline{f(t)} \, dt \\
 &= \frac{1}{T} \int_0^T f(t) \overline{\sum_{m} c_m e^{i 2\pi m t/T}} \, dt \\
@@ -211,12 +209,14 @@ b_n &= -2\text{Im}(c_n) = \frac{2}{T} \int_0^T f(t) \sin\frac{2\pi n t}{T} \, dt
 \end{proposition}
 
 \begin{proof}
-Since $c_n e^{i 2\pi n t/T} + c_{-n} e^{-i 2\pi n t/T} = c_n e^{i 2\pi n t/T} + \overline{c_n} e^{-i 2\pi n t/T}$, we have
+For real $f$, conjugating the coefficient formula gives $\overline{c_n} = \frac1T\int_0^T f(t)e^{i2\pi nt/T}dt = c_{-n}$. Write $c_n = (a_n - i b_n)/2$, which is the definition of $a_n$ and $b_n$ above; then $c_{-n} = (a_n + ib_n)/2$. Pairing the terms $n$ and $-n$ and writing $\theta = 2\pi n t/T$,
 \begin{align*}
-&= (a_n - ib_n)(e^{i 2\pi n t/T}) + (a_n + ib_n)(e^{-i 2\pi n t/T}) \\
-&= a_n(e^{i 2\pi n t/T} + e^{-i 2\pi n t/T}) - ib_n(e^{i 2\pi n t/T} - e^{-i 2\pi n t/T}) \\
-&= 2a_n \cos\frac{2\pi n t}{T} + 2b_n \sin\frac{2\pi n t}{T}.
+c_n e^{i\theta} + c_{-n} e^{-i\theta}
+&= \tfrac12(a_n - ib_n)e^{i\theta} + \tfrac12(a_n + ib_n)e^{-i\theta} \\
+&= \tfrac{a_n}{2}\left(e^{i\theta} + e^{-i\theta}\right) - \tfrac{ib_n}{2}\left(e^{i\theta} - e^{-i\theta}\right) \\
+&= a_n \cos\theta + b_n \sin\theta,
 \end{align*}
+using $e^{i\theta}+e^{-i\theta} = 2\cos\theta$ and $e^{i\theta}-e^{-i\theta} = 2i\sin\theta$. The integral formulas for $a_n$ and $b_n$ follow by taking real and imaginary parts of $2c_n$.
 \end{proof}
 
 \subsection{Example: Square Wave}
@@ -243,13 +243,14 @@ c_n &= \frac{1}{2\pi} \int_0^{2\pi} f(t) e^{-int} \, dt \\
 &= \frac{(-1)^n - 1}{-i\pi n}.
 \end{align*}
 
-For $n$ even: $c_n = 0$.
-For $n$ odd: $c_n = \frac{-2}{-i\pi n} = \frac{2i}{\pi n}$.
+For $n$ even (including $n=0$, where the two half-periods cancel): $c_n = 0$.
+For $n$ odd: $c_n = \frac{-2}{-i\pi n} = \frac{2}{i\pi n} = -\frac{2i}{\pi n}$.
 
-Thus,
+In the real form, $a_n = 2\operatorname{Re} c_n = 0$ (as it must be, since $f$ is odd) and $b_n = -2\operatorname{Im} c_n = \frac{4}{\pi n}$ for odd $n$. Thus,
 \[
-f(t) = \sum_{\substack{n \text{ odd} \\ n \neq 0}} \frac{2i}{\pi n} e^{int} = \frac{4}{\pi} \sum_{k=0}^{\infty} \frac{\sin((2k+1)t)}{2k+1}.
+f(t) = \sum_{n \text{ odd}} \left(-\frac{2i}{\pi n}\right) e^{int} = \frac{4}{\pi} \sum_{k=0}^{\infty} \frac{\sin((2k+1)t)}{2k+1}.
 \]
+At the jumps $t = 0, \pi$ every term vanishes, and the series converges to $0$, the average of the one-sided limits $\pm 1$, as the Dirichlet theorem predicts. Since $\abs{c_n} = 2/(\pi\abs{n})$, Parseval gives $\sum_{n \text{ odd}} \frac{4}{\pi^2 n^2} = \frac{1}{2\pi}\int_0^{2\pi} 1\,dt = 1$, that is, $\sum_{k\ge0} (2k+1)^{-2} = \pi^2/8$.
 \end{example}
 
 \section{Fourier Transform}
@@ -297,7 +298,13 @@ If $f \in L^1(\R)$, then $\hat{f}$ is continuous and
 \end{theorem}
 
 \begin{proof}
-Continuity follows from the dominated convergence theorem. For the decay, use integration by parts or the fact that oscillatory integrals average to zero.
+\emph{Continuity.} If $\omega_k \to \omega$, then $f(t)e^{-i\omega_k t} \to f(t)e^{-i\omega t}$ for every $t$, and the integrands are dominated by $\abs{f} \in L^1$; dominated convergence gives $\hat f(\omega_k) \to \hat f(\omega)$.
+
+\emph{Decay.} For the indicator of an interval, $f = \bbone_{[a,b]}$, a direct computation gives $\hat f(\omega) = (e^{-i\omega a} - e^{-i\omega b})/(i\omega)$, so $\abs{\hat f(\omega)} \le 2/\abs{\omega} \to 0$. By linearity the same holds for every step function. Step functions are dense in $L^1(\R)$: given $\varepsilon > 0$ pick a step function $g$ with $\norm{f-g}_1 < \varepsilon$. Since $\abs{\hat f(\omega) - \hat g(\omega)} \le \norm{f-g}_1$ for every $\omega$,
+\[
+\limsup_{\abs{\omega}\to\infty} \abs{\hat f(\omega)} \le \varepsilon + \lim_{\abs{\omega}\to\infty}\abs{\hat g(\omega)} = \varepsilon,
+\]
+and $\varepsilon$ is arbitrary.
 \end{proof}
 
 \subsection{Inversion Formula}
@@ -307,13 +314,16 @@ Let $f \in L^1(\R)$ with $\hat{f} \in L^1(\R)$. If $f$ is continuous at $t$, the
 \[
 f(t) = \frac{1}{2\pi} \int_{-\infty}^{\infty} \hat{f}(\omega) e^{i\omega t} \, d\omega.
 \]
-If $f$ has a jump discontinuity at $t$, the right side equals $(f(t^+) + f(t^-))/2$.
 \end{theorem}
+
+\begin{remark}
+When $\hat f \in L^1$, the right side is a continuous function of $t$ (by the continuity part of the Riemann--Lebesgue argument), so $f$ agrees almost everywhere with a continuous function and cannot have jumps. For a function with jumps, such as $\rect$, $\hat f \notin L^1$; the inversion integral must then be read as the limit $\lim_{R\to\infty}\frac1{2\pi}\int_{-R}^R$, which converges to $(f(t^+)+f(t^-))/2$ at a jump of a piecewise smooth $f$, exactly as for Fourier series.
+\end{remark}
 
 \subsection{Plancherel Theorem and $L^2$ Theory}
 
-\begin{theorem}[Plancherel Theorem]
-The Fourier transform extends to an isometry on $L^2(\R)$:
+\begin{theorem}[Plancherel Theorem]\label{fourier-analysis:thm:plancherel}
+For $f \in L^1(\R)\cap L^2(\R)$ one has $\hat f \in L^2(\R)$ and the identity below. Consequently the Fourier transform extends by continuity from the dense subspace $L^1\cap L^2$ to a map $L^2(\R) \to L^2(\R)$ which, up to the factor $1/\sqrt{2\pi}$, is unitary:
 \[
 \int_{-\infty}^{\infty} \abs{f(t)}^2 \, dt = \frac{1}{2\pi} \int_{-\infty}^{\infty} \abs{\hat{f}(\omega)}^2 \, d\omega.
 \]
@@ -495,8 +505,9 @@ X(e^{i(\omega + 2\pi)}) = X(e^{i\omega}).
 \end{proposition}
 
 \begin{proof}
+Since $e^{-i2\pi n} = 1$ for every integer $n$,
 \[
-X(e^{i(\omega + 2\pi)}) = \sum_{n=-\infty}^{\infty} x[n] e^{-i(\omega + 2\pi)n} = \sum_{n=-\infty}^{\infty} x[n] e^{-i\omega n} e^{-i 2\pi n} = \sum_{n=-\infty}^{\infty} x[n] e^{-i\omega n} = X(e^{i\omega}).
+X(e^{i(\omega + 2\pi)}) = \sum_{n} x[n] e^{-i\omega n} e^{-i 2\pi n} = \sum_{n} x[n] e^{-i\omega n} = X(e^{i\omega}).
 \]
 \end{proof}
 
@@ -511,14 +522,16 @@ f(t) = \sum_{n=-\infty}^{\infty} f(nT_s) \sinc\left(\frac{t - nT_s}{T_s}\right).
 \]
 \end{theorem}
 
+Here and below $\sinc(x) = \sin(\pi x)/(\pi x)$ (with $\sinc(0) = 1$) is the \emph{normalised} sinc, which vanishes at every nonzero integer. The interpolating function $\sinc((t-nT_s)/T_s)$ is therefore $1$ at $t = nT_s$ and $0$ at all other sample times, so the formula reproduces the samples exactly. A proof is given in the chapter appendix.
+
 \subsection{Relationship to Fourier Transform}
 
-If $x[n] = f(nT_s)$ where $f \in L^1(\R)$, then
+If $x[n] = f(nT_s)$, where $f$ is regular enough for the Poisson summation formula to hold (for instance $f$ and $\hat f$ both decaying at least like $(1+\abs{t})^{-2}$), then
 \[
 X(e^{i\omega}) = \frac{1}{T_s} \sum_{k=-\infty}^{\infty} \hat{f}\left(\frac{\omega - 2\pi k}{T_s}\right).
 \]
 
-This shows that the DTFT is a periodically replicated version of the continuous Fourier transform.
+This shows that the DTFT is a periodically replicated version of the continuous Fourier transform. If $\hat f$ vanishes outside $\abs{\omega} < \pi/T_s$, the replicas do not overlap; otherwise they add up, and high frequencies masquerade as low ones (aliasing). This is the content of the sampling theorem.
 
 \subsection{Properties of the DTFT}
 
@@ -553,7 +566,7 @@ For discrete convolution $(x * h)[n] = \sum_{k=-\infty}^{\infty} x[k] h[n-k]$,
 
 In practice, we work with finite-length sequences. The DFT is the appropriate tool for this setting.
 
-\begin{definition}[DFT]
+\begin{definition}[DFT]\label{fourier-analysis:def:dft}
 For a finite sequence $\{x[n]\}_{n=0}^{N-1}$ of length $N$, the \emph{Discrete Fourier Transform} is
 \[
 X[k] = \sum_{n=0}^{N-1} x[n] e^{-i 2\pi kn/N}, \quad k = 0, 1, \ldots, N-1.
@@ -604,14 +617,14 @@ Alternatively, if we periodically extend $x[n]$ to create $\tilde{x}[n] = x[n \m
 
 \subsection{Circular Convolution}
 
-\begin{definition}[Circular Convolution]
+\begin{definition}[Circular Convolution]\label{fourier-analysis:def:circular-convolution}
 The \emph{circular convolution} of two length-$N$ sequences is
 \[
 (x \circledast h)[n] = \sum_{m=0}^{N-1} x[m] h[(n-m) \mod N].
 \]
 \end{definition}
 
-\begin{theorem}[Circular Convolution Theorem]
+\begin{theorem}[Circular Convolution Theorem]\label{fourier-analysis:thm:circular-convolution}
 \[
 \text{DFT}\{x \circledast h\} = \text{DFT}\{x\} \cdot \text{DFT}\{h\}.
 \]
@@ -676,21 +689,15 @@ This requires one complex multiplication and two complex additions.
 
 \subsubsection{Computational Cost}
 
-Let $C(N)$ be the cost to compute an $N$-point DFT.
-
-For the FFT:
+Let $C(N)$ be the number of complex additions and multiplications used for an $N$-point DFT by this recursion. The two half-size DFTs cost $2C(N/2)$; combining them takes $N/2$ butterflies, each with one multiplication and two additions, so at most $cN$ further operations for a constant $c$ ($c = 3/2$ here). With $C(1) = 0$,
 \[
-C(N) = 2C(N/2) + N.
+C(N) = 2C(N/2) + cN \quad\Longrightarrow\quad C(N) = cN\log_2 N,
 \]
-
-Solving this recurrence:
-\[
-C(N) = N \log_2 N.
-\]
+as one checks by induction: $2c\frac N2\log_2\frac N2 + cN = cN(\log_2 N - 1) + cN = cN\log_2 N$. In particular the radix-2 FFT uses $\frac N2\log_2 N$ complex multiplications, against $N^2$ for the direct sum; for $N = 1024$ that is $5120$ instead of about $10^6$.
 
 \subsection{Bit-Reversal Permutation}
 
-In the decimation-in-time FFT, the input must be reordered according to bit-reversal.
+If the recursion is unrolled into an in-place iterative algorithm, the input must be reordered according to bit-reversal: after $\log_2 N$ even/odd splits, the sample $x[n]$ ends up in the position whose binary expansion is that of $n$ read backwards.
 
 \begin{example}
 For $N = 8$:
@@ -720,33 +727,12 @@ Index & Binary & Bit-Reversed \\
 \item \textbf{Bluestein's algorithm}: For arbitrary $N$ using chirp z-transform.
 \end{itemize}
 
-\section{Summary and Comparison}
+\section{The four transforms side by side}
 
-\subsection{Decision Tree}
-
-\begin{center}
-\begin{tikzpicture}[
-  level 1/.style={sibling distance=6cm, level distance=2cm},
-  level 2/.style={sibling distance=3cm, level distance=2cm},
-  every node/.style={rectangle, draw, align=center, minimum width=2.5cm}
-]
-
-\node {Signal}
-  child {node {Continuous\\ time}
-    child {node {Periodic\\ $\Rightarrow$ FS}}
-    child {node {Aperiodic\\ $\Rightarrow$ FT}}
-  }
-  child {node {Discrete\\ time}
-    child {node {Periodic\\ $\Rightarrow$ DFT/FFT}}
-    child {node {Aperiodic\\ $\Rightarrow$ DTFT}}
-  };
-\end{tikzpicture}
-\end{center}
-
-\subsection{Comparison Table}
 
 \begin{center}
 \small
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{|l|c|c|c|c|}
 \hline
 \textbf{Transform} & \textbf{Time} & \textbf{Frequency} & \textbf{Forward} & \textbf{Inverse} \\
@@ -765,13 +751,14 @@ DFT & Discrete, & Discrete, & $X[k] = \sum_{n=0}^{N-1} x[n] e^{-i2\pi kn/N}$ & $
 \hline
 FFT & \multicolumn{4}{c|}{Efficient algorithm for computing DFT in $O(N \log N)$ time} \\
 \hline
-\end{tabular}
+\end{tabular}%
+}
 \end{center}
 
-\subsection{Conditions for Existence and Convergence}
+\paragraph{When each transform exists.}
 
 \begin{center}
-\begin{tabular}{|l|p{10cm}|}
+\begin{tabular}{|l|p{0.75\linewidth}|}
 \hline
 \textbf{FS} & $f \in L^2([0,T])$ for $L^2$ convergence; Dirichlet conditions for pointwise convergence \\
 \hline
@@ -886,19 +873,6 @@ X[k_1, k_2] = \sum_{n_1=0}^{N_1-1} \sum_{n_2=0}^{N_2-1} x[n_1, n_2] e^{-i2\pi(k_
 
 The 2D FFT is computed by applying 1D FFTs along each dimension (row-column algorithm).
 
-\section{Conclusion}
-
-The Fourier family of transforms provides a unified framework for frequency analysis:
-
-\begin{itemize}
-\item \textbf{Fourier Series}: Analyze periodic continuous-time signals
-\item \textbf{Fourier Transform}: Analyze aperiodic continuous-time signals
-\item \textbf{DTFT}: Analyze aperiodic discrete-time signals
-\item \textbf{DFT}: Analyze periodic (or finite-length) discrete-time signals
-\item \textbf{FFT}: Efficiently compute the DFT
-\end{itemize}
-
-Understanding the relationships between these transforms and the conditions under which each applies is essential for both theoretical analysis and practical applications in signal processing, communications, and computational science.
 
 \chapterappendix
 
@@ -906,23 +880,25 @@ Understanding the relationships between these transforms and the conditions unde
 
 \subsection{Proof of Plancherel Theorem}
 
-\begin{proof}
-We prove this for $f \in L^1(\R) \cap L^2(\R)$, then extend by density.
-
-Define the truncated functions $f_R(t) = f(t) \chi_{[-R,R]}(t)$. By the inversion formula:
+\begin{proof}[Proof of Theorem~\ref{fourier-analysis:thm:plancherel}]
+Let $f \in L^1(\R) \cap L^2(\R)$; the extension to $L^2(\R)$ is then a density argument. Define $\tilde f(t) = \overline{f(-t)}$ and the autocorrelation
 \[
-f_R(t) = \frac{1}{2\pi} \int \hat{f}_R(\omega) e^{i\omega t} d\omega.
+g(t) = (f * \tilde f)(t) = \int f(s)\,\overline{f(s-t)}\,ds .
 \]
+Then $g \in L^1$ (convolution of two $L^1$ functions), $g$ is bounded and continuous (by Cauchy--Schwarz and continuity of translation in $L^2$), and $g(0) = \norm{f}_2^2$. By the convolution theorem and $\hat{\tilde f} = \overline{\hat f}$, $\hat g = \hat f\,\overline{\hat f} = \abs{\hat f}^2 \ge 0$.
 
-Multiply by $\overline{f(t)}$ and integrate:
-\begin{align*}
-\int f_R(t) \overline{f(t)} dt &= \frac{1}{2\pi} \int \left( \int \hat{f}_R(\omega) e^{i\omega t} d\omega \right) \overline{f(t)} dt \\
-&= \frac{1}{2\pi} \int \hat{f}_R(\omega) \left( \int f(t) e^{-i\omega t} dt \right) d\omega \\
-&= \frac{1}{2\pi} \int \hat{f}_R(\omega) \overline{\hat{f}(\omega)} d\omega.
-\end{align*}
-
-As $R \to \infty$, the left side converges to $\norm{f}_2^2$ and the right side to $\frac{1}{2\pi} \norm{\hat{f}}_2^2$ by dominated convergence.
+Fix $\varepsilon > 0$. By Fubini and the Gaussian pair (Example on the Gaussian, with $\alpha = 1/(4\varepsilon)$),
+\[
+\frac{1}{2\pi}\int \hat g(\omega)\,e^{-\varepsilon\omega^2}d\omega
+= \int g(t)\,G_\varepsilon(t)\,dt,
+\qquad G_\varepsilon(t) = \frac{1}{\sqrt{4\pi\varepsilon}}e^{-t^2/(4\varepsilon)} .
+\]
+The kernels $G_\varepsilon$ are nonnegative, integrate to $1$ and concentrate at $0$ as $\varepsilon\to0$; since $g$ is bounded and continuous at $0$, the right side tends to $g(0) = \norm{f}_2^2$. On the left, $\abs{\hat f}^2 e^{-\varepsilon\omega^2}$ increases to $\abs{\hat f}^2$, so by monotone convergence the left side tends to $\frac1{2\pi}\int\abs{\hat f}^2$. Hence $\norm{f}_2^2 = \frac1{2\pi}\norm{\hat f}_2^2$, which in particular shows $\hat f \in L^2$.
 \end{proof}
+
+\begin{remark}
+A tempting shortcut is to apply the inversion formula to the truncations $f\bbone_{[-R,R]}$ and let $R\to\infty$. That argument is circular: inversion requires $\hat f \in L^1$, which is not known for a general $f \in L^1\cap L^2$. The Gaussian factor $e^{-\varepsilon\omega^2}$ above is what makes every integral absolutely convergent.
+\end{remark}
 
 \subsection{Proof of Shannon Sampling Theorem}
 
@@ -944,44 +920,65 @@ Therefore:
 \hat{f}(\omega) = \hat{f}_p(\omega) = \sum_n c_n e^{-i\omega n T_s} = \frac{2\pi}{\omega_s} \sum_n f(nT_s) e^{-i\omega n T_s}.
 \]
 
-Inverse Fourier transform:
+Inverse Fourier transform (the factor $\frac{1}{2\pi}\cdot\frac{2\pi}{\omega_s} = \frac1{\omega_s}$):
 \[
 f(t) = \frac{1}{2\pi} \int \hat{f}(\omega) e^{i\omega t} d\omega = \sum_n f(nT_s) \frac{1}{\omega_s} \int_{-\omega_s/2}^{\omega_s/2} e^{i\omega(t - nT_s)} d\omega.
 \]
 
 The integral evaluates to:
 \[
-\frac{1}{\omega_s} \int_{-\omega_s/2}^{\omega_s/2} e^{i\omega(t - nT_s)} d\omega = \frac{\sin(\omega_s(t - nT_s)/2)}{\omega_s(t - nT_s)/2} = T_s \sinc\left(\frac{t - nT_s}{T_s}\right).
+\frac{1}{\omega_s} \int_{-\omega_s/2}^{\omega_s/2} e^{i\omega(t - nT_s)} d\omega = \frac{\sin(\omega_s(t - nT_s)/2)}{\omega_s(t - nT_s)/2} = \sinc\left(\frac{t - nT_s}{T_s}\right),
 \]
+using $\omega_s/2 = \pi/T_s$. Substituting gives the interpolation formula. (Exchanging sum and integral is justified in $L^2([-\omega_s/2,\omega_s/2])$, where the Fourier series of $\hat f$ converges.)
 \end{proof}
 
-\section{Exercises}
+\begin{chaptersummary}
+\begin{itemize}
+\item The Fourier series of a $T$-periodic $f \in L^2([0,T])$ has coefficients $c_n = \frac1T\int_0^T f(t)e^{-i2\pi nt/T}dt$, obtained from the orthogonality of the exponentials; it converges in mean square, pointwise to the midpoint of jumps under the Dirichlet conditions, and Parseval's identity $\frac1T\int_0^T\abs{f}^2 = \sum_n\abs{c_n}^2$ holds.
+\item The Fourier transform $\hat f(\omega) = \int f(t)e^{-i\omega t}dt$ is the $T\to\infty$ limit of the series. For $f\in L^1$ it is continuous and vanishes at infinity (Riemann--Lebesgue); Plancherel extends it to $L^2$, where $\norm{f}_2^2 = \frac1{2\pi}\norm{\hat f}_2^2$.
+\item Shifts become phase factors, derivatives become multiplication by $i\omega$, and convolution becomes multiplication: $\widehat{f*g} = \hat f\hat g$.
+\item Sampling at interval $T_s$ replicates the spectrum with period $2\pi/T_s$ (DTFT); a signal bandlimited below the Nyquist frequency $\pi/T_s$ is recovered exactly by sinc interpolation, otherwise aliasing occurs.
+\item The DFT is the matrix $F_N$ with $F_N^*F_N = NI$; it samples the DTFT at $N$ frequencies, diagonalises circular convolution, and is computed by the FFT in $O(N\log N)$ operations by recursive even/odd splitting.
+\end{itemize}
+\end{chaptersummary}
 
+\section*{Further reading}
+\addcontentsline{toc}{section}{Further reading}
+Stein and Shakarchi (\emph{Fourier Analysis: An Introduction}, 2003) develop Fourier series and the transform with complete proofs at the level of this chapter; Rudin (\emph{Real and Complex Analysis}, 3rd ed., 1987) gives the $L^1$/$L^2$ theory, including Plancherel. Oppenheim and Schafer (\emph{Discrete-Time Signal Processing}, 3rd ed., 2009) is the standard reference for the DTFT, the DFT, sampling and windowing, and Bracewell (\emph{The Fourier Transform and Its Applications}, 3rd ed., 2000) is a rich source of transform pairs and intuition. The FFT in its modern form is due to Cooley and Tukey (\emph{An Algorithm for the Machine Calculation of Complex Fourier Series}, 1965).
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{fourier-analysis:exr:1}
+Compute the complex Fourier coefficients of the sawtooth $f(t) = t$ on $(-\pi,\pi)$, extended $2\pi$-periodically, write the real form of the series, and use Parseval's identity to evaluate $\sum_{n\ge1} 1/n^2$.
+\hint{Integrate by parts; $c_0 = 0$ because $f$ is odd.}
+\solutionlink{fourier-analysis:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{fourier-analysis:exr:2}
+Show that for $a > 0$ the Fourier transform of $f(t) = e^{-a\abs{t}}$ is $\hat f(\omega) = 2a/(a^2+\omega^2)$. Then use Plancherel to compute $\int_{-\infty}^{\infty} (a^2+\omega^2)^{-2}\,d\omega$.
+\solutionlink{fourier-analysis:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{fourier-analysis:exr:3}
+Prove that if $f\in L^1(\R)$ is real and even then $\hat f$ is real and even, and if $f$ is real and odd then $\hat f$ is purely imaginary and odd.
+\solutionlink{fourier-analysis:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{fourier-analysis:exr:4}
+Let $x = (1, 2, 0, 0)$ and $h = (1, 1, 0, 0)$, viewed as length-$4$ sequences.
 \begin{enumerate}
-\item Compute the Fourier series of the sawtooth wave $f(t) = t$ for $-\pi < t < \pi$, extended periodically.
-
-\item Show that the Fourier transform of $f(t) = e^{-a\abs{t}}$ for $a > 0$ is $\hat{f}(\omega) = \frac{2a}{a^2 + \omega^2}$.
-
-\item Prove that if $f$ is even, $\hat{f}$ is real, and if $f$ is odd, $\hat{f}$ is purely imaginary.
-
-\item Implement the radix-2 decimation-in-time FFT algorithm and verify it matches the DFT on random input.
-
-\item Show that circular convolution becomes linear convolution when the sequences are zero-padded appropriately.
-
-\item Compute the DTFT of the unit step sequence $u[n] = \begin{cases} 1 & n \geq 0 \\ 0 & n < 0 \end{cases}$ (carefully handle convergence).
-
-\item Derive the relationship between the DFT and samples of the DTFT.
-
-\item Analyze the effect of different window functions on spectral leakage using a pure sinusoid.
+\item Compute $X = F_4x$ and $H = F_4h$.
+\item Compute $y = x \circledast h$ directly, and check that $F_4 y = X\cdot H$ entrywise.
+\item Compute $x \circledast h$ for the unpadded length-$2$ sequences $(1,2)$ and $(1,1)$ and explain why it differs from the linear convolution $(1,3,2)$.
 \end{enumerate}
+\hint{$W_4 = e^{-i\pi/2} = -i$, so the rows of $F_4$ are $(1,1,1,1)$, $(1,-i,-1,i)$, $(1,-1,1,-1)$, $(1,i,-1,-i)$.}
+\solutionlink{fourier-analysis:exr:4}
+\end{exercise}
 
-\section{References}
+\begin{exercise}\label{fourier-analysis:exr:5}
+A continuous signal $f(t) = \cos(2\pi\cdot 7t)$ (frequency $7$\,Hz) is sampled at $10$ samples per second. Show that the samples coincide with those of a cosine of a lower frequency, identify that frequency, and state the smallest sampling rate that avoids this.
+\solutionlink{fourier-analysis:exr:5}
+\end{exercise}
 
-\begin{enumerate}
-\item Rudin, W. \emph{Real and Complex Analysis}. McGraw-Hill, 1987.
-\item Oppenheim, A. V., and Schafer, R. W. \emph{Discrete-Time Signal Processing}. Pearson, 2009.
-\item Stein, E. M., and Shakarchi, R. \emph{Fourier Analysis: An Introduction}. Princeton University Press, 2003.
-\item Bracewell, R. N. \emph{The Fourier Transform and Its Applications}. McGraw-Hill, 2000.
-\item Cooley, J. W., and Tukey, J. W. "An Algorithm for the Machine Calculation of Complex Fourier Series." \emph{Mathematics of Computation}, 1965.
-\end{enumerate}
 \end{notechapter}

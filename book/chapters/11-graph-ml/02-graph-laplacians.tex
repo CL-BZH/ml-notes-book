@@ -1,63 +1,5 @@
 % Source: Graph_ML/Graph_Laplacian/graph_laplacians_and_spectral_methods.tex
 \begin{notechapter}
-% ---- chapter-local definitions ----
-\makeatletter
-\forgetenv{definition}\forgetenv{definition*}\expandafter\let\csname c@tcb@cnt@definition\endcsname\relax
-\newtcbtheorem[number within=section]{definition}{Definition}{
-  colback=blue!5!white,
-  colframe=blue!75!black,
-  fonttitle=\bfseries,
-  breakable
-}{graph-laplacians:def}
-\forgetenv{theorem}\forgetenv{theorem*}\expandafter\let\csname c@tcb@cnt@theorem\endcsname\relax
-\newtcbtheorem[number within=section]{theorem}{Theorem}{
-  colback=green!5!white,
-  colframe=green!50!black,
-  fonttitle=\bfseries,
-  breakable
-}{graph-laplacians:thm}
-\forgetenv{proposition}\forgetenv{proposition*}\expandafter\let\csname c@tcb@cnt@proposition\endcsname\relax
-\newtcbtheorem[number within=section]{proposition}{Proposition}{
-  colback=orange!5!white,
-  colframe=orange!75!black,
-  fonttitle=\bfseries,
-  breakable
-}{graph-laplacians:prop}
-\forgetenv{lemma}\forgetenv{lemma*}\expandafter\let\csname c@tcb@cnt@lemma\endcsname\relax
-\newtcbtheorem[number within=section]{lemma}{Lemma}{
-  colback=cyan!5!white,
-  colframe=cyan!75!black,
-  fonttitle=\bfseries,
-  breakable
-}{graph-laplacians:lem}
-\forgetenv{intuition}\newtcolorbox{intuition}{
-  colback=yellow!10!white,
-  colframe=yellow!50!black,
-  title=Intuition,
-  fonttitle=\bfseries,
-  breakable
-}
-\forgetenv{keyidea}\newtcolorbox{keyidea}{
-  colback=purple!5!white,
-  colframe=purple!75!black,
-  title=Key Idea,
-  fonttitle=\bfseries,
-  breakable
-}
-\forgetenv{example}\newtcolorbox{example}{
-  colback=gray!5!white,
-  colframe=gray!75!black,
-  title=Example,
-  fonttitle=\bfseries,
-  breakable
-}
-\forgetenv{remark}\newtcolorbox{remark}{
-  colback=red!5!white,
-  colframe=red!50!black,
-  title=Remark,
-  fonttitle=\bfseries,
-  breakable
-}
 \forgetcs\bA\newcommand{\bA}{\mathbf{A}}
 \forgetcs\bD\newcommand{\bD}{\mathbf{D}}
 \forgetcs\bL\newcommand{\bL}{\mathbf{L}}
@@ -70,51 +12,44 @@
 \forgetcs\bx\newcommand{\bx}{\mathbf{x}}
 \forgetcs\by\newcommand{\by}{\mathbf{y}}
 \forgetcs\bz\newcommand{\bz}{\mathbf{z}}
+\forgetcs\bZ\newcommand{\bZ}{\mathbf{Z}}
 \forgetcs\be\newcommand{\be}{\mathbf{e}}
 \forgetcs\bv\newcommand{\bv}{\mathbf{v}}
 \forgetcs\bone\newcommand{\bone}{\mathbf{1}}
-\forgetcs\R\newcommand{\R}{\mathbb{R}}
-\forgetcs\E\newcommand{\E}{\mathbb{E}}
 \forgetcs\vol\newcommand{\vol}{\mathrm{vol}}
 \forgetcs\cut\newcommand{\cut}{\mathrm{cut}}
-\forgetcs\tr\newcommand{\tr}{\mathrm{tr}}
-\forgetcs\diag\newcommand{\diag}{\mathrm{diag}}
-\makeatother
-% -----------------------------------
 \chapter{Graph Laplacians and Spectral Methods}\label{ch:graph-laplacians}
-\chaptersubtitle{Proofs and applications, following Hamilton's \emph{Graph Representation Learning}}
+\chaptersubtitle{Connectivity, cuts, frequencies and embeddings from the spectrum of one matrix}
 
-%=============================================================================
-\section{Introduction}
-%=============================================================================
-
-Spectral graph theory studies the properties of graphs through the eigenvalues and eigenvectors of matrices associated with them. The central object of study is the \textbf{graph Laplacian}, a matrix that encodes the structure of a graph and has remarkable mathematical properties.
-
-\begin{keyidea}
-The Laplacian connects three fundamental aspects of graph analysis:
-\begin{enumerate}
-    \item \textbf{Connectivity}: The number of zero eigenvalues equals the number of connected components
-    \item \textbf{Clustering}: Eigenvectors provide optimal (or near-optimal) graph partitions
-    \item \textbf{Smoothness}: The Laplacian measures how much a signal varies across edges
-\end{enumerate}
-\end{keyidea}
-
-\subsection{Motivation: Why Study the Laplacian?}
-
-Consider these problems:
-\begin{itemize}
-    \item \textbf{Community detection}: How do we partition a social network into groups?
-    \item \textbf{Image segmentation}: How do we separate foreground from background?
-    \item \textbf{Dimensionality reduction}: How do we embed graph nodes in low-dimensional space?
+\begin{chapterintro}
+The graph Laplacian $\bL = \bD - \bA$ of \cref{ch:harmonic-functions} has a spectrum that reads like a summary of
+the graph. The multiplicity of its eigenvalue $0$ counts connected components; its next eigenvector
+splits the graph along its weakest cut; and its eigenvectors, ordered by eigenvalue, are the
+``frequencies'' of graph signal processing, from the smooth constant vector to signals that
+change sign across every edge. This chapter proves these facts and turns them into
+algorithms: spectral clustering, Laplacian eigenmaps, and smoothing by Laplacian
+regularization. It follows Hamilton (\emph{Graph Representation Learning}, 2020, Chapter~2)
+and von Luxburg (\emph{A Tutorial on Spectral Clustering}, 2007). You will learn
+\begin{itemize}[nosep]
+  \item the quadratic form $\bx^\top\bL\bx = \sum_{(i,j)\in E}(x_i - x_j)^2$ and why it measures smoothness;
+  \item why the kernel of $\bL$ is spanned by the indicators of the connected components;
+  \item the normalized Laplacians $\bL_{\mathrm{sym}}$ and $\bL_{\mathrm{rw}}$, and why their spectra lie in $[0, 2]$;
+  \item RatioCut and its spectral relaxation, the Fiedler vector, and spectral clustering;
+  \item the graph Fourier transform, and frequencies as eigenvalues of a Laplacian;
+  \item Laplacian eigenmaps and the link with random-walk embeddings.
 \end{itemize}
+\prerequisites{\cref{ch:harmonic-functions}; the spectral theorem and the Rayleigh quotient
+(\cref{ch:pca-overview}); $K$-means.}
+\end{chapterintro}
 
-All of these can be solved using the \emph{spectrum} (eigenvalues and eigenvectors) of the graph Laplacian!
+\section{A running example}\label{graph-laplacians:sec:running}
 
-\subsection{Running Example}
 
-Throughout this document, we use a small graph with two communities:
 
-\begin{center}
+Throughout this chapter we use a small graph with two communities (\cref{graph-laplacians:fig:running}):
+
+\begin{figure}[ht]
+\centering
 \begin{tikzpicture}[
     node distance=1.5cm,
     main/.style={circle, draw, thick, minimum size=0.8cm, font=\small\bfseries},
@@ -137,7 +72,9 @@ Throughout this document, we use a small graph with two communities:
     \node[below of=3, yshift=0.7cm, xshift=0.5cm, font=\small] {Community A};
     \node[below of=6, yshift=0.7cm, xshift=-0.5cm, font=\small] {Community B};
 \end{tikzpicture}
-\end{center}
+\caption{The running example: two triangles joined by the bridge edge $(2, 4)$.}
+\label{graph-laplacians:fig:running}
+\end{figure}
 
 The dashed edge $(2,4)$ is the ``bridge'' connecting the two communities.
 
@@ -149,7 +86,7 @@ The dashed edge $(2,4)$ is the ``bridge'' connecting the two communities.
 
 Let $G = (V, E)$ be an undirected graph with $n = |V|$ nodes.
 
-\begin{definition}{Adjacency Matrix}{adjacency}
+\begin{definition}[Adjacency Matrix]\label{graph-laplacians:def:adjacency}
 The \textbf{adjacency matrix} $\bA \in \R^{n \times n}$ is defined by:
 \[
 \bA[i,j] = \begin{cases} 1 & \text{if } (i,j) \in E \\ 0 & \text{otherwise} \end{cases}
@@ -157,7 +94,7 @@ The \textbf{adjacency matrix} $\bA \in \R^{n \times n}$ is defined by:
 For undirected graphs, $\bA$ is symmetric: $\bA = \bA^\top$.
 \end{definition}
 
-\begin{definition}{Degree Matrix}{degree}
+\begin{definition}[Degree Matrix]\label{graph-laplacians:def:degree}
 The \textbf{degree matrix} $\bD \in \R^{n \times n}$ is a diagonal matrix with:
 \[
 \bD[i,i] = d_i = \sum_{j=1}^{n} \bA[i,j]
@@ -194,7 +131,7 @@ Node 2 (the bridge node in Community A) and node 4 (the bridge node in Community
 
 \subsection{The Unnormalized (Combinatorial) Laplacian}
 
-\begin{definition}{Unnormalized Laplacian}{unnorm-laplacian}
+\begin{definition}[Unnormalized Laplacian]\label{graph-laplacians:def:unnorm-laplacian}
 The \textbf{unnormalized Laplacian} (or combinatorial Laplacian) is:
 \begin{equation}
 \bL = \bD - \bA
@@ -225,7 +162,7 @@ Notice the structure:
 
 \subsection{Fundamental Properties of the Laplacian}
 
-\begin{theorem}{Properties of the Unnormalized Laplacian}{laplacian-properties}
+\begin{theorem}[Properties of the Unnormalized Laplacian]\label{graph-laplacians:thm:laplacian-properties}
 The Laplacian $\bL = \bD - \bA$ of an undirected graph satisfies:
 \begin{enumerate}
     \item $\bL$ is \textbf{symmetric}: $\bL = \bL^\top$
@@ -249,7 +186,7 @@ The Laplacian $\bL = \bD - \bA$ of an undirected graph satisfies:
 
 Before diving into the key properties of the Laplacian, we need to define what a \textbf{graph signal} is.
 
-\begin{definition}{Graph Signal}{graph-signal}
+\begin{definition}[Graph Signal]\label{graph-laplacians:def:graph-signal}
 A \textbf{graph signal} is a function $f: V \to \R$ that assigns a real value to each node. We represent it as a vector $\bx \in \R^n$ where $x_i = f(v_i)$ is the value at node $i$.
 \end{definition}
 
@@ -274,7 +211,7 @@ The graph structure tells us which signal values ``should be similar.'' If two p
 
 The following identity is fundamental to understanding the Laplacian.
 
-\begin{theorem}{Laplacian Quadratic Form}{quadratic-form}
+\begin{theorem}[Laplacian Quadratic Form]\label{graph-laplacians:thm:quadratic-form}
 For any vector $\bx \in \R^n$:
 \begin{equation}
 \bx^\top \bL \bx = \sum_{(i,j) \in E} (x_i - x_j)^2
@@ -317,7 +254,9 @@ The quadratic form $\bx^\top \bL \bx$ measures the \textbf{smoothness} of the si
     \item If connected nodes have different values, $(x_i - x_j)^2$ is large $\Rightarrow$ rough signal
 \end{itemize}
 
-This is analogous to the second derivative in calculus: a smooth function has small second derivative, and the Laplacian is the discrete analogue of the Laplacian operator $\nabla^2 f$.
+It is the discrete analogue of the Dirichlet energy $\int\norm{\nabla f}^2$ (\cref{harmonic-functions:sec:graph_laplacian}): a sum of squared \emph{first} differences
+along edges, small for a function that varies slowly. The operator $\bL$ itself, whose quadratic form this
+is, is the analogue of $-\Delta$.
 \end{intuition}
 
 \begin{example}
@@ -345,7 +284,7 @@ The smooth signal (which aligns with the community structure) has a much smaller
 
 One of the most elegant properties of the Laplacian is that its spectrum reveals the connectivity structure of the graph.
 
-\begin{theorem}{Multiplicity of Zero Eigenvalue}{zero-eigenvalue}
+\begin{theorem}[Multiplicity of Zero Eigenvalue]\label{graph-laplacians:thm:zero-eigenvalue}
 The geometric multiplicity of the eigenvalue $0$ of the Laplacian $\bL$ equals the number of connected components in the graph.
 \end{theorem}
 
@@ -401,7 +340,7 @@ The proof reveals a beautiful connection: eigenvectors of $\bL$ are graph signal
 
 From a linear algebra perspective, the eigenvalue $\lambda = 0$ means that $\ker(\bL) \neq \{\mathbf{0}\}$. For the Laplacian, this kernel has a very specific structure.
 
-\begin{theorem}{Structure of the Laplacian Kernel}{kernel-structure}
+\begin{theorem}[Structure of the Laplacian Kernel]\label{graph-laplacians:thm:kernel-structure}
 Let $G$ have connected components $C_1, C_2, \ldots, C_K$. Then:
 \begin{equation}
 \ker(\bL) = \mathrm{span}\{\bone_{C_1}, \bone_{C_2}, \ldots, \bone_{C_K}\}
@@ -522,15 +461,16 @@ The unnormalized Laplacian has a bias toward high-degree nodes. Normalized varia
 
 \subsection{The Symmetric Normalized Laplacian}
 
-\begin{definition}{Symmetric Normalized Laplacian}{sym-laplacian}
+\begin{definition}[Symmetric Normalized Laplacian]\label{graph-laplacians:def:sym-laplacian}
 The \textbf{symmetric normalized Laplacian} is:
 \begin{equation}
 \bL_{\text{sym}} = \bD^{-1/2} \bL \bD^{-1/2} = \bI - \bD^{-1/2} \bA \bD^{-1/2}
 \label{graph-laplacians:eq:sym-laplacian}
 \end{equation}
+It requires every degree to be positive (no isolated nodes), as does $\bL_{\text{rw}}$ below.
 \end{definition}
 
-\begin{theorem}{Properties of $\bL_{\text{sym}}$}{sym-properties}
+\begin{theorem}[Properties of $\bL_{\text{sym}}$]\label{graph-laplacians:thm:sym-properties}
 The symmetric normalized Laplacian satisfies:
 \begin{enumerate}
     \item $\bL_{\text{sym}}$ is symmetric and positive semi-definite
@@ -572,7 +512,7 @@ The eigenvalue bound $[0,2]$ makes $\bL_{\text{sym}}$ easier to work with theore
 
 \subsection{The Random Walk Laplacian}
 
-\begin{definition}{Random Walk Laplacian}{rw-laplacian}
+\begin{definition}[Random Walk Laplacian]\label{graph-laplacians:def:rw-laplacian}
 The \textbf{random walk Laplacian} is:
 \begin{equation}
 \bL_{\text{rw}} = \bD^{-1} \bL = \bI - \bD^{-1} \bA = \bI - \bP
@@ -581,7 +521,7 @@ The \textbf{random walk Laplacian} is:
 where $\bP = \bD^{-1}\bA$ is the random walk transition matrix.
 \end{definition}
 
-\begin{theorem}{Relationship Between Normalized Laplacians}{laplacian-similarity}
+\begin{theorem}[Relationship Between Normalized Laplacians]\label{graph-laplacians:thm:laplacian-similarity}
 $\bL_{\text{rw}}$ and $\bL_{\text{sym}}$ have the same eigenvalues. If $\mathbf{v}$ is an eigenvector of $\bL_{\text{sym}}$ with eigenvalue $\lambda$, then $\bD^{-1/2}\mathbf{v}$ is an eigenvector of $\bL_{\text{rw}}$ with eigenvalue $\lambda$.
 \end{theorem}
 
@@ -641,7 +581,7 @@ The challenge: this is an NP-hard combinatorial problem! We can't try all possib
 
 \subsection{Graph Cuts: Measuring Partition Quality}
 
-\begin{definition}{Graph Cut}{graph-cut}
+\begin{definition}[Graph Cut]\label{graph-laplacians:def:graph-cut}
 Given a partition of nodes into disjoint sets $A$ and $\bar{A} = V \setminus A$, the \textbf{cut} counts edges crossing the boundary:
 \begin{equation}
 \cut(A, \bar{A}) = |\{(u,v) \in E : u \in A, v \in \bar{A}\}|
@@ -664,7 +604,7 @@ This cut is also small, but it's a terrible partition---we just isolated one nod
 Minimizing the cut alone doesn't work: it tends to cut off tiny pieces of the graph. We need to also encourage \textbf{balanced} partitions.
 \end{keyidea}
 
-\begin{definition}{RatioCut and Normalized Cut}{balanced-cuts}
+\begin{definition}[RatioCut and Normalized Cut]\label{graph-laplacians:def:balanced-cuts}
 The \textbf{RatioCut} penalizes small clusters by dividing by cluster size:
 \begin{equation}
 \text{RatioCut}(A, \bar{A}) = \frac{\cut(A, \bar{A})}{|A|} + \frac{\cut(A, \bar{A})}{|\bar{A}|}
@@ -697,10 +637,10 @@ The RatioCut correctly identifies the community partition as better!
 
 Now comes the magic: we can express RatioCut minimization as a Laplacian problem.
 
-\begin{theorem}{RatioCut as a Laplacian Problem}{ratiocut-relaxation}
+\begin{theorem}[RatioCut as a Laplacian Problem]\label{graph-laplacians:thm:ratiocut-relaxation}
 Minimizing RatioCut over all 2-partitions is equivalent to:
 \begin{equation}
-\min_{\mathbf{a}} \mathbf{a}^\top \bL \mathbf{a} \quad \text{subject to} \quad \mathbf{a} \perp \bone, \quad \|\mathbf{a}\|^2 = n, \quad \mathbf{a} \text{ is an indicator vector}
+\min_{\mathbf{a}} \mathbf{a}^\top \bL \mathbf{a} \quad \text{subject to} \quad \mathbf{a} \perp \bone, \quad \|\mathbf{a}\|^2 = n, \quad \mathbf{a} \text{ of the two-valued form \eqref{graph-laplacians:eq:ratiocut-vector}}
 \end{equation}
 \end{theorem}
 
@@ -710,9 +650,9 @@ The proof has three parts: (1) encode a partition as a vector, (2) show this vec
 \textbf{Step 1: Encode the partition as a vector.}
 
 Given partition $(A, \bar{A})$, define $\mathbf{a} \in \R^n$ by:
-\[
+\begin{equation}\label{graph-laplacians:eq:ratiocut-vector}
 a_u = \begin{cases} +\sqrt{|\bar{A}|/|A|}  & \text{if } u \in A \\[4pt] -\sqrt{|A|/|\bar{A}|} & \text{if } u \in \bar{A} \end{cases}
-\]
+\end{equation}
 
 \textit{Why this strange formula?} The $\pm$ distinguishes the two clusters. The square root terms are chosen to make the constraints work out nicely.
 
@@ -754,7 +694,7 @@ So minimizing $\mathbf{a}^\top \bL \mathbf{a}$ is equivalent to minimizing Ratio
 \subsection{The Relaxation: From Discrete to Continuous}
 
 \begin{keyidea}
-The constraint ``$\mathbf{a}$ is an indicator vector'' makes this problem NP-hard (we'd have to try all $2^n$ partitions).
+The constraint that $\mathbf{a}$ take only the two values of \eqref{graph-laplacians:eq:ratiocut-vector} makes this problem NP-hard (we'd have to try all $2^n$ partitions).
 
 \textbf{The spectral relaxation}: Drop this constraint! Allow $\mathbf{a}$ to be any real vector satisfying $\mathbf{a} \perp \bone$ and $\|\mathbf{a}\|^2 = n$.
 
@@ -786,10 +726,14 @@ u \in A \text{ if } \be_2[u] \geq 0, \qquad u \in \bar{A} \text{ if } \be_2[u] <
 \end{keyidea}
 
 \begin{example}
-For our 6-node graph, the Fiedler vector is approximately:
+For our 6-node graph, the eigenvalues of $\bL$ are $0$, $\frac{5 - \sqrt{17}}2\approx0.438$, $3$ (three times) and $\frac{5 + \sqrt{17}}2\approx4.562$, and the
+Fiedler vector, normalized, is
 \[
-\be_2 \approx (0.41, 0.24, 0.41, -0.41, -0.41, -0.41)^\top
+\be_2\approx(0.465,\ 0.261,\ 0.465,\ -0.261,\ -0.465,\ -0.465)^\top
 \]
+(up to its sign). The bridge nodes $2$ and $4$ have the smallest magnitudes: they are the least
+committed to their side. The values are antisymmetric because the map $1\leftrightarrow5$, $2\leftrightarrow4$, $3\leftrightarrow6$ is a symmetry of the
+graph that exchanges the two communities.
 
 Nodes 1, 2, 3 have positive values $\Rightarrow$ Cluster A.\\
 Nodes 4, 5, 6 have negative values $\Rightarrow$ Cluster B.
@@ -854,16 +798,16 @@ Consider what happens as we vary the bridge edge in our running example:
 \]
 Cluster identification is trivial: nodes with the same values are in the same component.
 
-\textbf{Bridge present} (connected): Now $\lambda_6 = 0$ and $\lambda_5 > 0$ (but small, because only one edge connects the communities). The Fiedler vector is \textit{almost} constant within each community:
+\textbf{Bridge present} (connected): Now $\lambda_6 = 0$ and $\lambda_5 = (5 - \sqrt{17})/2\approx0.438 > 0$ (small, because only one edge connects the communities). The Fiedler vector is \textit{almost} constant within each community:
 \[
-\be_5 \approx (0.41, 0.24, 0.41, -0.41, -0.41, -0.41)^\top
+\be_5 \approx (0.465, 0.261, 0.465, -0.261, -0.465, -0.465)^\top
 \]
 The values aren't exactly equal within each community, but they're close---and crucially, they have opposite signs across the cut. Thresholding at zero recovers the communities.
 
 \textbf{Many bridges added}: As we add more edges between communities, $\lambda_5$ grows larger. The Fiedler vector becomes less ``clean''---the communities are harder to separate because they're more interconnected.
 \end{intuition}
 
-\begin{definition}{Algebraic Connectivity}{algebraic-connectivity}
+\begin{definition}[Algebraic Connectivity]\label{graph-laplacians:def:algebraic-connectivity}
 The second-smallest eigenvalue $\lambda_{n-1}$ of the Laplacian is called the \textbf{algebraic connectivity} or \textbf{Fiedler value}. It quantifies how strongly connected the graph is:
 \begin{itemize}
     \item $\lambda_{n-1} = 0$: Graph is disconnected
@@ -880,11 +824,11 @@ This explains why spectral clustering works: we're looking for structure that is
 \section{Graph Signal Processing Perspective}
 %=============================================================================
 
-We introduced graph signals in Section 3.2 as vectors $\bx \in \R^n$ assigning values to nodes. Now we develop a more sophisticated view: we can analyze signals in terms of their ``frequency content'' on the graph, analogous to Fourier analysis for time-domain signals.
+We introduced graph signals in \cref{graph-laplacians:def:graph-signal} as vectors $\bx \in \R^n$ assigning values to nodes. Now we develop a more sophisticated view: we can analyze signals in terms of their ``frequency content'' on the graph, analogous to Fourier analysis for time-domain signals.
 
 \subsection{The Graph Fourier Transform}
 
-\begin{definition}{Graph Fourier Transform}{gft}
+\begin{definition}[Graph Fourier Transform]\label{graph-laplacians:def:gft}
 The eigenvectors of $\bL$ form an orthonormal basis $\{\be_1, \ldots, \be_n\}$ for $\R^n$. Any graph signal $\bx$ can be decomposed in this basis. The \textbf{Graph Fourier Transform (GFT)} gives the coefficients:
 \begin{equation}
 \hat{x}_k = \langle \bx, \be_k \rangle = \be_k^\top \bx
@@ -903,6 +847,18 @@ This follows directly from the quadratic form: $\be_k^\top \bL \be_k = \lambda_k
 The eigenvector $\be_n$ with $\lambda_n = 0$ is the constant signal $\bone$---the smoothest possible signal with zero variation. The eigenvector $\be_1$ with the largest eigenvalue is the ``most oscillatory'' signal on the graph.
 \end{intuition}
 
+\subsection{Frequencies as eigenvalues of a Laplacian}\label{graph-laplacians:sec:frequencies}
+
+The name ``Fourier transform'' is more than an analogy. The complex exponentials $e^{i\omega t}$ of classical
+Fourier analysis are eigenfunctions of the second derivative, $\frac{d^2}{dt^2}e^{i\omega t} = -\omega^2e^{i\omega t}$: the classical Fourier transform is
+the spectral decomposition of the one-dimensional Laplacian, and the frequency $\omega$ is read from the
+eigenvalue $-\omega^2$. On the real line or on a regular grid, translation invariance makes these eigenfunctions
+the same for every problem, so the Laplacian that generates them is rarely mentioned; on a
+cycle graph, the eigenvectors of $\bL$ are exactly the discrete Fourier basis (\cref{ch:dft-to-gnn}). A general graph has no
+translations, and its ``sines and cosines'' must be computed by diagonalizing its own $\bL$. In both
+cases, frequency is a rate of variation, measured by the eigenvalue: $\be_k^\top\bL\be_k = \lambda_k$ is the Dirichlet energy of the
+$k$-th basis signal.
+
 \subsection{Smoothness and Regularization}
 
 \begin{keyidea}
@@ -911,6 +867,8 @@ In many applications, we want to find a smooth signal on the graph. This leads t
 \min_{\bx} \| \bx - \by \|^2 + \alpha \cdot \bx^\top \bL \bx
 \end{equation}
 where $\by$ is observed data and $\alpha > 0$ controls smoothness. The first term fits the data; the second penalizes non-smooth signals.
+Setting the gradient $2(\bx - \by) + 2\alpha\bL\bx$ to zero gives the unique solution $\bx^* = (\bI + \alpha\bL)^{-1}\by$, and in the Fourier
+basis $\hat x^*_k = \hat y_k/(1 + \alpha\lambda_k)$: a low-pass filter that shrinks each frequency by $1/(1 + \alpha\lambda_k)$.
 
 This framework underlies:
 \begin{itemize}
@@ -926,20 +884,32 @@ This framework underlies:
 
 \subsection{Laplacian Eigenmaps}
 
-\begin{definition}{Laplacian Eigenmaps}{laplacian-eigenmaps}
-The \textbf{Laplacian Eigenmaps} algorithm embeds nodes in $\R^d$ using the $d$ smallest non-trivial eigenvectors of $\bL$:
+\begin{definition}[Laplacian Eigenmaps]\label{graph-laplacians:def:laplacian-eigenmaps}
+The \textbf{Laplacian Eigenmaps} algorithm (Belkin and Niyogi, \emph{Laplacian Eigenmaps for
+Dimensionality Reduction and Data Representation}, 2003) solves the generalized eigenproblem
+$\bL\bv = \lambda\bD\bv$, equivalently $\bL_{\text{rw}}\bv = \lambda\bv$, and embeds node $u$ as
 \begin{equation}
-\by_u = (\be_2[u], \be_3[u], \ldots, \be_{d+1}[u])^\top
+\by_u = (\bv_2[u], \bv_3[u], \ldots, \bv_{d+1}[u])^\top,
 \end{equation}
-This is exactly the spectral clustering representation!
+where $\bv_1 = \bone$ (eigenvalue $0$), $\bv_2, \bv_3,\dots$ are the generalized eigenvectors for the next smallest eigenvalues. It is
+the spectral clustering representation built from $\bL_{\text{rw}}$, without the $K$-means step.
 \end{definition}
 
-\begin{theorem}{Laplacian Eigenmaps Optimality}{eigenmaps-optimal}
+\begin{theorem}[Laplacian Eigenmaps Optimality]\label{graph-laplacians:thm:eigenmaps-optimal}
 Laplacian Eigenmaps solves:
 \begin{equation}
-\min_{\bY \in \R^{n \times d}} \sum_{(i,j) \in E} \| \by_i - \by_j \|^2 \quad \text{subject to} \quad \bY^\top \bD \bY = \bI
+\min_{\bY \in \R^{n \times d}} \sum_{(i,j) \in E} \| \by_i - \by_j \|^2 = \tr(\bY^\top\bL\bY) \quad \text{subject to} \quad \bY^\top \bD \bY = \bI,\quad\bY^\top\bD\bone = \mathbf 0,
 \end{equation}
+where $\by_i^\top$ is row $i$ of $\bY$.
 \end{theorem}
+
+\begin{proof}
+Substitute $\bZ = \bD^{1/2}\bY$: the problem becomes $\min\tr(\bZ^\top\bL_{\text{sym}}\bZ)$ subject to $\bZ^\top\bZ = \bI$ and $\bZ^\top\bD^{1/2}\bone = \mathbf 0$. The
+minimum of $\tr(\bZ^\top\bM\bZ)$ over matrices with $d$ orthonormal columns orthogonal to the eigenvector $\bD^{1/2}\bone$ of
+$\bM = \bL_{\text{sym}}$ for the eigenvalue $0$ is the sum of the next $d$ eigenvalues, attained by the corresponding
+eigenvectors (Ky Fan's theorem, the multi-vector form of Rayleigh--Ritz). By
+\cref{graph-laplacians:thm:laplacian-similarity}, $\bY = \bD^{-1/2}\bZ$ then consists of eigenvectors of $\bL_{\text{rw}}$.
+\end{proof}
 
 \begin{intuition}
 The objective encourages connected nodes to have nearby embeddings. The constraint prevents the trivial solution where all embeddings collapse to a single point.
@@ -950,45 +920,34 @@ The objective encourages connected nodes to have nearby embeddings. The constrai
 Methods like DeepWalk and Node2Vec use random walks to generate node embeddings. These are deeply connected to the Laplacian:
 
 \begin{keyidea}
-DeepWalk implicitly factorizes a matrix related to:
+With window size $T$ and $b$ negative samples, DeepWalk with negative sampling implicitly factorizes
+(Qiu et al., \emph{Network Embedding as Matrix Factorization}, 2018)
 \begin{equation}
-\bM = \frac{1}{T} \sum_{t=1}^{T} \bP^t
+\bM = \log\Bigl(\frac{\vol(G)}{bT}\Bigl(\sum_{t=1}^{T}\bP^t\Bigr)\bD^{-1}\Bigr),
 \end{equation}
-where $\bP = \bD^{-1}\bA = \bI - \bL_{\text{rw}}$ is the random walk transition matrix.
-
-Since $\bP = \bI - \bL_{\text{rw}}$ and they share eigenvectors, random walk embeddings capture the same spectral information as Laplacian-based methods!
+the logarithm being taken entrywise, where $\bP = \bD^{-1}\bA = \bI - \bL_{\text{rw}}$ is the random walk transition matrix and
+$\vol(G) = \sum_id_i$. The sum $\sum_t\bP^t$ is a polynomial in $\bL_{\text{rw}}$, with the same eigenvectors; the entrywise logarithm
+breaks this, so random-walk embeddings are close relatives of Laplacian eigenmaps, not the same
+method (\cref{ch:shallow-embeddings}).
 \end{keyidea}
 
-%=============================================================================
-\section{Summary}
-%=============================================================================
-
-\begin{keyidea}
-\textbf{The Graph Laplacian} $\bL = \bD - \bA$ is a fundamental object in spectral graph theory:
-
-\textbf{Key Properties}:
+\begin{chaptersummary}
 \begin{itemize}
-    \item Symmetric, positive semi-definite
-    \item Number of zero eigenvalues = number of connected components
-    \item Quadratic form: $\bx^\top \bL \bx = \sum_{(i,j) \in E} (x_i - x_j)^2$ (measures smoothness)
+  \item $\bL = \bD - \bA$ is symmetric positive semi-definite, $\bL\bone = \mathbf 0$, and $\bx^\top\bL\bx = \sum_{(i,j)\in E}(x_i - x_j)^2$ measures the variation of a
+        signal across edges.
+  \item $\ker\bL$ is spanned by the indicators of the connected components: the multiplicity of $0$ counts
+        components.
+  \item $\bL_{\text{sym}} = \bI - \bD^{-1/2}\bA\bD^{-1/2}$ and $\bL_{\text{rw}} = \bI - \bD^{-1}\bA$ are similar, with eigenvalues in $[0, 2]$; $\bL_{\text{rw}}$ is tied to random walks.
+  \item RatioCut equals $\frac1n\mathbf a^\top\bL\mathbf a$ for a two-valued vector; relaxing the two values gives the Fiedler vector, the
+        eigenvector of the second-smallest eigenvalue, and spectral clustering runs $K$-means on the first
+        $K$ eigenvectors.
+  \item The eigenvectors of $\bL$ are the graph Fourier basis, with eigenvalues as frequencies; Laplacian
+        regularization $(\bI + \alpha\bL)^{-1}\by$ is a low-pass filter.
+  \item Laplacian eigenmaps embed nodes with generalized eigenvectors $\bL\bv = \lambda\bD\bv$; random-walk embeddings factorize a
+        nonlinear function of powers of $\bP = \bI - \bL_{\text{rw}}$.
 \end{itemize}
+\end{chaptersummary}
 
-\textbf{Normalized Variants}:
-\begin{itemize}
-    \item $\bL_{\text{sym}} = \bI - \bD^{-1/2}\bA\bD^{-1/2}$ (symmetric, eigenvalues in $[0,2]$)
-    \item $\bL_{\text{rw}} = \bI - \bD^{-1}\bA$ (connects to random walks)
-\end{itemize}
-
-\textbf{Applications}:
-\begin{itemize}
-    \item Spectral clustering via eigenvectors
-    \item Graph signal processing and filtering
-    \item Node embeddings (Laplacian Eigenmaps)
-    \item Foundation for Graph Neural Networks
-\end{itemize}
-\end{keyidea}
-
-%=============================================================================
 \chapterappendix
 \section{Additional Proofs}
 %=============================================================================
@@ -996,36 +955,22 @@ Since $\bP = \bI - \bL_{\text{rw}}$ and they share eigenvectors, random walk emb
 \subsection{Eigenvalue Bound for $\bL_{\text{sym}}$}
 \label{graph-laplacians:app:eigenvalue-bound}
 
-\begin{proposition}{Eigenvalue Bound}{eigenvalue-bound}
+\begin{proposition}[Eigenvalue Bound]\label{graph-laplacians:prop:eigenvalue-bound}
 All eigenvalues of $\bL_{\text{sym}}$ lie in $[0, 2]$.
 \end{proposition}
 
 \begin{proof}
 The proof has two parts: (1) bound the quadratic form, then (2) connect to eigenvalues.
 
-\textbf{Part 1: Bounding the quadratic form.}
-
-We already know $\bL_{\text{sym}}$ is positive semi-definite, so $\bx^\top \bL_{\text{sym}} \bx \geq 0$ for all $\bx$.
-
-For the upper bound, note that $\bL_{\text{sym}} = \bI - \bD^{-1/2}\bA\bD^{-1/2}$. Let $\tilde{\bA} = \bD^{-1/2}\bA\bD^{-1/2}$.
-
-The matrix $\tilde{\bA}$ has entries $\tilde{\bA}[i,j] = \frac{\bA[i,j]}{\sqrt{d_i d_j}}$.
-
-For any unit vector $\bx$:
+\textbf{Part 1: Bounding the quadratic form.} We already know $\bx^\top\bL_{\text{sym}}\bx\geq0$. For the upper bound, use the quadratic form
+of \cref{graph-laplacians:thm:sym-properties} and $(a - b)^2\leq2a^2 + 2b^2$:
 \[
-\bx^\top \tilde{\bA} \bx = \sum_{(i,j) \in E} \frac{2 x_i x_j}{\sqrt{d_i d_j}}
+\bx^\top\bL_{\text{sym}}\bx = \sum_{(i,j)\in E}\Bigl(\frac{x_i}{\sqrt{d_i}} - \frac{x_j}{\sqrt{d_j}}\Bigr)^2
+\leq 2\sum_{(i,j)\in E}\Bigl(\frac{x_i^2}{d_i} + \frac{x_j^2}{d_j}\Bigr) = 2\sum_{i=1}^n x_i^2,
 \]
-
-By Cauchy-Schwarz and the fact that $\sum_i x_i^2 = 1$:
-\[
-\left| \sum_{(i,j) \in E} \frac{2 x_i x_j}{\sqrt{d_i d_j}} \right| \leq \sum_{(i,j) \in E} \frac{x_i^2 + x_j^2}{\sqrt{d_i d_j}} \leq 1
-\]
-(with some work involving the degree structure).
-
-Therefore, for any unit vector $\bx$:
-\[
--1 \leq \bx^\top \tilde{\bA} \bx \leq 1 \quad \Longrightarrow \quad 0 \leq \bx^\top \bL_{\text{sym}} \bx \leq 2
-\]
+because node $i$ is an endpoint of exactly $d_i$ edges, each contributing $x_i^2/d_i$. Hence $0\leq\bx^\top\bL_{\text{sym}}\bx\leq2$ for every
+unit vector $\bx$. (Equality in the upper bound needs $x_i/\sqrt{d_i} = -x_j/\sqrt{d_j}$ on every edge: the eigenvalue $2$ occurs exactly
+for bipartite components.)
 
 \textbf{Part 2: From quadratic form bounds to eigenvalue bounds.}
 
@@ -1044,7 +989,7 @@ Therefore all eigenvalues lie in $[0, 2]$.
 
 \subsection{Rayleigh-Ritz Theorem}
 
-\begin{theorem}{Rayleigh-Ritz}{rayleigh-ritz}
+\begin{theorem}[Rayleigh-Ritz]\label{graph-laplacians:thm:rayleigh-ritz}
 Let $\bM$ be a symmetric matrix with eigenvalues $\lambda_1 \geq \lambda_2 \geq \cdots \geq \lambda_n$ and corresponding orthonormal eigenvectors $\be_1, \ldots, \be_n$. Then:
 \begin{equation}
 \min_{\bx \neq \mathbf{0}} \frac{\bx^\top \bM \bx}{\bx^\top \bx} = \lambda_n
@@ -1057,14 +1002,39 @@ More generally:
 \end{equation}
 \end{theorem}
 
-%=============================================================================
-\section{References}
-%=============================================================================
+\section*{Further reading}
+Hamilton, \emph{Graph Representation Learning}, 2020, Chapters 1--2; von Luxburg, \emph{A Tutorial on
+Spectral Clustering}, 2007; Chung, \emph{Spectral Graph Theory}, 1997; Ortega et al., \emph{Graph Signal
+Processing: Overview, Challenges, and Applications}, 2018.
 
-\begin{itemize}
-    \item Hamilton, W. L. (2020). \emph{Graph Representation Learning}. Morgan \& Claypool.
-    \item Von Luxburg, U. (2007). A tutorial on spectral clustering. \emph{Statistics and Computing}.
-    \item Chung, F. R. K. (1997). \emph{Spectral Graph Theory}. AMS.
-    \item Ortega, A., et al. (2018). Graph signal processing: Overview, challenges, and applications. \emph{Proceedings of the IEEE}.
-\end{itemize}
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{graph-laplacians:exr:1}
+Compute $\bL$ and its eigenvalues for the path with $3$ nodes and for the star with $4$ nodes (one centre
+joined to $3$ leaves). How many times does each eigenvalue occur?
+\solutionlink{graph-laplacians:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{graph-laplacians:exr:2}
+In the running example, compute RatioCut and NCut for the partitions $\{1, 2, 3\}\mid\{4, 5, 6\}$ and $\{1, 3\}\mid\{2, 4, 5, 6\}$.
+\solutionlink{graph-laplacians:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{graph-laplacians:exr:3}
+Show that $2$ is an eigenvalue of $\bL_{\text{sym}}$ for a connected graph if and only if the graph is bipartite.
+\hint{Use the equality case of the bound in the appendix.}
+\solutionlink{graph-laplacians:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{graph-laplacians:exr:4}
+For the cycle with $n$ nodes, show that $\bv_k = (\cos(2\pi kj/n))_{j=0}^{n-1}$ is an eigenvector of $\bL$, with eigenvalue $2 - 2\cos(2\pi k/n)$.
+\solutionlink{graph-laplacians:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{graph-laplacians:exr:5}
+Smooth the signal $\by = (1, 1, 0, 1, 0, 0)$ on the running example with $\alpha = 1$, $\bx^* = (\bI + \bL)^{-1}\by$. Compare the distances of $\by$ and $\bx^*$ to
+$\mathbf t = (1, 1, 1, 0, 0, 0)$, and say whether thresholding $\bx^*$ at $\frac12$ recovers $\mathbf t$. Explain with the Fourier coefficients of $\by$.
+\solutionlink{graph-laplacians:exr:5}
+\end{exercise}
 \end{notechapter}

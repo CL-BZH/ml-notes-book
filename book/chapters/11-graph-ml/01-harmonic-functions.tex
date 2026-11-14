@@ -1,43 +1,31 @@
 % Source: Graph_ML/Harmonic_Functions/harmonic_functions_on_graphs.tex
 \begin{notechapter}
-% ---- chapter-local definitions ----
-\forgetcs\R\newcommand{\R}{\mathbb{R}}
-\forgetcs\E\newcommand{\E}{\mathbb{E}}
-\forgetcs\norm\newcommand{\norm}[1]{\left\|#1\right\|}
-\forgetcs\abs\newcommand{\abs}[1]{\left|#1\right|}
-\forgetcs\inner\newcommand{\inner}[2]{\langle #1, #2 \rangle}
-\forgetcs\tr\newcommand{\tr}{\operatorname{tr}}
-\forgetcs\diag\newcommand{\diag}{\operatorname{diag}}
-\forgetcs\Area\newcommand{\Area}{\operatorname{Area}}
-\forgetcs\Vol\newcommand{\Vol}{\operatorname{Vol}}
-\definecolor{intuition}{RGB}{230,242,255}
-\definecolor{examplecol}{RGB}{255,249,230}
-\definecolor{connection}{RGB}{232,245,233}
-\definecolor{warning}{RGB}{255,235,235}
-\forgetenv{intuitionbox}\newtcolorbox{intuitionbox}[1][]{colback=intuition, 
-  colframe=blue!50!black, title=Intuition, breakable, #1}
-\forgetenv{examplebox}\newtcolorbox{examplebox}[1][]{colback=examplecol, 
-  colframe=orange!50!black, title=Worked Example, breakable, #1}
-\forgetenv{connectionbox}\newtcolorbox{connectionbox}[1][]{colback=connection, 
-  colframe=green!50!black, title=Key Connection, breakable, #1}
-\forgetenv{warningbox}\newtcolorbox{warningbox}[1][]{colback=warning,
-  colframe=red!50!black, title=Caution, breakable, #1}
-% -----------------------------------
+\providecommand{\Area}{\operatorname{Area}}
+\providecommand{\Vol}{\operatorname{Vol}}
 \chapter{From Harmonic Functions to Graph Laplacians}\label{ch:harmonic-functions}
-\chaptersubtitle{A unified perspective}
+\chaptersubtitle{Averages, boundary values and random walks}
 
-\begin{abstract}
-This document explores the deep connection between classical harmonic
-functions in continuous mathematics and their discrete analogues on graphs.
-Starting from the one-dimensional case that every calculus student knows, we
-build up to the Laplacian in $\R^d$ and derive its interpretation as a
-measure of deviation from local averages. We then show how the graph
-Laplacian emerges naturally as the discrete counterpart, and explain why
-label propagation on graphs solves a discrete boundary value problem. The
-presentation is self-contained, aimed at upper-undergraduate students, and
-emphasizes worked examples and physical intuition alongside mathematical
-rigor.
-\end{abstract}
+\begin{chapterintro}
+Label propagation, the simplest semi-supervised algorithm on graphs, repeatedly replaces
+the value of each unlabelled node by the average of its neighbours. This chapter shows that
+it is not an ad hoc heuristic: it solves the discrete version of one of the oldest problems of
+analysis, finding a harmonic function with prescribed boundary values, the steady-state
+temperature of a plate heated on its edges. Every ingredient has an exact discrete
+counterpart: the Laplacian measures the gap between a value and the average around it, the
+graph Laplacian does the same with neighbours, harmonic functions minimize an energy,
+and they equal the expected boundary value reached by a random walk. You will learn
+\begin{itemize}[nosep]
+  \item the Laplacian in $\R^d$ as the limit $\frac{2d}{r^2}(M_f(x, r) - f(x))$ of the deviation from the spherical mean, with a
+        complete proof;
+  \item the mean value property of harmonic functions;
+  \item the random-walk and unnormalized graph Laplacians as the discrete counterparts;
+  \item the discrete Dirichlet problem: existence, uniqueness, the formula
+        $f_U = (I - P_{UU})^{-1}P_{UL}f_L$ and energy minimization;
+  \item the random-walk representation $f_i = \E[y_{X_\tau}\mid X_0 = i]$, and its continuous counterpart with Brownian motion.
+\end{itemize}
+\prerequisites{multivariable calculus (Taylor expansion, divergence theorem); the spectral
+theorem for symmetric matrices; Markov chains at the level of \cref{ch:monte-carlo}.}
+\end{chapterintro}
 
 % ====================================================================
 \section{Introduction}
@@ -70,25 +58,10 @@ graph---assigning labels to unknown nodes based on the labels of their
 neighbors---we are solving the \emph{discrete} analogue of the boundary
 value problem that governs heat flow.
 
-This document makes the connection precise. We start with the simplest
+This chapter makes the connection precise. We start with the simplest
 case (one dimension), build up to the general continuous theory, then show
 how every key idea has an exact discrete counterpart on graphs.
 
-\begin{connectionbox}[title=Roadmap]
-\begin{enumerate}
-    \item \textbf{Section~\ref{harmonic-functions:sec:1d}}: The one-dimensional case---harmonic
-          functions are linear (familiar from calculus).
-    \item \textbf{Section~\ref{harmonic-functions:sec:continuous}}: The Laplacian in $\R^d$ and
-          the mean value property.
-    \item \textbf{Section~\ref{harmonic-functions:sec:graph_laplacian}}: The graph Laplacian as
-          the discrete analogue.
-    \item \textbf{Section~\ref{harmonic-functions:sec:dirichlet}}: Boundary value problems,
-          continuous and discrete.
-    \item \textbf{Section~\ref{harmonic-functions:sec:random_walks}}: The random walk
-          interpretation.
-    \item \textbf{Section~\ref{harmonic-functions:sec:summary}}: The unifying principle.
-\end{enumerate}
-\end{connectionbox}
 
 
 % ====================================================================
@@ -164,7 +137,7 @@ It says:
           neighbors---the function is locally linear (harmonic).
 \end{itemize}
 
-\begin{examplebox}[title=The 1D Boundary Value Problem]
+\begin{example}[The 1D Boundary Value Problem]
 Consider a rod of length $L$ with temperature $T = 100^\circ$C at $x = 0$
 and $T = 0^\circ$C at $x = L$. The steady-state temperature satisfies
 $T''(x) = 0$ with boundary conditions $T(0) = 100$ and $T(L) = 0$. The
@@ -175,16 +148,15 @@ T(x) = 100\left(1 - \frac{x}{L}\right)
 A linear interpolation between the boundary values---exactly as the mean
 value property predicts. At every interior point, the temperature equals
 the average of its two neighbors.
-\end{examplebox}
+\end{example}
 
-\begin{intuitionbox}
-Formula~\eqref{harmonic-functions:eq:1d_laplacian_avg} is the key insight of this entire
-document. The rest is about generalizing it: from one dimension to
+\begin{intuition}
+Formula~\eqref{harmonic-functions:eq:1d_laplacian_avg} is the key insight of this chapter. The rest is about generalizing it: from one dimension to
 $\R^d$ (Section~\ref{harmonic-functions:sec:continuous}), and from $\R^d$ to graphs
 (Section~\ref{harmonic-functions:sec:graph_laplacian}). In every case, the Laplacian
 measures the deviation of a function's value from the average of its
 neighborhood.
-\end{intuitionbox}
+\end{intuition}
 
 
 % ====================================================================
@@ -421,7 +393,7 @@ So:
 Dividing both sides by $\Area(S^{d-1})$ gives the result.
 \end{proof}
 
-\begin{examplebox}[title=Verifying the Lemma in 2D]
+\begin{example}[Verifying the Lemma in 2D]
 In $\R^2$, the unit sphere $S^1$ is the unit circle, parametrized by
 $\mathbf{u} = (\cos\theta, \sin\theta)$ for $\theta \in [0, 2\pi)$, with
 $\Area(S^1) = 2\pi$.
@@ -451,9 +423,9 @@ Note how the off-diagonal entry ($H_{12} = 1$) contributed the
 $\sin 2\theta$ term, which vanishes upon averaging. The diagonal entries
 contributed $\frac{3+5}{2} = 4 = \tr(H)/d$. This is the general
 phenomenon: averaging over all directions kills everything except the trace.
-\end{examplebox}
+\end{example}
 
-\begin{examplebox}[title=Verifying the Lemma in 3D]
+\begin{example}[Verifying the Lemma in 3D]
 In $\R^3$, we use a diagonal matrix for simplicity. Take
 $H = \diag(2, 5, 8)$, so $\tr(H) = 15$. The lemma predicts:
 \[
@@ -498,7 +470,7 @@ of the total surface area $\Area(S^2) = 4\pi$. Therefore:
 \]
 Dividing by $\Area(S^2) = 4\pi$: the average is $20\pi / 4\pi = 5 =
 \tr(H)/3$. \checkmark
-\end{examplebox}
+\end{example}
 
 \medskip
 \noindent\textbf{Returning to the proof of
@@ -561,14 +533,19 @@ The value of $f$ at the center equals the spherical mean for every
 radius---with no error term and no limit.
 \end{theorem}
 
-\begin{proof}[Proof sketch]
-Consider $M_f(x,r)$ as a function of $r$ alone. A computation using the
-divergence theorem shows that:
-\[
+\begin{proof}
+Write $M_f(x, r) = \frac1{\omega_{d-1}}\int_{S^{d-1}}f(x + r\mathbf u)\,dS(\mathbf u)$ and differentiate under the integral sign:
+$\frac{d}{dr}M_f(x, r) = \frac1{\omega_{d-1}}\int_{S^{d-1}}\nabla f(x + r\mathbf u)\cdot\mathbf u\,dS(\mathbf u)$. On the sphere $\partial B(x, r)$ the vector $\mathbf u$ is the outward
+unit normal, and $dS(\mathbf u) = d\sigma/r^{d-1}$, so by the divergence theorem
+\begin{align*}
 \frac{d}{dr}M_f(x,r)
-= \frac{r}{d}\,\frac{1}{\omega_{d-1}\,r^{d-1}}
-  \int_{B(x,r)} \Delta f(y)\,dV(y)
-\]
+&= \frac{1}{\omega_{d-1}\,r^{d-1}}\int_{\partial B(x,r)}\frac{\partial f}{\partial\nu}\,d\sigma
+= \frac{1}{\omega_{d-1}\,r^{d-1}}
+  \int_{B(x,r)} \Delta f(y)\,dV(y)\\
+&= \frac rd\cdot\frac1{\abs{B(x, r)}}\int_{B(x,r)}\Delta f(y)\,dV(y),
+\end{align*}
+using $\abs{B(x, r)} = \omega_{d-1}r^d/d$. (The last form agrees with the expansion
+\cref{harmonic-functions:eq:spherical_mean_expansion}: $\frac{d}{dr}\bigl(f(x) + \frac{r^2}{2d}\Delta f(x)\bigr) = \frac rd\Delta f(x)$.)
 When $\Delta f = 0$ throughout $\Omega$, the integrand vanishes, so
 $\frac{d}{dr}M_f(x,r) = 0$ for all admissible $r$. This means $M_f(x,r)$
 is constant in $r$, and its value is $\lim_{r \to 0^+} M_f(x,r) = f(x)$.
@@ -581,7 +558,7 @@ mean value property is the defining characteristic of harmonic functions,
 and it is precisely this property that label propagation reproduces on
 graphs (Section~\ref{harmonic-functions:sec:graph_laplacian}).
 
-\begin{intuitionbox}
+\begin{intuition}
 \textbf{Physical interpretation of the Laplacian:}
 \begin{itemize}
     \item $\Delta f(x) > 0$: $f(x)$ is \emph{below} the local average
@@ -593,9 +570,9 @@ graphs (Section~\ref{harmonic-functions:sec:graph_laplacian}).
           net heat flow---the system is in equilibrium. This is the
           harmonic condition.
 \end{itemize}
-\end{intuitionbox}
+\end{intuition}
 
-\begin{examplebox}[title=Verifying the Mean Value Property in 2D]
+\begin{example}[Verifying the Mean Value Property in 2D]
 Consider $f(x,y) = x^2 - y^2$, which is harmonic ($\Delta f = 2 - 2 = 0$).
 Take the point $(0,0)$ where $f(0,0) = 0$. On the circle of radius $r$,
 parametrize as $(x,y) = (r\cos\theta,\, r\sin\theta)$:
@@ -605,7 +582,7 @@ parametrize as $(x,y) = (r\cos\theta,\, r\sin\theta)$:
 = \frac{r^2}{2\pi} \int_0^{2\pi} \cos 2\theta\,d\theta = 0 = f(0,0)
 \]
 The average over the circle equals the value at the center, as predicted.
-\end{examplebox}
+\end{example}
 
 
 % ====================================================================
@@ -668,7 +645,7 @@ the average over its neighborhood. Compare:
   = f_i - \bigl(\text{average of $f$ over neighbors}\bigr)
 \end{align}
 
-\begin{warningbox}
+\begin{pitfall}[Sign convention]
 Note the sign convention: in the continuous case, $\Delta f > 0$ means $f$
 is below its local average, while $(\mathcal{L}_{\mathrm{rw}} f)_i > 0$
 means $f_i$ is \emph{above} its neighbor average. This is because the graph
@@ -676,7 +653,7 @@ Laplacian is conventionally defined as $f_i - \text{avg}$ rather than
 $\text{avg} - f_i$. Both conventions appear in the literature; the discrete
 convention $\mathcal{L}_{\mathrm{rw}} = I - P$ is standard in graph
 theory.
-\end{warningbox}
+\end{pitfall}
 
 \begin{definition}[Harmonic Function on a Graph]
 \label{harmonic-functions:def:harmonic_graph}
@@ -726,7 +703,7 @@ oscillating function has high energy.
 
 \subsection{Worked Example: Harmonicity on a Small Graph}
 
-\begin{examplebox}[title=A Weighted Triangle]
+\begin{example}[A Weighted Triangle]
 Consider a triangle with nodes $a$, $b$, $u$ and edge weights
 $A_{au} = 1$, $A_{bu} = 2$, $A_{ab} = 3$. Fix $f_a = 1$ and
 $f_b = 0$ (boundary). What value of $f_u$ makes $f$ harmonic at~$u$?
@@ -743,9 +720,9 @@ than the weaker edge to $a$ (weight 1) pulls it toward $f_a = 1$.
 
 We can verify: $(\mathcal{L}_{\mathrm{rw}} f)_u = f_u - (P_{ua}f_a +
 P_{ub}f_b) = 1/3 - 1/3 = 0$ \checkmark.
-\end{examplebox}
+\end{example}
 
-\begin{examplebox}[title=The Path Graph (Discrete Rod)]
+\begin{example}[The Path Graph (Discrete Rod)]
 Consider the path $v_1 - v_2 - v_3 - v_4 - v_5$ with $f_1 = 1$ and
 $f_5 = 0$ (boundary nodes). Each interior node has two neighbors with
 equal weight, so the harmonic condition becomes:
@@ -778,11 +755,11 @@ $f_3 = 1/2$, $f_4 = 1/4$.
 The discrete solution (blue dots) is a linear interpolation between the
 boundary values---exactly the discrete analogue of the continuous 1D
 harmonic function $T(x) = 1 - x/L$ from Section~\ref{harmonic-functions:sec:1d} (red dashed).
-\end{examplebox}
+\end{example}
 
 \subsection{Summary of the Analogy}
 
-\begin{connectionbox}[title=Continuous $\longleftrightarrow$ Discrete]
+\begin{keyidea}[Continuous $\longleftrightarrow$ Discrete]
 \begin{center}
 \begin{tabular}{lll}
 \toprule
@@ -801,7 +778,7 @@ Dirichlet problem & Label propagation & Boundary value problem \\
 \bottomrule
 \end{tabular}
 \end{center}
-\end{connectionbox}
+\end{keyidea}
 
 
 % ====================================================================
@@ -966,7 +943,7 @@ diffusion from point $x$. It wanders until it hits the boundary, where it
 average of all boundary values the particle could encounter, weighted by
 the probability of hitting each boundary point.
 
-\begin{examplebox}[title=Brownian Motion on the 1D Rod]
+\begin{example}[Brownian Motion on the 1D Rod]
 Consider the interval $[0, L]$ with boundary values $g(0) = 100$ and
 $g(L) = 0$. We compute the hitting probabilities from scratch using a
 key property of Brownian motion.
@@ -1019,7 +996,7 @@ f(x) = p \cdot g(0) + (1-p) \cdot g(L)
 \]
 This matches the harmonic solution from Section~\ref{harmonic-functions:sec:1d}. The
 probabilistic and analytic approaches give the same answer, as they must.
-\end{examplebox}
+\end{example}
 
 \subsection{Discrete: Random Walk on the Graph}
 
@@ -1103,7 +1080,7 @@ conclude $h = f$: the Dirichlet solution and the random walk expectation
 are one and the same.
 \end{proof}
 
-\begin{examplebox}[title=Random Walk on the Path Graph]
+\begin{example}[Random Walk on the Path Graph]
 On the path $v_1 - v_2 - v_3 - v_4 - v_5$ with boundary values
 $y_1 = 1$ and $y_5 = 0$, let us compute $f_i$ for each interior node
 using random walks.
@@ -1176,9 +1153,9 @@ a particle starting at $x$ on $[0, L]$ hits $0$ with probability
 $(L - x)/L$; in the discrete case, a walker starting at position $k$ on
 $\{1, \ldots, 5\}$ hits $v_1$ with probability $(5 - k)/4$. Both are
 linear interpolations between the boundaries.
-\end{examplebox}
+\end{example}
 
-\begin{connectionbox}[title=The Complete Duality]
+\begin{keyidea}[The Complete Duality]
 \begin{center}
 \begin{tabular}{ll}
 \toprule
@@ -1195,7 +1172,7 @@ Continuous harmonic function & Discrete harmonic function \\
 Both are characterized by the \emph{averaging property}: the value at any
 interior point equals the expected value after one infinitesimal step
 (continuous) or one step (discrete) of the random process.
-\end{connectionbox}
+\end{keyidea}
 
 
 % ====================================================================
@@ -1203,9 +1180,9 @@ interior point equals the expected value after one infinitesimal step
 \label{harmonic-functions:sec:summary}
 % ====================================================================
 
-The fundamental insight that unifies everything in this document is:
+The fundamental insight that unifies everything in this chapter is:
 
-\begin{intuitionbox}[title=The Unifying Principle]
+\begin{intuition}[The Unifying Principle]
 \textbf{A function is harmonic if and only if its value at every interior
 point equals the average of its values in a local neighborhood.}
 
@@ -1221,7 +1198,7 @@ from this averaging property:
 Setting the Laplacian to zero (the harmonic condition) yields boundary value
 problems, which are solved by energy minimization and computed via random
 processes.
-\end{intuitionbox}
+\end{intuition}
 
 The correspondence extends to every level:
 
@@ -1321,7 +1298,10 @@ $f_U = (I - P_{UU})^{-1}P_{UL}f_L$. \qed
 \label{harmonic-functions:app:proof_energy}
 
 We prove that the discrete harmonic function minimizes the Dirichlet energy
-$E(f) = \frac{1}{2}\sum_{i,j}A_{ij}(f_i - f_j)^2 = f^\top Lf$ among all
+\[
+E(f) = \frac{1}{2}\sum_{i,j}A_{ij}(f_i - f_j)^2 = f^\top Lf
+\]
+among all
 functions matching the boundary values.
 
 \textbf{Step 1: Partition the energy.} Using the block decomposition of the
@@ -1370,12 +1350,12 @@ $D_{UU}^{-1}$:
 This is exactly the linear system~\eqref{harmonic-functions:eq:app_linear_system} from the
 Dirichlet problem. The energy minimizer satisfies the harmonic condition.
 
-\textbf{Step 4: Uniqueness.} The energy $E(f)$ is a quadratic form in $f_U$
-with Hessian $2L_{UU}$. The matrix $L_{UU} = D_{UU}(I - P_{UU})$ is
-positive definite: $D_{UU}$ is positive diagonal, and $I - P_{UU}$ is
-positive definite since all eigenvalues of $P_{UU}$ are strictly less
-than~$1$ in absolute value (Appendix~\ref{harmonic-functions:app:proof_dirichlet}, Step~3).
-A strictly convex quadratic has a unique minimum, so the discrete harmonic
+\textbf{Step 4: Uniqueness.} The energy $E(f)$ is a quadratic function of $f_U$
+with Hessian $2L_{UU}$, a symmetric matrix. It is positive definite. Indeed, for $x\in\R^{\abs{\mathcal V_U}}$, extend it by zeros on $\mathcal V_L$
+to $\tilde x\in\R^n$; then $x^\top L_{UU}x = \tilde x^\top L\tilde x = \frac12\sum_{i,j}A_{ij}(\tilde x_i - \tilde x_j)^2\geq0$, with equality only if $\tilde x$ is constant along every edge,
+hence constant on the connected graph, hence $0$ because it vanishes on $\mathcal V_L\neq\emptyset$. (Note that
+$I - P_{UU}$ itself is not symmetric, so ``positive definite'' would not be the right notion for it; it is
+$L_{UU} = D_{UU}^{1/2}\bigl(I - D_{UU}^{-1/2}A_{UU}D_{UU}^{-1/2}\bigr)D_{UU}^{1/2}$ that is.) A strictly convex quadratic has a unique minimum, so the discrete harmonic
 function is the unique energy minimizer. \qed
 
 \newpage
@@ -1503,45 +1483,70 @@ Stopping Theorem extends this local averaging property to the global
 boundary value problem, giving Kakutani's theorem
 (Theorem~\ref{harmonic-functions:thm:kakutani}).
 
-On a graph, the same logic applies: a random walk with transition matrix
-$P$ satisfies $\E[X_1 \mid X_0 = i] = \sum_j P_{ij} j$... but wait, this
-is \emph{not} equal to $i$ in general (the walk is not a martingale in
-the position variable). What \emph{is} a martingale is any harmonic function
-evaluated along the walk: if $f$ is harmonic, then
-$\E[f(X_{t+1}) \mid X_t = i] = \sum_j P_{ij}f_j = f_i$. This is exactly
-the discrete version of the continuous story.
+On a graph, the nodes are not numbers, and the position of the walk is not a
+martingale in any useful sense. What \emph{is} a martingale is a harmonic function
+evaluated along the walk: if $f$ is harmonic at $i$, then $\E[f(X_{t+1})\mid X_t = i] = \sum_jP_{ij}f_j = f_i$. Applied to the solution
+of the Dirichlet problem and stopped at the hitting time $\tau$ of the boundary, optional stopping
+gives $f_i = \E[f(X_\tau)\mid X_0 = i] = \E[y_{X_\tau}\mid X_0 = i]$: a second proof of \cref{harmonic-functions:thm:rw_label_prop}, the
+discrete version of the continuous story.
 
 
-% ====================================================================
-% BIBLIOGRAPHY
-% ====================================================================
-\newpage
-\begin{thebibliography}{99}
+\section*{Further reading}
+Axler, Bourdon and Ramey, \emph{Harmonic Function Theory}, 2013, for the continuous theory;
+Evans, \emph{Partial Differential Equations}, 2022, Chapter~2, for the mean value property and the
+Dirichlet problem; Doyle and Snell, \emph{Random Walks and Electric Networks}, 1984, for the
+discrete theory and its electrical interpretation; Chung, \emph{Spectral Graph Theory}, 1997; and
+Zhu, Ghahramani and Lafferty, \emph{Semi-Supervised Learning Using Gaussian Fields and
+Harmonic Functions}, 2003, for the harmonic solution as a learning algorithm
+(\cref{ch:semi-supervised-graphs}).
 
-\bibitem{harmonic-functions:axler2013harmonic}
-S. Axler, P. Bourdon, and W. Ramey.
-\textit{Harmonic Function Theory}.
-Springer Science \& Business Media, 2013.
+\begin{chaptersummary}
+\begin{itemize}
+  \item $\Delta f(x) = \lim_{r\to0}\frac{2d}{r^2}\bigl(M_f(x, r) - f(x)\bigr)$: the Laplacian measures how far the average of $f$ on a small sphere is
+        above the value at the centre; the proof rests on $\frac1{\omega_{d-1}}\int_{S^{d-1}}\mathbf u^\top H\mathbf u = \tr(H)/d$.
+  \item Harmonic functions ($\Delta f = 0$) satisfy the mean value property exactly, for every radius.
+  \item On a graph, $(\mathcal L_{\mathrm{rw}}f)_i = f_i - \sum_jP_{ij}f_j$ (value minus neighbour average) and $L = D - A = D\,\mathcal L_{\mathrm{rw}}$; the graph Laplacian
+        corresponds to $-\Delta$, and $f^\top Lf = \frac12\sum_{i,j}A_{ij}(f_i - f_j)^2$ is the Dirichlet energy.
+  \item On a connected graph with labelled nodes, the discrete Dirichlet problem has the unique
+        solution $f_U = (I - P_{UU})^{-1}P_{UL}f_L$, which also minimizes the energy: this is label propagation.
+  \item The solution equals the expected label of the first labelled node reached by a random walk,
+        the discrete counterpart of Kakutani's theorem for Brownian motion.
+\end{itemize}
+\end{chaptersummary}
 
-\bibitem{harmonic-functions:chung1997}
-F. R. K. Chung.
-\textit{Spectral Graph Theory}.
-AMS, 1997.
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
 
-\bibitem{harmonic-functions:evans2022}
-L. C. Evans.
-\textit{Partial Differential Equations}.
-AMS, 2022.
+\begin{exercise}\label{harmonic-functions:exr:1}
+Show that the average of $f$ over the \emph{disk} $B(x, r)\subset\R^2$ is $f(x) + \frac{r^2}8\Delta f(x) + O(r^4)$, so that the constant $4 = 2d$ of the
+circle becomes $8$ for the disk. What is the constant for the ball in $\R^d$?
+\solutionlink{harmonic-functions:exr:1}
+\end{exercise}
 
-\bibitem{harmonic-functions:doyle1984}
-P. G. Doyle and J. L. Snell.
-\textit{Random Walks and Electric Networks}.
-Mathematical Association of America, 1984.
+\begin{exercise}\label{harmonic-functions:exr:2}
+Check that $f(x, y) = e^x\sin y$ is harmonic, and verify the mean value property at $(0, 0)$ for every
+radius $r$.
+\hint{Expand $e^{r\cos\theta}\sin(r\sin\theta) = \operatorname{Im}\exp(re^{i\theta})$.}
+\solutionlink{harmonic-functions:exr:2}
+\end{exercise}
 
-\bibitem{harmonic-functions:zhu2002}
-X. Zhu and Z. Ghahramani.
-\textit{Learning from Labeled and Unlabeled Data with Label Propagation}.
-Technical Report CMU-CALD-02-107, Carnegie Mellon University, 2002.
+\begin{exercise}\label{harmonic-functions:exr:3}
+On the triangle with unit weights, compute $L$, its eigenvalues and an orthonormal basis of
+eigenvectors. Which eigenvalue is multiple, and why is any orthonormal basis of its eigenspace
+acceptable?
+\solutionlink{harmonic-functions:exr:3}
+\end{exercise}
 
-\end{thebibliography}
+\begin{exercise}\label{harmonic-functions:exr:4}
+On the path $v_1 - v_2 - v_3 - v_4$ with weights $A_{12} = 1$, $A_{23} = 2$, $A_{34} = 1$, and boundary values $f_1 = 0$, $f_4 = 1$, compute the harmonic
+extension $(f_2, f_3)$ with the formula $f_U = (I - P_{UU})^{-1}P_{UL}f_L$, and check that it minimizes the energy.
+\solutionlink{harmonic-functions:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{harmonic-functions:exr:5}
+Prove the maximum principle on graphs: if $f$ is harmonic on $\mathcal V_U$ of a connected graph, then
+$\max_Vf = \max_{\mathcal V_L}f$. Deduce the uniqueness part of \cref{harmonic-functions:thm:discrete_dirichlet} without linear algebra.
+\solutionlink{harmonic-functions:exr:5}
+\end{exercise}
+
 \end{notechapter}

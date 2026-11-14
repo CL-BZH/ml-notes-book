@@ -7,7 +7,7 @@ graph neural networks.
 
 The notes started as ~100 standalone LaTeX documents, Markdown files and
 notebooks. They are organised here as a single LaTeX book (11 parts,
-70 chapters and three appendices, ~740 pages), with the accompanying code and notebooks.
+67 chapters and three appendices, ~690 pages), with the accompanying code and notebooks.
 
 **[📕 Download the PDF](https://github.com/CL-BZH/ml-notes-book/releases/latest/download/Notes_on_Machine_Learning.pdf)**
 
@@ -103,18 +103,15 @@ notebooks. They are organised here as a single LaTeX book (11 parts,
 
 **Part XI — Machine Learning on Graphs**
 
-59. The Laplacian, Local Averages and Graphs
-60. From Harmonic Functions to Graph Laplacians
-61. Graph Laplacians and Spectral Methods
-62. A Unified View of Spectral Decomposition
-63. Fourier Analysis
-64. From the DFT to Graph Neural Networks
-65. Random-Walk Node Similarity
-66. The Leicht–Holme–Newman Similarity
-67. Reproducing Kernel Hilbert Spaces
-68. Semi-Supervised Learning on Graphs
-69. Shallow Graph Embedding Methods
-70. Graph Autoencoders
+59. From Harmonic Functions to Graph Laplacians
+60. Graph Laplacians and Spectral Methods
+61. Fourier Analysis
+62. From the DFT to Graph Neural Networks
+63. Node Similarity: Path Counts and Random Walks
+64. Reproducing Kernel Hilbert Spaces
+65. Semi-Supervised Learning on Graphs
+66. Shallow Graph Embedding Methods
+67. Graph Autoencoders
 
 **Appendices**
 
