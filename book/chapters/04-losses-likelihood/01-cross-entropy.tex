@@ -87,10 +87,10 @@ ideal lengths $-\log q(x)$. The average length is then the cross-entropy.
 
 \begin{definition}[Cross-entropy and KL divergence]\label{cross-entropy:def:ce}
 For two distributions $p$ and $q$ on $\Xs$,
-\[
-  H(p, q) = -\sum_xp(x)\log q(x) = \E_{X\sim p}\bigl[-\log q(X)\bigr],\qquad
+\begin{gather*}
+  H(p, q) = -\sum_xp(x)\log q(x) = \E_{X\sim p}\bigl[-\log q(X)\bigr],\\
   \mathrm{KL}(p\Vert q) = \sum_xp(x)\log\frac{p(x)}{q(x)} = \E_{X\sim p}\Bigl[\log\frac{p(X)}{q(X)}\Bigr].
-\]
+\end{gather*}
 \end{definition}
 
 Adding and subtracting $\log p(x)$ inside the sum gives the decomposition on which
@@ -174,10 +174,10 @@ Apply \cref{cross-entropy:eq:decomposition} to each inner cross-entropy.
 \begin{example}[Three predictions]\label{cross-entropy:ex:three}
 A binary classifier predicts $Q_\theta(1\mid x_i) = 0.8, 0.3, 0.9$ on three points with labels
 $y = 1, 0, 1$. The probabilities of the observed labels are $0.8$, $1 - 0.3 = 0.7$ and $0.9$, so
-\[
-  \log\mathcal L = \ln0.8 + \ln0.7 + \ln0.9\approx-0.223 - 0.357 - 0.105 = -0.685,\qquad
+\begin{gather*}
+  \log\mathcal L = \ln0.8 + \ln0.7 + \ln0.9\approx-0.223 - 0.357 - 0.105 = -0.685,\\
   -\tfrac13\log\mathcal L\approx0.228\ \text{nats}.
-\]
+\end{gather*}
 The three inputs are distinct and each has one label, so every
 $\hat p_n(\cdot\mid x_i)$ is a point mass, its entropy is $0$, and the cross-entropy $0.228$
 is entirely KL divergence: it could be driven to $0$ by predicting the labels with
@@ -234,11 +234,11 @@ statistics.
 For a random variable with density $p$, the sums become integrals.
 
 \begin{definition}[Differential entropy, cross-entropy, KL]
-\[
+\begin{gather*}
   h(p) = -\int p(x)\log p(x)\,dx,\qquad
-  h(p, q) = -\int p(x)\log q(x)\,dx,\qquad
+  h(p, q) = -\int p(x)\log q(x)\,dx,\\
   \mathrm{KL}(p\Vert q) = \int p(x)\log\frac{p(x)}{q(x)}\,dx,
-\]
+\end{gather*}
 and again $h(p, q) = h(p) + \mathrm{KL}(p\Vert q)$.
 \end{definition}
 

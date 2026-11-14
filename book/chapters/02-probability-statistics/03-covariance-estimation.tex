@@ -53,7 +53,7 @@ $X - \E X$ ($p\times1$) with the centred row vector $(Y - \E Y)^\top$
   \end{bmatrix}.
 \end{align*}
 Taking the expectation entry by entry gives
-\[
+\begin{gather*}
   \Cov(X,Y) =
   \begin{bmatrix}
     \sigma_{X_1Y_1} & \sigma_{X_1Y_2} & \cdots & \sigma_{X_1Y_l}\\
@@ -61,7 +61,7 @@ Taking the expectation entry by entry gives
     \vdots & \vdots & \ddots & \vdots\\
     \sigma_{X_pY_1} & \sigma_{X_pY_2} & \cdots & \sigma_{X_pY_l}
   \end{bmatrix},
-  \qquad
+  \\
   \Sigma_X = \Cov(X,X) =
   \begin{bmatrix}
     \sigma_{X_1}^2 & \sigma_{X_1X_2} & \cdots & \sigma_{X_1X_p}\\
@@ -69,7 +69,7 @@ Taking the expectation entry by entry gives
     \vdots & \vdots & \ddots & \vdots\\
     \sigma_{X_pX_1} & \sigma_{X_pX_2} & \cdots & \sigma_{X_p}^2
   \end{bmatrix}.
-\]
+\end{gather*}
 Row $i$ of $\Cov(X,Y)$ collects the covariances of $X_i$ with every
 coordinate of $Y$; column $j$ those of $Y_j$ with every coordinate of $X$. On
 the diagonal of $\Sigma_X$ the covariance of a coordinate with itself is its

@@ -202,8 +202,8 @@ Writing the factors by columns and rows shows what $V$ is:
     \horzbar & \dot{\mathbf e}_1^\top & \horzbar\\
      & \vdots & \\
     \horzbar & \dot{\mathbf e}_n^\top & \horzbar
-  \end{bmatrix}
-  =
+  \end{bmatrix}\\
+  &=
   \begin{bmatrix}
     \vertbar & & \vertbar\\
     \dot{\mathbf e}_1 & \cdots & \dot{\mathbf e}_n\\
@@ -299,11 +299,11 @@ $\frac1{2n^2}\sum_{i,j}d_M^2(\mathbf e_i,\mathbf e_j) = \frac1n\sum_i\norm{\math
 Insert $\mathbf g$ in each difference, $\mathbf e_i - \mathbf e_j = (\mathbf e_i - \mathbf g) + (\mathbf g - \mathbf e_j)$, and expand:
 \begin{align*}
   \mathcal I^* &= \frac12\sum_{i,j}w_iw_j\norm{\mathbf e_i - \mathbf g + \mathbf g - \mathbf e_j}_M^2\\
-  &= \frac12\Bigl(\sum_{i,j}w_iw_j\norm{\mathbf e_i - \mathbf g}_M^2 + \sum_{i,j}w_iw_j\norm{\mathbf e_j - \mathbf g}_M^2
-     - 2\sum_{i,j}w_iw_j\inner{\mathbf e_i - \mathbf g}{\mathbf e_j - \mathbf g}_M\Bigr)\\
+  &= \frac12\Bigl(\sum_{i,j}w_iw_j\norm{\mathbf e_i - \mathbf g}_M^2 + \sum_{i,j}w_iw_j\norm{\mathbf e_j - \mathbf g}_M^2\\
+  &\qquad- 2\sum_{i,j}w_iw_j\inner{\mathbf e_i - \mathbf g}{\mathbf e_j - \mathbf g}_M\Bigr)\\
   &= \frac12\Bigl(\underbrace{\sum_jw_j}_{=1}\sum_iw_i\norm{\mathbf e_i - \mathbf g}_M^2
-     + \underbrace{\sum_iw_i}_{=1}\sum_jw_j\norm{\mathbf e_j - \mathbf g}_M^2
-     - 2\Bigl\langle\underbrace{\sum_iw_i\mathbf e_i - \mathbf g\sum_iw_i}_{=\,\mathbf g - \mathbf g\,=\,0},\
+     + \underbrace{\sum_iw_i}_{=1}\sum_jw_j\norm{\mathbf e_j - \mathbf g}_M^2\\
+  &\qquad- 2\Bigl\langle\underbrace{\sum_iw_i\mathbf e_i - \mathbf g\sum_iw_i}_{=\,\mathbf g - \mathbf g\,=\,0},\
        \sum_jw_j\mathbf e_j - \mathbf g\sum_jw_j\Bigr\rangle_M\Bigr)\\
   &= \frac12\bigl(\mathcal I_{\mathbf g} + \mathcal I_{\mathbf g}\bigr) = \mathcal I_{\mathbf g}. \qedhere
 \end{align*}

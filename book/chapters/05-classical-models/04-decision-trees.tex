@@ -247,9 +247,10 @@ sequence (Breiman, Friedman, Olshen and Stone, \emph{Classification and Regressi
 A tree on $100$ points has root $t_1$, children $t_2$ ($60$ points) and $t_3$ ($40$ points), and four leaves:
 $t_2$ splits into leaves with $2$ and $6$ errors, $t_3$ into leaves with $3$ and $4$ errors. As leaves,
 $t_1$, $t_2$, $t_3$ would make $40$, $10$ and $15$ errors. With errors counted as fractions of $100$:
-\[
-  g(t_2) = \frac{0.10 - 0.08}{1} = 0.02,\qquad g(t_3) = \frac{0.15 - 0.07}1 = 0.08,\qquad g(t_1) = \frac{0.40 - 0.15}{3}\approx0.083 .
-\]
+\begin{gather*}
+  g(t_2) = \frac{0.10 - 0.08}{1} = 0.02,\qquad g(t_3) = \frac{0.15 - 0.07}1 = 0.08,\\
+  g(t_1) = \frac{0.40 - 0.15}{3}\approx0.083 .
+\end{gather*}
 The weakest link is $t_2$: $T_1$ collapses it ($3$ leaves, $R = 0.17$). Then $g(t_1) = (0.40 - 0.17)/2 = 0.115$
 and $g(t_3) = 0.08$, so $T_2$ collapses $t_3$ ($2$ leaves, $R = 0.25$). Finally $g(t_1) = 0.15$. The optimal
 subtree is $T_0$ for $\alpha<0.02$, $T_1$ for $0.02\leq\alpha<0.08$, $T_2$ for $0.08\leq\alpha<0.15$, and the root alone

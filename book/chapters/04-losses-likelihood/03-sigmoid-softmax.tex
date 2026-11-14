@@ -165,7 +165,10 @@ $\sum_je^{z_j} = \sum_jp_j = 1$ and $\softmax(z)_k = p_k$; by (2) all other logi
 \end{proof}
 
 For example, $p = (0.7, 0.2, 0.1)$ is the softmax of
-$z = (\log0.7, \log0.2, \log0.1)\approx(-0.357, -1.609, -2.303)$, and also of $z + \log10\approx(1.946, 0.693, 0)$. A distribution
+\[
+z = (\log0.7, \log0.2, \log0.1)\approx(-0.357, -1.609, -2.303),
+\]
+and also of $z + \log10\approx(1.946, 0.693, 0)$. A distribution
 with a zero entry is never reached: it is only a limit, with the corresponding
 logit tending to $-\infty$.
 
@@ -236,11 +239,11 @@ $T(y) = e_y$: the Hessian is the covariance of the one-hot vector, $\diag(p) - p
 
 \begin{example}[One gradient step on the logits]\label{sigmoid-softmax:ex:step}
 Let $z = (2, 1, 0.1)$ and $y = 1$. Then $e^z\approx(7.389, 2.718, 1.105)$, the sum is $11.212$, and
-\[
+\begin{gather*}
   p\approx(0.659, 0.242, 0.099),\qquad
-  \ell = -\log0.659\approx0.417,\qquad
+  \ell = -\log0.659\approx0.417,\\
   \nabla_z\ell = p - e_1\approx(-0.341, 0.242, 0.099),
-\]
+\end{gather*}
 \[
   \diag(p) - pp^\top\approx\begin{pmatrix}0.225&-0.160&-0.065\\-0.160&0.184&-0.024\\-0.065&-0.024&0.089\end{pmatrix}.
 \]

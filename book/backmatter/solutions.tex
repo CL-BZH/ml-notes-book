@@ -1737,7 +1737,10 @@ to $T - 1 = 2$.
 
 \solution{crf:exr:3}
 For $T = 1$, $S(x, y) = \psi_1(y_0, y_1; x)$ and $Z(x) = \sum_ke^{\psi_1(y_0,k;x)}$, so
-$p(y_1 = k\mid x) = \softmax(\psi_1(y_0,\cdot\,;x))_k$: multinomial logistic regression
+\[
+p(y_1 = k\mid x) = \softmax(\psi_1(y_0,\cdot\,;x))_k :
+\]
+multinomial logistic regression
 with logits $z_k = \psi_1(y_0, k; x)$. Taking as features the indicators $f_k = [y_1 = k]$, with weights
 $z_k$, \cref{crf:prop:gradient}
 gives $\partial\log p(y\mid x)/\partial z_k = [y = k] - p(k\mid x)$, so the gradient of the loss is $p - e_y$.
@@ -1998,7 +2001,14 @@ Take the path $u_1 - u_2 - \ell - u_3$ with $\ell$ the only labeled node. Unlabe
 If $D = kI$ then $S = k^{-1/2}Ak^{-1/2} = A/k = D^{-1}A = P$, and $S\mathbf 1 = \mathbf 1$. For any $Y$ whose rows sum to $1$, $SY\mathbf 1 = S\mathbf 1 = \mathbf 1$ and $(1-\alpha)Y^{(0)}\mathbf 1 + \alpha SY\mathbf 1 = \mathbf 1$, so every iterate (and the limit) has rows summing to $1$. In the 5-node example the degrees are $2, 2, 2, 3, 1$, so $S$ is not stochastic; for instance row $5$ of $S$ has the single entry $S_{52} = 1/\sqrt{1\cdot2} \approx 0.707$, and the smoothed scores of the example have row sums different from $1$ (for $v_4$, $0.622 + 0.523 = 1.145$).
 
 \solution{semi-supervised-graphs:exr:5}
-With $F = XW$, $\norm{M(XW - Y)}_F^2$ has gradient $2X^\top M(XW - Y)$ (as $M^\top M = M$) and $\lambda\tr(W^\top X^\top LXW)$ has gradient $2\lambda X^\top LXW$. Setting the sum to zero gives $(X^\top MX + \lambda X^\top LX)W = X^\top MY$; both matrices on the left are positive semidefinite, and the solution is unique when their sum is invertible. The matrix $X^\top MX$ involves only the features of labeled nodes, but $X^\top LX = \sum_{\{i,j\}\in E}A_{ij}(x_i - x_j)(x_i - x_j)^\top$ involves the features of all nodes: directions in feature space along which neighbouring nodes differ are penalized, and this is where the unlabeled nodes act on $W$.
+With $F = XW$, the gradients of the two terms with respect to $W$ are (using $M^\top M = M$)
+\[
+\nabla_W\norm{M(XW - Y)}_F^2 = 2X^\top M(XW - Y), \qquad \nabla_W\,\lambda\tr(W^\top X^\top LXW) = 2\lambda X^\top LXW .
+\]
+Setting their sum to zero gives
+\[
+(X^\top MX + \lambda X^\top LX)W = X^\top MY;
+\] both matrices on the left are positive semidefinite, and the solution is unique when their sum is invertible. The matrix $X^\top MX$ involves only the features of labeled nodes, but $X^\top LX = \sum_{\{i,j\}\in E}A_{ij}(x_i - x_j)(x_i - x_j)^\top$ involves the features of all nodes: directions in feature space along which neighbouring nodes differ are penalized, and this is where the unlabeled nodes act on $W$.
 
 \section{\nameref*{ch:shallow-embeddings}}
 
@@ -2027,10 +2037,17 @@ If $\mathbf z_h^\top\mathbf R_1 = \mathbf z_y^\top$ and $\mathbf z_y^\top\mathbf
 Zero output: each row contributes its number of ones, $d_i$, so the loss is $\sum_id_i = n\bar d$. Constant $c = \bar d/n$: row $i$ contributes $d_i(1-c)^2 + (n - d_i)c^2$; summing, $n\bar d(1-c)^2 + n(n - \bar d)c^2 = n\bar d(1-c)^2 + n\bar d\,c(1-c) = n\bar d(1 - c) = n\bar d - \bar d^2$. The best constant improves on the trivial zero output only by $\bar d^2$, negligible against $n\bar d$ when $\bar d \ll n$: the unweighted loss has almost nothing to gain from predicting edges. With the SDNE weights the zero output costs $\beta^2n\bar d$, and the constant $\frac12$ costs $\frac14\bigl(\beta^2n\bar d + n(n - \bar d)\bigr)$. The constant wins when $\beta^2n\bar d + n(n-\bar d) < 4\beta^2n\bar d$, that is $\beta^2 > \frac{n - \bar d}{3\bar d}$. For $n = 1000$ and $\bar d = 10$ this needs $\beta > 5.7$, consistent with the recommended range $\beta \in [5, 10]$.
 
 \solution{graph-autoencoders:exr:2}
-Expanding as in \cref{graph-autoencoders:eq:l1_expanded}, $\sum_{i,j}S_{ij}\norm{\bm y_i}^2 = \sum_id_i\norm{\bm y_i}^2$ and, by symmetry of $S$, $\sum_{i,j}S_{ij}\norm{\bm y_j}^2 = \sum_jd_j\norm{\bm y_j}^2$. Hence $\mathcal L_{1^{st}} = 2\sum_id_i\norm{\bm y_i}^2 - 2\sum_{i,j}S_{ij}\bm y_i^\top\bm y_j = 2\tr(\bm Y^\top D\bm Y) - 2\tr(\bm Y^\top S\bm Y) = 2\tr(\bm Y^\top L\bm Y)$. Each term $S_{ij}\norm{\bm y_i - \bm y_j}^2$ is nonnegative, so $\mathcal L_{1^{st}} \ge 0$, with equality iff $\bm y_i = \bm y_j$ whenever $S_{ij} > 0$. On a connected graph this propagates along paths and forces all $\bm y_i$ to be equal; conversely equal embeddings give $0$.
+Expanding as in \cref{graph-autoencoders:eq:l1_expanded}, $\sum_{i,j}S_{ij}\norm{\bm y_i}^2 = \sum_id_i\norm{\bm y_i}^2$ and, by symmetry of $S$, $\sum_{i,j}S_{ij}\norm{\bm y_j}^2 = \sum_jd_j\norm{\bm y_j}^2$. Hence
+\begin{align*}
+\mathcal L_{1^{st}} &= 2\sum_id_i\norm{\bm y_i}^2 - 2\sum_{i,j}S_{ij}\bm y_i^\top\bm y_j\\
+&= 2\tr(\bm Y^\top D\bm Y) - 2\tr(\bm Y^\top S\bm Y) = 2\tr(\bm Y^\top L\bm Y).
+\end{align*} Each term $S_{ij}\norm{\bm y_i - \bm y_j}^2$ is nonnegative, so $\mathcal L_{1^{st}} \ge 0$, with equality iff $\bm y_i = \bm y_j$ whenever $S_{ij} > 0$. On a connected graph this propagates along paths and forces all $\bm y_i$ to be equal; conversely equal embeddings give $0$.
 
 \solution{graph-autoencoders:exr:3}
 $L = \bigl(\begin{smallmatrix}1&-1&0\\-1&2&-1\\0&-1&1\end{smallmatrix}\bigr)$, $D = \diag(1,2,1)$. The constraint $\bm y^\top D\mathbf 1 = 0$ excludes the eigenvector $\mathbf 1$ ($\mu = 0$). The vector $(a, 0, -a)$ satisfies $L\bm y = (a, 0, -a) = 1\cdot D\bm y$, so $\mu = 1$; the vector $(b, -b, b)$ gives $L\bm y = (2b, -4b, 2b) = 2D\bm y$, so $\mu = 2$. The minimum of $\bm y^\top L\bm y$ under the constraints is the smallest admissible $\mu$, attained at $\bm y = (1/\sqrt2, 0, -1/\sqrt2)$ (normalized by $\bm y^\top D\bm y = 2a^2 = 1$). Nodes $1$ and $3$ end up at $\pm1/\sqrt2$, symmetric about node $2$. There is no contradiction: in Laplacian eigenmaps the $\bm y_i$ are free variables, not a function of the adjacency rows. The reflection exchanging $1$ and $3$ maps this solution to its negative, which is equally optimal; which of the two nodes goes to the left is arbitrary.
 
 \solution{graph-autoencoders:exr:4}
-For independent coordinates the divergence adds up, and for one coordinate $\mathrm{KL}(\mathcal N(\mu,\sigma^2)\,\|\,\mathcal N(0,1)) = \frac12(\mu^2 + \sigma^2 - 1 - \log\sigma^2)$. Hence $\mathrm{KL} = \frac12\sum_{k=1}^d(\mu_k^2 + \sigma_k^2 - 1 - \log\sigma_k^2)$. For $\boldsymbol\mu = (1, 0)$ and $\boldsymbol\sigma = (1, \frac12)$: the first coordinate gives $1 + 1 - 1 - 0 = 1$, the second $0 + \frac14 - 1 + \log4 \approx 0.636$, so $\mathrm{KL} \approx \frac12(1.636) \approx 0.818$.
+For independent coordinates the divergence adds up, and for one coordinate
+\[
+\mathrm{KL}(\mathcal N(\mu,\sigma^2)\,\|\,\mathcal N(0,1)) = \tfrac12(\mu^2 + \sigma^2 - 1 - \log\sigma^2).
+\] Hence $\mathrm{KL} = \frac12\sum_{k=1}^d(\mu_k^2 + \sigma_k^2 - 1 - \log\sigma_k^2)$. For $\boldsymbol\mu = (1, 0)$ and $\boldsymbol\sigma = (1, \frac12)$: the first coordinate gives $1 + 1 - 1 - 0 = 1$, the second $0 + \frac14 - 1 + \log4 \approx 0.636$, so $\mathrm{KL} \approx \frac12(1.636) \approx 0.818$.

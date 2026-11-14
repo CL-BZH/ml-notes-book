@@ -101,10 +101,10 @@ independent given the class}:
   P(X_1 = x_1,\dots,X_D = x_D\mid Y = y) = \prod_{j=1}^D P(X_j = x_j\mid Y = y).
 \]
 Combined with Bayes' rule, the posterior is
-\[
-  P(Y = y\mid X = x) = \frac{P(Y=y)\prod_j P(X_j = x_j\mid Y = y)}{\sum_{y'}P(Y=y')\prod_jP(X_j = x_j\mid Y = y')}
-  \;\propto\; P(Y = y)\prod_{j=1}^D P(X_j = x_j\mid Y = y),
-\]
+\begin{align*}
+  P(Y = y\mid X = x) &= \frac{P(Y=y)\prod_j P(X_j = x_j\mid Y = y)}{\sum_{y'}P(Y=y')\prod_jP(X_j = x_j\mid Y = y')}\\
+  &\propto P(Y = y)\prod_{j=1}^D P(X_j = x_j\mid Y = y),
+\end{align*}
 and the classifier predicts the class with the largest posterior (the MAP rule of
 \cref{bayes-decision-theory:sec:map-ml}).
 \end{definition}
@@ -192,11 +192,11 @@ ham  & $(0,0)$, $(1,0)$, $(0,0)$, $(0,1)$, $(0,0)$, $(0,0)$ & 6 & 1 & 1 \\
 \end{tabular}
 \end{center}
 \emph{Training} (\cref{generative-discriminative:prop:counts}):
-\[
+\begin{gather*}
   \hat P(\text{spam}) = \tfrac{4}{10},\quad
-  \hat P(M{=}1\mid\text{spam}) = \hat P(F{=}1\mid\text{spam}) = \tfrac34,\quad
+  \hat P(M{=}1\mid\text{spam}) = \hat P(F{=}1\mid\text{spam}) = \tfrac34,\\
   \hat P(M{=}1\mid\text{ham}) = \hat P(F{=}1\mid\text{ham}) = \tfrac16 .
-\]
+\end{gather*}
 \emph{Prediction} for a new email containing both words:
 \begin{align*}
   \text{spam}:&\quad 0.4\times\tfrac34\times\tfrac34 = 0.225,\\

@@ -141,11 +141,11 @@ $A_k = \sum_{i=1}^k\sigma_iu_iv_i^\top = U_k\Sigma_kV_k^\top$.
 
 \begin{theorem}[Eckart--Young--Mirsky]\label{svd:thm:eckart-young}
 Among all matrices $B$ of rank at most $k$,
-\[
+\begin{gather*}
   \norm{A - A_k}_F = \min_{\mathrm{rank}(B)\leq k}\norm{A - B}_F = \Bigl(\sum_{i>k}\sigma_i^2\Bigr)^{1/2},
-  \qquad
+  \\
   \norm{A - A_k}_2 = \min_{\mathrm{rank}(B)\leq k}\norm{A - B}_2 = \sigma_{k+1}.
-\]
+\end{gather*}
 \end{theorem}
 
 \begin{proof}[Proof for the spectral norm]
@@ -193,7 +193,9 @@ projection onto $\operatorname{Im}(A)$.
 \end{theorem}
 
 \begin{proof}
-$A^\top A A^+ = V\Sigma^\top U^\top U\Sigma V^\top V\Sigma^+U^\top = V(\Sigma^\top\Sigma\Sigma^+)U^\top = V\Sigma^\top U^\top = A^\top$,
+\[
+A^\top A A^+ = V\Sigma^\top U^\top U\Sigma V^\top V\Sigma^+U^\top = V(\Sigma^\top\Sigma\Sigma^+)U^\top = V\Sigma^\top U^\top = A^\top,
+\]
 because $\Sigma^\top\Sigma\Sigma^+ = \Sigma^\top$ (check on the diagonal: $\sigma_i^2\cdot\sigma_i^{-1} = \sigma_i$, and
 $0$ where $\sigma_i = 0$). So $A^\top A(A^+y) = A^\top y$. All solutions are $A^+y + z$ with
 $z\in\ker(A)$, and $A^+y\in\operatorname{span}(v_1,\dots,v_r) = \ker(A)^\perp$, so
