@@ -1,0 +1,286 @@
+\begin{notechapter}
+\chapter{Normalization Layers}\label{ch:normalization}
+\chaptersubtitle{Batch, layer, instance and group normalization: what they compute and why they help}
+
+\begin{chapterintro}
+A normalization layer standardizes the pre-activations of a layer to mean $0$ and variance
+$1$, then applies a learned scale and shift. Batch normalization does it with statistics
+computed over the mini-batch; layer, instance and group normalization use statistics of a
+single example. These layers made very deep networks much easier to train. The reasons are
+subtler than the original explanation, and this chapter separates what is proved from what
+is conjectured. You will learn
+\begin{itemize}[nosep]
+  \item the forward pass of batch normalization at training and at test time, and how to fold it
+        into the preceding layer;
+  \item its backward pass, and why the gradient is a projection;
+  \item the scale invariance it creates, and the effective learning rate that results;
+  \item the internal covariate shift explanation and the evidence against it;
+  \item layer, instance, group and RMS normalization, and which axes each one averages over.
+\end{itemize}
+\prerequisites{\cref{ch:backpropagation} (the backward pass); \cref{ch:optimizers} for the
+discussion of learning rates.}
+\end{chapterintro}
+
+\section{Batch normalization}\label{normalization:sec:bn}
+
+Batch normalization (Ioffe and Szegedy, \emph{Batch Normalization: Accelerating Deep Network
+Training by Reducing Internal Covariate Shift}, ICML, 2015) acts on each unit separately.
+Fix one unit, and let $z_1,\dots,z_m$ be its pre-activations on the $m$ examples of a mini-batch.
+
+\begin{definition}[Batch normalization, training mode]\label{normalization:def:bn}
+\[
+  \mu_{\mathcal B} = \frac1m\sum_{i=1}^mz_i,\qquad\sigma_{\mathcal B}^2 = \frac1m\sum_{i=1}^m(z_i - \mu_{\mathcal B})^2,\qquad
+  \hat z_i = \frac{z_i - \mu_{\mathcal B}}{\sqrt{\sigma_{\mathcal B}^2 + \epsilon}},\qquad y_i = \gamma\hat z_i + \beta,
+\]
+with a small $\epsilon>0$ and learned parameters $\gamma,\beta$ (one pair per unit).
+\end{definition}
+
+For a layer of $n$ units, this is done for each of the $n$ coordinates; for a convolutional
+layer, statistics are taken over the batch and all spatial positions of each channel
+(\cref{normalization:sec:others}). The normalized output is then passed to the activation.
+A bias in the preceding layer is useless, since the mean subtraction removes it; $\beta$ plays its
+role.
+
+\paragraph{Why $\gamma$ and $\beta$.} Without them every unit would be forced to have mean $0$ and variance $1$
+over the batch, which may not be the best input for the activation (for a sigmoid, it
+would keep the unit in its almost linear regime). With $\gamma = \sqrt{\sigma_{\mathcal B}^2 + \epsilon}$ and $\beta = \mu_{\mathcal B}$ the layer
+reproduces its input, so normalization does not reduce what the network can represent;
+it changes the parametrization, and therefore the optimization. The scale and shift do not
+add nonlinearity: for fixed batch statistics, $y_i$ is an affine function of $z_i$.
+
+\paragraph{A nonlinearity in the batch.} During training, $y_i$ depends on the whole batch
+through $\mu_{\mathcal B}$ and $\sigma_{\mathcal B}$: the output for one example depends on which other examples share its
+batch. The noise this creates acts as a regularizer, and also makes batch normalization
+fail for very small batches (with $m = 1$, $\hat z = 0$ and the output is $\beta$ whatever the input).
+
+\begin{example}[Four values]\label{normalization:ex:bn}
+Let $z = (1,2,3,6)$, $\gamma = 2$, $\beta = 1$, and $\epsilon = 0$ for readability. Then $\mu_{\mathcal B} = 3$,
+$\sigma_{\mathcal B}^2 = \frac14(4 + 1 + 0 + 9) = 3.5$, $\sigma_{\mathcal B} = 1.8708$, and
+\[
+  \hat z = (-1.0690,\ -0.5345,\ 0,\ 1.6036),\qquad y = 2\hat z + 1 = (-1.1381,\ -0.0690,\ 1,\ 4.2071) .
+\]
+$\hat z$ has mean $0$ and $\frac14\sum\hat z_i^2 = 1$.
+\end{example}
+
+\paragraph{Test time.} At inference, predictions must not depend on the other examples of
+the batch, and batches may have size $1$. During training, running estimates of the mean and
+variance are kept,
+\[
+  \mu_{\mathrm{run}}\gets(1 - \alpha)\mu_{\mathrm{run}} + \alpha\mu_{\mathcal B},\qquad\sigma^2_{\mathrm{run}}\gets(1 - \alpha)\sigma^2_{\mathrm{run}} + \alpha\tfrac m{m - 1}\sigma^2_{\mathcal B},
+\]
+with $\alpha = 0.1$ in PyTorch (its argument \texttt{momentum}; note the convention, where $\alpha$ is the
+weight of the \emph{new} value) and the unbiased batch variance. At test time the layer computes
+$y = \gamma(z - \mu_{\mathrm{run}})/\sqrt{\sigma^2_{\mathrm{run}} + \epsilon} + \beta$: an affine function of $z$ for each unit, the same for every
+example. Since the preceding layer is affine too, the two can be merged
+(\cref{normalization:exr:2}): $z = Wa + b$ followed by inference-mode batch normalization equals
+$W'a + b'$ with
+\[
+  W' = \diag\Bigl(\frac\gamma{\sqrt{\sigma^2_{\mathrm{run}} + \epsilon}}\Bigr)W,\qquad b' = \frac{\gamma(b - \mu_{\mathrm{run}})}{\sqrt{\sigma^2_{\mathrm{run}} + \epsilon}} + \beta,
+\]
+coordinatewise. Deployed networks are often ``folded'' this way. The discrepancy between
+batch statistics (training) and running statistics (test) is a classical source of bugs:
+forgetting \texttt{model.eval()}, or running statistics corrupted by unusual batches.
+
+\section{The backward pass}\label{normalization:sec:backward}
+
+Every $\hat z_i$ depends on every $z_j$, through $\mu_{\mathcal B}$ and $\sigma_{\mathcal B}$. Let $s = \sqrt{\sigma_{\mathcal B}^2 + \epsilon}$. From $\partial\mu_{\mathcal B}/\partial z_j = 1/m$ and
+$\partial\sigma_{\mathcal B}^2/\partial z_j = 2(z_j - \mu_{\mathcal B})/m$, we get $\partial s/\partial z_j = (z_j - \mu_{\mathcal B})/(ms) = \hat z_j/m$, and
+\[
+  \frac{\partial\hat z_i}{\partial z_j} = \frac1s\Bigl(\delta_{ij} - \frac1m\Bigr) - \frac{z_i - \mu_{\mathcal B}}{s^2}\,\frac{\hat z_j}m
+  = \frac1s\Bigl(\delta_{ij} - \frac1m - \frac{\hat z_i\hat z_j}m\Bigr) .
+\]
+
+\begin{proposition}[Backward pass of batch normalization]\label{normalization:prop:backward}
+Let $g_i = \partial\ell/\partial y_i$. Then $\partial\ell/\partial\beta = \sum_ig_i$, $\partial\ell/\partial\gamma = \sum_ig_i\hat z_i$, and
+\[
+  \frac{\partial\ell}{\partial z_j} = \frac\gamma{ms}\Bigl(mg_j - \sum_ig_i - \hat z_j\sum_ig_i\hat z_i\Bigr) .
+\]
+In vector form, $\nabla_z\ell = \frac\gamma s\,P\,g$ with $P = I - \frac1m\mathbf 1\mathbf 1^\top - \frac1m\hat z\hat z^\top$. For $\epsilon = 0$, $P$ is the orthogonal
+projection onto the complement of $\operatorname{span}(\mathbf 1, \hat z)$; in particular $\sum_j\partial\ell/\partial z_j = 0$ and
+$\sum_j\hat z_j\,\partial\ell/\partial z_j = 0$.
+\end{proposition}
+
+\begin{proof}
+$\partial\ell/\partial\hat z_i = \gamma g_i$, and $\partial\ell/\partial z_j = \sum_i\gamma g_i\,\partial\hat z_i/\partial z_j$; substituting the Jacobian gives the formula, and
+the matrix of the Jacobian is $P/s$, which is symmetric. For $\epsilon = 0$, $\sum_i\hat z_i = 0$ and $\sum_i\hat z_i^2 = m$, so
+$\mathbf 1/\sqrt m$ and $\hat z/\sqrt m$ are orthonormal and $P$ is $I$ minus the projection onto their span.
+\end{proof}
+
+The projection has a clear meaning: shifting all the $z_i$ by a constant, or scaling them by a
+positive factor, leaves $\hat z$ unchanged, so the loss cannot change in the directions $\mathbf 1$ and
+$z - \mu_{\mathcal B}\mathbf 1$, and the gradient has no component along them.
+
+\begin{example}[Backward on four values]\label{normalization:ex:backward}
+In \cref{normalization:ex:bn}, let the loss be $\ell = y_1 - y_4$, so $g = (1, 0, 0, -1)$. Then $\sum_ig_i = 0$,
+$\sum_ig_i\hat z_i = -1.0690 - 1.6036 = -2.6726$ (this is $\partial\ell/\partial\gamma$), and
+\[
+  \frac{\partial\ell}{\partial z} = \frac2{4\cdot1.8708}\bigl(4g + 2.6726\,\hat z\bigr) = (0.3054,\ -0.3818,\ 0,\ 0.0764),
+\]
+which sums to $0$ and is orthogonal to $\hat z$; finite differences agree. Treating $\mu_{\mathcal B}$ and $\sigma_{\mathcal B}$ as
+constants would give $\gamma g/s = (1.069, 0, 0, -1.069)$, which is wrong. For $z_4$, the direct effect $-1.069$ is almost cancelled by the effect through $\sigma_{\mathcal B}$:
+increasing $z_4 = 6$ widens the batch, which shrinks every $\hat z_i$ towards $0$, decreasing $y_4$ and increasing
+$y_1$ (both increase $\ell$). The effect through $\mu_{\mathcal B}$ shifts $y_1$ and $y_4$ equally and cancels in $y_1 - y_4$.
+\end{example}
+
+\section{Why does it help?}\label{normalization:sec:why}
+
+\paragraph{The original argument.} Ioffe and Szegedy argued that training is slowed by
+\emph{internal covariate shift}: as earlier layers are updated, the distribution of the inputs of
+each layer changes, and the layer has to keep adapting. Normalizing fixes the first two
+moments of each unit's input. Batch normalization does allow much larger learning rates,
+reduces sensitivity to the initialization, and keeps activations out of saturated regions.
+
+\paragraph{The evidence.} Santurkar, Tsipras, Ilyas and Madry (\emph{How Does Batch
+Normalization Help Optimization?}, NeurIPS, 2018) trained networks where random noise with
+changing mean and variance was injected \emph{after} each normalization layer, recreating
+covariate shift: they trained almost as well as with plain batch normalization. They also
+measured, and proved in simple settings, that batch normalization makes the loss and its
+gradient more Lipschitz along the training trajectory, so that larger steps remain
+predictive. Their conclusion is that the smoother loss landscape, not reduced covariate
+shift, is the main mechanism. The question is not fully settled.
+
+\paragraph{Scale invariance.} A clean, provable effect concerns the weights feeding a
+normalized unit. If $z = w^\top a$ is followed by batch normalization (with $\epsilon$ negligible), replacing $w$ by
+$cw$ with $c>0$ multiplies all $z_i$ by $c$ and leaves $\hat z$ unchanged: $\ell(cw) = \ell(w)$.
+
+\begin{proposition}[Consequences of scale invariance]\label{normalization:prop:scale}
+If $\ell(cw) = \ell(w)$ for all $c>0$, then $\nabla\ell(cw) = \frac1c\nabla\ell(w)$ and $w^\top\nabla\ell(w) = 0$. Gradient descent on $w$ then
+increases $\norm w$:
+\[
+  \norm{w_{k+1}}^2 = \norm{w_k}^2 + \eta^2\norm{\nabla\ell(w_k)}^2 .
+\]
+\end{proposition}
+
+\begin{proof}
+Differentiating $\ell(cw) = \ell(w)$ with respect to $w$ gives $c\nabla\ell(cw) = \nabla\ell(w)$; differentiating with respect to $c$ at
+$c = 1$ gives $w^\top\nabla\ell(w) = 0$. Then $\norm{w - \eta\nabla\ell(w)}^2 = \norm w^2 - 2\eta w^\top\nabla\ell(w) + \eta^2\norm{\nabla\ell(w)}^2$.
+\end{proof}
+
+Only the direction $u = w/\norm w$ matters, and a step of size $\eta$ on $w$ changes it by about
+$\eta\norm{\nabla\ell(w)}/\norm w = \eta\norm{\nabla\ell(u)}/\norm w^2$: the \emph{effective learning rate} for the direction is $\eta/\norm w^2$. It
+decreases automatically as $\norm w$ grows, a built-in schedule; weight decay, which shrinks $\norm w$,
+then acts as an increase of the effective learning rate rather than as a regularizer (van
+Laarhoven, \emph{L2 Regularization versus Batch and Weight Normalization}, 2017).
+
+\section{Other normalizations}\label{normalization:sec:others}
+
+For a convolutional layer the activations form a tensor indexed by the example $n$, the
+channel $c$, and the spatial position $(h, w)$. The normalizations differ by the set of entries
+over which the mean and variance are computed (\cref{normalization:fig:axes}); all then
+apply a learned per-channel (or per-feature) scale and shift.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+method & statistics over & one mean per \\
+\midrule
+batch norm & $n, h, w$ & channel \\
+layer norm & $c, h, w$ & example \\
+instance norm & $h, w$ & example and channel \\
+group norm ($G$ groups) & $h, w$ and the $C/G$ channels of a group & example and group \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=0.42cm, y=0.42cm]
+  \foreach \k/\name/\cols/\rows in {0/batch norm/2/{0,1,2,3}, 1/layer norm/{0,1,2,3,4,5}/1, 2/instance norm/2/1, 3/group norm/{0,1,2}/1}{
+    \begin{scope}[xshift=\k*3.7cm]
+      \foreach \c in \cols \foreach \r in \rows \fill[bookaccent!45] (\c,-\r) rectangle ++(1,-1);
+      \draw[step=1, gray] (0,0) grid (6,-4);
+      \draw[thick] (0,0) rectangle (6,-4);
+      \node[font=\small] at (3,1) {\name};
+      \node[font=\scriptsize] at (3,-4.7) {channels $c$};
+      \node[font=\scriptsize, rotate=90] at (-0.8,-2) {examples $n$};
+    \end{scope}
+  }
+\end{tikzpicture}
+\caption{Each cell stands for all spatial positions $(h,w)$ of one example and one channel.
+The shaded cells form the set over which one mean and one variance are computed: one
+channel across the batch (batch norm), one example across channels (layer norm), one
+example and one channel (instance norm), one example and a group of channels (group
+norm, here $G = 2$).}
+\label{normalization:fig:axes}
+\end{figure}
+
+\begin{itemize}
+  \item \textbf{Layer normalization} (Ba, Kiros and Hinton, 2016) normalizes each example over
+        its features, $\hat a_j = (a_j - \mu)/\sqrt{\sigma^2 + \epsilon}$ with $\mu,\sigma^2$ the mean and variance of $(a_1,\dots,a_n)$, then
+        $y_j = \gamma_j\hat a_j + \beta_j$. It does not depend on the batch, behaves identically at training and test
+        time, and applies to sequences token by token: it is the normalization of recurrent
+        networks and transformers.
+  \item \textbf{Instance normalization} (Ulyanov, Vedaldi and Lempitsky, 2016) normalizes each
+        channel of each image over its spatial positions. It removes the contrast and colour
+        statistics of each image, which is useful in style transfer and image generation.
+  \item \textbf{Group normalization} (Wu and He, \emph{Group Normalization}, ECCV, 2018) splits the
+        channels into $G$ groups and normalizes each group of each example. $G = 1$ is layer
+        normalization and $G = C$ instance normalization. It works with batches too small for batch
+        normalization, as in detection and segmentation.
+  \item \textbf{RMS normalization} (Zhang and Sennrich, \emph{Root Mean Square Layer Normalization},
+        NeurIPS, 2019) drops the mean subtraction: $y_j = \gamma_ja_j/\sqrt{\frac1n\sum_ka_k^2 + \epsilon}$. It is cheaper and works as
+        well in many transformers.
+\end{itemize}
+All of these are invariant to rescaling the weights of the preceding layer (for layer
+normalization, all weights of the layer at once), so \cref{normalization:prop:scale} applies
+to them too.
+
+\begin{pitfall}[Batch normalization and dropout]
+Placed before batch normalization, dropout (\cref{ch:dropout}) changes the variance of the
+activations between training (with dropout) and test (without), while the running statistics
+were collected with dropout: the normalization is then miscalibrated at test time (Li,
+Chen, Hu and Yang, \emph{Understanding the Disharmony between Dropout and Batch
+Normalization by Variance Shift}, CVPR, 2019). Put dropout after the last batch
+normalization layer, or use little of it.
+\end{pitfall}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Batch norm standardizes each unit over the mini-batch, then applies $\gamma\hat z + \beta$; $\gamma,\beta$ restore the
+        capacity to represent any mean and scale. At test time it uses running statistics and is an
+        affine map, which folds into the preceding layer.
+  \item Its Jacobian is $\frac1sP$, $P$ the projection orthogonal to $\mathbf 1$ and $\hat z$: the gradient ignores shifts and
+        rescalings of the batch. Ignoring the dependence of $\mu_{\mathcal B},\sigma_{\mathcal B}$ on $z$ gives wrong gradients.
+  \item It allows larger learning rates. The internal covariate shift explanation is contested;
+        a smoother loss landscape is the main alternative. Scale invariance makes the gradient
+        orthogonal to $w$, $\norm w$ grow, and the effective learning rate $\eta/\norm w^2$.
+  \item Layer, instance, group and RMS normalization use statistics of one example; layer norm
+        is the standard in transformers.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{normalization:exr:1}
+Show that batch normalization in training mode (with $\epsilon = 0$) gives the same output for $(z_1,\dots,z_m)$ and for
+$(az_1 + b,\dots,az_m + b)$, $a>0$. What happens for $a<0$?
+\solutionlink{normalization:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{normalization:exr:2}
+Derive the formulas for $W'$ and $b'$ that fold inference-mode batch normalization into the
+preceding affine layer. Compute them for one unit with $w = (1,-1)$, $b = 0.5$, $\mu_{\mathrm{run}} = 2$,
+$\sigma^2_{\mathrm{run}} = 4$, $\gamma = 3$, $\beta = -1$, $\epsilon = 0$.
+\solutionlink{normalization:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{normalization:exr:3}
+Show directly from the formula of \cref{normalization:prop:backward} that $\sum_j\partial\ell/\partial z_j = 0$, and that the
+gradient vanishes when $g$ is an affine function of $\hat z$ ($g_i = c_1 + c_2\hat z_i$). Interpret.
+\solutionlink{normalization:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{normalization:exr:4}
+For one example with features $a = (2, 4, 4, 6)$, compute the outputs of layer normalization
+($\gamma = 1$, $\beta = 0$, $\epsilon = 0$) and of RMS normalization ($\gamma = 1$).
+\solutionlink{normalization:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{normalization:exr:5}
+A scale-invariant loss is trained by gradient descent from $\norm{w_0} = 1$ with $\eta = 0.1$, and the gradient norm at
+the current direction stays equal to $1$, i.e.\ $\norm{\nabla\ell(w_k)} = 1/\norm{w_k}$. Find the recursion for $\norm{w_k}^2$, and show that
+the effective learning rate decays like $1/\sqrt k$.
+\solutionlink{normalization:exr:5}
+\end{exercise}
+\end{notechapter}

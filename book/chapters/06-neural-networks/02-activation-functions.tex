@@ -1,0 +1,342 @@
+\begin{notechapter}
+\chapter{Activation Functions and Initialization}\label{ch:activation-functions}
+\chaptersubtitle{Which nonlinearity, and how to keep signals and gradients at the right scale}
+
+\begin{chapterintro}
+The activation $\phi$ of an MLP must be nonlinear for the network to be more than a linear
+model (\cref{ch:feedforward-networks}). Beyond that, its shape decides how signals and
+gradients travel through many layers: whether they shrink, explode or stay usable. The
+same question decides how to choose the initial weights. This chapter catalogues the usual
+activations and makes precise the arguments usually given for and against them. You will
+learn
+\begin{itemize}[nosep]
+  \item the usual activations (sigmoid, tanh, ReLU and its variants, softplus, GELU, SiLU),
+        their derivatives and their ranges;
+  \item what saturation and vanishing or exploding gradients are, and how the derivative of
+        $\phi$ enters them;
+  \item what the ``zero-centred'' argument really says, and its limits;
+  \item why ReLU units can die;
+  \item how to initialize the weights so that variances are preserved (LeCun, Glorot, He).
+\end{itemize}
+\prerequisites{\cref{ch:feedforward-networks}; the backward recursion of
+\cref{backpropagation:sec:algorithm} is used in \cref{activation-functions:sec:vanishing},
+and can be taken on trust at first reading.}
+\end{chapterintro}
+
+\section{What an activation should do}\label{activation-functions:sec:properties}
+
+\begin{itemize}
+  \item \textbf{Nonlinearity.} Required, and by \cref{feedforward-networks:thm:uat} any
+        continuous non-polynomial $\phi$ gives universal approximation. Expressiveness is therefore
+        not what distinguishes the usual choices.
+  \item \textbf{Differentiability almost everywhere.} Gradient methods need $\phi'$. A finite
+        number of kinks is harmless: at a kink, software uses a fixed one-sided value (for
+        ReLU, $\phi'(0) = 0$), and pre-activations land exactly on a kink with probability $0$
+        when they have a density.
+  \item \textbf{Derivative not too small, not too large.} Backpropagation multiplies by $\phi'(z)$
+        at every layer (\cref{activation-functions:sec:vanishing}). This is the property
+        that matters most in deep networks.
+  \item \textbf{Cheap to compute}, since it is evaluated once per unit and per example, in
+        both passes.
+\end{itemize}
+Monotonicity, boundedness and zero-centring are often listed as well; they are neither
+necessary nor sufficient (GELU and SiLU are not monotone, ReLU is neither bounded nor
+centred), and their role is discussed below.
+
+\section{A catalogue}\label{activation-functions:sec:catalogue}
+
+\paragraph{Sigmoid and tanh.}
+\begin{align*}
+  \sigma(z) &= \frac1{1 + e^{-z}}, & \sigma'(z) &= \sigma(z)\bigl(1 - \sigma(z)\bigr)\leq\tfrac14,\\
+  \tanh(z) &= \frac{e^z - e^{-z}}{e^z + e^{-z}} = 2\sigma(2z) - 1, & \tanh'(z) &= 1 - \tanh^2(z)\leq1 .
+\end{align*}
+Both are smooth, bounded and saturating: $\phi'(z)\to0$ as $\abs z\to\infty$. Because $\tanh$ is an
+affine function of $\sigma(2\,\cdot)$, a tanh network and a sigmoid network represent the same functions
+(\cref{activation-functions:exr:2}); they differ in how training behaves. The sigmoid
+remains the output unit for binary classification (\cref{ch:sigmoid-softmax}); as a hidden
+activation it has been replaced by the functions below.
+
+\paragraph{ReLU and its variants.} The rectified linear unit $\mathrm{ReLU}(z) = \max(0, z)$ has derivative
+$\bbone[z>0]$: it does not saturate for $z>0$, and its exact zeros make activations sparse. It was
+popularized by Nair and Hinton (\emph{Rectified Linear Units Improve Restricted Boltzmann
+Machines}, ICML, 2010) and Glorot, Bordes and Bengio (\emph{Deep Sparse Rectifier Neural
+Networks}, AISTATS, 2011). For $z<0$ the derivative is $0$, which can kill units
+(\cref{activation-functions:sec:dead}). Variants keep a nonzero slope there:
+\begin{itemize}[nosep]
+  \item \emph{leaky ReLU} $\max(\alpha z, z)$ with a small fixed $\alpha$, e.g.\ $0.01$ (Maas, Hannun and Ng,
+        \emph{Rectifier Nonlinearities Improve Neural Network Acoustic Models}, ICML Workshop, 2013);
+        with a learned $\alpha$ it is the \emph{PReLU} of He, Zhang, Ren and Sun (2015, below);
+  \item \emph{ELU} $z$ for $z>0$ and $\alpha(e^z - 1)$ for $z\leq0$, smooth for $\alpha = 1$ and with negative outputs
+        bounded below by $-\alpha$ (Clevert, Unterthiner and Hochreiter, ICLR, 2016);
+  \item \emph{softplus} $\log(1 + e^z)$, a smooth ReLU: its derivative is $\sigma(z)$ and
+        $0<\mathrm{softplus}(z) - \mathrm{ReLU}(z)\leq\log2$.
+\end{itemize}
+
+\paragraph{Smooth gated units.} Write the unit as the input times a gate in $[0,1]$:
+ReLU is $z\cdot\bbone[z>0]$. Replacing the hard gate by a smooth one gives
+\[
+  \mathrm{GELU}(z) = z\,\Phi(z),\qquad\mathrm{SiLU}(z) = z\,\sigma(z),
+\]
+with $\Phi$ the standard normal distribution function (Hendrycks and Gimpel, \emph{Gaussian
+Error Linear Units}, 2016) and $\sigma$ the sigmoid (Elfwing, Uchibe and Doya, Neural Networks,
+2018; also called Swish by Ramachandran, Zoph and Le, 2017, who add a slope $z\sigma(\beta z)$). Both
+are smooth, slightly negative for $z<0$ (with a minimum about $-0.17$ for GELU and $-0.28$ for
+SiLU), not monotone, and close to ReLU for large $\abs z$. GELU is the default in transformers.
+Since $\Phi$ has no closed form, $\mathrm{GELU}(z)\approx\frac z2\bigl(1 + \tanh\bigl(\sqrt{2/\pi}(z + 0.044715z^3)\bigr)\bigr)$ is
+often used.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[name=f, width=7.2cm, height=5.6cm, xmin=-4, xmax=4, ymin=-1.3, ymax=3.2,
+  xlabel={$z$}, title={$\phi(z)$}, grid=major, grid style={gray!20},
+  legend style={font=\small, draw=none, fill=none, at={(0.03,0.97)}, anchor=north west}, legend cell align=left]
+  \addplot[very thick, bookaccent, domain=-4:4, samples=81] {1/(1+exp(-x))}; \addlegendentry{sigmoid}
+  \addplot[very thick, bookexample, dashed, domain=-4:4, samples=81] {tanh(x)}; \addlegendentry{tanh}
+  \addplot[very thick, bookpitfall, domain=-4:4, samples=3] {max(0,x)}; \addlegendentry{ReLU}
+  \addplot[very thick, bookdef, densely dotted, domain=-4:4, samples=81] {x/(1+exp(-x))}; \addlegendentry{SiLU}
+\end{axis}
+\begin{axis}[at={(f.east)}, anchor=west, xshift=1.1cm, width=7.2cm, height=5.6cm, xmin=-4, xmax=4,
+  ymin=-0.2, ymax=1.2, xlabel={$z$}, title={$\phi'(z)$}, grid=major, grid style={gray!20}]
+  \addplot[very thick, bookaccent, domain=-4:4, samples=81] {exp(-x)/(1+exp(-x))^2};
+  \addplot[very thick, bookexample, dashed, domain=-4:4, samples=81] {1-tanh(x)^2};
+  \addplot[very thick, bookpitfall, jump mark left] coordinates {(-4,0) (0,0) (4,1)};
+  \addplot[very thick, bookdef, densely dotted, domain=-4:4, samples=81]
+    {1/(1+exp(-x))*(1+x*(1-1/(1+exp(-x))))};
+\end{axis}
+\end{tikzpicture}
+\caption{Four activations and their derivatives. The sigmoid's derivative never exceeds $\frac14$;
+tanh's reaches $1$ at $0$ only; both vanish for large $\abs z$. ReLU's derivative is $0$ or $1$. SiLU's
+derivative exceeds $1$ for $z>1.28$ (by at most $0.10$, at $z\approx2.4$) and is negative for $z<-1.28$,
+where SiLU decreases to its minimum.}
+\label{activation-functions:fig:catalogue}
+\end{figure}
+
+\begin{table}[ht]
+\centering\small
+\begin{tabular}{lllll}
+\toprule
+& $\phi(z)$ & $\phi'(z)$ & range & $\sup\abs{\phi'}$ \\
+\midrule
+sigmoid & $1/(1 + e^{-z})$ & $\sigma(1 - \sigma)$ & $(0,1)$ & $\frac14$ \\
+tanh & $\tanh z$ & $1 - \tanh^2$ & $(-1,1)$ & $1$ \\
+ReLU & $\max(0,z)$ & $\bbone[z>0]$ & $[0,\infty)$ & $1$ \\
+leaky ReLU & $\max(\alpha z, z)$ & $1$ or $\alpha$ & $\R$ & $1$ \\
+ELU & $z$ or $\alpha(e^z - 1)$ & $1$ or $\alpha e^z$ & $(-\alpha,\infty)$ & $\max(1,\alpha)$ \\
+softplus & $\log(1 + e^z)$ & $\sigma(z)$ & $(0,\infty)$ & $1$ \\
+GELU & $z\Phi(z)$ & $\Phi(z) + z\varphi(z)$ & $[-0.17,\infty)$ & $\approx1.13$ \\
+SiLU & $z\sigma(z)$ & $\sigma(z)\bigl(1 + z(1 - \sigma(z))\bigr)$ & $[-0.28,\infty)$ & $\approx1.10$ \\
+\bottomrule
+\end{tabular}
+\caption{Usual activations; $\varphi$ is the standard normal density.}
+\label{activation-functions:tab:catalogue}
+\end{table}
+
+\section{Saturation, vanishing and exploding gradients}\label{activation-functions:sec:vanishing}
+
+\paragraph{The product structure.} Backpropagation
+(\cref{backpropagation:thm:backprop}) computes the error signals $\delta^{(l)} = \partial\ell/\partial z^{(l)}$ by
+\[
+  \delta^{(l)} = D^{(l)}W^{(l+1)\top}\delta^{(l+1)},\qquad D^{(l)} = \diag\bigl(\phi'(z^{(l)})\bigr),
+\]
+so that $\delta^{(l)} = D^{(l)}W^{(l+1)\top}D^{(l+1)}W^{(l+2)\top}\cdots D^{(L-1)}W^{(L)\top}\delta^{(L)}$, and the gradient for $W^{(l)}$ is
+$\delta^{(l)}a^{(l-1)\top}$. Taking operator norms,
+\[
+  \norm{\delta^{(l)}}\leq\Bigl(\prod_{k=l}^{L-1}\sup\abs{\phi'}\,\norm{W^{(k+1)}}\Bigr)\norm{\delta^{(L)}} .
+\]
+The signal reaching layer $l$ is a product of $L - l$ factors. If they are typically below $1$,
+it decreases geometrically with depth: the \emph{vanishing gradient} problem, first
+analysed by Hochreiter (diploma thesis, 1991) and by Bengio, Simard and Frasconi
+(\emph{Learning Long-Term Dependencies with Gradient Descent is Difficult}, IEEE Transactions
+on Neural Networks, 1994) for recurrent networks. If they are typically above $1$, it grows
+geometrically: the \emph{exploding gradient} problem. The first layers then learn much more
+slowly, or much more erratically, than the last ones.
+
+\paragraph{The sigmoid.} With $\phi = \sigma$, every factor $\phi'$ is at most $\frac14$, so
+\[
+  \norm{\delta^{(l)}}\leq4^{-(L-l)}\prod_{k=l}^{L-1}\norm{W^{(k+1)}}\,\norm{\delta^{(L)}} :
+\]
+ten layers contribute a factor $4^{-10}\approx10^{-6}$, which the weights would have to compensate. This bound holds even when no unit is saturated.
+
+\paragraph{Saturation.} A unit is \emph{saturated} when its pre-activation lies where $\phi$ is flat:
+$\abs z$ large for sigmoid and tanh, $z<0$ for ReLU. Its derivative is then nearly $0$, and it
+transmits almost no gradient, either to its incoming weights or to earlier layers. Saturation
+is a property of individual units and inputs; vanishing gradients are a property of the
+product along the depth. Saturation makes vanishing worse, and large weights or a poor
+initialization cause saturation.
+
+\paragraph{Remedies.} Non-saturating activations (ReLU family), an initialization that
+keeps the factors near $1$ on average (\cref{activation-functions:sec:init}), normalization
+layers (\cref{ch:normalization}), and residual connections $a^{(l)} = a^{(l-1)} + F(a^{(l-1)})$, whose Jacobian
+$I + J_F$ does not shrink the signal, address vanishing gradients. \emph{Gradient clipping},
+which rescales the gradient when its norm exceeds a threshold (Pascanu, Mikolov and Bengio,
+\emph{On the Difficulty of Training Recurrent Neural Networks}, ICML, 2013), addresses
+exploding gradients only: it bounds the size of a step and does nothing for gradients that
+are too small.
+
+\section{Zero-centred activations}\label{activation-functions:sec:centred}
+
+The gradient for the incoming weights $w_j$ of unit $j$ of layer $l$ is, for one example,
+\[
+  \nabla_{w_j}\ell = \delta_j\,a^{(l-1)},
+\]
+the activation vector of the previous layer multiplied by a scalar.
+
+\begin{proposition}\label{activation-functions:prop:orthant}
+If the activations $a^{(l-1)}$ are all positive (sigmoid outputs, or the nonzero ReLU outputs),
+the coordinates of $\nabla_{w_j}\ell$ for a single example all have the sign of $\delta_j$. A gradient step on
+this example then increases all the weights of $w_j$, or decreases all of them.
+\end{proposition}
+
+The update of $w_j$ is confined to the positive or the negative orthant. If the weights must
+move in a direction with mixed signs, say $(+1,-1)$, gradient descent on single examples can
+only approximate it by alternating steps in the two allowed orthants, a zig-zag
+(\cref{activation-functions:fig:orthant}). This is the argument of LeCun, Bottou, Orr and
+Müller (\emph{Efficient BackProp}, 1998) for zero-mean inputs and activations, such as tanh.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=1.1, >=Stealth]
+  \fill[bookaccent!8] (0,0) rectangle (2.4,2.0);
+  \fill[bookaccent!8] (0,0) rectangle (-1.2,-1.6);
+  \draw[->] (-1.4,0) -- (2.7,0) node[right] {$w_{j1}$};
+  \draw[->] (0,-1.8) -- (0,2.2) node[above] {$w_{j2}$};
+  \node[font=\scriptsize, bookaccent] at (1.7,1.7) {allowed};
+  \node[font=\scriptsize, bookaccent] at (-0.75,-1.3) {allowed};
+  \coordinate (s) at (0,0);
+  \draw[->, very thick, bookdef] (s) -- (2.2,-1.1) node[right, font=\small] {target direction};
+  \draw[->, thick, bookexample] (0,0) -- (1.0,0.25);
+  \draw[->, thick, bookexample] (1.0,0.25) -- (0.85,-0.45);
+  \draw[->, thick, bookexample] (0.85,-0.45) -- (1.85,-0.2);
+  \draw[->, thick, bookexample] (1.85,-0.2) -- (1.7,-0.9);
+  \node[font=\scriptsize, bookexample] at (1.15,0.55) {steps};
+\end{tikzpicture}
+\caption{With positive inputs, each single-example step for the weights of one unit lies in
+the first or the third quadrant (shaded). Reaching a direction like $(1,-\frac12)$ takes a
+zig-zag of steps of both kinds.}
+\label{activation-functions:fig:orthant}
+\end{figure}
+
+\begin{pitfall}[What the argument does not say]
+The constraint holds per example. A mini-batch gradient $\frac1B\sum_i\delta_j^{(i)}a^{(i)}$ sums vectors with
+different signs of $\delta_j^{(i)}$ and different directions $a^{(i)}$, and is not confined to an orthant.
+The effect that survives averaging is a matter of conditioning: inputs with a large common
+mean make the Hessian of the unit badly conditioned (LeCun et al.\ 1998), which slows
+gradient descent as in the zig-zag of \cref{gradient-tangent-space:sec:zigzag}. Centring
+the inputs of every layer, which batch normalization does (\cref{ch:normalization}),
+removes the problem whatever the activation. ReLU networks train well despite non-centred
+activations.
+\end{pitfall}
+
+\section{Dead ReLU units}\label{activation-functions:sec:dead}
+
+A ReLU unit is \emph{dead} if its pre-activation $w_j^\top a + b_j$ is negative for every training input. Its
+output and its derivative are then $0$ on all the data, so the gradients for $w_j$ and $b_j$ vanish
+on every mini-batch, and gradient descent never changes them: the unit stays dead. (Weight decay
+only shrinks $w_j$ and $b_j$ towards $0$, which does not help if $b_j<0$ dominates.) A unit
+switched off for a single example is not dead; that is the normal sparsity of ReLU, and
+the pitfall of \cref{backpropagation:sec:pitfalls} shows its effect on one gradient.
+
+Units die after a large step pushes $b_j$ very negative, or $w_j$ in a direction where all inputs
+give negative values; high learning rates make this frequent. Leaky ReLU, ELU, GELU and SiLU
+have nonzero derivatives for $z<0$ and cannot die in this sense.
+
+\section{Initialization}\label{activation-functions:sec:init}
+
+Weights are initialized at random, since with equal weights all units of a layer would
+compute the same function and receive the same gradient forever (the \emph{symmetry} is
+never broken). The scale of the random weights decides whether the signal shrinks or grows
+with depth.
+
+\paragraph{Variance propagation.} Consider $z^{(l)}_j = \sum_{k=1}^{n_{l-1}}W_{jk}a^{(l-1)}_k$ (biases initialized at $0$), with
+the $W_{jk}$ independent, of mean $0$ and variance $s^2$, independent of the activations. Then
+\[
+  \Var\bigl(z^{(l)}_j\bigr) = n_{l-1}\,s^2\,\E\bigl[(a^{(l-1)}_k)^2\bigr],
+\]
+because the terms are uncorrelated with mean $0$ and $\E[W_{jk}^2a_k^2] = s^2\E[a_k^2]$. It remains to relate
+$\E[a^2]$ to $\Var(z)$ for the previous layer.
+
+\begin{itemize}
+  \item \textbf{ReLU.} If $z$ is symmetric about $0$, $\E[\mathrm{ReLU}(z)^2] = \frac12\E[z^2] = \frac12\Var(z)$. Hence
+        $\Var(z^{(l)}) = \frac12n_{l-1}s^2\Var(z^{(l-1)})$, and the variance is preserved if $s^2 = 2/n_{l-1}$: the
+        initialization of He, Zhang, Ren and Sun (\emph{Delving Deep into Rectifiers},
+        ICCV, 2015).
+  \item \textbf{tanh.} Near $0$, $\tanh z\approx z$, so $\E[a^2]\approx\Var(z)$ and $s^2 = 1/n_{l-1}$ preserves the variance
+        (LeCun et al.\ 1998).
+  \item \textbf{Backward pass.} The same computation for $\delta^{(l)} = D^{(l)}W^{(l+1)\top}\delta^{(l+1)}$ involves $n_{l+1}$ instead of
+        $n_l$. Glorot and Bengio (\emph{Understanding the Difficulty of Training Deep Feedforward
+        Neural Networks}, AISTATS, 2010) compromise between the two passes with
+        $s^2 = 2/(n_{l-1} + n_l)$, often with a uniform distribution on $[-\sqrt{3}s,\sqrt3s]$.
+\end{itemize}
+
+\begin{example}[Fifty layers]\label{activation-functions:ex:init}
+A network of $50$ layers of width $256$, fed with $1000$ standard Gaussian inputs, with
+Gaussian weights of variance $s^2$. The standard deviation of the pre-activations at several
+depths:
+
+\begin{center}
+\begin{tabular}{llcccc}
+\toprule
+activation & $s^2$ & layer 1 & layer 10 & layer 20 & layer 50 \\
+\midrule
+ReLU & $1/n$ & $1.00$ & $0.044$ & $0.0011$ & $\approx0$ \\
+ReLU & $2/n$ (He) & $1.41$ & $1.48$ & $1.64$ & $1.59$ \\
+tanh & $1/n$ (LeCun) & $1.00$ & $0.24$ & $0.16$ & $0.10$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+With $s^2 = 1/n$ and ReLU, each layer halves the variance: the prediction $2^{-(l-1)/2}$ gives
+$0.044$ at layer $10$, as observed, and $4\times10^{-8}$ at layer $50$. He's initialization keeps the scale (the
+first layer is $\sqrt2$ because its input is Gaussian rather than rectified). With tanh, the
+scale still decays slowly, because $\abs{\tanh z}<\abs z$ shrinks every layer a little.
+\end{example}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Any continuous non-polynomial activation is expressive enough; what matters is $\phi'$, which
+        multiplies the backward signal at every layer.
+  \item Sigmoid ($\sigma'\leq\frac14$) and tanh saturate; ReLU has derivative $0$ or $1$; leaky ReLU, ELU, softplus,
+        GELU and SiLU keep a nonzero derivative for $z<0$.
+  \item $\delta^{(l)}$ is a product of $L - l$ factors $D^{(k)}W^{(k+1)\top}$: it vanishes or explodes geometrically unless the
+        factors are near $1$. Clipping treats explosion only.
+  \item Positive activations restrict single-example updates of a unit's weights to an orthant;
+        the averaged effect is a conditioning problem, cured by centring.
+  \item A ReLU unit negative on all the data gets zero gradient and stays dead.
+  \item Initialize with variance $2/n_{\mathrm{in}}$ for ReLU (He), $1/n_{\mathrm{in}}$ for tanh (LeCun), or $2/(n_{\mathrm{in}} + n_{\mathrm{out}})$
+        (Glorot).
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{activation-functions:exr:1}
+Show that $\sigma' = \sigma(1 - \sigma)$, that $\sigma'\leq\frac14$ with equality only at $0$, and that $\tanh' = 1 - \tanh^2$.
+\solutionlink{activation-functions:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{activation-functions:exr:2}
+Show that $\tanh z = 2\sigma(2z) - 1$. Deduce that every MLP with tanh hidden units equals an MLP
+with sigmoid hidden units and the same widths, and give the change of parameters.
+\solutionlink{activation-functions:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{activation-functions:exr:3}
+Show that $\mathrm{softplus}' = \sigma$ and that $0<\mathrm{softplus}(z) - \mathrm{ReLU}(z)\leq\log2$.
+\solutionlink{activation-functions:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{activation-functions:exr:4}
+Let $z$ have a density symmetric about $0$. Show that $\E[\mathrm{ReLU}(z)^2] = \frac12\E[z^2]$, and that
+$\E[\mathrm{ReLU}(z)] = \E[\abs z]/2$, which is not $0$.
+\solutionlink{activation-functions:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{activation-functions:exr:5}
+A ReLU unit receives inputs $a\in[0,1]^3$ and has $w = (0.5, 0.2, 0.3)$, $b = -1.2$. Show that it is dead on
+every possible input. Can gradient descent, with or without weight decay, bring it back to
+life? Could it if the activation were a leaky ReLU?
+\solutionlink{activation-functions:exr:5}
+\end{exercise}
+\end{notechapter}

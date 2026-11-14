@@ -584,7 +584,10 @@ $q_3 = \dfrac{2.55\times2 + 1\times1}{2.55^2 + 1^2 + 0.1} = \dfrac{6.1}{7.6025}\
 
 \solution{gradient-tangent-space:exr:1}
 $\nabla f = (\theta_2, \theta_1) = (1,1)$, with unit direction $\frac1{\sqrt2}(1,1)$. For $M = \diag(1,4)$,
-$\nabla_Mf = M^{-1}(1,1) = (1, \frac14)$; its $M$-norm is $\sqrt{1 + 4\cdot\frac1{16}} = \sqrt{1.25}$, so the $M$-unit
+\[
+  \nabla_Mf = M^{-1}(1,1) = \bigl(1, \tfrac14\bigr),\qquad\norm{\nabla_Mf}_M = \sqrt{1 + 4\cdot\tfrac1{16}} = \sqrt{1.25},
+\]
+so the $M$-unit
 steepest-ascent direction is $(1, 0.25)/\sqrt{1.25}\approx(0.89, 0.22)$. Steps in $\theta_2$ are ``expensive'' in this
 metric, so the steepest direction favours $\theta_1$.
 
@@ -597,10 +600,10 @@ metric is changed accordingly --- which is what the natural gradient does.
 
 \solution{gradient-tangent-space:exr:3}
 $S\theta = (3\cos\alpha, \sin\alpha)$ and $\theta^\top S\theta = 1 + 2\cos^2\alpha$, so
-\[
-  \operatorname{grad}f = 2\bigl(3\cos\alpha - (1 + 2\cos^2\alpha)\cos\alpha,\ \sin\alpha - (1 + 2\cos^2\alpha)\sin\alpha\bigr)
-  = 4\cos\alpha\sin\alpha\,(\sin\alpha, -\cos\alpha),
-\]
+\begin{align*}
+  \operatorname{grad}f &= 2\bigl(3\cos\alpha - (1 + 2\cos^2\alpha)\cos\alpha,\ \sin\alpha - (1 + 2\cos^2\alpha)\sin\alpha\bigr)\\
+  &= 4\cos\alpha\sin\alpha\,(\sin\alpha, -\cos\alpha),
+\end{align*}
 a multiple of the tangent vector $(\sin\alpha, -\cos\alpha)$. It vanishes iff $\sin\alpha\cos\alpha = 0$, i.e.\ at $(\pm1, 0)$
 (maxima, eigenvalue $3$) and $(0, \pm1)$ (minima, eigenvalue $1$).
 
@@ -825,10 +828,10 @@ predictions.
 The normal vector of $L_x$ is $(p, q) = x$, so $L_x$ is perpendicular to $x$. Its distance to the origin is
 $\abs{p\cdot0 + q\cdot0 + 1}/\norm x = 1/\norm x$, and the point of $L_x$ closest to the origin is $-x/\norm x^2$, in the
 direction opposite to $x$. With $D = w_1q - w_2p$ and $x_0 = \frac1D(w_2 - bq, bp - w_1)$:
-\[
-  w^\top x_0 + b = \frac{w_1(w_2 - bq) + w_2(bp - w_1)}D + b = \frac{-b(w_1q - w_2p)}D + b = 0,\qquad
+\begin{gather*}
+  w^\top x_0 + b = \frac{w_1(w_2 - bq) + w_2(bp - w_1)}D + b = \frac{-b(w_1q - w_2p)}D + b = 0,\\
   x^\top x_0 + 1 = \frac{p(w_2 - bq) + q(bp - w_1)}D + 1 = \frac{pw_2 - qw_1}D + 1 = 0 .
-\]
+\end{gather*}
 
 \solution{perceptron:exr:2}
 With $\tilde x_i = (x_i, 1)$ and $v = (8, 4, -7)/11$: $y_iv^\top\tilde x_i = \frac{13}{11}, 1, 1, 1, \frac{23}{11}, \frac{27}{11}$ for $i = 1,\dots,6$ (for
@@ -1037,3 +1040,220 @@ remainder $4\sum_kw_kk(S_{7+k} - 1)$ of \cref{decomposition-forecasting:sec:ma}.
 $\hat X_{t+1} = X_t - 0.5X_{t-1}$, $\hat X_{t+2} = \hat X_{t+1} - 0.5X_t = 0.5X_t - 0.5X_{t-1}$,
 $\hat X_{t+3} = \hat X_{t+2} - 0.5\hat X_{t+1} = -0.25X_{t-1}$. The two-step error is $X_{t+2} - \hat X_{t+2} = Z_{t+2} + Z_{t+1}$ (the first
 weight of the MA($\infty$) representation is $\psi_1 = \alpha_1 = 1$), with variance $2\sigma_Z^2$.
+
+\section{\nameref*{ch:feedforward-networks}}
+
+\solution{feedforward-networks:exr:1}
+$(3 + 1)5 + (5 + 1)5 + (5 + 1)2 = 20 + 30 + 12 = 62$ parameters, against $(3 + 1)2 = 8$ for a linear model. With the
+identity activation the MLP computes $x\mapsto W_3W_2W_1x + c$, and $W_3W_2W_1$ can be any $2\times3$ matrix (its rank is at most
+$2$ anyway, below the hidden width $5$): exactly the linear models, with $62$ parameters instead of $8$.
+
+\solution{feedforward-networks:exr:2}
+Keep the hidden layer of the XOR network, $h = \mathrm{ReLU}(Wx + c)$ with $W = \begin{bmatrix}1&1\\1&1\end{bmatrix}$, $c = (0,-1)$, and output
+$1 - (h_1 - 2h_2)$: $w = (-1, 2)$, $b = 1$. The table of \cref{feedforward-networks:sec:linear} gives $h_1 - 2h_2 = 0, 1, 1, 0$,
+hence outputs $1, 0, 0, 1$.
+
+\solution{feedforward-networks:exr:3}
+On $[0,\frac12]$, $\mathrm{ReLU}(x - \frac12) = 0$ and $t(x) = 2x$; on $[\frac12,1]$, $t(x) = 2x - 4(x - \frac12) = 2 - 2x$. By induction, $[0,1]$ is cut
+into $2^k$ intervals of length $2^{-k}$ on each of which $t^{\circ k}$ is linear and maps the interval onto $[0,1]$
+(increasing or decreasing). This holds for $k = 1$. If it holds for $k$, on each such interval
+$t^{\circ k}$ crosses the value $\frac12$ exactly once, at the midpoint, so $t^{\circ(k+1)} = t\circ t^{\circ k}$ is linear on each half and maps each
+half onto $[0,1]$: $2^{k+1}$ pieces.
+
+\solution{feedforward-networks:exr:4}
+Let $I_1,\dots,I_B$ be the sampled indices, a uniformly random ordered sample without replacement. Each $u_{I_b}$ has
+variance $s^2$, and any two distinct draws have the same covariance $c$. A sample of size $n$ takes every
+value once, so its sum $n\bar u$ is constant: $0 = \Var(\sum_{j=1}^nu_{I_j}) = ns^2 + n(n - 1)c$, hence $c = -s^2/(n - 1)$. Therefore
+$\Var(\sum_{b=1}^Bu_{I_b}) = Bs^2 + B(B - 1)c = Bs^2\frac{n - B}{n - 1}$, and the mean has variance $\frac{s^2}B\frac{n - B}{n - 1}$. For $B = n$ it is $0$:
+the full batch gives the exact gradient.
+
+\solution{feedforward-networks:exr:5}
+$W_2W_1$ factors through $\R^k$, so $\rank(W_2W_1)\leq\min(k, d, m)$. Conversely, a matrix $M$ of rank $r\leq\min(k,d,m)$ has an SVD
+$M = U_r\Sigma_rV_r^\top$ (\cref{ch:svd}); take $W_2 = [U_r\Sigma_r\ \ 0]\in\R^{m\times k}$ and $W_1 = [V_r\ \ 0]^\top\in\R^{k\times d}$. Least-squares training
+with $y = x$ (a linear autoencoder) minimizes $\sum_i\norm{x_i - Mx_i}^2$ over matrices of rank at most $k$: its solution is
+the projection onto the first $k$ principal components, so the network learns PCA
+(\cref{ch:pca-overview}).
+
+\section{\nameref*{ch:activation-functions}}
+
+\solution{activation-functions:exr:1}
+$\sigma'(z) = \frac{e^{-z}}{(1 + e^{-z})^2} = \frac1{1 + e^{-z}}\cdot\frac{e^{-z}}{1 + e^{-z}} = \sigma(1 - \sigma)$. Since $\sigma\in(0,1)$, $\sigma(1 - \sigma)\leq\frac14$ with equality iff $\sigma = \frac12$, iff
+$z = 0$. $\tanh = \sinh/\cosh$ gives $\tanh' = (\cosh^2 - \sinh^2)/\cosh^2 = 1 - \tanh^2$.
+
+\solution{activation-functions:exr:2}
+$2\sigma(2z) - 1 = \frac{2 - 1 - e^{-2z}}{1 + e^{-2z}} = \frac{1 - e^{-2z}}{1 + e^{-2z}} = \tanh z$. Let $s^{(l)} = \sigma(2z^{(l)})$, so that $a^{(l)} = 2s^{(l)} - 1$. Then
+$z^{(l+1)} = W^{(l+1)}a^{(l)} + b^{(l+1)} = 2W^{(l+1)}s^{(l)} + b^{(l+1)} - W^{(l+1)}\mathbf 1$. A sigmoid network whose pre-activations are $2z^{(l)}$
+computes the same thing: its first layer has $\tilde W^{(1)} = 2W^{(1)}$, $\tilde b^{(1)} = 2b^{(1)}$; hidden-to-hidden layers
+$\tilde W^{(l+1)} = 4W^{(l+1)}$, $\tilde b^{(l+1)} = 2(b^{(l+1)} - W^{(l+1)}\mathbf 1)$; and a linear output layer
+$\tilde W^{(L)} = 2W^{(L)}$, $\tilde b^{(L)} = b^{(L)} - W^{(L)}\mathbf 1$.
+
+\solution{activation-functions:exr:3}
+$\frac d{dz}\log(1 + e^z) = \frac{e^z}{1 + e^z} = \sigma(z)$. For $z\geq0$, $\log(1 + e^z) - z = \log(1 + e^{-z})$; for $z<0$ the difference is
+$\log(1 + e^z)$. In both cases it is $\log(1 + e^{-\abs z})\in(0,\log2]$, with the maximum at $z = 0$.
+
+\solution{activation-functions:exr:4}
+$\mathrm{ReLU}(z)^2 = z^2\bbone[z>0]$, and by symmetry $\E[z^2\bbone[z>0]] = \E[z^2\bbone[z<0]]$; the two sum to $\E[z^2]$ (the event $z = 0$
+has probability $0$). Similarly $\E[\mathrm{ReLU}(z)] = \E[z\bbone[z>0]] = \frac12\E[\abs z]>0$: ReLU outputs are not centred.
+
+\solution{activation-functions:exr:5}
+$w^\top a + b\leq0.5 + 0.2 + 0.3 - 1.2 = -0.2<0$ for $a\in[0,1]^3$, so the unit is dead. Its derivative is $0$ on every input, so
+the gradients of $w$ and $b$ are $0$ whatever the loss, and gradient descent never changes
+them. Weight decay multiplies $(w, b)$ by $1 - \eta\lambda$, which keeps $w^\top a + b$ negative: the unit stays dead while
+its parameters shrink to $0$. With a leaky ReLU the derivative is $\alpha>0$ for negative inputs, the
+gradients are nonzero (scaled by $\alpha$), and the unit can recover.
+
+\section{\nameref*{ch:backpropagation}}
+
+\solution{backpropagation:exr:1}
+At $(0,1,1)$: $f_1 = 1$, $f_2 = \sin0 + e = e$, $J_g = \begin{bmatrix}e & 1\end{bmatrix}$, $J_f = \begin{bmatrix}0 & 1 & 1\\ 1 & e & e\end{bmatrix}$, so
+$\nabla h = J_f^\top\begin{bmatrix}e\\1\end{bmatrix} = (1, 2e, 2e)$. Directly, $\partial_xh = 2x(\sin x + e^{yz}) + (x^2 + yz)\cos x = 0 + 1 = 1$ and
+$\partial_yh = z(\sin x + e^{yz}) + (x^2 + yz)ze^{yz} = e + e = 2e$; $\partial_zh = 2e$ by the symmetry of $y$ and $z$ at this point.
+
+\solution{backpropagation:exr:2}
+With $r = Wh - t$, $\ell(W + E) = \frac12\norm{r + Eh}^2 = \ell(W) + r^\top Eh + \frac12\norm{Eh}^2$. The linear term is
+\[
+  r^\top Eh = \sum_{jk}r_jE_{jk}h_k = \tr\bigl((rh^\top)^\top E\bigr),
+\]
+so $\nabla_W\ell = rh^\top = (Wh - t)h^\top$: the rule $\bar W = \bar yh^\top$ with $\bar y = Wh - t$.
+
+\solution{backpropagation:exr:3}
+Forward: $a^{(1)} = \tanh(-1, 1, 0.5) = (-0.7616, 0.7616, 0.4621)$, $z^{(2)} = -1.5537$, $\hat y = 0.1745$, $\ell = 1.7455$.
+Backward:
+\begin{gather*}
+  \delta^{(2)} = -0.8255,\qquad W^{(2)\top}\delta^{(2)} = (-0.8255, 1.6509, -0.4127),\\
+  \tanh'(z^{(1)}) = 1 - a^{(1)2} = (0.4200, 0.4200, 0.7864),\\
+  \delta^{(1)} = (-0.3467, 0.6933, -0.3246),\qquad
+  \nabla_{W^{(1)}}\ell = \delta^{(1)}x^\top = \begin{bmatrix}-0.3467 & -0.6933\\ 0.6933 & 1.3867\\ -0.3246 & -0.6492\end{bmatrix} .
+\end{gather*} Unit $2$ still receives the largest signal; unit $1$, off for ReLU, now
+receives a gradient, but all signals are smaller, since $\tanh'<1$ away from $0$.
+
+\solution{backpropagation:exr:4}
+$\hat y = z^{(2)} = 2\cdot0 - 1\cdot5 = -5$, $\ell = \frac12(-10)^2 = 50$, $\delta^{(2)} = \hat y - y = -10$. Then
+$\nabla_{W^{(2)}}\ell = \delta^{(2)}a^{(1)\top} = (0, -50)$, $W^{(2)\top}\delta^{(2)} = (-20, 10)$, $\delta^{(1)} = (-20,10)\odot(0,1) = (0, 10)$ and
+$\nabla_{W^{(1)}}\ell = \delta^{(1)}x^\top = \begin{bmatrix}0&0&0\\10&20&30\end{bmatrix}$. Only the active hidden unit's incoming weights move.
+
+\solution{backpropagation:exr:5}
+Forward: $\sum_{l=1}^Ln_ln_{l-1}$. Backward: the outer products cost $\sum_{l=1}^Ln_ln_{l-1}$, and the products $W^{(l)\top}\delta^{(l)}$ for
+$l = 2,\dots,L$ cost $\sum_{l=2}^Ln_ln_{l-1}$ (plus $O(\sum_ln_l)$ for the Hadamard products). With all widths $n$: $Ln^2$ forward
+and $(2L - 1)n^2$ backward, a ratio $(2L - 1)/L$, close to $2$.
+
+\section{\nameref*{ch:computational-graphs}}
+
+\solution{computational-graphs:exr:1}
+At $(1,0)$: $z_{13} = 2y_1 = 2$, $z_{14} = y_2 = 0$, $z_{24} = y_1 = 1$, $z_{25} = e^{y_2} = 1$, and $z_{36} = z_{46} = z_{56} = 1$. Paths from $1$:
+$1\to3\to6$ and $1\to4\to6$, giving $2 + 0 = 2$; from $2$: $2\to4\to6$ and $2\to5\to6$, giving $1 + 1 = 2$. Directly,
+$y_6 = y_1^2 + y_1y_2 + e^{y_2}$, with $\partial_{y_1}y_6 = 2y_1 + y_2 = 2$ and $\partial_{y_2}y_6 = y_1 + e^{y_2} = 2$.
+
+\solution{computational-graphs:exr:2}
+By the binomial formula and $\varepsilon^2 = 0$, $(a + \varepsilon)^k = a^k + ka^{k-1}\varepsilon$; by linearity $p(a + \varepsilon) = p(a) + p'(a)\varepsilon$. If
+$g(a + b\varepsilon) = g(a) + g'(a)b\varepsilon$ and the same for $f$, then $f(g(a + \varepsilon)) = f(g(a) + g'(a)\varepsilon) = f(g(a)) + f'(g(a))g'(a)\varepsilon$: the
+chain rule. At $1 + \varepsilon$: $x^2 = 1 + 2\varepsilon$, $x^3 = 1 + 3\varepsilon$, $\sin(1 + 2\varepsilon) = \sin1 + 2\cos1\,\varepsilon$, $\cos(1 + 3\varepsilon) = \cos1 - 3\sin1\,\varepsilon$, so
+$o = (\sin1 + \cos1) + (2\cos1 - 3\sin1)\varepsilon = 1.3818 - 1.4439\varepsilon$: the value and the derivative of
+\cref{computational-graphs:ex:diamond}, in one forward pass.
+
+\solution{computational-graphs:exr:3}
+From one input to one output, a path picks one unit in each hidden layer: $1000^2 = 10^6$ paths.
+The network has $784\cdot1000 + 1000\cdot1000 + 1000\cdot10 = 1\,794\,000$ edges; reverse accumulation touches each once.
+
+\solution{computational-graphs:exr:4}
+\begin{lstlisting}[language=Python]
+def exp(v):
+    e = math.exp(v.value)
+    return Var(e, ((v, e),))
+
+def log(v):
+    return Var(math.log(v.value), ((v, 1.0 / v.value),))
+
+w = Var(0.5)
+l = log(exp(w * (-2.0)) + 1.0)
+l.backward()
+print(l.value, w.grad)    # 0.31326..., -0.53788...
+\end{lstlisting}
+$-x\sigma(-wx) = -2\sigma(-1) = -0.53788$: the same.
+
+\solution{computational-graphs:exr:5}
+The full Jacobian is $1000\times10$: forward mode needs $n = 10$ passes (one per column), reverse mode $m = 1000$.
+For the scalar $\norm{F(x)}^2$, whose gradient is $2J_F^\top F(x)$, one reverse pass suffices.
+
+\section{\nameref*{ch:optimizers}}
+
+\solution{optimizers:exr:1}
+Convergence requires $\eta<2/L = 0.08$. For $\eta = 0.08$, $\theta_2$ is multiplied by $1 - 0.08\cdot25 = -1$: it oscillates between
+$1$ and $-1$ forever, while $\theta_1$ decreases like $0.92^k$; the iterates do not converge. For $\eta = 1/25$, $\theta_2 = 0$
+after one step and $\theta_1$ is multiplied by $0.96$ at each step.
+
+\solution{optimizers:exr:2}
+Classical: $\theta_{k+1} - \theta_k = v_{k+1} = \beta v_k - \eta g_k = \beta(\theta_k - \theta_{k-1}) - \eta g_k$. PyTorch: $\theta_{k+1} - \theta_k = -\eta v_{k+1} = \beta(-\eta v_k) - \eta g_k$, and
+$-\eta v_k = \theta_k - \theta_{k-1}$ when $\eta$ is constant. Both are Polyak's form. If $\eta$ is divided by $10$ at step $k$, the
+PyTorch velocity, which accumulates raw gradients, is multiplied by the new rate at once: the
+whole step, momentum included, shrinks by $10$. The classical velocity stores past
+displacements computed with the old rate, which decay only geometrically: the iterates
+coast for a while at the old speed.
+
+\solution{optimizers:exr:3}
+$m_1 = (1 - \beta_1)g_1$, $v_1 = (1 - \beta_2)g_1^2$, so $\hat m_1 = g_1$, $\hat v_1 = g_1^2$, and the step is $-\eta g_1/(\abs{g_1} + \epsilon)$. If every $g_k$
+is replaced by $Dg_k$, then $m_k$ becomes $Dm_k$ and $v_k$ becomes $D^2v_k$ (coordinatewise squares), so
+$\hat m_k/\sqrt{\hat v_k}$ becomes $D\hat m_k/(D\sqrt{\hat v_k})$, unchanged.
+
+\solution{optimizers:exr:4}
+$\E[v_1] = (1 - \beta_2)\E[g^2] = 0.001\,\E[g^2]$. $1 - 0.999^k>0.5$ iff $k>\ln0.5/\ln0.999 = 692.8$, i.e.\ $k\geq693$; $1 - 0.999^k>0.99$ iff
+$k>\ln0.01/\ln0.999 = 4602.9$, i.e.\ $k\geq4603$.
+
+\solution{optimizers:exr:5}
+$B_{k+1}s_k = B_ks_k + y_k\frac{y_k^\top s_k}{y_k^\top s_k} - B_ks_k\frac{s_k^\top B_ks_k}{s_k^\top B_ks_k} = y_k$. Then $s_k^\top B_{k+1}s_k = s_k^\top y_k>0$. (For a general $v$, write
+$v^\top B_{k+1}v = \bigl(v^\top B_kv - \frac{(s_k^\top B_kv)^2}{s_k^\top B_ks_k}\bigr) + \frac{(y_k^\top v)^2}{y_k^\top s_k}$; the bracket is $\geq0$ by Cauchy--Schwarz for the inner product
+$B_k$, with equality only for $v\parallel s_k$, where the last term is positive.)
+
+\section{\nameref*{ch:normalization}}
+
+\solution{normalization:exr:1}
+The batch $(az_i + b)$ has mean $a\mu_{\mathcal B} + b$ and standard deviation $\abs a\sigma_{\mathcal B}$, so its normalized values are
+$\frac{a(z_i - \mu_{\mathcal B})}{\abs a\sigma_{\mathcal B}} = \sign(a)\,\hat z_i$: unchanged for $a>0$, sign-flipped for $a<0$.
+
+\solution{normalization:exr:2}
+$y = \gamma\frac{w^\top a + b - \mu_{\mathrm{run}}}{\sqrt{\sigma^2_{\mathrm{run}} + \epsilon}} + \beta = \Bigl(\frac\gamma{\sqrt{\sigma^2_{\mathrm{run}} + \epsilon}}w\Bigr)^\top a + \frac{\gamma(b - \mu_{\mathrm{run}})}{\sqrt{\sigma^2_{\mathrm{run}} + \epsilon}} + \beta$, unit by unit. With the
+numbers, $\gamma/\sigma = 1.5$: $w' = (1.5, -1.5)$ and $b' = 1.5(0.5 - 2) - 1 = -3.25$.
+
+\solution{normalization:exr:3}
+$\sum_j\bigl(mg_j - \sum_ig_i - \hat z_j\sum_ig_i\hat z_i\bigr) = m\sum g - m\sum g - (\sum_j\hat z_j)\sum_ig_i\hat z_i = 0$, since $\sum_j\hat z_j = 0$. If $g_i = c_1 + c_2\hat z_i$,
+then $mg_j - \sum g - \hat z_j\sum g\hat z = mc_1 + mc_2\hat z_j - mc_1 - \hat z_jc_2\sum\hat z_i^2 = 0$ when $\sum\hat z_i^2 = m$ ($\epsilon = 0$). A loss that only
+sees the mean and spread of the batch cannot be changed through batch normalization,
+whose output has fixed mean and spread.
+
+\solution{normalization:exr:4}
+Mean $4$, variance $\frac14(4 + 0 + 0 + 4) = 2$: layer norm gives $(-\sqrt2, 0, 0, \sqrt2) = (-1.414, 0, 0, 1.414)$. The mean square
+is $\frac14(4 + 16 + 16 + 36) = 18$, RMS $= 3\sqrt2 = 4.243$: RMS norm gives $(0.471, 0.943, 0.943, 1.414)$.
+
+\solution{normalization:exr:5}
+With $u_k = \norm{w_k}^2$, \cref{normalization:prop:scale} gives $u_{k+1} = u_k + \eta^2/u_k$. Then
+$u_{k+1}^2 = u_k^2 + 2\eta^2 + \eta^4/u_k^2$, so $u_k^2\geq1 + 2\eta^2k$, and since $u_k\geq1$ also $u_k^2\leq1 + (2\eta^2 + \eta^4)k$. Thus $u_k\approx\sqrt{1 + 0.02k}$ and the
+effective learning rate $\eta/u_k\approx0.1/\sqrt{1 + 0.02k}$ decays like $1/\sqrt{2k}$: a schedule appears without being
+programmed.
+
+\section{\nameref*{ch:dropout}}
+
+\solution{dropout:exr:1}
+$q = 0.8$: mean $1$, variance $\frac pq = 0.25$, standard deviation $0.5$. The standard deviation $\sqrt{p/q}\,a$ equals the mean
+$a$ iff $p = q$, i.e.\ $p = \frac12$.
+
+\solution{dropout:exr:2}
+With $p/q = 1$: $\norm{y - Xw}^2 + 100w_1^2 + w_2^2$. Multiplying the second feature by $10$ multiplies $\sum_ix_{i2}^2$ by $100$; dividing
+$w_2$ by $10$ divides $w_2^2$ by $100$: the penalty and the predictions are unchanged. Ordinary ridge $\lambda(w_1^2 + w_2^2)$
+would divide the penalty on $w_2$ by $100$, so it depends on the units of the features.
+
+\solution{dropout:exr:3}
+The logits are $m\odot x$: $(2,1)$, $(2,0)$, $(0,1)$, $(0,0)$, giving $P_m(1) = 0.7311$, $0.8808$, $0.2689$, $0.5$. Arithmetic mean:
+$(0.5952, 0.4048)$. Geometric means of the two columns: $0.5425$ and $0.3290$, normalized $(0.6225, 0.3775)$.
+$\softmax(W(qx)) = \softmax(1, 0.5) = (0.6225, 0.3775)$: equal to the normalized geometric mean, not to the
+arithmetic mean.
+
+\solution{dropout:exr:4}
+$h\in\{0,2,0,0\}$: $\E[h] = 0.5$, $\E[h^2] = 1$, $\Var(h) = 0.75$. The standard error $\sqrt{0.75/K}$ is below $0.05$ iff $K>0.75/0.0025 = 300$:
+$301$ passes.
+
+\solution{dropout:exr:5}
+Let the next layer compute $W\tilde a + b$. With standard dropout and weights $W_s$, training gives $W_s(m\odot a)$ and
+test gives $W_s(qa)$. With inverted dropout and $W_i = qW_s$, training gives $W_i(m\odot a)/q = W_s(m\odot a)$ and test
+gives $W_ia = W_s(qa)$: the same functions at training and at test. The map $W_s\mapsto qW_s$ is a bijection, so
+the two families coincide, and so do the training trajectories up to a rescaling of the
+learning rate of that layer.

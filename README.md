@@ -7,7 +7,7 @@ graph neural networks.
 
 The notes started as ~100 standalone LaTeX documents, Markdown files and
 notebooks. They are organised here as a single LaTeX book (11 parts,
-77 chapters and three appendices, ~800 pages), with the accompanying code and notebooks.
+73 chapters and three appendices, ~750 pages), with the accompanying code and notebooks.
 
 **[📕 Download the PDF](https://github.com/CL-BZH/ml-notes-book/releases/latest/download/Notes_on_Machine_Learning.pdf)**
 
@@ -62,66 +62,62 @@ notebooks. They are organised here as a single LaTeX book (11 parts,
 
 **Part VI — Neural Networks: Fundamentals and Training**
 
-33. Deep Learning: An Overview
-34. Desirable Properties of Activation Functions
-35. A Catalogue of Activation Functions
-36. Backpropagation in a Network with Two Hidden Layers
-37. Backpropagation: A Worked Example
-38. Backpropagation and the Chain Rule
-39. Backpropagation as Dynamic Programming
-40. Gradient Descent and its Variants
-41. Normalization in Neural Networks
-42. Dropout as a Regularization Method
-43. Dropout: From Theory to Implementation
+33. Feedforward Neural Networks
+34. Activation Functions and Initialization
+35. Backpropagation in Multilayer Perceptrons
+36. Computational Graphs
+37. Optimization Algorithms for Training
+38. Normalization Layers
+39. Dropout
 
 **Part VII — Convolutional Networks and Computer Vision**
 
-44. Convolution versus Cross-Correlation
-45. Convolution in CNNs
-46. Image Gradients by Convolution
-47. Transpose Convolution
-48. Normalization in Convolutional Networks
-49. The Evolution of CNNs
-50. Instance Segmentation
-51. Transfer Learning
+40. Convolution versus Cross-Correlation
+41. Convolution in CNNs
+42. Image Gradients by Convolution
+43. Transpose Convolution
+44. Normalization in Convolutional Networks
+45. The Evolution of CNNs
+46. Instance Segmentation
+47. Transfer Learning
 
 **Part VIII — Recurrent Networks**
 
-52. Gradient Computation in RNNs
-53. From the Chain Rule to Backpropagation Through Time
-54. Long Short-Term Memory
+48. Gradient Computation in RNNs
+49. From the Chain Rule to Backpropagation Through Time
+50. Long Short-Term Memory
 
 **Part IX — Language Modeling and Structured Prediction**
 
-55. Bigram Language Modeling with Multinomial Logistic Regression
-56. Bigram Logistic Regression: Loss and Gradient
-57. A One-Hidden-Layer Neural Bigram Model
-58. Word Embeddings
-59. Hierarchical Softmax and Huffman Trees
-60. Noise Contrastive Estimation and Negative Sampling
-61. Structured Prediction
-62. The Viterbi Algorithm for Part-of-Speech Tagging
-63. Conditional Random Fields for Part-of-Speech Tagging
+51. Bigram Language Modeling with Multinomial Logistic Regression
+52. Bigram Logistic Regression: Loss and Gradient
+53. A One-Hidden-Layer Neural Bigram Model
+54. Word Embeddings
+55. Hierarchical Softmax and Huffman Trees
+56. Noise Contrastive Estimation and Negative Sampling
+57. Structured Prediction
+58. The Viterbi Algorithm for Part-of-Speech Tagging
+59. Conditional Random Fields for Part-of-Speech Tagging
 
 **Part X — Contrastive and Self-Supervised Learning**
 
-64. Contrastive Learning: An Overview
-65. Contrastive Learning: A Mathematical Treatment
+60. Contrastive Learning: An Overview
+61. Contrastive Learning: A Mathematical Treatment
 
 **Part XI — Machine Learning on Graphs**
 
-66. The Laplacian, Local Averages and Graphs
-67. From Harmonic Functions to Graph Laplacians
-68. Graph Laplacians and Spectral Methods
-69. A Unified View of Spectral Decomposition
-70. Fourier Analysis
-71. From the DFT to Graph Neural Networks
-72. Random-Walk Node Similarity
-73. The Leicht–Holme–Newman Similarity
-74. Reproducing Kernel Hilbert Spaces
-75. Semi-Supervised Learning on Graphs
-76. Shallow Graph Embedding Methods
-77. Graph Autoencoders
+62. The Laplacian, Local Averages and Graphs
+63. From Harmonic Functions to Graph Laplacians
+64. Graph Laplacians and Spectral Methods
+65. A Unified View of Spectral Decomposition
+66. Fourier Analysis
+67. From the DFT to Graph Neural Networks
+68. Random-Walk Node Similarity
+69. The Leicht–Holme–Newman Similarity
+70. Reproducing Kernel Hilbert Spaces
+71. Semi-Supervised Learning on Graphs
+72. Shallow Graph Embedding Methods
+73. Graph Autoencoders
 
 **Appendices**
 
