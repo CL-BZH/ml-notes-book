@@ -7,7 +7,7 @@ graph neural networks.
 
 The notes started as ~100 standalone LaTeX documents, Markdown files and
 notebooks. They are organised here as a single LaTeX book (11 parts,
-72 chapters and three appendices, ~760 pages), with the accompanying code and notebooks.
+70 chapters and three appendices, ~760 pages), with the accompanying code and notebooks.
 
 **[📕 Download the PDF](https://github.com/CL-BZH/ml-notes-book/releases/latest/download/Notes_on_Machine_Learning.pdf)**
 
@@ -88,35 +88,33 @@ notebooks. They are organised here as a single LaTeX book (11 parts,
 
 **Part IX — Language Modeling and Structured Prediction**
 
-50. Bigram Language Modeling with Multinomial Logistic Regression
-51. Bigram Logistic Regression: Loss and Gradient
-52. A One-Hidden-Layer Neural Bigram Model
-53. Word Embeddings
-54. Hierarchical Softmax and Huffman Trees
-55. Noise Contrastive Estimation and Negative Sampling
-56. Structured Prediction
-57. The Viterbi Algorithm for Part-of-Speech Tagging
-58. Conditional Random Fields for Part-of-Speech Tagging
+50. Bigram Language Models and Softmax Regression
+51. A Neural Bigram Model and the Embedding Matrix
+52. Word Embeddings
+53. Hierarchical Softmax and Huffman Trees
+54. Noise-Contrastive Estimation and Negative Sampling
+55. Structured Prediction, Hidden Markov Models and the Viterbi Algorithm
+56. Conditional Random Fields
 
 **Part X — Contrastive and Self-Supervised Learning**
 
-59. Contrastive Learning: An Overview
-60. Contrastive Learning: A Mathematical Treatment
+57. Contrastive Learning: An Overview
+58. Contrastive Learning: A Mathematical Treatment
 
 **Part XI — Machine Learning on Graphs**
 
-61. The Laplacian, Local Averages and Graphs
-62. From Harmonic Functions to Graph Laplacians
-63. Graph Laplacians and Spectral Methods
-64. A Unified View of Spectral Decomposition
-65. Fourier Analysis
-66. From the DFT to Graph Neural Networks
-67. Random-Walk Node Similarity
-68. The Leicht–Holme–Newman Similarity
-69. Reproducing Kernel Hilbert Spaces
-70. Semi-Supervised Learning on Graphs
-71. Shallow Graph Embedding Methods
-72. Graph Autoencoders
+59. The Laplacian, Local Averages and Graphs
+60. From Harmonic Functions to Graph Laplacians
+61. Graph Laplacians and Spectral Methods
+62. A Unified View of Spectral Decomposition
+63. Fourier Analysis
+64. From the DFT to Graph Neural Networks
+65. Random-Walk Node Similarity
+66. The Leicht–Holme–Newman Similarity
+67. Reproducing Kernel Hilbert Spaces
+68. Semi-Supervised Learning on Graphs
+69. Shallow Graph Embedding Methods
+70. Graph Autoencoders
 
 **Appendices**
 

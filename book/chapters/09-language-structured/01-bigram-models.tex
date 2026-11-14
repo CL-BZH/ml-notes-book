@@ -1,0 +1,347 @@
+\begin{notechapter}
+\chapter{Bigram Language Models and Softmax Regression}\label{ch:bigram-models}
+\chaptersubtitle{Counting, the softmax on a one-hot input, and why the two agree}
+
+\begin{chapterintro}
+A language model assigns a probability to every sequence of words. The simplest
+non-trivial one, the \emph{bigram} model, predicts each word from the previous word only.
+It can be estimated by counting, or trained as a multinomial logistic regression (softmax
+regression) whose input is the one-hot code of the previous word. This chapter shows that
+the two approaches are the same model, derives the gradient once and carefully, and
+uses the comparison to explain what the one-hot target of the cross-entropy loss means,
+why unseen bigrams are a problem, and what regularization does about it. You will learn
+\begin{itemize}[nosep]
+  \item the bigram model as an autoregressive model with a one-word memory, and its
+        maximum-likelihood estimate by counting;
+  \item softmax regression on a one-hot input: the product $W^\top x$ is a row lookup;
+  \item the gradient of the cross-entropy, from the logits to the matrix $W$;
+  \item why training on one-hot targets is not an approximation of the ``true''
+        distribution of the next word;
+  \item why the trained model converges to the counts, what happens to unseen bigrams, and
+        how perplexity measures a language model.
+\end{itemize}
+\prerequisites{the softmax and the cross-entropy (\cref{ch:sigmoid-softmax,ch:cross-entropy});
+backpropagation through an affine map (\cref{backpropagation:sec:affine}); autoregressive
+models (\cref{sequence-models:sec:autoregressive}).}
+\end{chapterintro}
+
+\section{Language models and the bigram assumption}\label{bigram-models:sec:bigram}
+
+Let the vocabulary be $\{1,\dots,V\}$, with two special symbols: $\langle s\rangle$, which starts every sentence, and
+$\langle/s\rangle$, which ends it. A sentence is a sequence $w_0 = \langle s\rangle, w_1,\dots,w_T = \langle/s\rangle$. By the chain rule of
+probability,
+\[
+  p(w_1,\dots,w_T) = \prod_{t=1}^Tp(w_t\mid w_0,\dots,w_{t-1}),
+\]
+so a language model is an autoregressive model (\cref{sequence-models:sec:autoregressive}): a
+model of the next word given all the previous ones. The end symbol makes the probabilities
+of sentences of all lengths sum to $1$. A recurrent network can condition on the whole prefix.
+The \emph{bigram} model makes the Markov assumption that only the last word matters:
+\[
+  p(w_t\mid w_0,\dots,w_{t-1}) = p(w_t\mid w_{t-1}) .
+\]
+It is described by a $V\times V$ table $\theta_{ij} = p(\text{next} = j\mid\text{previous} = i)$, each row a probability distribution.
+
+\paragraph{Maximum likelihood by counting.} Concatenate the training sentences into $N$
+bigrams $(i_n, j_n)$, and let $C_{ij}$ be the number of occurrences of the bigram $(i, j)$ and $C_i = \sum_jC_{ij}$ the
+number of bigrams that start with $i$.
+
+\begin{proposition}[Count estimate]\label{bigram-models:prop:counts}
+The log-likelihood $\sum_n\log\theta_{i_nj_n} = \sum_{i,j}C_{ij}\log\theta_{ij}$ is maximized, over all tables whose rows are
+probability distributions, by $\hat\theta_{ij} = C_{ij}/C_i$ for every $i$ with $C_i > 0$. Rows with $C_i = 0$ are not determined.
+\end{proposition}
+
+\begin{proof}
+The log-likelihood is a sum of one term per row, $\sum_jC_{ij}\log\theta_{ij}$, and the rows are constrained
+separately, so each row is maximized separately. For $C_i > 0$, $\sum_jC_{ij}\log\theta_{ij} = C_i\sum_j\hat\theta_{ij}\log\theta_{ij}$, and by Gibbs'
+inequality ($\mathrm{KL}(\hat\theta_{i\cdot}\Vert\theta_{i\cdot})\geq0$, \cref{ch:cross-entropy}) $\sum_j\hat\theta_{ij}\log\theta_{ij}\leq\sum_j\hat\theta_{ij}\log\hat\theta_{ij}$, with equality iff $\theta_{i\cdot} = \hat\theta_{i\cdot}$.
+\end{proof}
+
+\begin{example}[A four-sentence corpus]\label{bigram-models:ex:corpus}
+Take the sentences \emph{the cat sat}, \emph{the dog sat}, \emph{the cat ran}, \emph{a cat sat}, with the vocabulary
+$\langle s\rangle$, the, a, cat, dog, sat, ran, $\langle/s\rangle$ ($V = 8$). Each sentence gives four bigrams, $N = 16$. The non-zero
+estimates are
+\begin{gather*}
+  \hat p(\text{the}\mid\langle s\rangle) = \tfrac34,\quad \hat p(\text{a}\mid\langle s\rangle) = \tfrac14,\qquad
+  \hat p(\text{cat}\mid\text{the}) = \tfrac23,\quad \hat p(\text{dog}\mid\text{the}) = \tfrac13,\\
+  \hat p(\text{sat}\mid\text{cat}) = \tfrac23,\quad \hat p(\text{ran}\mid\text{cat}) = \tfrac13,
+\end{gather*}
+and $\hat p(\text{cat}\mid\text{a}) = \hat p(\text{sat}\mid\text{dog}) = \hat p(\langle/s\rangle\mid\text{sat}) = \hat p(\langle/s\rangle\mid\text{ran}) = 1$. The row of $\langle/s\rangle$ is empty: nothing follows the end of a
+sentence.
+\end{example}
+
+\section{Softmax regression on a one-hot input}\label{bigram-models:sec:softmax}
+
+The same model can be written as a one-layer network. Encode the previous word $i$ by the
+one-hot vector $x = e_i\in\R^V$ and compute
+\[
+  z = W^\top x + b,\qquad p = \softmax(z),\qquad p_j = \frac{e^{z_j}}{\sum_{k=1}^Ve^{z_k}} = p_\theta(\text{next} = j\mid\text{previous} = i),
+\]
+with $W\in\R^{V\times V}$ and $b\in\R^V$; $z$ is the vector of \emph{logits}. Here $W$ multiplies $x$ transposed, as in the
+original notes and in \texttt{x @ W} with row vectors; the layer of \cref{ch:backpropagation} would
+be written with $W^\top$ in place of $W$.
+
+\paragraph{A row lookup.} For a one-hot input, the product selects one row:
+\[
+  W^\top e_i = \begin{bmatrix}w_{11} & w_{21} & \cdots & w_{V1}\\ \vdots & \vdots & & \vdots\\ w_{1V} & w_{2V} & \cdots & w_{VV}\end{bmatrix}
+  \begin{bmatrix}0\\ \vdots\\ 1\\ \vdots\\ 0\end{bmatrix}
+  = \begin{bmatrix}w_{i1}\\ \vdots\\ w_{iV}\end{bmatrix} = (W_{i\cdot})^\top,
+\]
+the transpose of row $i$. Row $i$ of $W$ is the vector of logits used after the word $i$, and nothing
+else: each row is a free parameter vector for one context. Implementations never form
+the one-hot vector; they index the row (\texttt{W[i]}), which costs $V$ operations instead of $V^2$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  neu/.style={draw, circle, minimum size=7mm, inner sep=0pt, font=\scriptsize},
+  ar/.style={-{Stealth[length=1.5mm]}, gray!70},
+  arb/.style={-{Stealth[length=1.8mm]}, thick, bookaccent}]
+  \foreach \k/\lab/\v in {1/{\langle s\rangle}/0,2/\text{the}/1,3/\text{a}/0,5/{\langle/s\rangle}/0} {
+    \node[neu] (in\k) at (0,-0.95*\k) {$\v$};
+    \node[font=\scriptsize, anchor=east] at (-0.5,-0.95*\k) {$\lab$};
+  }
+  \node[neu, fill=bookaccent!25] at (in2) {$1$};
+  \node at (0,-0.95*4) {$\vdots$};
+  \foreach \k/\lab in {1/{\langle s\rangle},2/\text{the},3/\text{a},5/{\langle/s\rangle}} {
+    \node[neu, fill=bookexample!15] (out\k) at (3.6,-0.95*\k) {$z_{\k}$};
+    \node[font=\scriptsize, anchor=west] at (5.4,-0.95*\k) {$p(\lab\mid\text{the})$};
+    \draw[-{Stealth[length=1.5mm]}] (out\k) -- (5.3,-0.95*\k);
+  }
+  \node at (3.6,-0.95*4) {$\vdots$};
+  \foreach \a in {1,3,5} \foreach \b in {1,2,3,5} \draw[ar] (in\a) -- (out\b);
+  \foreach \b in {1,2,3,5} \draw[arb] (in2) -- (out\b);
+  \node[font=\scriptsize, text=bookaccent] at (1.8,0.15) {row ``the'' of $W$};
+  \node[draw, rounded corners=2pt, font=\scriptsize, fill=gray!8] at (4.6,-0.95*3) {softmax};
+\end{tikzpicture}
+\caption{Softmax regression for the bigram model. With the one-hot input of ``the'', only the
+weights leaving the active unit (blue), that is row ``the'' of $W$, contribute to the logits.}
+\label{bigram-models:fig:network}
+\end{figure}
+
+\paragraph{The bias is redundant.} Since $\sum_ix_i = 1$ for a one-hot vector, $W^\top x + b = (W + \mathbf 1b^\top)^\top x$, where
+$\mathbf 1b^\top$ adds $b^\top$ to every row of $W$. Any model with a bias equals a model without bias, so the bias does not
+enlarge the set of conditional tables the model can represent. It is harmless and can
+help optimization (it learns the part of the logits shared by all contexts, the unigram
+frequencies), but it is not needed; many implementations drop it. The softmax has a second
+redundancy: adding the same constant to all the logits of a row does not change $p$.
+
+\section{The loss and its gradient}\label{bigram-models:sec:gradient}
+
+\paragraph{The loss.} For one bigram $(i, j)$ the loss is the negative log-likelihood of the observed
+next word,
+\[
+  \ell = -\log p_j = -\sum_{k=1}^Vy_k\log p_k,\qquad y = e_j,
+\]
+the cross-entropy between the one-hot target $y$ and the prediction $p$.
+
+\begin{pitfall}[The one-hot target is not an approximation]
+It is often said that the ``true'' distribution of the word after ``the'' is not one-hot,
+and that the one-hot target $y = e_j$ is an approximation made for convenience. It is not. The
+target of one example is one-hot because one word was observed. Summed over the corpus,
+the losses give \emph{exactly} the cross-entropy with the empirical distribution of the next word,
+as the next proposition shows. Training on one-hot targets is maximum likelihood, and
+maximum likelihood fits the full conditional distribution. Label smoothing, which replaces
+$e_j$ by a mixture with the uniform distribution, is a regularizer, not a correction of an
+approximation.
+\end{pitfall}
+
+\begin{proposition}[Empirical cross-entropy]\label{bigram-models:prop:empirical}
+Let $\hat\pi_i = C_i/N$ and $\hat p(j\mid i) = C_{ij}/C_i$. For any model $p_\theta$,
+\[
+  \frac1N\sum_{n=1}^N-\log p_\theta(j_n\mid i_n) = \sum_{i:\,C_i>0}\hat\pi_i\,H\bigl(\hat p(\cdot\mid i),\,p_\theta(\cdot\mid i)\bigr),\qquad
+  H(q, p) = -\sum_jq_j\log p_j .
+\]
+\end{proposition}
+
+\begin{proof}
+Group the $N$ terms by bigram: $(i, j)$ appears $C_{ij}$ times, so the left side is
+\[
+  -\frac1N\sum_{i,j}C_{ij}\log p_\theta(j\mid i) = -\sum_i\frac{C_i}N\sum_j\frac{C_{ij}}{C_i}\log p_\theta(j\mid i) . \qedhere
+\]
+\end{proof}
+
+\paragraph{Gradient with respect to the logits.} With $\ell = -z_j + \log\sum_ke^{z_k}$,
+\[
+  \frac{\partial\ell}{\partial z_k} = -[k = j] + \frac{e^{z_k}}{\sum_{k'}e^{z_{k'}}} = p_k - y_k,\qquad\text{that is}\qquad\nabla_z\ell = p - y
+\]
+(\cref{backpropagation:sec:output}): predicted minus observed. Writing $\ell$ as $-\log p_j$ and differentiating
+the softmax gives the same result through $\partial p_j/\partial z_k = p_j([k = j] - p_k)$, and the factor $p_j$ cancels against the
+derivative $-1/p_j$ of the logarithm.
+
+\paragraph{Gradient with respect to $W$.} The logit $z_k = \sum_iw_{ik}x_i + b_k$ depends on the column $k$ of $W$, and
+$\partial z_k/\partial w_{ik'} = x_i[k = k']$. By the chain rule,
+\[
+  \frac{\partial\ell}{\partial w_{ik}} = \sum_{k'}\frac{\partial\ell}{\partial z_{k'}}\frac{\partial z_{k'}}{\partial w_{ik}} = x_i\,(p_k - y_k),
+\]
+so that, in matrix form,
+\[
+  \nabla_W\ell = x\,(p - y)^\top = \begin{bmatrix}x_1\\ \vdots\\ x_V\end{bmatrix}\begin{bmatrix}p_1 - y_1 & \cdots & p_V - y_V\end{bmatrix},\qquad
+  \nabla_b\ell = p - y .
+\]
+This is the outer product of \cref{backpropagation:sec:affine}, transposed because the layer uses $W^\top$.
+For $x = e_i$ only row $i$ is non-zero: one example updates only the logits of its own context,
+\[
+  W_{i\cdot}\leftarrow W_{i\cdot} - \eta\,(p - e_j)^\top .
+\]
+It raises the logit of the observed word by $\eta(1 - p_j)$ and lowers every other logit $k$ by $\eta p_k$.
+
+\begin{example}[One gradient step]\label{bigram-models:ex:step}
+In the corpus of \cref{bigram-models:ex:corpus}, start from $W = 0$, $b = 0$: every prediction is uniform,
+$p_k = 1/8$, and the loss of the bigram (the, cat) is $\log8 = 2.0794$. The gradient row is
+\[
+  p - e_{\text{cat}} = (0.125,\ 0.125,\ 0.125,\ -0.875,\ 0.125,\ 0.125,\ 0.125,\ 0.125),
+\]
+in the order $\langle s\rangle$, the, a, cat, dog, sat, ran, $\langle/s\rangle$. One step with $\eta = 1$ sets the row ``the'' to $(-0.125,\dots,0.875,\dots,-0.125)$
+and gives $p(\text{cat}\mid\text{the}) = e^{0.875}/(e^{0.875} + 7e^{-0.125}) = 0.2797$, up from $0.125$.
+\end{example}
+
+\section{What training converges to}\label{bigram-models:sec:convergence}
+
+Summing the gradients of all the bigrams that start with $i$ gives the full-batch gradient of the
+average loss with respect to row $i$:
+\[
+  \frac1N\sum_{n:\,i_n = i}(p_\theta(\cdot\mid i) - e_{j_n}) = \frac{C_i}N\bigl(p_\theta(\cdot\mid i) - \hat p(\cdot\mid i)\bigr).
+\]
+It vanishes exactly when the model reproduces the counts. Together with
+\cref{bigram-models:prop:empirical}, this gives the following.
+
+\begin{proposition}[Softmax regression learns the counts]\label{bigram-models:prop:same}
+For every context $i$ with $C_i > 0$ whose counts are all positive ($C_{ij} > 0$ for all $j$), the loss is
+minimized exactly when $\softmax(W_{i\cdot}^\top + b) = \hat p(\cdot\mid i)$, that is, when the logits are $\log\hat p(\cdot\mid i)$ up to an
+additive constant. If some $C_{ij} = 0$, the infimum of the loss is the loss of the count model,
+but it is not attained: driving the probability of the unseen bigram to $0$ requires $z_j\to-\infty$.
+\end{proposition}
+
+\begin{proof}
+By \cref{bigram-models:prop:empirical} and Gibbs' inequality, the loss is at least that of the count
+model, with equality iff $p_\theta(\cdot\mid i) = \hat p(\cdot\mid i)$ for every observed context. The softmax reaches a distribution $q$
+iff $q$ has no zero entry, with logits $\log q$ plus a constant. If $\hat p(j\mid i) = 0$, the distributions $\softmax(z)$ with $z_j$
+decreasing to $-\infty$ and the other logits fixed at $\log\hat p(\cdot\mid i)$ approach $\hat p(\cdot\mid i)$, so the loss approaches its lower
+bound without reaching it.
+\end{proof}
+
+So the one-layer softmax model with a one-hot input is not a different model from the
+count model: it is the count model, parameterized by logits and fitted by gradient descent.
+Its interest lies elsewhere: it is the starting point for models that \emph{share} parameters
+between contexts (\cref{ch:bigram-neural}), which counting cannot do.
+
+\paragraph{Unseen bigrams and regularization.} The count model gives probability $0$ to every
+bigram absent from the training data, so a test sentence with one new bigram has
+probability $0$. In the corpus above, \emph{a dog ran} contains (a, dog) and (dog, ran), never seen. Two
+remedies:
+\begin{itemize}[nosep]
+  \item \emph{smoothing} the counts, for instance add-one (Laplace) smoothing,
+        $\hat p(j\mid i) = (C_{ij} + 1)/(C_i + V)$, or more refined methods (Kneser--Ney);
+  \item \emph{regularizing} the softmax model: minimizing $\frac1N\sum_n\ell_n + \frac\lambda2\norm W^2$ keeps the logits finite, and
+        the unseen words of each row keep a positive probability.
+\end{itemize}
+
+\paragraph{Perplexity.} A language model is evaluated by the average negative log-likelihood
+per word on held-out text, or by its exponential, the \emph{perplexity}:
+\[
+  \mathrm{PPL} = \exp\Bigl(-\frac1N\sum_{n=1}^N\log p_\theta(j_n\mid i_n)\Bigr) .
+\]
+A model that is uniform over $K$ words has perplexity $K$: perplexity is the size of a uniform
+choice that would be as uncertain as the model. A single zero probability makes it infinite.
+
+\begin{example}[Fitting, overfitting, smoothing]\label{bigram-models:ex:fit}
+Train the softmax model on the corpus of \cref{bigram-models:ex:corpus} by full-batch gradient descent
+($\eta = 1$, $5\,000$ steps, $W$ initialized at $0$, no bias).
+\begin{itemize}[nosep]
+  \item With $\lambda = 0$, $p(\cdot\mid\text{the})$ is $0.6659$ for cat, $0.3325$ for dog and $0.0003$ for each of the six other
+        words: almost the counts $\frac23$, $\frac13$, $0$. The training perplexity is $1.464$, close to $1.461$ for the
+        count model, and the largest weight is $7.8$, still growing.
+  \item With $\lambda = 0.01$, $p(\cdot\mid\text{the})$ is $0.549$, $0.256$ and $0.033$ for each other word, and the training
+        perplexity rises to $1.860$.
+\end{itemize}
+On the held-out sentence \emph{a dog ran}, the count model has infinite perplexity; the softmax model
+has perplexity $70.2$ with $\lambda = 0$ (and it keeps growing with training) and $7.45$ with $\lambda = 0.01$; add-one
+smoothing gives $6.84$. Regularization trades training fit for robustness to unseen events,
+exactly as in \cref{ch:erm}.
+\end{example}
+
+\begin{pitfall}[Tokenization]
+The vocabulary is defined by the tokenizer, and the model knows nothing else. If the text is
+split on spaces without lowercasing, ``To'' and ``to'' are two different words, with separate rows
+and columns, and their statistics are split; punctuation glued to words (``be,'') creates further
+spurious words. Decide on lowercasing, punctuation and sentence boundaries before
+counting, and apply the same rules to the test data.
+\end{pitfall}
+
+\section{Implementation}\label{bigram-models:sec:code}
+
+The training loop on single bigrams, with the gradient of \cref{bigram-models:sec:gradient}, in
+NumPy. The softmax subtracts the maximum logit before exponentiating, which leaves the result
+unchanged (the shift invariance above) and prevents overflow.
+\begin{lstlisting}[language=Python]
+import numpy as np
+
+def softmax(z):
+    e = np.exp(z - z.max())
+    return e / e.sum()
+
+def sgd_epoch(W, bigrams, lr):              # bigrams: list of index pairs (i, j)
+    loss = 0.0
+    for i, j in bigrams:
+        p = softmax(W[i])                   # W.T @ one_hot(i) is the row W[i]
+        loss -= np.log(p[j])
+        g = p.copy(); g[j] -= 1.0           # dloss/dz = p - e_j
+        W[i] -= lr * g                      # only row i receives a gradient
+    return loss / len(bigrams)
+\end{lstlisting}
+In PyTorch the same model is \texttt{nn.Embedding(V, V)} followed by
+\texttt{F.cross\_entropy}, which combines the log-softmax and the negative log-likelihood in a
+numerically stable way and takes the target as a class index, not as a one-hot vector.
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item A language model is an autoregressive model of the next word; the bigram model
+        conditions on the previous word only, and its maximum-likelihood estimate is the table
+        of conditional frequencies $C_{ij}/C_i$.
+  \item Softmax regression on a one-hot input computes $z = W^\top e_i + b$, the transpose of row $i$ of $W$: one free
+        logit vector per context. The bias is redundant.
+  \item $\nabla_z\ell = p - y$ and $\nabla_W\ell = x(p - y)^\top$; one example updates only the row of its context.
+  \item Summed over the corpus, the one-hot cross-entropies equal the cross-entropy with the
+        empirical conditional distributions: the one-hot target is exact, not an approximation.
+  \item Training converges to the counts; unseen bigrams push logits to $-\infty$, which smoothing or
+        regularization prevents. Perplexity is the exponential of the average negative
+        log-likelihood.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{bigram-models:exr:1}
+In \cref{bigram-models:ex:corpus}, compute the probability of the sentence \emph{the cat ran} under the count
+model, and the training perplexity $1.461$.
+\solutionlink{bigram-models:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{bigram-models:exr:2}
+Show that replacing $(W, b)$ by $(W + \mathbf 1c^\top,\ b - c)$ does not change any prediction, and that neither
+does adding a constant to every entry of one row of $W$. How many free conditional probabilities
+does the bigram model have, compared with the $V^2 + V$ parameters of $(W, b)$?
+\solutionlink{bigram-models:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{bigram-models:exr:3}
+Compute $\nabla_W\ell$ and $\nabla_b\ell$ for $V = 3$, input $x = e_1$, prediction $p = (0.1, 0.7, 0.2)$ and observed next word $2$.
+Which entries of $W$ change in a gradient step?
+\solutionlink{bigram-models:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{bigram-models:exr:4}
+With label smoothing, the target is $y = (1 - \varepsilon)e_j + \frac\varepsilon V\mathbf 1$. Give $\nabla_z\ell$, and the logits that minimize
+the loss for a context that is always followed by the same word $j$.
+\solutionlink{bigram-models:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{bigram-models:exr:5}
+A model is uniform over the $V$ words. Show that its perplexity is $V$ on any text. Show that the
+perplexity of any model on a text is at least $1$, with equality iff it gives probability $1$ to every
+observed word.
+\solutionlink{bigram-models:exr:5}
+\end{exercise}
+\end{notechapter}

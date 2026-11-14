@@ -1,0 +1,236 @@
+\begin{notechapter}
+\chapter{A Neural Bigram Model and the Embedding Matrix}\label{ch:bigram-neural}
+\chaptersubtitle{A hidden layer between the previous word and the next: lookup, bottleneck and sharing}
+
+\begin{chapterintro}
+The softmax regression of \cref{ch:bigram-models} has one free row of logits per context: it
+cannot transfer anything it learns about the word ``cat'' to the word ``dog''. Inserting a
+hidden layer of $D\ll V$ units between the one-hot input and the softmax changes this. The first
+layer becomes a table of $D$-dimensional vectors, one per word, the \emph{embeddings}; the second
+layer must predict the next word from these vectors only, so words that are followed by
+similar words are pushed towards similar vectors. This chapter derives the gradients of
+the model, corrects a numerical example, and makes precise what the bottleneck
+constrains. You will learn
+\begin{itemize}[nosep]
+  \item the one-hidden-layer bigram model and its parameter count;
+  \item why its first layer is an embedding lookup, as in \texttt{nn.Embedding};
+  \item the complete backward pass, with every shape checked, on a worked example verified
+        with PyTorch;
+  \item the rank constraint imposed by the hidden layer, and what it buys and costs.
+\end{itemize}
+\prerequisites{\cref{ch:bigram-models}; the backpropagation algorithm (\cref{ch:backpropagation}).}
+\end{chapterintro}
+
+\section{The model}\label{bigram-neural:sec:model}
+
+The input is the one-hot code $x = e_i\in\R^V$ of the previous word. With $W_1\in\R^{V\times D}$, $b_1\in\R^D$, $W_2\in\R^{D\times V}$
+and $b_2\in\R^V$,
+\[
+  a = W_1^\top x + b_1,\qquad h = \tanh(a),\qquad z = W_2^\top h + b_2,\qquad p = \softmax(z),
+\]
+and the loss of the bigram $(i, j)$ is $\ell = -\log p_j$. As in \cref{ch:bigram-models} the weights multiply their
+input transposed, $W^\top x$ (the row-vector convention \texttt{x @ W} of the original notes and of
+the code below).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=2pt, minimum height=8mm, inner sep=3pt, font=\small, align=center},
+  ar/.style={-{Stealth[length=1.8mm]}, thick},
+  lab/.style={font=\scriptsize, inner sep=1pt}]
+  \node[box, fill=bookaccent!15] (x) at (0,0) {$x = e_i$\\[-1pt]{\scriptsize one-hot, $V$}};
+  \node[box, fill=bookexample!15] (h) at (4.3,0) {$h = \tanh(W_1^\top x + b_1)$\\[-1pt]{\scriptsize $D$ units}};
+  \node[box, fill=bookkey!12] (z) at (8.9,0) {$z = W_2^\top h + b_2$\\[-1pt]{\scriptsize logits, $V$}};
+  \node[box, fill=gray!10] (p) at (12.0,0) {$p = \softmax(z)$};
+  \draw[ar] (x) -- node[lab, above]{$W_1$: $V\times D$} (h);
+  \draw[ar] (h) -- node[lab, above]{$W_2$: $D\times V$} (z);
+  \draw[ar] (z) -- (p);
+  \draw[decorate, decoration={brace, mirror, amplitude=4pt}] (-0.8,-0.75) -- node[lab, below=5pt]{row $i$ of $W_1$: the embedding of word $i$} (6.1,-0.75);
+\end{tikzpicture}
+\caption{The neural bigram model. The first layer reads one row of $W_1$; the second must predict the
+next word from the $D$ numbers of $h$.}
+\label{bigram-neural:fig:model}
+\end{figure}
+
+\paragraph{The first layer is a lookup.} As in \cref{bigram-models:sec:softmax}, $W_1^\top e_i$ is row $i$ of $W_1$, transposed.
+The hidden pre-activation is $a = (W_1)_{i\cdot}^\top + b_1$: the first layer stores one vector of $D$ numbers per word,
+the \emph{embedding} of the word, and the one-hot product only retrieves it. This is exactly
+\texttt{nn.Embedding(V, D)} in PyTorch, which stores the $V\times D$ matrix and indexes it, so that
+the $V\times D$ product with a one-hot vector is never computed. As before, $b_1$ is redundant with a one-hot
+input ($W_1 + \mathbf 1b_1^\top$ absorbs it). The second-layer bias $b_2$ is not: it adds the same vector to the
+logits of every context, which the rows of $W_2^\top h$ can do only if some combination of hidden units is
+constant across words.
+
+\paragraph{Parameters.} The model has $VD + D + DV + V$ parameters, against $V^2$ for the table of
+\cref{ch:bigram-models}. For $V = 10^4$ and $D = 100$: about $2\times10^6$ instead of $10^8$.
+
+\section{The backward pass}\label{bigram-neural:sec:backward}
+
+The three local rules of \cref{backpropagation:sec:local} give, from the output down,
+\begin{align*}
+  \bar z &= p - e_j &&\text{(softmax and cross-entropy)}\\
+  \nabla_{W_2}\ell &= h\,\bar z^\top\in\R^{D\times V},\qquad\nabla_{b_2}\ell = \bar z &&\text{(affine map }z = W_2^\top h + b_2\text{)}\\
+  \bar h &= W_2\,\bar z\in\R^D &&\text{(same affine map, with respect to its input)}\\
+  \bar a &= \bar h\odot(1 - h\odot h) &&\text{(}\tanh' = 1 - \tanh^2\text{)}\\
+  \nabla_{W_1}\ell &= x\,\bar a^\top\in\R^{V\times D},\qquad\nabla_{b_1}\ell = \bar a &&\text{(affine map }a = W_1^\top x + b_1\text{)}.
+\end{align*}
+Because the layers use $W^\top$, the outer products are (input)$\times$(gradient at the output)$^\top$, the
+transposes of those of \cref{backpropagation:thm:backprop}, and each gradient has the shape of its
+matrix. With $x = e_i$, $\nabla_{W_1}\ell$ has the single non-zero row $i$, equal to $\bar a^\top$: one example updates only the
+embedding of its own context word, but it updates \emph{all} of $W_2$, which is shared by all
+contexts.
+
+\begin{pitfall}[Shapes and the factor $1 - h^2$]
+Two mistakes are common in hand-written backward passes for this model, and both were
+in the original version of this chapter. The first is a shape error: writing $\nabla_{W_2}\ell = \bar z\,h^\top$ ($V\times D$)
+for a matrix $W_2$ of shape $D\times V$; the update $W_2 - \eta\nabla_{W_2}\ell$ is then not even defined, and a hand calculation
+silently mixes entries. The second is applying the derivative of $\tanh$ twice, once in $\bar a$ and
+again in $\nabla_{W_1}\ell$. Checking every gradient's shape against its parameter, and comparing with
+automatic differentiation, catches both.
+\end{pitfall}
+
+\section{A worked example}\label{bigram-neural:sec:example}
+
+\begin{example}[One step, verified]\label{bigram-neural:ex:step}
+Vocabulary (cat, dog, mouse), $V = 3$, $D = 2$; the bigram is (cat, dog), so $x = e_1$ and $j = 2$. The parameters are
+\[
+  W_1 = \begin{bmatrix}0.1 & 0.2\\ 0.3 & 0.4\\ 0.5 & 0.6\end{bmatrix},\quad b_1 = \begin{bmatrix}0.1\\ 0.2\end{bmatrix},\quad
+  W_2 = \begin{bmatrix}0.7 & 0.8 & 0.9\\ 1.0 & 1.1 & 1.2\end{bmatrix},\quad b_2 = \begin{bmatrix}0.3\\ 0.4\\ 0.5\end{bmatrix}.
+\]
+All numbers are rounded to four digits.
+
+\emph{Forward.} $a = (0.1, 0.2) + (0.1, 0.2) = (0.2, 0.4)$ (row ``cat'' of $W_1$ plus $b_1$), $h = \tanh(a) = (0.1974, 0.3799)$, and
+\[
+  z = W_2^\top h + b_2 = \begin{bmatrix}0.7\cdot0.1974 + 1.0\cdot0.3799 + 0.3\\ 0.8\cdot0.1974 + 1.1\cdot0.3799 + 0.4\\ 0.9\cdot0.1974 + 1.2\cdot0.3799 + 0.5\end{bmatrix}
+  = \begin{bmatrix}0.8181\\ 0.9758\\ 1.1336\end{bmatrix} .
+\]
+Then $e^z = (2.2661, 2.6533, 3.1069)$, whose sum is $8.0263$, so $p = (0.2823, 0.3306, 0.3871)$ and $\ell = -\log0.3306 = 1.1069$.
+
+\emph{Backward.} $\bar z = p - e_2 = (0.2823, -0.6694, 0.3871)$, and
+\[
+  \nabla_{W_2}\ell = h\,\bar z^\top = \begin{bmatrix}0.0557 & -0.1321 & 0.0764\\ 0.1073 & -0.2543 & 0.1471\end{bmatrix},\qquad \nabla_{b_2}\ell = \bar z .
+\]
+The gradient reaching the hidden layer is
+$\bar h = W_2\bar z = (0.1976 - 0.5355 + 0.3484,\ 0.2823 - 0.7363 + 0.4645) = (0.0105,\ 0.0105)$. With $1 - h\odot h = (0.9610,\ 0.8556)$,
+$\bar a = (0.0101,\ 0.0090)$, and
+\[
+  \nabla_{W_1}\ell = x\,\bar a^\top = \begin{bmatrix}0.0101 & 0.0090\\ 0 & 0\\ 0 & 0\end{bmatrix},\qquad\nabla_{b_1}\ell = \bar a .
+\]
+\emph{Update} with $\eta = 0.1$: only row ``cat'' of $W_1$ changes, to $(0.0990, 0.1991)$; $b_1$ becomes $(0.0990, 0.1991)$,
+$b_2 = (0.2718, 0.4669, 0.4613)$ and
+\[
+  W_2 = \begin{bmatrix}0.6944 & 0.8132 & 0.8924\\ 0.9893 & 1.1254 & 1.1853\end{bmatrix}:
+\]
+the column of ``dog'' grows, the two others shrink. The hidden gradient $\bar h$ is small because the
+three columns of $W_2$ are nearly parallel: the hidden layer has little influence on which word
+wins, and almost all the learning happens in the output layer at this point.
+\end{example}
+
+The same computation in NumPy, compared with PyTorch's automatic differentiation:
+\begin{lstlisting}[language=Python]
+import numpy as np, torch
+W1 = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]); b1 = np.array([0.1, 0.2])
+W2 = np.array([[0.7, 0.8, 0.9], [1.0, 1.1, 1.2]]); b2 = np.array([0.3, 0.4, 0.5])
+i, j = 0, 1                                    # previous word 'cat', next word 'dog'
+h = np.tanh(W1[i] + b1)                        # W1.T @ one_hot(i) is the row W1[i]
+z = W2.T @ h + b2
+p = np.exp(z - z.max()); p /= p.sum()
+dz = p.copy(); dz[j] -= 1.0                    # dloss/dz = p - e_j
+dW2, db2 = np.outer(h, dz), dz                 # shape (D, V), like W2
+da = (W2 @ dz) * (1 - h**2)                    # tanh' applied once
+dW1 = np.zeros_like(W1); dW1[i] = da; db1 = da # only row i of W1
+
+t = {k: torch.tensor(v, requires_grad=True) for k, v in
+     dict(W1=W1, b1=b1, W2=W2, b2=b2).items()}
+zt = t["W2"].T @ torch.tanh(t["W1"][i] + t["b1"]) + t["b2"]
+(-torch.log_softmax(zt, 0)[j]).backward()
+assert np.allclose(t["W1"].grad, dW1) and np.allclose(t["W2"].grad, dW2)
+\end{lstlisting}
+
+\section{What the bottleneck does}\label{bigram-neural:sec:bottleneck}
+
+Stack the hidden vectors of all the words as the rows of $H = \tanh(W_1 + \mathbf 1b_1^\top)\in\R^{V\times D}$. The matrix of logits of all
+contexts, row $i$ for the previous word $i$, is
+\[
+  Z = HW_2 + \mathbf 1b_2^\top,\qquad\rank Z\leq D + 1 .
+\]
+The table model of \cref{ch:bigram-models} allows any $V\times V$ matrix of logits; the neural model only those
+of rank at most $D + 1$. This constraint is the point of the model.
+\begin{itemize}
+  \item \emph{It forces sharing.} Two words whose rows of $\hat p(\cdot\mid i)$ are similar can only be fitted
+        cheaply by giving them similar hidden vectors, since the same $W_2$ maps every $h$ to logits.
+        The model then predicts similar continuations for them, including continuations
+        that were observed after one and never after the other. This is how a neural
+        language model assigns non-zero probability to unseen bigrams without smoothing
+        (Bengio, Ducharme, Vincent and Jauvin, \emph{A Neural Probabilistic Language Model},
+        2003).
+  \item \emph{It needs data to act.} If $D + 1$ is large enough to fit the empirical table, the model
+        can reproduce the counts and inherits their zeros, like the table model.
+\end{itemize}
+
+\begin{example}[The four-sentence corpus with $D = 2$]\label{bigram-neural:ex:corpus}
+Train the model with \texttt{nn.Embedding(8, 2)}, $\tanh$ and \texttt{nn.Linear(2, 8)} on the corpus of
+\cref{bigram-models:ex:corpus} (Adam, learning rate $0.05$, $3\,000$ steps; five random seeds). In every run the
+training perplexity is $1.462$, that of the count model: the empirical table of this tiny corpus
+is simple enough to be fitted with rank $3$. The hidden vectors show the sharing: ``sat'' and
+``ran'', which are both always followed by $\langle/s\rangle$, end with almost the same $h$ in every run (for
+instance $(0.99, 1.00)$ and $(1.00, 0.98)$). But the held-out sentence \emph{a dog ran} still has
+perplexity between $40$ and $54$, with $p(\text{dog}\mid\text{a})\approx0.001$: four sentences do not contain enough evidence
+that ``a'' behaves like ``the''. Sharing generalizes only what the data make cheaper to share.
+\end{example}
+
+\begin{intuition}
+The table model learns $V$ unrelated distributions. The neural model learns a map from a
+$D$-dimensional space of ``contexts'' to distributions, and places each word in that space.
+Words end up close when they predict similar continuations; their positions are the
+embeddings that \cref{ch:word-embeddings} studies for their own sake.
+\end{intuition}
+
+\paragraph{Cost.} Each example costs $O(D)$ for the lookup but $O(DV)$ for the logits and the softmax: the
+output layer dominates as soon as the vocabulary is large. The next chapters are about this
+cost: hierarchical softmax (\cref{ch:hierarchical-softmax}) and negative sampling
+(\cref{ch:nce-negative-sampling}) avoid computing the $V$ logits.
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item The neural bigram model computes $h = \tanh(W_1^\top e_i + b_1)$, $z = W_2^\top h + b_2$, $p = \softmax(z)$, with $2VD + D + V$
+        parameters instead of $V^2$.
+  \item Its first layer is a table of word vectors read by index: an embedding layer. With a
+        one-hot input, $b_1$ is redundant.
+  \item Backward pass: $\bar z = p - e_j$, $\nabla_{W_2}\ell = h\bar z^\top$, $\bar a = (W_2\bar z)\odot(1 - h^2)$, $\nabla_{W_1}\ell = x\bar a^\top$ (only the row of the
+        context word); every gradient has the shape of its parameter.
+  \item The logits of all contexts form a matrix of rank at most $D + 1$; the constraint forces
+        words with similar continuations to share their representation, which is how neural
+        language models generalize to unseen bigrams when there is enough data.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{bigram-neural:exr:1}
+Check that every gradient of \cref{bigram-neural:ex:step} has the shape of its parameter, and
+recompute the entry $(2, 3)$ of $\nabla_{W_2}\ell$.
+\solutionlink{bigram-neural:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{bigram-neural:exr:2}
+The original code of this chapter computed \texttt{dh = W2 @ dz * (1 - h**2)} and then
+\texttt{dW1 = np.outer(x, dh * (1 - h**2))}. What does it compute instead of $\nabla_{W_1}\ell$? Give its non-zero row in
+the example.
+\solutionlink{bigram-neural:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{bigram-neural:exr:3}
+Show that $\rank(HW_2 + \mathbf 1b_2^\top)\leq D + 1$. With $D = 1$ and no biases, can the model represent a bigram table
+in which word $1$ is always followed by word $2$ and word $2$ always by word $1$, while word $3$ is
+followed by each word with probability $1/3$?
+\solutionlink{bigram-neural:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{bigram-neural:exr:4}
+Count the parameters for $V = 50\,000$ and $D = 300$, and the multiply-adds per example of the lookup and
+of the output layer.
+\solutionlink{bigram-neural:exr:4}
+\end{exercise}
+\end{notechapter}
