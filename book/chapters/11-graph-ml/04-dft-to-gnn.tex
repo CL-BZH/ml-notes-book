@@ -1,255 +1,29 @@
 % Source: Graph_ML/DFT_Graph_Convolution/dft_graph_convolution.tex
 \begin{notechapter}
-% ---- chapter-local definitions ----
-\definecolor{codegreen}{rgb}{0,0.6,0}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
-\definecolor{backcolour}{rgb}{0.97,0.97,0.97}
-\lstdefinestyle{pythonstyle}{
-    backgroundcolor=\color{backcolour},
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{blue},
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-    basicstyle=\ttfamily\small,
-    breakatwhitespace=false,
-    breaklines=true,
-    captionpos=b,
-    keepspaces=true,
-    numbers=none,
-    numbersep=5pt,
-    showspaces=false,
-    showstringspaces=false,
-    showtabs=false,
-    tabsize=4,
-    frame=single,
-    framerule=0.5pt,
-    rulecolor=\color{gray!50},
-    xleftmargin=3pt,
-    xrightmargin=3pt,
-}
-\forgetcs\R\newcommand{\R}{\mathbb{R}}
-\forgetcs\Z\newcommand{\Z}{\mathbb{Z}}
-\forgetcs\C\newcommand{\C}{\mathbb{C}}
-\forgetcs\N\newcommand{\N}{\mathbb{N}}
-% -----------------------------------
 \chapter{From the DFT to Graph Neural Networks}\label{ch:dft-to-gnn}
 \chaptersubtitle{Spectral and spatial methods}
 
-\begin{abstract}
-This document develops a unified understanding of signal processing 
-and neural networks on graphs. We begin by showing that the Discrete 
-Fourier Transform (DFT) basis emerges naturally as the eigenvectors 
-of the circular graph Laplacian---illuminating \emph{why} Fourier 
-analysis works. We then generalize to arbitrary graphs via the Graph 
-Fourier Transform and spectral convolution, which underpin Graph 
-Convolutional Networks (GCNs). However, spectral methods have 
-fundamental limitations: they require undirected graphs and expensive 
-eigendecomposition. This motivates \emph{message passing}, a more 
-general spatial framework that encompasses spectral methods as a 
-special case. We show how this hierarchy---from classical Fourier 
-analysis to modern Graph Neural Networks---reflects a progression 
-from highly structured domains (the circle) to fully general graphs.
-\end{abstract}
-
-%==========================================================================
-\section{Introduction: The Big Picture}
-%==========================================================================
-
-\subsection{Why This Perspective Matters}
-
-Most introductions to the Discrete Fourier Transform present it as a 
-computational tool: a way to decompose signals into sinusoids. While 
-correct, this view obscures a deeper truth:
-
-\begin{center}
-\fbox{\parbox{0.85\textwidth}{
-\textbf{The DFT is not an arbitrary construction.} It is the unique 
-``natural'' frequency analysis for signals on a circle---forced by the 
-symmetry of equally-spaced points.
-}}
-\end{center}
-
-Understanding this perspective is valuable for two reasons:
-
-\begin{enumerate}
-\item It explains \emph{why} the DFT works, not just \emph{how} to 
-      compute it.
-\item It generalizes beautifully to \emph{any} graph structure, 
-      providing the theoretical foundation for Graph Neural Networks.
-\end{enumerate}
-
-\subsection{Roadmap}
-
-We proceed as follows:
-
-\begin{enumerate}
-\item \textbf{Part I: The Circular Graph and the DFT} (Sections 2--5)
-\begin{itemize}
-    \item We introduce signals on graphs and the graph Laplacian
-    \item We discover that the Laplacian's eigenvectors on a circular 
-          graph are exactly the DFT basis
-    \item We prove the convolution theorem from this perspective
+\begin{chapterintro}
+Most introductions present the discrete Fourier transform as a computational tool for decomposing a signal into sinusoids. This chapter takes a structural view: the DFT basis is the set of eigenvectors of the Laplacian of the \emph{cycle graph}, and it is forced by the cycle's rotational symmetry. That observation explains the convolution theorem (every circulant matrix is diagonalised by the same basis), and it suggests how to define Fourier analysis and convolution on an arbitrary graph: replace the exponentials by the eigenvectors of that graph's Laplacian. Following this thread leads from the DFT through spectral graph convolution, ChebNet and the graph convolutional network (GCN), to the limitations of the spectral view (directed graphs, cost, lack of shift invariance) and to message passing, the spatial framework that contains polynomial spectral filters as a special case. You will learn
+\begin{itemize}[nosep]
+  \item why the eigenvectors of the cycle Laplacian are the DFT basis, and why shift invariance forces complex exponentials;
+  \item why circulant matrices, and hence circular convolutions, are diagonalised by the DFT, and how zero padding turns circular into linear convolution;
+  \item the graph Fourier transform, spectral filters $U g(\Lambda) U^\top$, and why polynomial filters are local and cheap;
+  \item how ChebNet and the GCN layer are obtained from polynomial filters;
+  \item what breaks for directed graphs, and how GCN, GraphSAGE and GAT are instances of message passing;
+  \item (appendix) the path graph and the DCT, and the matrix implementation of GNN layers.
 \end{itemize}
+\prerequisites{\cref{ch:graph-laplacians} (Laplacian, quadratic form, graph Fourier transform) and \cref{ch:fourier-analysis} (DFT, circular convolution); basic neural networks.}
+\end{chapterintro}
 
-\item \textbf{Part II: Generalization to Arbitrary Graphs} 
-      (Sections 6--8)
-\begin{itemize}
-    \item We define the Graph Fourier Transform for any graph
-    \item We define spectral graph convolution
-    \item We connect to Graph Convolutional Networks
-\end{itemize}
+\section{Notation}
 
-\item \textbf{Part III: Limitations and Beyond} (Sections 9--10)
-\begin{itemize}
-    \item We examine the limitations of spectral methods (directed graphs, 
-          lack of symmetry, computational cost)
-    \item We introduce message passing as the general framework
-    \item We show that spectral convolution is a special case of message 
-          passing
-\end{itemize}
-\end{enumerate}
-
-The appendix provides a detailed proof of why translation invariance 
-forces complex exponentials as eigenfunctions.
-
-%==========================================================================
-\section{Signals on Graphs: The Foundation}
-%==========================================================================
-
-\subsection{What is a Signal on a Graph?}
-
-A \textbf{graph} $G = (V, E)$ consists of a set of nodes (vertices) 
-$V = \{0, 1, \ldots, N-1\}$ and edges $E$ connecting them. A 
-\textbf{signal on a graph} assigns a value to each node:
-
+We use the notation of \cref{ch:graph-laplacians}, with plain capitals for matrices as in the neural-network chapters. A graph $G = (V, E)$ has nodes $V = \{0, \ldots, N-1\}$, numbered from $0$ to match the DFT, and symmetric adjacency matrix $A$ with nonnegative weights $A_{ij}$; $d_i = \sum_j A_{ij}$ is the degree, $D = \diag(d_0, \ldots, d_{N-1})$, and $L = D - A$ is the (combinatorial) Laplacian. A \emph{signal} on $G$ is a vector $\mathbf{x} \in \R^N$ (or $\C^N$) with one value per node. Two facts from \cref{ch:graph-laplacians} are used throughout: $L$ acts locally,
 \begin{equation}
-\mathbf{x} = (x_0, x_1, \ldots, x_{N-1})^T \in \R^N
+(L\mathbf{x})_i = d_i x_i - \sum_{j} A_{ij} x_j = \sum_{j \sim i} A_{ij}(x_i - x_j),
+\label{dft-to-gnn:eq:local}
 \end{equation}
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[scale=1.2]
-    \coordinate (A) at (0, 2);
-    \coordinate (B) at (1.5, 2.5);
-    \coordinate (C) at (3, 2);
-    \coordinate (D) at (0.5, 0.5);
-    \coordinate (E) at (2.5, 0.5);
-    
-    \draw[thick, gray] (A) -- (B) -- (C);
-    \draw[thick, gray] (A) -- (D);
-    \draw[thick, gray] (B) -- (D);
-    \draw[thick, gray] (B) -- (E);
-    \draw[thick, gray] (C) -- (E);
-    \draw[thick, gray] (D) -- (E);
-    
-    \fill[blue!80] (A) circle (4pt);
-    \fill[red!80] (B) circle (4pt);
-    \fill[green!60!black] (C) circle (4pt);
-    \fill[orange!80] (D) circle (4pt);
-    \fill[purple!80] (E) circle (4pt);
-    
-    \node[above left] at (A) {$x_0 = 1.2$};
-    \node[above] at (B) {$x_1 = -0.5$};
-    \node[above right] at (C) {$x_2 = 0.8$};
-    \node[below left] at (D) {$x_3 = 2.1$};
-    \node[below right] at (E) {$x_4 = -1.0$};
-\end{tikzpicture}
-\caption{A signal on a graph with 5 nodes. Each node carries a real 
-         value.}
-\end{figure}
-
-\begin{example}[Practical Examples]
-\begin{itemize}
-\item \textbf{Social network}: Nodes are people, edges are friendships, 
-      signal is each person's age or income.
-\item \textbf{Molecule}: Nodes are atoms, edges are bonds, signal is 
-      atomic charge.
-\item \textbf{Sensor network}: Nodes are sensors, edges connect nearby 
-      sensors, signal is temperature reading.
-\item \textbf{Image pixel grid}: Nodes are pixels, edges connect 
-      adjacent pixels, signal is intensity.
-\end{itemize}
-\end{example}
-
-\subsection{The Adjacency Matrix}
-
-The structure of a graph is encoded in its \textbf{adjacency matrix} 
-$A \in \R^{N \times N}$:
-
-\begin{equation}
-A_{ij} = \begin{cases}
-a_{ij} > 0 & \text{if there is an edge from } i \text{ to } j \\
-0 & \text{otherwise}
-\end{cases}
-\end{equation}
-
-For unweighted graphs, $a_{ij} = 1$ when an edge exists. For undirected 
-graphs, $A$ is symmetric: $A_{ij} = A_{ji}$.
-
-\begin{remark}[Notation]
-We use $A$ for the adjacency matrix throughout this document. Some 
-texts use $W$ (for "weights"), but we reserve $W$ for learnable weight 
-matrices in neural networks (Section~8 onwards).
-\end{remark}
-
-\subsection{The Degree Matrix and Graph Laplacian}
-
-\begin{definition}[Degree Matrix]
-The \textbf{degree} of node $i$ is the sum of edge weights connected 
-to it:
-\begin{equation}
-d_i = \sum_{j=0}^{N-1} A_{ij}
-\end{equation}
-The \textbf{degree matrix} $D$ is diagonal with $D_{ii} = d_i$.
-\end{definition}
-
-\begin{definition}[Graph Laplacian]
-The \textbf{(unnormalized) graph Laplacian} is:
-\begin{equation}
-L = D - A
-\end{equation}
-\end{definition}
-
-\begin{theorem}[Properties of the Laplacian]
-\label{dft-to-gnn:thm:laplacian-properties}
-For an undirected graph with non-negative edge weights:
-\begin{enumerate}[label=(\alph*)]
-\item $L$ is symmetric and positive semi-definite.
-\item All eigenvalues are non-negative: 
-      $0 = \lambda_0 \leq \lambda_1 \leq \cdots \leq \lambda_{N-1}$.
-\item The smallest eigenvalue $\lambda_0 = 0$ always exists, with 
-      eigenvector $\mathbf{1} = (1, 1, \ldots, 1)^T$.
-\item The multiplicity of $\lambda = 0$ equals the number of connected 
-      components.
-\end{enumerate}
-\end{theorem}
-
-\subsection{What Does the Laplacian Measure?}
-
-The Laplacian measures \textbf{local variation} of a signal. If 
-$\mathbf{y} = L\mathbf{x}$, then:
-
-\begin{equation}
-y_i = d_i x_i - \sum_{j \sim i} A_{ij} x_j 
-    = \sum_{j \sim i} A_{ij}(x_i - x_j)
-\end{equation}
-
-where $j \sim i$ means $j$ is a neighbor of $i$.
-
-\textbf{Interpretation}: $y_i$ measures how much $x_i$ differs from a 
-weighted average of its neighbors. If $x_i$ equals the average, 
-$y_i = 0$. If $x_i$ is larger than its neighbors, $y_i > 0$.
-
-\begin{proposition}[Quadratic Form]
-The quadratic form of the Laplacian measures total signal variation:
-\begin{equation}
-\mathbf{x}^T L \mathbf{x} = \frac{1}{2} \sum_{i,j} A_{ij}(x_i - x_j)^2
-\end{equation}
-\end{proposition}
-
-This sum is small for \emph{smooth} signals (neighbors have similar 
-values) and large for \emph{rough} signals (neighbors differ greatly).
+where $j \sim i$ means that $j$ is a neighbour of $i$; and its quadratic form $\mathbf{x}^\top L \mathbf{x} = \frac12\sum_{i,j} A_{ij}(x_i - x_j)^2$ measures how much the signal varies across edges. Hence $L$ is symmetric positive semidefinite, with eigenvalues $0 = \lambda_0 \le \lambda_1 \le \cdots \le \lambda_{N-1}$ and $L\mathbf{1} = \mathbf{0}$. The letter $W$ is reserved for learnable weight matrices.
 
 %==========================================================================
 \section{The Circular Graph: Where Fourier Analysis Emerges}
@@ -294,7 +68,7 @@ closing the loop.
 
 The adjacency matrix of $C_N$ is:
 \begin{equation}
-W_N = \begin{pmatrix}
+A_N = \begin{pmatrix}
 0 & 1 & 0 & \cdots & 0 & 1 \\
 1 & 0 & 1 & \cdots & 0 & 0 \\
 0 & 1 & 0 & \cdots & 0 & 0 \\
@@ -306,7 +80,7 @@ W_N = \begin{pmatrix}
 
 Since every node has degree 2, the Laplacian is:
 \begin{equation}
-L_N = 2I - W_N
+L_N = 2I - A_N
 \end{equation}
 
 \subsection{Finding the Eigenvectors: The Key Calculation}
@@ -346,7 +120,7 @@ $\theta = \frac{2\pi k}{N}$.
 
 \begin{theorem}[Eigenvectors of the Circular Graph Laplacian]
 \label{dft-to-gnn:thm:circular-eigenvectors}
-The eigenvectors of $L_N = 2I - W_N$ are:
+The eigenvectors of $L_N = 2I - A_N$ are:
 \begin{equation}
 \mathbf{v}_k = \frac{1}{\sqrt{N}}
 \begin{pmatrix}
@@ -406,6 +180,7 @@ $\mathbf{v}_j^* \mathbf{v}_k = \delta_{jk}$.
 \caption{Real parts of the first three eigenvectors for $N=16$. These 
          are samples of cosine waves at frequencies $0, 1, 2$ cycles 
          around the circle.}
+\label{dft-to-gnn:fig:cycle-eigvecs}
 \end{figure}
 
 \subsection{Interpretation: Vibration Modes}
@@ -421,26 +196,28 @@ The eigenvectors represent the natural \textbf{vibration modes}:
 \item $k = N/2$ (if $N$ even): Alternating pattern $+,-,+,-,\ldots$ 
       Highest eigenvalue (fastest oscillation).
 \end{itemize}
+Since $\lambda_k = \lambda_{N-k}$, every eigenvalue other than $\lambda_0$ (and $\lambda_{N/2}$ for even $N$) has multiplicity two: $\mathbf{v}_k$ and $\mathbf{v}_{N-k} = \overline{\mathbf{v}_k}$ span a plane that also contains the real vectors $\cos(2\pi kj/N)$ and $\sin(2\pi kj/N)$ (\cref{graph-laplacians:exr:4}). The eigenvalue fixes the frequency $\abs{k}$ but not the direction of travel around the ring.
 
-\subsection{The Punchline: These ARE the DFT Basis Vectors!}
+\subsection{These are the DFT basis vectors}
 
-Recall the standard DFT:
+Recall the DFT (\cref{fourier-analysis:def:dft}):
 \begin{equation}
 X_k = \sum_{n=0}^{N-1} x_n \, e^{-2\pi i kn/N}
 \end{equation}
 
 The $k$-th DFT coefficient is the inner product of the signal 
 $\mathbf{x}$ with the vector 
-$(1, e^{2\pi i k/N}, e^{2\pi i \cdot 2k/N}, \ldots)^T$---exactly our 
-eigenvector $\mathbf{v}_k$ (up to conjugation and normalization)!
+$(1, e^{2\pi i k/N}, e^{2\pi i \cdot 2k/N}, \ldots)^T$, that is
+\[
+X_k = \sqrt N\,\mathbf{v}_k^*\mathbf{x},
+\]
+where $\mathbf{v}_k^*$ is the conjugate transpose of our eigenvector $\mathbf{v}_k$.
 
-\begin{center}
-\fbox{\parbox{0.9\textwidth}{
-\textbf{Key Insight}: The DFT basis vectors are the eigenvectors of 
-the circular graph Laplacian. The DFT is not an arbitrary choice---it 
-is \emph{forced} by the circular symmetry of equally-spaced points.
-}}
-\end{center}
+\begin{keyidea}
+The DFT basis vectors are the eigenvectors of 
+the circular graph Laplacian. The DFT is not an arbitrary choice: it 
+is forced by the circular symmetry of equally spaced points (\cref{dft-to-gnn:thm:app-forced-eigenfunctions}).
+\end{keyidea}
 
 \begin{remark}
 Why are complex exponentials the eigenvectors? This is not a 
@@ -456,16 +233,13 @@ Appendix~\ref{dft-to-gnn:app:translation-invariance} for a detailed proof.
 
 \subsection{Matrix Formulation}
 
-Define the \textbf{DFT matrix} $F \in \C^{N \times N}$ with entries:
+As in \cref{ch:fourier-analysis}, the \textbf{DFT matrix} $F \in \C^{N \times N}$ has entries
 \begin{equation}
 F_{kn} = e^{-2\pi i kn/N} = \omega^{kn}, 
 \quad \text{where } \omega = e^{-2\pi i/N}
 \end{equation}
 
-Then the DFT is matrix multiplication:
-\begin{equation}
-\mathbf{X} = F \mathbf{x}
-\end{equation}
+so that $\mathbf{X} = F\mathbf{x}$ and $F^{-1} = \frac1N F^*$. (In this chapter $\omega$ denotes this root of unity; \cref{ch:fourier-analysis} called it $W_N$.)
 
 \begin{example}[DFT Matrix for $N = 4$]
 With $\omega = e^{-2\pi i/4} = -i$:
@@ -542,34 +316,9 @@ interpretation:
 \section{Convolution and the Convolution Theorem}
 %==========================================================================
 
-\subsection{Two Types of Convolution}
+\subsection{Linear and circular convolution}
 
-It's crucial to distinguish between two different convolution operations:
-
-\begin{definition}[Linear Convolution]
-Given signals $x[n]$ (length $N$) and $h[n]$ (length $M$), their 
-\textbf{linear convolution} is:
-\begin{equation}
-y[n] = (x * h)[n] = \sum_{m=-\infty}^{\infty} x[m] h[n-m]
-\end{equation}
-For finite signals with $x[n]=0$ for $n<0$ or $n\geq N$, and 
-$h[n]=0$ for $n<0$ or $n\geq M$, this becomes:
-\begin{equation}
-y[n] = \sum_{m=0}^{N-1} x[m] h[n-m]
-\end{equation}
-where $h[n-m]$ is taken as 0 when $n-m$ is outside $[0, M-1]$. The 
-result has length $N+M-1$.
-\end{definition}
-
-\begin{definition}[Circular Convolution]
-Given signals $\mathbf{x}, \mathbf{h} \in \C^N$ both of length $N$, 
-their \textbf{circular convolution} is:
-\begin{equation}
-y[n] = (\mathbf{x} \circledast \mathbf{h})[n] = \sum_{m=0}^{N-1} x[m] 
-        h[(n-m) \mod N]
-\end{equation}
-The result has length $N$, with wrap-around due to the modulo operation.
-\end{definition}
+We use the two convolutions of \cref{ch:fourier-analysis}. For finite signals $x$ of length $N$ and $h$ of length $M$ (zero outside their supports), the \emph{linear} convolution $(x*h)[n] = \sum_m x[m]h[n-m]$ has length $N+M-1$. For two signals of the same length $N$, the \emph{circular} convolution (\cref{fourier-analysis:def:circular-convolution}) is $(x\circledast h)[n] = \sum_{m=0}^{N-1} x[m]\,h[(n-m)\bmod N]$; it has length $N$, and indices that fall off the end wrap around.
 
 \begin{example}[Linear vs Circular Convolution]
 Let $x = [1, 2, 3]$ and $h = [1, 1]$.
@@ -588,8 +337,7 @@ Let $x = [1, 2, 3]$ and $h = [1, 1]$.
   \end{align*}
   So $y = x \circledast h = [4, 3, 5]$ (length 3)
 \end{itemize}
-Notice the circular convolution gives a different first element (4 instead of 1)
-because of wrap-around: $x[1]h[2]$ uses $h[2] = h[-1 \mod 3] = h[2] = 0$.
+The circular convolution has a different first entry ($4$ instead of $1$) because of wrap-around: the term $x[2]h[(0-2)\bmod 3] = x[2]h[1] = 3$ is the last entry $y[3] = 3$ of the linear convolution, folded back onto index $0$. In general the circular convolution of length $N$ is the linear convolution with entries $n$ and $n+N$ added together.
 \end{example}
 
 \subsection{Circulant Matrices Represent Circular Convolution}
@@ -666,7 +414,7 @@ $\text{DFT}(\mathbf{c})_k$. This holds for all circulant matrices $C$
 using the same eigenvectors $\mathbf{v}_k$.
 \end{proof}
 
-\textbf{Key insight}: The circular graph Laplacian $L = 2I - W$ is 
+\textbf{Key insight}: The circular graph Laplacian $L_N = 2I - A_N$ is 
 itself a circulant matrix. Theorem~\ref{dft-to-gnn:thm:circulant-eigenvectors} 
 tells us that \emph{all} circulant matrices---including all 
 \textbf{circular convolution} operators---share the same eigenvectors: 
@@ -726,11 +474,8 @@ for $0 \leq n \leq N+M-2$, where $\odot$ denotes element-wise
 multiplication.
 \end{theorem}
 
-\begin{proof}[Proof sketch]
-With sufficient zero-padding ($L \geq N+M-1$), the circular convolution 
-of the padded signals equals the linear convolution of the original 
-signals, because the zeros prevent wrap-around interference between 
-periods in the DFT's implicit periodic extension.
+\begin{proof}
+By the circular convolution theorem (\cref{dft-to-gnn:thm:convolution-circular}) the right side is $(x_{\text{pad}}\circledast h_{\text{pad}})[n] = \sum_{m=0}^{L-1} x_{\text{pad}}[m]\,h_{\text{pad}}[(n-m)\bmod L]$. Only $0\le m\le N-1$ contribute. For such $m$ and $0\le n\le N+M-2$ we have $-(N-1) \le n-m \le N+M-2$. If $n - m \ge 0$ the index is $n-m$ itself (as $n-m \le N+M-2 < L$); if $n-m<0$ the index is $L+n-m \ge L-(N-1) \ge M$, where $h_{\text{pad}}$ vanishes. In both cases $h_{\text{pad}}[(n-m)\bmod L] = h[n-m]$ with the convention $h[k] = 0$ outside $0\le k\le M-1$, so the sum is $\sum_m x[m]h[n-m] = (x*h)[n]$.
 \end{proof}
 
 \subsection{Detailed Example: Computing Linear Convolution via DFT}
@@ -843,31 +588,7 @@ y[3] &= \frac{1}{4}[1\cdot 12 + (-i)\cdot(-4) + (-1)\cdot 0 + i\cdot(-4)] \\
 So $\mathbf{y} = [1, 3, 5, 3]$, which matches the direct linear convolution!
 
 \vspace{0.3cm}
-\textbf{Why this worked: Understanding the "buffer zone"}
-
-Let's see what would happen \emph{without} zero-padding. If we tried to compute the 
-circular convolution of the original signals (both length 3, padding $h$ to $[1, 1, 0]$):
-
-Circular convolution: $y_{\text{circ}}[n] = \sum_{m=0}^{2} x[m] h[(n-m) \mod 3]$
-
-\begin{align*}
-y_{\text{circ}}[0] &= x[0]h[0] + x[1]h[2] + x[2]h[1] = 1\cdot1 + 2\cdot0 + 3\cdot1 = 1 + 0 + 3 = 4 \\
-y_{\text{circ}}[1] &= x[0]h[1] + x[1]h[0] + x[2]h[2] = 1\cdot1 + 2\cdot1 + 3\cdot0 = 1 + 2 + 0 = 3 \\
-y_{\text{circ}}[2] &= x[0]h[2] + x[1]h[1] + x[2]h[0] = 1\cdot0 + 2\cdot1 + 3\cdot1 = 0 + 2 + 3 = 5
-\end{align*}
-
-So $y_{\text{circ}} = [4, 3, 5]$ (wrong! first element is 4 instead of 1).
-
-The error comes from \textbf{wrap-around}: $x[1]h[2]$ in $y_{\text{circ}}[0]$ uses
-$h[2]=h[-1 \mod 3]=h[2]=0$ 
-(if we had padded $h$ to length 3 as $[1, 1, 0]$).
-
-The zero-padding to length 4 creates a buffer:
-\begin{itemize}
-    \item In the circular convolution of the padded signals, terms like $x[1]h[3]$ appear
-    \item But $h[3] = 0$ (from zero-padding), so these wrap-around terms are zero
-    \item Thus, circular convolution of padded signals = linear convolution of original signals
-\end{itemize}
+\textbf{Why this worked.} Without padding (length $3$) we found $y_{\text{circ}} = [4, 3, 5]$ in the previous example: the last entry of the linear convolution wrapped around onto index $0$. With length $L = 4 = N+M-1$ there is room for all four entries, and the wrapped-around terms involve $x_{\text{pad}}[3] = 0$ or $h_{\text{pad}}[2] = h_{\text{pad}}[3] = 0$, so they vanish. This is exactly the index argument in the proof above.
 
 \end{example}
 
@@ -875,6 +596,7 @@ The zero-padding to length 4 creates a buffer:
 
 \begin{figure}[H]
 \centering
+\resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[scale=0.85]
     
     % ===== WITHOUT ZERO-PADDING =====
@@ -1006,7 +728,8 @@ The zero-padding to length 4 creates a buffer:
     \node[green!60!black, font=\small, align=center] at (6, -5.8) 
         {Zeros create gap:\\no overlap!};
     
-\end{tikzpicture}
+\end{tikzpicture}%
+}
 \caption{Zero-padding prevents wrap-around interference. \textbf{Top:} 
          Without padding, the DFT treats the signal as periodic, so 
          adjacent copies overlap during circular convolution. 
@@ -1019,19 +742,8 @@ of the padded signals has no "wrap-around interference" in the first $N+M-1$ sam
 The zeros act as a buffer that isolates one period from the next in the DFT's implicit 
 periodic extension.
 
-\begin{remark}[DFT Periodicity and Zero-Padding]
-The DFT formula $X[k] = \sum_{n=0}^{N-1} x[n] e^{-2\pi i kn/N}$ works for \textbf{any} 
-sequence $x[n]$ of length $N$. However, the DFT \textbf{interprets} the signal as if it 
-were periodic with period $N$. This means mathematically, when we consider indices outside 
-$[0, N-1]$, we use $x[n \mod N]$.
-
-With zero-padding, we create a new signal of length $L > N$. The DFT of this padded signal 
-treats it as periodic with period $L$. The zeros create a discontinuity at the boundaries, 
-but this discontinuity is exactly what creates the "buffer zone" that prevents wrap-around 
-interference in circular convolution.
-
-So while the DFT always assumes periodicity, zero-padding ensures that this periodicity 
-doesn't cause unwanted interference when computing convolution.
+\begin{remark}[DFT periodicity and zero padding]
+The DFT formula applies to any finite sequence, but it treats the sequence as one period of an $N$-periodic signal $x[n\bmod N]$. Zero padding to length $L$ changes the period to $L$; the appended zeros separate consecutive copies of the signal, so that a filter of length $M$ never reaches from one copy into the next.
 \end{remark}
 
 \subsection{Computational Efficiency: Why This Matters}
@@ -1057,7 +769,7 @@ For $N = M = 10^6$:
 \item FFT-based convolution (with $L \approx 2\times10^6$): 
       $\sim 2\times10^6 \times \log_2(2\times10^6) \approx 4\times10^7$ 
       operations
-\item Speedup: $\sim 25,000\times$
+\item Ratio: about $2.5\times10^4$; counting the three transforms and the constant of the FFT (\cref{ch:fourier-analysis}) lowers this by a small factor, so the gain is still about four orders of magnitude.
 \end{itemize}
 \end{example}
 
@@ -1067,19 +779,15 @@ For $N = M = 10^6$:
 
 We've seen that the DFT is the \textit{natural} frequency analysis for the 
 circular graph. What about arbitrary graphs? This question leads to 
-\textbf{spectral graph theory} \cite{dft-to-gnn:chung1997spectral} and the emerging 
-field of signal processing on graphs \cite{dft-to-gnn:shuman2013emerging}.
+\textbf{spectral graph theory} (Chung, \emph{Spectral Graph Theory}, 1997) and to signal processing on graphs (Shuman et al., \emph{The Emerging Field of Signal Processing on Graphs}, 2013).
 
 \subsection{The Key Idea}
 
 The essential insight from the circular case is:
 
-\begin{center}
-\fbox{\parbox{0.85\textwidth}{
-\textbf{The eigenvectors of the graph Laplacian define a \textit{frequency 
-basis} for signals on that graph.}
-}}
-\end{center}
+\begin{keyidea}
+The eigenvectors of the graph Laplacian define a \emph{frequency basis} for signals on that graph.
+\end{keyidea}
 
 For the circular graph, these eigenvectors happen to be complex 
 exponentials (the DFT basis) because of the special symmetry. For 
@@ -1088,8 +796,10 @@ principle is the same.
 
 \subsection{Definition of the Graph Fourier Transform}
 
-\begin{definition}[Graph Fourier Transform]
-Let $G$ be a graph with Laplacian $L$ having eigendecomposition:
+We recall the graph Fourier transform of \cref{graph-laplacians:def:gft}, in matrix form and with eigenvalues in increasing order.
+
+\begin{definition}[Graph Fourier Transform]\label{dft-to-gnn:def:gft}
+Let $G$ be an undirected graph with Laplacian $L$ having eigendecomposition:
 \begin{equation}
 L = U \Lambda U^T
 \end{equation}
@@ -1200,13 +910,7 @@ The eigenvalues and eigenvectors (exactly) are:
 These eigenvectors look like discretized cosines---similar to the DFT, 
 but adapted to the boundary conditions of the path. This is not a 
 coincidence: the path graph eigenvectors are exactly the Discrete 
-Cosine Transform (DCT) basis (see Appendix~\ref{dft-to-gnn:app:dct-path}). Notice that:
-\begin{itemize}
-    \item $\mathbf{u}_0$ is constant (like $k=0$ in DFT)
-    \item $\mathbf{u}_1$ has one "bump" (like $k=1$ in DFT)
-    \item $\mathbf{u}_2$ has two "bumps" (like $k=2$ in DFT)
-    \item $\mathbf{u}_3$ has three "bumps" (like $k=3$ in DFT) 
-\end{itemize}
+Cosine Transform (DCT) basis (\cref{dft-to-gnn:app:dct-path}). The eigenvector $\mathbf{u}_k$ changes sign exactly $k$ times along the path: $\mathbf{u}_0$ is constant, $\mathbf{u}_1$ goes from positive to negative once, and $\mathbf{u}_3$ alternates in sign at every edge. The number of sign changes grows with the eigenvalue, just as the number of oscillations grows with the frequency $k$ of a DFT basis vector.
 
 %==========================================================================
 \section{Spectral Graph Convolution}
@@ -1221,13 +925,11 @@ from node to node.
 
 However, we can define convolution \emph{spectrally}:
 
-\begin{center}
-\fbox{\parbox{0.85\textwidth}{
-\textbf{Spectral Convolution}: Since convolution becomes multiplication 
+\begin{keyidea}
+Since convolution becomes multiplication 
 in the frequency domain, we \emph{define} graph convolution as 
 multiplication in the Graph Fourier domain.
-}}
-\end{center}
+\end{keyidea}
 
 \subsection{Definition of Spectral Graph Convolution}
 
@@ -1250,96 +952,40 @@ In other words:
 \item Transform back: $\mathbf{y} = U \hat{\mathbf{y}}$
 \end{enumerate}
 
-\subsection{Example Filters: Why These Work as Low/High-Pass Filters}
+\subsection{Low-pass, high-pass and band-pass filters}
 
-The choice of filter function $g(\lambda)$ determines what kind of 
-operation we perform on the graph signal. Here's a detailed explanation 
-of why certain functions act as low-pass or high-pass filters:
-
+The filter function $g$ decides which graph frequencies are kept. Because small $\lambda_k$ belong to smooth eigenvectors and large $\lambda_k$ to rough ones, the shape of $g$ on $[0, \lambda_{\max}]$ reads directly as a frequency response (\cref{dft-to-gnn:fig:filters}).
 \begin{itemize}
-\item \textbf{Low-pass filter: $g(\lambda) = e^{-\alpha \lambda}$} \\
-This is the graph equivalent of a Gaussian filter. Recall that eigenvalues 
-$\lambda_k$ measure how "rough" a signal component is:
-\begin{itemize}
-    \item Small $\lambda$ $\rightarrow$ smooth eigenvectors (low frequency)
-    \item Large $\lambda$ $\rightarrow$ rough eigenvectors (high frequency)
-\end{itemize}
-For $g(\lambda) = e^{-\alpha \lambda}$:
-\begin{itemize}
-    \item When $\lambda \approx 0$: $g(0) = e^0 = 1$ (fully preserved)
-    \item When $\lambda$ is large: $g(\lambda) \approx 0$ (heavily attenuated)
-\end{itemize}
-Thus, smooth (low-frequency) components are preserved, while rough 
-(high-frequency) components are suppressed---exactly what a low-pass 
-filter should do.
-
-\item \textbf{Alternative low-pass: $g(\lambda) = \frac{1}{1 + \alpha\lambda}$} \\
-This has similar properties but with a rational form. As $\lambda \to 0$, 
-$g(\lambda) \to 1$; as $\lambda \to \infty$, $g(\lambda) \to 0$. This is 
-sometimes called the "graph heat kernel" when $\alpha = t$ (time parameter).
-
-\item \textbf{High-pass filter: $g(\lambda) = 1 - e^{-\alpha \lambda}$} \\
-This is the complement of the low-pass filter:
-\begin{itemize}
-    \item When $\lambda \approx 0$: $g(0) = 1 - 1 = 0$ (suppressed)
-    \item When $\lambda$ is large: $g(\lambda) \approx 1$ (preserved)
-\end{itemize}
-Thus, smooth components are suppressed while rough components are 
-preserved---exactly a high-pass filter.
-
-\item \textbf{Heat diffusion: $g(\lambda) = e^{-t\lambda}$} \\
-This has a physical interpretation: imagine heat diffusing on the graph 
-over time $t$. Starting from an initial temperature distribution $\mathbf{x}$, 
-after time $t$, the temperature becomes $\mathbf{y} = U e^{-t\Lambda} U^T \mathbf{x}$. 
-Large $t$ gives more smoothing (like low-pass filtering).
-
-\item \textbf{Polynomial filter: $g(\lambda) = \sum_{k=0}^{K-1} \theta_k \lambda^k$} \\
-This is particularly important because it can be computed \emph{without} 
-full eigendecomposition. Notice that:
-\[
-U g(\Lambda) U^T = U\left(\sum_{k=0}^{K-1} \theta_k \Lambda^k\right) U^T 
-= \sum_{k=0}^{K-1} \theta_k U\Lambda^k U^T 
-= \sum_{k=0}^{K-1} \theta_k L^k
-\]
-where we used $L = U\Lambda U^T$ and thus $L^k = U\Lambda^k U^T$.
-
-\textbf{Why computing $L^k$ is efficient}: 
-\begin{itemize}
-    \item We don't need to compute eigenvectors $U$ at all
-    \item $L^k\mathbf{x}$ can be computed recursively: $L(L^{k-1}\mathbf{x})$
-    \item Each multiplication by $L$ is sparse (only involves neighbors)
-    \item $L^k\mathbf{x}$ aggregates information from $k$-hop neighborhoods
-\end{itemize}
+\item \textbf{Heat kernel, $g(\lambda) = e^{-t\lambda}$}, $t > 0$. It equals $1$ at $\lambda = 0$ and decays to $0$, so it is low-pass. It has a physical meaning: $\mathbf{y}(t) = U e^{-t\Lambda}U^\top\mathbf{x} = e^{-tL}\mathbf{x}$ solves the graph heat equation $\frac{d\mathbf{y}}{dt} = -L\mathbf{y}$ with $\mathbf{y}(0) = \mathbf{x}$; by \eqref{dft-to-gnn:eq:local}, each node's value moves towards those of its neighbours. A larger $t$ means more smoothing.
+\item \textbf{Regularisation filter, $g(\lambda) = 1/(1 + \alpha\lambda)$}, $\alpha > 0$. Also low-pass, with a slower (rational) decay. It is the filter of Laplacian smoothing in \cref{ch:graph-laplacians}: $\mathbf{y} = (I + \alpha L)^{-1}\mathbf{x}$ minimises $\norm{\mathbf{y} - \mathbf{x}}^2 + \alpha\,\mathbf{y}^\top L\mathbf{y}$.
+\item \textbf{High-pass, $g(\lambda) = 1 - e^{-t\lambda}$}. The complement of the heat kernel: it removes the constant component ($g(0) = 0$) and keeps the rough ones. It returns $\mathbf{x}$ minus its diffused version.
+\item \textbf{Band-pass, $g(\lambda) = \lambda e^{1-\lambda}$}. It vanishes at $\lambda = 0$, peaks at $g(1) = 1$ and decays for large $\lambda$, so it keeps a band of intermediate frequencies; this is the shape of the spectral graph wavelets of Hammond, Vandergheynst and Gribonval (\emph{Wavelets on Graphs via Spectral Graph Theory}, 2011).
 \end{itemize}
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}
 \begin{axis}[
-    width=17cm, height=6.5cm,
+    width=0.8\linewidth, height=5.5cm,
     xlabel={Eigenvalue $\lambda$ (graph frequency)},
     ylabel={Filter response $g(\lambda)$},
     xmin=0, xmax=4,
-    ymin=-0.1, ymax=1.1,
-    legend pos=north east,
-    title={Filter functions for spectral graph convolution},
+    ymin=-0.05, ymax=1.1,
+    legend pos=outer north east,
+    legend style={font=\small},
 ]
 \addplot[thick, blue, domain=0:4, samples=100] {exp(-x)};
-\addlegendentry{Low-pass: $e^{-\lambda}$}
-\addplot[thick, red, domain=0:4, samples=100] {1/(1+x)};
-\addlegendentry{Low-pass: $1/(1+\lambda)$}
+\addlegendentry{$e^{-\lambda}$}
+\addplot[thick, red, dashed, domain=0:4, samples=100] {1/(1+x)};
+\addlegendentry{$1/(1+\lambda)$}
 \addplot[thick, green!60!black, domain=0:4, samples=100] {1 - exp(-x)};
-\addlegendentry{High-pass: $1 - e^{-\lambda}$}
-\addplot[thick, orange, domain=0:4, samples=100] {0.5*x};
-\addlegendentry{Band-pass: $0.5\lambda$}
-\addplot[thick, purple, domain=0:4, samples=100] {1 - 0.25*x^2};
-\addlegendentry{Polynomial: $1 - 0.25\lambda^2$}
+\addlegendentry{$1 - e^{-\lambda}$}
+\addplot[thick, orange, dotted, domain=0:4, samples=100] {x*exp(1-x)};
+\addlegendentry{$\lambda e^{1-\lambda}$}
 \end{axis}
 \end{tikzpicture}
-\caption{Filter functions for spectral graph convolution. Low-pass filters 
-         (blue, red) preserve small $\lambda$ (smooth components) and attenuate 
-         large $\lambda$ (rough components). High-pass filters (green) do the 
-         opposite. Polynomial filters (purple) can approximate various shapes.}
+\caption{Frequency responses of spectral graph filters: two low-pass filters (heat kernel and regularisation filter, $t=\alpha=1$), a high-pass filter and a band-pass filter.}
+\label{dft-to-gnn:fig:filters}
 \end{figure}
 
 \subsection{Why Polynomial Filters are Crucial: Computational Efficiency}
@@ -1373,12 +1019,22 @@ local variation. Then:
 \end{itemize}
 
 So polynomial filters of degree $K-1$ combine information from up to 
-$(K-1)$-hop neighborhoods, with weights $\theta_k$ learned from data.
+$(K-1)$-hop neighborhoods, with weights $\theta_k$ learned from data. The precise statement is the following.
+
+\begin{lemma}[Polynomial filters are local]\label{dft-to-gnn:lem:local}
+Let $\operatorname{dist}(i,j)$ be the shortest-path distance in $G$. Then $(L^k)_{ij} = 0$ whenever $\operatorname{dist}(i,j) > k$. Consequently, for a polynomial $g$ of degree $K-1$, $(g(L)\mathbf{x})_i$ depends only on the values $x_j$ with $\operatorname{dist}(i,j) \le K-1$.
+\end{lemma}
+
+\begin{proof}
+$L_{ij} \ne 0$ only if $i = j$ or $j \sim i$. Expanding, $(L^k)_{ij} = \sum_{m_1,\ldots,m_{k-1}} L_{i m_1}L_{m_1m_2}\cdots L_{m_{k-1}j}$, and a nonzero term requires a sequence $i, m_1, \ldots, m_{k-1}, j$ in which consecutive nodes are equal or adjacent, that is a walk of length at most $k$ from $i$ to $j$. None exists when $\operatorname{dist}(i,j) > k$.
+\end{proof}
+
+The lemma is due to Hammond et al.\ (2011); it is what makes polynomial filters behave like the small kernels of a CNN rather than like a global Fourier multiplier.
 
 \subsection{Verification: Recovering Classical Convolution}
 
 On the circular graph, $U = F^*/\sqrt{N}$ (the normalized DFT matrix) 
-and $\Lambda$ contains the eigenvalues $\lambda_k = 4\sin^2(\pi k/N)$. 
+and $\Lambda$ contains the eigenvalues $\lambda_k = 4\sin^2(\pi k/N)$. Since $U$ is complex, the transform is $U^*\mathbf{x}$ rather than $U^\top\mathbf{x}$.
 If we choose a filter that depends on $k$ rather than $\lambda_k$, we 
 recover exactly the classical convolution theorem.
 
@@ -1386,7 +1042,7 @@ recover exactly the classical convolution theorem.
 For the circular graph, let $g(\lambda_k) = H_k$ where $H_k$ is the 
 DFT of some filter $\mathbf{h}$. Then:
 \begin{align*}
-\mathbf{x} *_G g &= U \, \text{diag}(H_0, \ldots, H_{N-1}) \, U^T \mathbf{x} \\
+\mathbf{x} *_G g &= U \, \text{diag}(H_0, \ldots, H_{N-1}) \, U^* \mathbf{x} \\
 &= \frac{1}{\sqrt{N}} F^* \, \text{diag}(\mathbf{H}) \, 
    \frac{1}{\sqrt{N}} F \mathbf{x} \\
 &= F^{-1} \, \text{diag}(\mathbf{H}) \, F \mathbf{x} \\
@@ -1394,6 +1050,10 @@ DFT of some filter $\mathbf{h}$. Then:
 \end{align*}
 which is exactly circular convolution.
 \end{example}
+
+\begin{pitfall}[Not every convolution is a function of $L$]
+In the example, the multiplier $H_k$ is indexed by the frequency $k$, not by the eigenvalue. Because $\lambda_k = \lambda_{N-k}$, a filter of the form $g(\lambda_k)$ must satisfy $H_k = H_{N-k}$; for a real filter $\mathbf{h}$ this means $h[n] = h[-n \bmod N]$. So the spectral filters $g(L)$ of the cycle are exactly the circular convolutions with \emph{symmetric} kernels: a kernel that distinguishes left from right, such as $\mathbf{h} = (0, 1, 0, \ldots, 0)$ (a shift by one), is not of the form $g(L)$. On a general graph the loss is the same: $g(L)$ can only treat all directions within an eigenspace alike.
+\end{pitfall}
 
 \subsection{Example: Applying a Low-Pass Filter on a Path Graph}
 
@@ -1486,7 +1146,7 @@ to its neighbors.
 \end{example}
 
 %==========================================================================
-\section{Application: Graph Convolutional Networks}
+\section{Application: Graph Convolutional Networks}\label{dft-to-gnn:sec:gcn}
 %==========================================================================
 
 \subsection{The Machine Learning Context}
@@ -1524,7 +1184,7 @@ prohibitive.
 \subsection{ChebNet: Using Chebyshev Polynomials}
 
 We've seen that polynomial filters $g(\lambda) = \sum_{k=0}^{K-1} 
-\theta_k \lambda^k$ avoid eigendecomposition. ChebNet \cite{dft-to-gnn:defferrard2016convolutional} improves on this 
+\theta_k \lambda^k$ avoid eigendecomposition. ChebNet (Defferrard, Bresson and Vandergheynst, \emph{Convolutional Neural Networks on Graphs with Fast Localized Spectral Filtering}, 2016) improves on this 
 by using \textbf{Chebyshev polynomials} instead of the standard monomial 
 basis.
 
@@ -1636,34 +1296,33 @@ For $K=3$ (degree-2 polynomial), we compute:
 
 \textbf{Step 2}: $\bar{\mathbf{x}}_1 = T_1(\tilde{L})\mathbf{x} = \tilde{L}\mathbf{x} = [1/3, -2/3, -2/3]^T$
 
-\textbf{Step 3}: $\bar{\mathbf{x}}_2 = 2\tilde{L}\bar{\mathbf{x}}_1 - \bar{\mathbf{x}}_0$
+\textbf{Step 3}: $\bar{\mathbf{x}}_2 = 2\tilde{L}\bar{\mathbf{x}}_1 - \bar{\mathbf{x}}_0$. Combining the columns of $\tilde L$ with the weights $\frac13, -\frac23, -\frac23$,
 \[
-= 2 \begin{pmatrix} 1/3 \\ -2/3 \\ -2/3 \end{pmatrix} \cdot \frac{1}{3}
-+ 2 \begin{pmatrix} -2/3 \\ 1/3 \\ -2/3 \end{pmatrix} \cdot (-\frac{2}{3})
-+ 2 \begin{pmatrix} -2/3 \\ -2/3 \\ 1/3 \end{pmatrix} \cdot (-\frac{2}{3})
-- \begin{pmatrix} 1 \\ 0 \\ 0 \end{pmatrix}
-= \begin{pmatrix} -1/9 \\ -4/9 \\ -4/9 \end{pmatrix}
+\tilde{L}\bar{\mathbf{x}}_1
+= \tfrac{1}{3}\begin{pmatrix} 1/3 \\ -2/3 \\ -2/3 \end{pmatrix}
+- \tfrac{2}{3}\begin{pmatrix} -2/3 \\ 1/3 \\ -2/3 \end{pmatrix}
+- \tfrac{2}{3}\begin{pmatrix} -2/3 \\ -2/3 \\ 1/3 \end{pmatrix}
+= \begin{pmatrix} 1 \\ 0 \\ 0 \end{pmatrix},
+\qquad
+\bar{\mathbf{x}}_2 = 2\begin{pmatrix} 1 \\ 0 \\ 0 \end{pmatrix} - \begin{pmatrix} 1 \\ 0 \\ 0 \end{pmatrix} = \begin{pmatrix} 1 \\ 0 \\ 0 \end{pmatrix}.
 \]
+This is no accident: the eigenvalues of $L$ are $0, 3, 3$, so those of $\tilde L$ are $-1, 1, 1$, hence $\tilde L^2 = I$ and $T_2(\tilde L) = 2\tilde L^2 - I = I$.
 
 \textbf{Step 4}: Output with learned weights $\theta_0, \theta_1, \theta_2$:
 \[
-\mathbf{y} = \theta_0 \begin{pmatrix} 1 \\ 0 \\ 0 \end{pmatrix}
-+ \theta_1 \begin{pmatrix} 1/3 \\ -2/3 \\ -2/3 \end{pmatrix}
-+ \theta_2 \begin{pmatrix} -1/9 \\ -4/9 \\ -4/9 \end{pmatrix}
+\mathbf{y} = (\theta_0 + \theta_2) \begin{pmatrix} 1 \\ 0 \\ 0 \end{pmatrix}
++ \theta_1 \begin{pmatrix} 1/3 \\ -2/3 \\ -2/3 \end{pmatrix}.
 \]
 
-The key point: we computed this using only 2 sparse matrix-vector 
-multiplications with $\tilde{L}$, never touching eigenvectors!
+We computed this with two sparse matrix-vector products with $\tilde{L}$, without eigenvectors. The example also shows a limitation: a graph with only two distinct eigenvalues supports only a two-dimensional space of filters, and the third coefficient is redundant. In general a filter on a graph with $r$ distinct eigenvalues is determined by its values at those $r$ points, so polynomials of degree $r-1$ already give all spectral filters.
 \end{example}
 
 \subsection{GCN: The Simplified First-Order Case}
 
-The Graph Convolutional Network (GCN) \cite{dft-to-gnn:kipf2017semi} 
-simplifies ChebNet by using $K=1$ (only first-order neighbors) and 
-making additional approximations.
+The Graph Convolutional Network (GCN) of Kipf and Welling (\emph{Semi-Supervised Classification with Graph Convolutional Networks}, 2017) 
+simplifies ChebNet by keeping only polynomials of degree one (first-order neighbours) and making additional approximations. It uses the symmetric normalized Laplacian $L = L_{\text{sym}} = I - D^{-1/2}AD^{-1/2}$ of \cref{ch:graph-laplacians}, whose eigenvalues lie in $[0, 2]$.
 
-Starting from a first-order Chebyshev filter ($K=2$ terms, but we'll 
-reduce parameters):
+Starting from a first-order Chebyshev filter ($K=2$ terms in our indexing):
 
 \[
 \mathbf{y} = \theta_0 \mathbf{x} + \theta_1 \tilde{L} \mathbf{x}
@@ -1672,7 +1331,7 @@ where $\tilde{L} = \frac{2}{\lambda_{\max}}L - I$ is the rescaled Laplacian.
 
 GCN makes two simplifying assumptions:
 \begin{enumerate}
-\item $\lambda_{\max} \approx 2$ (true for many normalized graphs)
+\item $\lambda_{\max} \approx 2$ (the upper bound of the spectrum of $L_{\text{sym}}$, attained exactly for bipartite graphs)
 \item $\theta = \theta_0 = -\theta_1$ (tie the parameters)
 \end{enumerate}
 
@@ -1683,8 +1342,7 @@ $\tilde{L} = L - I$, so:
            = \theta(2I - L)\mathbf{x}
            = \theta(I + D^{-1/2} A D^{-1/2})\mathbf{x}
 \]
-where $A$ is the adjacency matrix and $D$ is the degree matrix. This 
-uses the normalized Laplacian $L = I - D^{-1/2} A D^{-1/2}$.
+where $A$ is the adjacency matrix and $D$ is the degree matrix.
 
 \subsubsection{From Filter to Neural Network Layer}
 
@@ -1693,9 +1351,7 @@ filter with a single learnable parameter $\theta$. To turn this into a
 useful neural network layer, we make three modifications:
 
 \textbf{Step 1: Renormalization trick.} The term $I + D^{-1/2} A D^{-1/2}$ 
-combines the normalized adjacency with the identity. However, this can 
-lead to numerical instabilities (eigenvalues in $[0, 2]$ instead of 
-$[0, 1]$). Kipf \& Welling \cite{dft-to-gnn:kipf2017semi} proposed a "renormalization trick": instead 
+combines the normalized adjacency with the identity. Its eigenvalues $2 - \lambda_k$ lie in $[0, 2]$, so stacking many such layers can amplify the components with eigenvalue near $2$ and cause exploding or vanishing activations. Kipf and Welling proposed a ``renormalization trick'': instead 
 of adding $I$ after normalizing, add self-loops \emph{before} normalizing. 
 Define:
 \begin{itemize}
@@ -1704,8 +1360,7 @@ Define:
           $\hat{D}_{ii} = \sum_j \hat{A}_{ij} = D_{ii} + 1$)
 \end{itemize}
 Then use $\hat{D}^{-1/2} \hat{A} \hat{D}^{-1/2}$ instead of 
-$I + D^{-1/2} A D^{-1/2}$. This keeps eigenvalues in $[-1, 1]$ and 
-improves training stability.
+$I + D^{-1/2} A D^{-1/2}$. Since $\hat D^{-1/2}\hat A\hat D^{-1/2} = I - \hat L_{\text{sym}}$ for the graph with self-loops, its eigenvalues lie in $[-1, 1]$, and one checks that the self-loops keep them away from $-1$ (\cref{dft-to-gnn:exr:4}); this improves training stability.
 
 \textbf{Step 2: Replace scalar $\theta$ with weight matrix $W$.} 
 Instead of a single scalar parameter, we use a learnable weight matrix 
@@ -1825,13 +1480,13 @@ First, aggregate features (before nonlinearity):
 \begin{pmatrix} 
 0.25 + 0.25 & 0.29 + 0.25 \\
 0.29 + 0.29 & 0.33 + 0.29 \\
-0.25 + 0.29 + 0.25 & 0.29 + 0.25 + 0.29 \\
+0.25 + 0.25 & 0.29 + 0.25 \\
 0.29 + 0.29 & 0.29
 \end{pmatrix}
 = \begin{pmatrix} 
 0.50 & 0.54 \\
 0.58 & 0.62 \\
-0.79 & 0.83 \\
+0.50 & 0.54 \\
 0.58 & 0.29
 \end{pmatrix}
 \]
@@ -1842,14 +1497,12 @@ neighbors' features. Applying ReLU (all values positive, so unchanged):
 H^{(1)} = \begin{pmatrix} 
 0.50 & 0.54 \\
 0.58 & 0.62 \\
-0.79 & 0.83 \\
+0.50 & 0.54 \\
 0.58 & 0.29
 \end{pmatrix}
 \]
 
-Node 2 (connected to all others) aggregates the most information. 
-Node 3 (only connected to nodes 0 and 2) has lower values in the 
-second feature.
+(Row $i$ of the propagation matrix uses the entries of row $i$ only: for node $2$ these are $\frac14, \frac1{2\sqrt3}, \frac14, \frac1{2\sqrt3}$, the same as for node $0$.) Nodes $0$ and $2$ end up with identical features although their inputs $(1,0)$ and $(1,1)$ differ: each is adjacent to all other nodes, so their neighbourhoods with self-loops coincide ($\{0,1,2,3\}$), and so do their rows of $\hat D^{-1/2}\hat A\hat D^{-1/2}$. A GCN layer cannot separate nodes with the same closed neighbourhood; repeated layers blur more and more nodes together, which is the over-smoothing discussed below.
 \end{example}
 
 \subsubsection{Interpretation of GCN}
@@ -1871,6 +1524,7 @@ forms the basis for many modern GNN architectures.
 \subsection{Summary: The Spectral Foundation of GNNs}
 
 \begin{center}
+\resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[node distance=1.8cm, auto,
     block/.style={rectangle, draw, fill=blue!10, , align=center,
                   text width=5em, text centered, minimum height=2.5em,
@@ -1900,7 +1554,8 @@ forms the basis for many modern GNN architectures.
     \node[below=1.2cm of cheb] {\footnotesize $O(K|E|)$};
     \node[below=1.2cm of gcn] {\footnotesize $O(|E|)$};
     
-\end{tikzpicture}
+\end{tikzpicture}%
+}
 \end{center}
 
 \textbf{Key Insight}: The evolution from DFT to GCN shows a trade-off between 
@@ -2117,8 +1772,11 @@ The eigenvalues of $L$ are:
 \frac{3}{2} - \frac{\sqrt{3}}{2}i
 \]
 
-Two of them are \textbf{complex}! There's no meaningful "frequency 
-interpretation" for complex eigenvalues in this context.
+Two of them are complex, so they cannot be ordered as ``frequencies''. This $L = I - A$ is still a circulant matrix, hence normal, and the complex DFT vectors are an orthonormal basis of eigenvectors; the directed cycle keeps its translation symmetry. Without that symmetry things are worse. For the directed path $0\to1\to2$, with out-degrees $D = \diag(1,1,0)$,
+\[
+L = \begin{pmatrix} 1 & -1 & 0 \\ 0 & 1 & -1 \\ 0 & 0 & 0 \end{pmatrix}
+\]
+has eigenvalues $1, 1, 0$, but $L - I$ has rank $2$, so the eigenvalue $1$ has a one-dimensional eigenspace: $L$ is not diagonalisable, and there is no eigenbasis at all in which to define a Fourier transform.
 \end{example}
 
 \subsection{Approaches for Directed Graphs}
@@ -2174,7 +1832,7 @@ ever computing eigenvectors.
 %==========================================================================
 
 Given the limitations of spectral methods, we now introduce 
-\textbf{message passing} \cite{dft-to-gnn:gilmer2017neural}---a more general framework 
+\textbf{message passing} (Gilmer et al., \emph{Neural Message Passing for Quantum Chemistry}, 2017), a more general framework 
 that works on any graph, including directed and heterogeneous graphs.
 
 \subsection{The Key Insight}
@@ -2184,13 +1842,11 @@ of working in the spectral domain, we can directly aggregate information
 from neighbors. This is the essence of \textbf{spatial} or 
 \textbf{message passing} methods.
 
-\begin{center}
-\fbox{\parbox{0.9\textwidth}{
-\textbf{Message Passing Idea}: Instead of transforming to a global 
+\begin{keyidea}
+Instead of transforming to a global 
 frequency domain, each node collects information from its local 
 neighborhood and updates its representation accordingly.
-}}
-\end{center}
+\end{keyidea}
 
 \subsection{The Message Passing Paradigm}
 
@@ -2327,11 +1983,11 @@ passing methods learn local rules that generalize to new, unseen graphs.
 \subsection{Three Flavours of GNN Layers}
 
 The vast majority of GNN architectures can be categorized into three 
-"flavours" based on how they compute messages from neighbors 
-\cite{dft-to-gnn:bronstein2021geometric}:
+``flavours'' based on how they compute messages from neighbors (Bronstein et al., \emph{Geometric Deep Learning: Grids, Groups, Graphs, Geodesics, and Gauges}, 2021):
 
 \begin{figure}[H]
 \centering
+\resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[scale=0.9,
     node/.style={circle, draw=blue!30, fill=blue!15, minimum size=22pt,
     font=\bfseries\small, inner sep=1pt},
@@ -2408,8 +2064,9 @@ The vast majority of GNN architectures can be categorized into three
         
         \node[below] at (2.5, -0.8) {\itshape Message-passing};
     \end{scope}
-\end{tikzpicture}
-\caption{Three flavours of GNN layers (adapted from \cite{dft-to-gnn:bronstein2021geometric}), 
+\end{tikzpicture}%
+}
+\caption{Three flavours of GNN layers (adapted from Bronstein et al., 2021), 
          showing the dataflow for updating node $b$ from its neighborhood. 
          \textbf{Left}: Convolutional---sender node features are multiplied 
          by constant weights $c_{uv}$ from the graph structure. 
@@ -2457,7 +2114,7 @@ vector-valued (rather than scalar) interactions between nodes.
 Let's see how the GCN layer fits into the message passing framework.
 
 \begin{example}[GCN Layer]
-Recall from Section~8 that the GCN layer in matrix form is:
+Recall from \cref{dft-to-gnn:sec:gcn} that the GCN layer in matrix form is:
 \[
 H^{(l+1)} = \sigma\left( \hat{D}^{-1/2} \hat{A} \hat{D}^{-1/2} 
              H^{(l)} W^{(l)} \right)
@@ -2504,7 +2161,7 @@ dominating the aggregation.
 
 \subsection{Example: GraphSAGE}
 
-GraphSAGE \cite{dft-to-gnn:hamilton2017inductive} (Sample and Aggregate) is a popular message passing variant:
+GraphSAGE (Hamilton, Ying and Leskovec, \emph{Inductive Representation Learning on Large Graphs}, 2017; ``sample and aggregate'') is a popular message passing variant:
 
 \begin{example}[GraphSAGE Layer]
 \[
@@ -2528,7 +2185,7 @@ The concatenation explicitly separates "self" information from
 
 \subsection{Example: Graph Attention Networks (GAT)}
 
-GAT \cite{dft-to-gnn:velickovic2018graph} introduces learnable attention weights:
+The graph attention network (GAT) of Veličković et al.\ (\emph{Graph Attention Networks}, 2018) introduces learnable attention weights:
 
 \begin{example}[GAT Layer]
 \[
@@ -2565,23 +2222,17 @@ Any polynomial spectral filter $g(L) = \sum_{k=0}^{K} \theta_k L^k$
 can be written as $K$ rounds of message passing.
 \end{theorem}
 
-\begin{proof}[Proof sketch]
-The key observation is that $L\mathbf{x}$ is a local operation:
+\begin{proof}
+Give each node $i$ a state $(z_i, y_i)$, initialised to $z_i^{(0)} = x_i$ and $y_i^{(0)} = \theta_0 x_i$. In round $k = 1, \ldots, K$, node $j$ sends the message $\psi = A_{ij}\,(z_i^{(k-1)} - z_j^{(k-1)})$ to each neighbour $i$; node $i$ sums its messages and updates
 \[
-(L\mathbf{x})_i = d_i x_i - \sum_{j \in \mathcal{N}(i)} x_j 
-    = \sum_{j \in \mathcal{N}(i)} (x_i - x_j)
+z_i^{(k)} = \sum_{j\sim i} A_{ij}\bigl(z_i^{(k-1)} - z_j^{(k-1)}\bigr), \qquad y_i^{(k)} = y_i^{(k-1)} + \theta_k z_i^{(k)} .
 \]
-
-This only involves node $i$ and its immediate neighbors---it's one 
-round of message passing!
-
-Similarly, $L^2 \mathbf{x} = L(L\mathbf{x})$ involves 2-hop neighbors, 
-$L^3 \mathbf{x}$ involves 3-hop neighbors, and so on.
-
-Therefore, $g(L)\mathbf{x} = \sum_{k=0}^{K} \theta_k L^k \mathbf{x}$ 
-aggregates information from up to $K$-hop neighbors, which is exactly 
-what $K$ rounds of message passing does.
+By \eqref{dft-to-gnn:eq:local}, $\mathbf{z}^{(k)} = L\mathbf{z}^{(k-1)} = L^k\mathbf{x}$, so after $K$ rounds $\mathbf{y}^{(K)} = \sum_{k=0}^K\theta_kL^k\mathbf{x} = g(L)\mathbf{x}$. Each round uses only messages along edges, which is the form of the definition (with sum aggregation).
 \end{proof}
+
+\begin{remark}
+Combined with the interpolation remark after the ChebNet example, the theorem says that \emph{every} spectral filter on a fixed graph is message passing, with as many rounds as the graph has distinct eigenvalues minus one, which is usually close to $N - 1$. A non-polynomial filter such as $e^{-tL}$ is therefore global in practice, while a polynomial of small degree $K$ is $K$-local (\cref{dft-to-gnn:lem:local}).
+\end{remark}
 
 \begin{figure}[H]
 \centering
@@ -2636,7 +2287,7 @@ what $K$ rounds of message passing does.
 
 \end{tikzpicture}
 \caption{The hierarchy of graph neural network methods. Each level is 
-         a special case of the one above. Message passing is the most 
+         a special case of the one above: on a fixed graph every spectral filter is a polynomial in $L$ (of degree below the number of distinct eigenvalues), and classical circular convolution is a spectral filter when its kernel is symmetric. Message passing is the most 
          general framework.}
 \label{dft-to-gnn:fig:hierarchy}
 \end{figure}
@@ -2677,49 +2328,7 @@ The spectral view is for \emph{understanding}; message passing is for
 \end{remark}
 
 %==========================================================================
-\section{Summary and Key Takeaways}
-%==========================================================================
-
-\subsection{What We've Learned}
-
-\begin{enumerate}
-\item \textbf{The DFT has geometric meaning}: It expresses a signal in 
-      the eigenbasis of the circular graph Laplacian. The DFT basis 
-      vectors are forced by the circular symmetry.
-
-\item \textbf{The convolution theorem has a deep explanation}: 
-      Circulant matrices (which represent \textbf{circular} convolution 
-      on the circle) are all diagonalized by the same eigenvectors---the 
-      DFT basis. This is why convolution becomes multiplication.
-
-\item \textbf{Linear vs Circular Convolution}: The DFT naturally gives 
-      circular convolution; linear convolution requires zero-padding to 
-      avoid wrap-around effects. Zero-padding creates a "buffer zone" 
-      that prevents interference between periods.
-
-\item \textbf{Generalization to graphs}: The Graph Fourier Transform 
-      uses Laplacian eigenvectors as a frequency basis. But this is a 
-      \emph{definition by analogy}, not a theorem---general graphs lack 
-      the shift-invariance that makes the circular case special.
-
-\item \textbf{Spectral methods have limitations}: They require symmetric 
-      (undirected) graphs, expensive $O(N^3)$ eigendecomposition, and 
-      cannot handle edge features or heterogeneous graphs.
-
-\item \textbf{Message passing is the general framework}: It works on 
-      any graph (directed, heterogeneous) and scales as $O(|E|)$. 
-      Spectral convolution is a special case of message passing.
-
-\item \textbf{The hierarchy}: Classical convolution $\subset$ Spectral 
-      graph convolution $\subset$ Polynomial filters $\subset$ Spatial 
-      GNNs $\subset$ Message passing.
-
-\item \textbf{Theory vs Practice}: The spectral view provides 
-      theoretical understanding (frequency filtering, over-smoothing); 
-      message passing provides practical implementation.
-\end{enumerate}
-
-\subsection{Key Formulas}
+\section{Key formulas}
 
 \begin{center}
 \renewcommand{\arraystretch}{1.6}
@@ -2743,107 +2352,24 @@ Spectral Graph Conv.\ & $\mathbf{x} *_G g
 Message Passing & $h_i^{(l+1)} = \phi\bigl( h_i^{(l)}, 
                   \bigoplus_{j \in \mathcal{N}(i)} 
                   \psi(h_i^{(l)}, h_j^{(l)}, e_{ji}) \bigr)$ \\[0.3em]
-GCN Layer & $H^{(l+1)} = \sigma(\tilde{D}^{-1/2}\tilde{A}
-            \tilde{D}^{-1/2} H^{(l)} W^{(l)})$ \\
+GCN Layer & $H^{(l+1)} = \sigma(\hat{D}^{-1/2}\hat{A}
+            \hat{D}^{-1/2} H^{(l)} W^{(l)})$ \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\subsection{The Big Picture}
 
-\begin{center}
-\begin{tikzpicture}[
-    concept/.style={rectangle, draw, rounded corners, fill=blue!10, 
-                    text width=5.5em, minimum height=2.5em, 
-                    text centered},
-    arrow/.style={->, >=stealth, thick, shorten >=2pt, shorten <=2pt}
-]
-
-% Top row - Graph types
-\node[concept] (circle) at (0, 4) {Circular Graph};
-\node[concept] (grid) at (4, 4) {2D Grid};
-\node[concept] (undirected) at (8, 4) {Undirected Graph};
-\node[concept, fill=green!20] (directed) at (12, 4) {Directed Graph};
-
-% Second row - Transforms
-\node[concept] (dft) at (0, 2) {DFT};
-\node[concept] (dft2d) at (4, 2) {2D DFT};
-\node[concept] (gft) at (8, 2) {Graph Fourier};
-\node[concept, fill=green!20] (none) at (12, 2) {No spectral};
-
-% Third row - Operations
-\node[concept] (conv1d) at (0, 0) {Circular Conv.};
-\node[concept] (conv2d) at (4, 0) {2D Conv.};
-\node[concept] (gconv) at (8, 0) {Spectral Conv.};
-\node[concept, fill=green!20] (mp) at (12, 0) {Message Passing};
-
-% Vertical arrows
-\draw[arrow] (circle) -- (dft);
-\draw[arrow] (grid) -- (dft2d);
-\draw[arrow] (undirected) -- (gft);
-\draw[arrow] (directed) -- (none);
-
-\draw[arrow] (dft) -- (conv1d);
-\draw[arrow] (dft2d) -- (conv2d);
-\draw[arrow] (gft) -- (gconv);
-\draw[arrow] (none) -- (mp);
-
-% Horizontal arrows (generalization)
-\draw[arrow, dashed] (circle) -- (grid);
-\draw[arrow, dashed] (grid) -- (undirected);
-\draw[arrow, dashed] (undirected) -- (directed);
-
-% Message passing encompasses all
-\draw[arrow, green!60!black, thick] (conv1d) to[bend right=17] (mp);
-\draw[arrow, green!60!black, thick] (conv2d) to[bend right=15] (mp);
-\draw[arrow, green!60!black, thick] (gconv) -- (mp);
-
-% Labels
-\node[font=\footnotesize] at (10, 0) {$\subset$};
-\node[font=\footnotesize] at (6, 0) {$\subset$};
-\node[font=\footnotesize] at (2, 0) {$\subset$};
-
-% Bottom annotation
-\node[draw, rounded corners, fill=yellow!20, text width=32em, 
-      minimum height=1.5em, align=center] at (6, -1.8) {
-      \textbf{Unified View:} Message passing is the most general 
-      framework;\\spectral methods are special cases for symmetric graphs};
-
-\end{tikzpicture}
-\end{center}
-
-\begin{remark}[Final Insight]
-This document has traced a path from the DFT to modern Graph Neural 
-Networks, revealing a beautiful mathematical structure:
-
+\begin{chaptersummary}
 \begin{itemize}
-\item \textbf{On the circle}: Translation invariance forces complex 
-      exponentials as eigenfunctions $\rightarrow$ DFT
-\item \textbf{On undirected graphs}: The Laplacian's eigenvectors 
-      provide a natural frequency basis $\rightarrow$ Graph Fourier 
-      Transform (but this is a definition, not a theorem)
-\item \textbf{Limitations}: Directed graphs, computational cost, and 
-      lack of true shift-invariance limit spectral methods
-\item \textbf{Message passing}: The general framework that encompasses 
-      all these special cases while working on any graph
+\item The Laplacian of the cycle $C_N$ is $L_N = 2I - A_N$; its eigenvectors are the DFT vectors $\mathbf{v}_k$ with eigenvalues $4\sin^2(\pi k/N)$, so the DFT is the expansion of a signal in the eigenbasis of $L_N$. Any matrix commuting with the cyclic shift has these eigenvectors.
+\item Every circulant matrix $C$ satisfies $C = F^{-1}\diag(F\mathbf{c})F$; since circular convolution is multiplication by a circulant matrix, $\mathrm{DFT}(\mathbf{x}\circledast\mathbf{h}) = \mathrm{DFT}(\mathbf{x})\odot\mathrm{DFT}(\mathbf{h})$. Zero padding to length at least $N+M-1$ makes circular convolution equal linear convolution, which the FFT then computes in $O(L\log L)$.
+\item On a general undirected graph, $L = U\Lambda U^\top$ defines the graph Fourier transform $\hat{\mathbf{x}} = U^\top\mathbf{x}$ and spectral filters $U g(\Lambda)U^\top$. This is a definition by analogy; on the cycle it recovers circular convolution with symmetric kernels.
+\item Polynomial filters $g(L) = \sum_k\theta_kL^k$ need no eigenvectors and are local: a degree-$K$ polynomial only mixes nodes within distance $K$. ChebNet parametrises them with Chebyshev polynomials of the rescaled Laplacian; GCN keeps degree one, ties the two coefficients and renormalises, giving $H^{(l+1)} = \sigma(\hat D^{-1/2}\hat A\hat D^{-1/2}H^{(l)}W^{(l)})$.
+\item Spectral methods need a symmetric $L$, cost $O(N^3)$ for the eigendecomposition, and are tied to one graph. For directed graphs $L$ can have complex eigenvalues or fail to be diagonalisable.
+\item Message passing (message, aggregate, update) works on any graph at cost $O(\abs{E})$ per layer. GCN, GraphSAGE and GAT are instances, and every polynomial spectral filter of degree $K$ is $K$ rounds of message passing.
 \end{itemize}
+\end{chaptersummary}
 
-The spectral perspective remains invaluable for \emph{understanding}:
-it explains why GNNs act as frequency filters, why over-smoothing 
-occurs (too many low-pass filters), and connects to classical signal 
-processing intuition.
-
-But for \emph{implementation}, message passing is the practical 
-workhorse: it's more general, more scalable, and more flexible.
-
-The deep insight is that these are not competing approaches---they're 
-different views of the same underlying mathematics. Understanding both 
-perspectives makes you a better practitioner: use spectral intuition 
-to design architectures, and message passing to implement them.
-\end{remark}
-
-%==========================================================================
-\newpage
 \chapterappendix
 \section{Why Complex Exponentials? Translation Invariance}
 \label{dft-to-gnn:app:translation-invariance}
@@ -2855,7 +2381,7 @@ is that this is forced by \textbf{translation invariance}.
 
 \subsection{The Fundamental Question}
 
-We showed in Section~3 that the eigenvectors of the circular graph 
+We showed in \cref{dft-to-gnn:thm:circular-eigenvectors} that the eigenvectors of the circular graph 
 Laplacian are complex exponentials $e^{2\pi i kn/N}$. But \emph{why} 
 are complex exponentials special? Why not some other basis?
 
@@ -2867,9 +2393,9 @@ system on the circle, define the shift operator:
 \[
 (T_a \mathbf{x})_n = x_{n-a \mod N}
 \]
-Translation invariance means that for any linear operator $L$:
+A linear operator $L$ is translation invariant if it commutes with every shift:
 \[
-L T_a = T_a L \quad \text{for all } a
+L T_a = T_a L \quad \text{for all } a .
 \]
 
 The circular graph Laplacian satisfies this property because every node 
@@ -2880,92 +2406,29 @@ symmetry.
 
 \begin{theorem}[Exponentials as Forced Eigenfunctions]
 \label{dft-to-gnn:thm:app-forced-eigenfunctions}
-If an operator $L$ commutes with all circular shifts 
-($L T_a = T_a L$ for all $a$), then the eigenfunctions of $L$ must be 
-of the form $e^{2\pi i kn/N}$ for integer $k$.
+Let $L$ be an $N\times N$ matrix that commutes with the cyclic shift, $LT_1 = T_1L$ (equivalently, with all $T_a$). Then each Fourier vector $\mathbf{v}_k = N^{-1/2}(e^{2\pi i kn/N})_{n=0}^{N-1}$, $k = 0, \ldots, N-1$, is an eigenvector of $L$. In particular $L$ is diagonalised by the DFT, and if an eigenvalue of $L$ is simple, its eigenvectors are multiples of a single $\mathbf{v}_k$.
 \end{theorem}
 
 \begin{proof}
-The proof proceeds in several steps:
+\textbf{Step 1: the eigenvectors of the shift.} Write $T = T_1$, so $(T\mathbf{x})_n = x_{(n-1)\bmod N}$ and $T_a = T^a$. Suppose $T\mathbf{v} = \mu\mathbf{v}$ with $\mathbf{v} \ne 0$. Componentwise, $v_{n-1} = \mu v_n$, so $v_n = \mu^{-n}v_0$ for all $n$, and $v_0 \ne 0$. Going once around the circle, $T^N = I$ gives $\mu^N = 1$, so $\mu = e^{-2\pi i k/N}$ for some $k\in\{0, \ldots, N-1\}$, and then $v_n = v_0\,e^{2\pi i kn/N}$: the eigenvectors of $T$ are exactly the multiples of the $\mathbf{v}_k$. The $N$ eigenvalues $e^{-2\pi i k/N}$ are distinct, so each eigenspace of $T$ is one-dimensional.
 
-\textbf{Step 1: Shifted eigenvectors are still eigenvectors.}
+\textbf{Step 2: commuting matrices preserve eigenspaces.} If $T\mathbf{v}_k = \mu_k\mathbf{v}_k$, then $T(L\mathbf{v}_k) = L(T\mathbf{v}_k) = \mu_k(L\mathbf{v}_k)$, so $L\mathbf{v}_k$ lies in the eigenspace of $T$ for $\mu_k$. That space is spanned by $\mathbf{v}_k$, hence $L\mathbf{v}_k = c_k\mathbf{v}_k$ for some scalar $c_k$.
 
-Assume $L\mathbf{v} = \lambda \mathbf{v}$. Apply $T_a$ to both sides:
-\[
-T_a(L\mathbf{v}) = T_a(\lambda \mathbf{v}) = \lambda (T_a \mathbf{v})
-\]
-Since $LT_a = T_a L$, we have $T_a(L\mathbf{v}) = L(T_a \mathbf{v})$, so:
-\[
-L(T_a \mathbf{v}) = \lambda (T_a \mathbf{v})
-\]
-Thus $T_a \mathbf{v}$ is also an eigenvector with eigenvalue $\lambda$.
-
-\textbf{Step 2: Eigenvectors are scaled by shifts.}
-
-If the eigenspace for $\lambda$ is one-dimensional, then $T_a \mathbf{v}$ 
-must be a scalar multiple of $\mathbf{v}$:
-\[
-T_a \mathbf{v} = \mu(a) \mathbf{v}
-\]
-for some scalar $\mu(a)$ depending on the shift amount $a$.
-
-\textbf{Step 3: The scaling function is multiplicative.}
-
-The shift operators satisfy the group property $T_a T_b = T_{a+b}$. 
-Applying both sides to $\mathbf{v}$:
-\[
-T_a(T_b \mathbf{v}) = T_a(\mu(b) \mathbf{v}) = \mu(b) \cdot \mu(a) \mathbf{v}
-\]
-\[
-T_{a+b} \mathbf{v} = \mu(a+b) \mathbf{v}
-\]
-Therefore: $\mu(a+b) = \mu(a) \cdot \mu(b)$
-
-\textbf{Step 4: Solve the functional equation.}
-
-The functional equation $\mu(a+b) = \mu(a)\mu(b)$ with $\mu(0) = 1$ has 
-the general solution $\mu(a) = e^{ca}$ for some constant $c$.
-
-\textbf{Step 5: Apply periodicity.}
-
-On a circle of $N$ points, shifting by $N$ returns to the original 
-position: $T_N = T_0 = I$. Therefore:
-\[
-\mu(N) = 1 \quad \Rightarrow \quad e^{cN} = 1 \quad \Rightarrow \quad 
-cN = 2\pi i k
-\]
-for some integer $k$. Thus $c = 2\pi i k/N$ and:
-\[
-\mu(a) = e^{2\pi i ka/N}
-\]
-
-\textbf{Step 6: Derive the eigenvector form.}
-
-From $T_a \mathbf{v} = \mu(a) \mathbf{v}$, we have for each component:
-\[
-v_{n-a} = e^{2\pi i ka/N} v_n
-\]
-Setting $m = n - a$ (so $a = n - m$):
-\[
-v_m = e^{2\pi i k(n-m)/N} v_n = e^{2\pi i kn/N} \cdot e^{-2\pi i km/N} v_n
-\]
-For this to hold for all $m, n$, we need:
-\[
-v_m = C \cdot e^{2\pi i km/N}
-\]
-for some constant $C$. Normalizing gives the standard DFT basis vectors.
+\textbf{Step 3: conclusion.} The $\mathbf{v}_k$ are orthonormal and $L\mathbf{v}_k = c_k\mathbf{v}_k$, so $L = Q\diag(c_0,\ldots,c_{N-1})Q^*$ with $Q = [\mathbf{v}_0|\cdots|\mathbf{v}_{N-1}] = F^*/\sqrt N$. If an eigenvalue $c$ is simple, it equals $c_k$ for exactly one $k$, and its eigenspace is spanned by $\mathbf{v}_k$.
 \end{proof}
+
+\begin{remark}
+The argument does not say that \emph{every} eigenvector of $L$ is an exponential. For the cycle Laplacian, $c_k = c_{N-k}$, and $\cos(2\pi kn/N)$ is an eigenvector of $L_N$ without being an eigenvector of $T$. What the symmetry forces is a common eigenbasis: the exponentials are the only basis that diagonalises every shift-invariant operator simultaneously, which is why one transform serves all of them. The same reasoning on $\Z$ or $\R$, with the eigenfunctions $e^{i\omega t}$ of continuous translations, gives the convolution theorem of \cref{ch:fourier-analysis}.
+\end{remark}
 
 \subsection{The Universal Principle}
 
 This result explains why Fourier analysis appears throughout science:
 
-\begin{center}
-\fbox{\parbox{0.9\textwidth}{
+\begin{keyidea}
 \textbf{Any system that is translation-invariant is diagonalized by 
 complex exponentials.}
-}}
-\end{center}
+\end{keyidea}
 
 \textbf{Examples:}
 \begin{itemize}
@@ -2983,7 +2446,7 @@ complex exponentials.}
 
 For general graphs without translational symmetry:
 \begin{itemize}
-\item The Laplacian does \emph{not} commute with any non-trivial shift
+\item There is no family of shifts acting transitively on the nodes, unless the graph has that much symmetry (as the cycle or the torus grid does); the Laplacian commutes only with the permutations that are automorphisms of the graph
 \item Eigenvectors are \emph{not} complex exponentials
 \item But the eigenvectors still provide a natural "frequency basis" 
       (ordered by eigenvalue = smoothness)
@@ -2995,7 +2458,6 @@ symmetry principles. The circular graph is special precisely because
 it has the translation symmetry that forces the exponential basis.
 
 %==========================================================================
-\newpage
 \section{The Path Graph and the Discrete Cosine Transform}
 \label{dft-to-gnn:app:dct-path}
 %==========================================================================
@@ -3076,27 +2538,13 @@ u_{N-2} = (1 - \lambda) u_{N-1}
 These are \textbf{Neumann-like} boundary conditions (the discrete 
 analog of $\frac{du}{dx} = 0$ at the boundary).
 
-For the ansatz $u_n = C \cos(\omega n + \phi)$, the boundary condition 
-at $n = 0$ gives:
-\[
-\cos\phi - \cos(\omega + \phi) = \lambda \cos\phi
-\]
+A convenient way to impose them is the \emph{ghost-node} trick. Extend $\mathbf u$ by $u_{-1} = u_0$ and $u_N = u_{N-1}$. Then the interior equation $-u_{n-1} + 2u_n - u_{n+1} = \lambda u_n$ at $n = 0$ reads $-u_0 + 2u_0 - u_1 = \lambda u_0$, which is the first boundary equation, and likewise at $n = N-1$. So we need a solution of the interior recurrence on $n = -1, \ldots, N$ with $u_{-1} = u_0$ and $u_N = u_{N-1}$.
 
-Using $\lambda = 2(1 - \cos\omega)$, this simplifies to:
+The condition $u_{-1} = u_0$ says that $\mathbf u$ is symmetric about $n = -\frac12$, which suggests the ansatz $u_n = \cos\bigl(\omega(n+\frac12)\bigr)$. Indeed, $u_{-1} = \cos(-\omega/2) = \cos(\omega/2) = u_0$. At the other end, using $\cos a - \cos b = -2\sin\frac{a+b}{2}\sin\frac{a-b}{2}$,
 \[
-\cos\phi - \cos(\omega + \phi) = 2(1 - \cos\omega)\cos\phi
+u_N - u_{N-1} = \cos\bigl(\omega(N+\tfrac12)\bigr) - \cos\bigl(\omega(N-\tfrac12)\bigr) = -2\sin(\omega N)\sin(\omega/2),
 \]
-
-After trigonometric manipulation, this is satisfied when 
-$\phi = \omega/2$, giving:
-\[
-u_n = \cos\left(\omega\left(n + \frac{1}{2}\right)\right)
-\]
-
-The boundary condition at $n = N-1$ then requires:
-\[
-\omega \cdot N = k\pi \quad \text{for } k = 0, 1, \ldots, N-1
-\]
+which vanishes when $\omega N = k\pi$. The values $k = 0, 1, \ldots, N-1$ give $\omega \in [0, \pi)$ and $N$ distinct eigenvalues $2 - 2\cos(\pi k/N)$, hence a complete set of eigenvectors (other integers $k$ repeat these, up to sign, or give $u = 0$).
 
 \subsection{The DCT-II Basis}
 
@@ -3206,12 +2654,11 @@ Symmetry & Translation invariance & Reflection symmetry \\
 \end{axis}
 \end{tikzpicture}
 \caption{The first four DCT basis vectors for $N=8$. Compare with 
-         Figure~3: same qualitative behavior (increasing oscillation 
+         the cycle eigenvectors of \cref{dft-to-gnn:fig:cycle-eigvecs}: same qualitative behavior (increasing oscillation 
          with $k$) but adapted to path boundary conditions.}
 \end{figure}
 
 %==========================================================================
-\newpage
 \section{Efficient Matrix Implementation for GPUs}
 \label{dft-to-gnn:app:matrix-implementation}
 %==========================================================================
@@ -3229,16 +2676,15 @@ h_i^{(l+1)} = \sigma\left( \sum_{j \in \mathcal{N}(i) \cup \{i\}}
 \]
 
 A naive implementation would loop over nodes and neighbors:
-\begin{lstlisting}[style=pythonstyle, language=Python]
+\begin{lstlisting}[language=Python]
 for i in range(N):
     h_new[i] = 0
     for j in neighbors[i] + [i]:
-        h_new[i] += h[j] @ W / sqrt(d[i] * d[j])
+        h_new[i] += h[j] @ W / sqrt(d_hat[i] * d_hat[j])
     h_new[i] = relu(h_new[i])
 \end{lstlisting}
 
-This is $O(N \cdot \bar{d})$ sequential operations---very slow on GPUs, 
-which excel at parallel matrix operations.
+This performs $O(N\bar d)$ small vector-matrix products one after another, where $\bar d$ is the average degree; GPUs are fast at a few large matrix operations, not at many small sequential ones.
 
 \subsection{Matrix Form of GCN}
 
@@ -3258,7 +2704,7 @@ H^{(l+1)} = \sigma\left( \hat{P} \, H^{(l)} \, W^{(l)} \right)
 \]
 
 In code (PyTorch-style):
-\begin{lstlisting}[style=pythonstyle, language=Python]
+\begin{lstlisting}[language=Python]
 H_new = relu(P_hat @ H @ W)
 \end{lstlisting}
 
@@ -3270,7 +2716,7 @@ optimized on GPUs.
 For large graphs, $\hat{P}$ is sparse (most entries are zero). We store 
 it in sparse format and use sparse-dense matrix multiplication:
 
-\begin{lstlisting}[style=pythonstyle, language=Python]
+\begin{lstlisting}[language=Python]
 # P_hat is sparse (N x N), H is dense (N x d), W is dense (d x d')
 H_new = relu(sparse_mm(P_hat, H) @ W)
 \end{lstlisting}
@@ -3328,30 +2774,27 @@ e_{ij} = \text{LeakyReLU}(s_{1,i} + s_{2,j})
 This avoids forming $|E|$ concatenated vectors---we just index into two 
 precomputed vectors of size $N$.
 
-\textbf{Step 3: Compute attention scores for all edges.}
-
-We compute $e_{ij}$ only for edges $(i,j) \in E$. Using the edge list:
-\begin{lstlisting}[style=pythonstyle, language=Python]
-# edge_index: (2, |E|) tensor of [source, target] indices
-# edge_index[0] contains source nodes, edge_index[1] contains targets
-e = leaky_relu(s1[edge_index[0]] + s2[edge_index[1]])  # shape: (|E|,)
+\textbf{Step 3: Evaluate the scores on the edge list.}
+We compute $e_{ij}$ only for pairs in which $j$ sends to $i$, that is $j \in \mathcal N(i)\cup\{i\}$ (the self-loops are added to the edge list). In $e_{ij}$ the receiving node $i$ uses $\mathbf a_1$ and the sender $j$ uses $\mathbf a_2$:
+\begin{lstlisting}[language=Python]
+# edge_index: (2, |E|) tensor; edge_index[0] = senders j, edge_index[1] = receivers i
+src, dst = edge_index
+e = leaky_relu(s1[dst] + s2[src])  # e_ij for each edge j -> i, shape (|E|,)
 \end{lstlisting}
 
 \textbf{Step 4: Softmax per node.}
 
 Apply softmax over each node's incoming edges (all edges with the same 
 target node):
-\begin{lstlisting}[style=pythonstyle, language=Python]
-# For each target node, softmax over its incoming edges
-alpha = sparse_softmax(e, index=edge_index[1], num_nodes=N)
+\begin{lstlisting}[language=Python]
+# For each receiver i, softmax over its incoming edges
+alpha = sparse_softmax(e, index=dst, num_nodes=N)
 \end{lstlisting}
 
 \textbf{Step 5: Aggregate.}
 
-Construct a sparse attention matrix $A_{\text{att}}$ where 
-$(A_{\text{att}})_{ij} = \alpha_{ij}$ if $(i,j) \in E$ and $0$ otherwise. 
-The final aggregation is:
-\begin{lstlisting}[style=pythonstyle, language=Python]
+Construct a sparse attention matrix $A_{\text{att}}$ with $(A_{\text{att}})_{ij} = \alpha_{ij}$ when $j$ sends to $i$ and $0$ otherwise (row $i$ = receiver), so that row $i$ of $A_{\text{att}}Z$ is $\sum_j\alpha_{ij}z_j$. The final aggregation is:
+\begin{lstlisting}[language=Python]
 # A_att: (N, N) sparse matrix with attention weights
 H_new = sparse_mm(A_att, Z)  # shape: (N, d')
 \end{lstlisting}
@@ -3375,7 +2818,7 @@ The matrix implementation depends on the specific $\psi$ and $\bigoplus$:
 Sum & $A \cdot H$ & Sparse matrix multiply \\
 Mean & $D^{-1} A \cdot H$ & Row-normalized \\
 Max & \texttt{scatter\_max} & Requires scatter ops \\
-Attention & $\text{Softmax}(E) \cdot H$ & $E$ is score matrix \\
+Attention & $\text{Softmax}(E) \cdot H$ & row-wise softmax over neighbours only \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -3385,7 +2828,7 @@ Attention & $\text{Softmax}(E) \cdot H$ & $E$ is score matrix \\
 \begin{example}[GCN in PyTorch]
 Here is a complete GCN layer implementation:
 
-\begin{lstlisting}[style=pythonstyle, language=Python]
+\begin{lstlisting}[language=Python]
 import torch
 import torch.nn as nn
 
@@ -3406,13 +2849,12 @@ class GCNLayer(nn.Module):
 \end{lstlisting}
 
 The preprocessing (computing $\hat{P}$ from $A$) is done once:
-\begin{lstlisting}[style=pythonstyle, language=Python]
+\begin{lstlisting}[language=Python]
 def compute_P_hat(A, N):
-    """A: (N, N) sparse adjacency matrix"""
+    """A: (N, N) dense adjacency matrix (convert to sparse at the end)"""
     A_hat = A + torch.eye(N)           # Add self-loops
     D_hat = A_hat.sum(dim=1)           # Degrees
     D_inv_sqrt = D_hat.pow(-0.5)
-    D_inv_sqrt[D_inv_sqrt == float('inf')] = 0
     # P_hat = D^{-1/2} A_hat D^{-1/2}
     P_hat = D_inv_sqrt.view(-1,1) * A_hat * D_inv_sqrt.view(1,-1)
     return P_hat.to_sparse()
@@ -3439,68 +2881,38 @@ The same matrix operations work on the batched data, with no
 cross-graph message passing (ensured by the block structure).
 
 %==========================================================================
-\newpage
-\begin{thebibliography}{99}
+\section*{Further reading}
+\addcontentsline{toc}{section}{Further reading}
+Shuman et al.\ (\emph{The Emerging Field of Signal Processing on Graphs}, 2013) survey graph Fourier transforms and filters; Chung (\emph{Spectral Graph Theory}, 1997) is the classical reference for Laplacian spectra, and Strang (\emph{The Discrete Cosine Transform}, 1999) explains the DCT through boundary conditions, as in the appendix. Spectral graph networks start with Bruna et al.\ (\emph{Spectral Networks and Locally Connected Networks on Graphs}, 2014); ChebNet is due to Defferrard, Bresson and Vandergheynst (2016) and GCN to Kipf and Welling (2017). Message passing was formulated by Gilmer et al.\ (2017); GraphSAGE and GAT are by Hamilton, Ying and Leskovec (2017) and Veličković et al.\ (2018). Bronstein et al.\ (\emph{Geometric Deep Learning}, 2021) place all of these in a framework of symmetries, and Wu et al.\ (\emph{A Comprehensive Survey on Graph Neural Networks}, 2020) is a broad survey. Calder and Olver (\emph{Linear Algebra, Data Science, and Machine Learning}, 2025) treat graph Laplacians and their spectra at textbook level.
 
-\bibitem{dft-to-gnn:bronstein2021geometric}
-M.~M. Bronstein, J.~Bruna, T.~Cohen, and P.~Veličković.
-\newblock Geometric Deep Learning: Grids, Groups, Graphs, Geodesics, and Gauges.
-\newblock {\em arXiv preprint arXiv:2104.13478}, 2021.
 
-\bibitem{dft-to-gnn:calder2025linear}
-J.~Calder and P.~J. Olver.
-\newblock {\em Linear Algebra, Data Science, and Machine Learning}.
-\newblock 2025.
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
 
-\bibitem{dft-to-gnn:kipf2017semi}
-T.~N. Kipf and M.~Welling.
-\newblock Semi-Supervised Classification with Graph Convolutional Networks.
-\newblock In {\em International Conference on Learning Representations (ICLR)}, 2017.
+\begin{exercise}\label{dft-to-gnn:exr:1}
+Show that the cycle Laplacian $L_N$ is a circulant matrix with first column $\mathbf c = (2, -1, 0, \ldots, 0, -1)^\top$, and use \cref{dft-to-gnn:thm:circulant-eigenvectors} to rederive its eigenvalues $\lambda_k = 2 - 2\cos(2\pi k/N)$. List them for $N = 4$.
+\solutionlink{dft-to-gnn:exr:1}
+\end{exercise}
 
-\bibitem{dft-to-gnn:defferrard2016convolutional}
-M.~Defferrard, X.~Bresson, and P.~Vandergheynst.
-\newblock Convolutional Neural Networks on Graphs with Fast Localized Spectral Filtering.
-\newblock In {\em Advances in Neural Information Processing Systems (NeurIPS)}, 2016.
+\begin{exercise}\label{dft-to-gnn:exr:2}
+On the path $0 - 1 - 2$, the Laplacian has eigenvalues $0, 1, 3$. Find the polynomial $p(\lambda) = 1 + a\lambda + b\lambda^2$ with $p(\lambda_k) = e^{-\lambda_k}$ for the three eigenvalues, so that the heat kernel $e^{-L}$ equals $p(L)$. Use \cref{dft-to-gnn:lem:local} to explain why $(e^{-L})_{20} = b$, and give its value.
+\hint{$(L^2)_{20} = L_{21}L_{10}$.}
+\solutionlink{dft-to-gnn:exr:2}
+\end{exercise}
 
-\bibitem{dft-to-gnn:hamilton2017inductive}
-W.~L. Hamilton, R.~Ying, and J.~Leskovec.
-\newblock Inductive Representation Learning on Large Graphs.
-\newblock In {\em Advances in Neural Information Processing Systems (NeurIPS)}, 2017.
+\begin{exercise}\label{dft-to-gnn:exr:3}
+Let $x = (1, -1)$ and $h = (1, 2, 1)$. Compute the linear convolution $x * h$, and the circular convolution of length $3$ of $(1, -1, 0)$ with $h$. Show that the second is obtained from the first by folding entry $3$ onto entry $0$, and give the smallest length for which the DFT method returns $x*h$.
+\solutionlink{dft-to-gnn:exr:3}
+\end{exercise}
 
-\bibitem{dft-to-gnn:velickovic2018graph}
-P.~Veličković, G.~Cucurull, A.~Casanova, A.~Romero, P.~Liò, and Y.~Bengio.
-\newblock Graph Attention Networks.
-\newblock In {\em International Conference on Learning Representations (ICLR)}, 2018.
+\begin{exercise}\label{dft-to-gnn:exr:4}
+Let $\hat A = A + I$, $\hat D = D + I$ and $\hat P = \hat D^{-1/2}\hat A\hat D^{-1/2}$ for an undirected graph with maximal degree $d_{\max}$. Show that every eigenvalue $\mu$ of $\hat P$ satisfies $-1 + \frac{2}{d_{\max}+1} \le \mu \le 1$. Show that without self-loops, $D^{-1/2}AD^{-1/2}$ has eigenvalue $-1$ on a bipartite graph.
+\hint{Write $I \mp \hat P$ as $\hat D^{-1/2}(\hat D \mp \hat A)\hat D^{-1/2}$ and use $\mathbf x^\top(D + A)\mathbf x = \sum_{(i,j)\in E}A_{ij}(x_i + x_j)^2$.}
+\solutionlink{dft-to-gnn:exr:4}
+\end{exercise}
 
-\bibitem{dft-to-gnn:gilmer2017neural}
-J.~Gilmer, S.~S. Schoenholz, P.~F. Riley, O.~Vinyals, and G.~E. Dahl.
-\newblock Neural Message Passing for Quantum Chemistry.
-\newblock In {\em International Conference on Machine Learning (ICML)}, 2017.
-
-\bibitem{dft-to-gnn:shuman2013emerging}
-D.~I. Shuman, S.~K. Narang, P.~Frossard, A.~Ortega, and P.~Vandergheynst.
-\newblock The Emerging Field of Signal Processing on Graphs.
-\newblock {\em IEEE Signal Processing Magazine}, 30(3):83--98, 2013.
-
-\bibitem{dft-to-gnn:bruna2014spectral}
-J.~Bruna, W.~Zaremba, A.~Szlam, and Y.~LeCun.
-\newblock Spectral Networks and Locally Connected Networks on Graphs.
-\newblock In {\em International Conference on Learning Representations (ICLR)}, 2014.
-
-\bibitem{dft-to-gnn:wu2020comprehensive}
-Z.~Wu, S.~Pan, F.~Chen, G.~Long, C.~Zhang, and P.~S. Yu.
-\newblock A Comprehensive Survey on Graph Neural Networks.
-\newblock {\em IEEE Transactions on Neural Networks and Learning Systems}, 32(1):4--24, 2020.
-
-\bibitem{dft-to-gnn:chung1997spectral}
-F.~R.~K. Chung.
-\newblock {\em Spectral Graph Theory}.
-\newblock American Mathematical Society, 1997.
-
-\bibitem{dft-to-gnn:strang1999discrete}
-G.~Strang.
-\newblock The Discrete Cosine Transform.
-\newblock {\em SIAM Review}, 41(1):135--147, 1999.
-
-\end{thebibliography}
+\begin{exercise}\label{dft-to-gnn:exr:5}
+Let $f(A, H) = \sigma(\hat D^{-1/2}\hat A\hat D^{-1/2}HW)$ be a GCN layer and $\Pi$ a permutation matrix (a relabelling of the nodes). Show that $f(\Pi A\Pi^\top, \Pi H) = \Pi f(A, H)$: the layer is \emph{permutation equivariant}. Why is this the right property for a function of a graph whose node numbering is arbitrary?
+\solutionlink{dft-to-gnn:exr:5}
+\end{exercise}
 \end{notechapter}

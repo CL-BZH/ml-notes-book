@@ -1812,3 +1812,225 @@ If every embedding is the same vector, each dimension has mean equal to its valu
 deviation $0$; centred values are $0$, and dividing by $0 + \varepsilon$ leaves $0$. So $C = 0$ and the loss is $\sum_i(1 - 0)^2 = d$, whatever $\lambda$:
 complete collapse is heavily penalized. If the standardized embeddings of the two views are equal and
 their dimensions uncorrelated, then $C_{ii} = 1$ and $C_{ij} = 0$ for $i\neq j$, and the loss is $0$, its minimum.
+
+% bold-letter macros used by the graph chapters (local to those chapters)
+\providecommand{\bD}{\mathbf{D}}\providecommand{\bI}{\mathbf{I}}\providecommand{\bL}{\mathbf{L}}
+\providecommand{\bone}{\mathbf{1}}\providecommand{\bv}{\mathbf{v}}\providecommand{\bx}{\mathbf{x}}
+\providecommand{\by}{\mathbf{y}}
+\section{\nameref*{ch:harmonic-functions}}
+
+\solution{harmonic-functions:exr:1}
+The disk average is the average of the circle averages $M_f(x, \rho)$, weighted by $2\rho\,d\rho/r^2$ for $\rho\in[0, r]$:
+$\int_0^r\bigl(f(x) + \frac{\rho^2}4\Delta f(x) + O(\rho^4)\bigr)\frac{2\rho}{r^2}d\rho = f(x) + \frac{\Delta f(x)}4\cdot\frac2{r^2}\cdot\frac{r^4}4 + O(r^4) = f(x) + \frac{r^2}8\Delta f(x) + O(r^4)$. In $\R^d$ the weight is
+$d\rho^{d-1}d\rho/r^d$ and $M_f(x, \rho) = f(x) + \frac{\rho^2}{2d}\Delta f(x) + O(\rho^4)$, so the ball average is $f(x) + \frac{\Delta f(x)}{2d}\cdot\frac{d\,r^2}{d + 2} + O(r^4) = f(x) + \frac{r^2}{2(d+2)}\Delta f(x) + O(r^4)$: the constant is
+$2(d + 2)$, which is $8$ for $d = 2$.
+
+\solution{harmonic-functions:exr:2}
+$f_{xx} = e^x\sin y$ and $f_{yy} = -e^x\sin y$, so $\Delta f = 0$. On the circle of radius $r$, $f(r\cos\theta, r\sin\theta) = \operatorname{Im}\exp(re^{i\theta}) = \operatorname{Im}\sum_{n\geq0}r^ne^{in\theta}/n!$,
+and $\frac1{2\pi}\int_0^{2\pi}e^{in\theta}d\theta = [n = 0]$, so the average is $\operatorname{Im}1 = 0 = f(0, 0)$ for every $r$.
+
+\solution{harmonic-functions:exr:3}
+$L = \bigl[\begin{smallmatrix}2&-1&-1\\-1&2&-1\\-1&-1&2\end{smallmatrix}\bigr] = 3I - J$, with $J$ the all-ones matrix. $J$ has eigenvalue $3$ on $\bone$ and $0$ on the plane $\bone^\perp$, so $L$ has
+eigenvalue $0$ on $\bone$ and $3$ on $\bone^\perp$: eigenvalues $0, 3, 3$. A basis: $\frac1{\sqrt3}(1, 1, 1)$, $\frac1{\sqrt6}(2, -1, -1)$, $\frac1{\sqrt2}(0, 1, -1)$. The eigenvalue $3$
+is double; its eigenspace is the whole plane $\{u: u_1 + u_2 + u_3 = 0\}$, and any orthonormal basis of that plane is an
+equally valid choice of eigenvectors: eigenvectors are unique only up to a rotation within each
+eigenspace.
+
+\solution{harmonic-functions:exr:4}
+$d_2 = 3$, $d_3 = 3$, so $P_{21} = \frac13$, $P_{23} = \frac23$, $P_{32} = \frac23$, $P_{34} = \frac13$. With $U = \{2, 3\}$, $P_{UU} = \bigl[\begin{smallmatrix}0&2/3\\2/3&0\end{smallmatrix}\bigr]$ and $P_{UL}f_L = (0, \frac13)$. Solving
+$(I - P_{UU})f_U = (0, \frac13)$: $f_2 = \frac23f_3$, $f_3 = \frac23f_2 + \frac13$, so $f_3 = \frac35$, $f_2 = \frac25$. The energy $E = f_2^2 + 2(f_3 - f_2)^2 + (1 - f_3)^2$ has partial derivatives
+$2f_2 - 4(f_3 - f_2)$ and $4(f_3 - f_2) - 2(1 - f_3)$, both zero at $(\frac25, \frac35)$; its minimum value is $\frac4{25} + \frac2{25} + \frac4{25} = \frac25$, the effective
+conductance of the resistances $1$, $\frac12$, $1$ in series.
+
+\solution{harmonic-functions:exr:5}
+Let $M = \max_Vf$ and suppose it is attained at an interior node $i$. Since $f_i = \sum_jP_{ij}f_j$ is a weighted average with positive
+weights on the neighbours of $i$, all of which have $f_j\leq M$, every neighbour has $f_j = M$. Repeating from each neighbour, $f = M$
+on every node reachable from $i$ through interior nodes, and in particular on the first labelled node such
+a path reaches (it exists by connectivity). So the maximum is attained on $\mathcal V_L$. Uniqueness: if $f, g$ both solve the
+problem, $h = f - g$ is harmonic on $\mathcal V_U$ and $0$ on $\mathcal V_L$, so $\max h = 0$ and, applied to $-h$, $\min h = 0$: $h = 0$.
+
+\section{\nameref*{ch:graph-laplacians}}
+
+\solution{graph-laplacians:exr:1}
+Path $1 - 2 - 3$: $\bL = \bigl[\begin{smallmatrix}1&-1&0\\-1&2&-1\\0&-1&1\end{smallmatrix}\bigr]$, with eigenvalues $0, 1, 3$ (eigenvectors $(1, 1, 1)$, $(1, 0, -1)$, $(1, -2, 1)$), each simple. Star with centre $c$
+and leaves $a, b, e$: eigenvalue $0$ on $\bone$; $1$ on vectors that are $0$ at the centre and sum to $0$ on the leaves (a
+two-dimensional space, so $1$ is double); and $4$ on $(3, -1, -1, -1)$ (centre first). Check: the trace $6 = 0 + 1 + 1 + 4$.
+
+\solution{graph-laplacians:exr:2}
+$\{1, 2, 3\}\mid\{4, 5, 6\}$: one cut edge, $\text{RatioCut} = \frac13 + \frac13 = \frac23$, volumes $7$ and $7$, $\text{NCut} = \frac17 + \frac17 = \frac27\approx0.286$.
+$\{1, 3\}\mid\{2, 4, 5, 6\}$: cut edges $(1, 2)$ and $(3, 2)$, $\text{RatioCut} = \frac22 + \frac24 = 1.5$, volumes $4$ and $10$, $\text{NCut} = \frac24 + \frac2{10} = 0.7$. Both criteria
+prefer the community partition.
+
+\solution{graph-laplacians:exr:3}
+By the appendix, $\bx^\top\bL_{\text{sym}}\bx = 2\norm\bx^2$ requires equality in $(a - b)^2\leq2a^2 + 2b^2$ on every edge, that is $y_i = -y_j$ for $y = \bD^{-1/2}\bx$.
+If the graph is bipartite with parts $V_1, V_2$, take $y = +1$ on $V_1$ and $-1$ on $V_2$: then $\bx = \bD^{1/2}y$ attains $2$, and the Rayleigh
+quotient's maximum is an eigenvalue. Conversely, if $2$ is an eigenvalue with eigenvector $\bx\neq0$, then $y_i = -y_j$ on every edge;
+on a connected graph $\abs{y_i}$ is constant and nonzero, and the sign of $y$ splits the nodes into two sets with every
+edge between them: the graph is bipartite.
+
+\solution{graph-laplacians:exr:4}
+Node $j$ of the cycle has neighbours $j\pm1$ (mod $n$), so $(\bL\bv)_j = 2v_j - v_{j-1} - v_{j+1}$. With $v_j = \cos(2\pi kj/n)$ and
+$\cos(a - b) + \cos(a + b) = 2\cos a\cos b$: $v_{j-1} + v_{j+1} = 2\cos(2\pi k/n)v_j$, so $(\bL\bv)_j = (2 - 2\cos(2\pi k/n))v_j$. The periodicity makes the
+indices modulo $n$ consistent. The same holds for $\sin$, and together they form the discrete Fourier basis.
+
+\solution{graph-laplacians:exr:5}
+Solving $(\bI + \bL)\bx = \by$ gives $\bx^* = (0.719, 0.688, 0.469, 0.563, 0.281, 0.281)$. The distance to $\mathbf t$ drops from $\norm{\by - \mathbf t} = 1.414$ to $\norm{\bx^* - \mathbf t} = 0.966$. In the
+Fourier basis, $\by$ has coefficients $1.225$ on the constant vector (kept, factor $1$), $-0.465$ on the Fiedler vector
+(factor $1/1.438 = 0.70$), a component of norm $1.12$ in the eigenspace of the eigenvalue $3$ (factor $0.25$) and $0.185$ on the
+eigenvector of $4.56$ (factor $0.18$): the
+high-frequency part, which carries the two wrong entries, is shrunk the most. But thresholding at $\frac12$ gives
+$(1, 1, 0, 1, 0, 0)$ again: nodes $3$ and $4$ move towards the right side ($0.469$ and $0.563$) without crossing it. A stronger
+smoothing is needed: with $\alpha = 5$, $\bx^* = (0.585, 0.564, 0.522, 0.498, 0.415, 0.415)$, which thresholds to $\mathbf t$ (node $4$ only just).
+
+\section{\nameref*{ch:fourier-analysis}}
+
+\solution{fourier-analysis:exr:1}
+$c_0 = \frac1{2\pi}\int_{-\pi}^{\pi}t\,dt = 0$. For $n\ne0$, integrating by parts,
+$\int_{-\pi}^{\pi} t e^{-int}dt = \bigl[\tfrac{t e^{-int}}{-in}\bigr]_{-\pi}^{\pi} + \tfrac1{in}\int_{-\pi}^{\pi}e^{-int}dt = \tfrac{\pi(-1)^n + \pi(-1)^n}{-in} + 0 = \tfrac{2\pi i(-1)^n}{n}$,
+so $c_n = i(-1)^n/n$. Then $a_n = 2\operatorname{Re}c_n = 0$ and $b_n = -2\operatorname{Im}c_n = 2(-1)^{n+1}/n$:
+\[
+t = 2\sum_{n\ge1}\frac{(-1)^{n+1}}{n}\sin(nt), \qquad -\pi<t<\pi .
+\]
+Parseval: $\frac1{2\pi}\int_{-\pi}^{\pi}t^2dt = \frac{\pi^2}{3} = \sum_{n\ne0}\frac1{n^2} = 2\sum_{n\ge1}\frac1{n^2}$, hence $\sum_{n\ge1}n^{-2} = \pi^2/6$.
+
+\solution{fourier-analysis:exr:2}
+Split the integral at $0$:
+$\hat f(\omega) = \int_0^\infty e^{-(a+i\omega)t}dt + \int_{-\infty}^0 e^{(a-i\omega)t}dt = \frac1{a+i\omega} + \frac1{a-i\omega} = \frac{2a}{a^2+\omega^2}$.
+Plancherel: $\int e^{-2a\abs t}dt = \frac1a = \frac1{2\pi}\int\frac{4a^2}{(a^2+\omega^2)^2}d\omega$, so
+$\int_{-\infty}^\infty (a^2+\omega^2)^{-2}d\omega = \frac{2\pi}{4a^3} = \frac{\pi}{2a^3}$ (for $a=1$, the familiar $\pi/2$).
+
+\solution{fourier-analysis:exr:3}
+Write $\hat f(\omega) = \int f(t)\cos(\omega t)\,dt - i\int f(t)\sin(\omega t)\,dt$. If $f$ is real and even, $f(t)\sin(\omega t)$ is odd in $t$ and integrates to $0$, so $\hat f(\omega) = \int f(t)\cos(\omega t)dt$ is real, and it is even in $\omega$ because $\cos$ is. If $f$ is real and odd, $f(t)\cos(\omega t)$ is odd and integrates to $0$, so $\hat f(\omega) = -i\int f(t)\sin(\omega t)dt$ is purely imaginary, and odd in $\omega$ because $\sin$ is.
+
+\solution{fourier-analysis:exr:4}
+(1) Using the rows of $F_4$: $X = (3,\,1-2i,\,-1,\,1+2i)$ and $H = (2,\,1-i,\,0,\,1+i)$.
+(2) $y[n] = \sum_m x[m]h[(n-m)\bmod 4]$ gives $y = (1, 3, 2, 0)$. Its DFT is $(6,\,-1-3i,\,0,\,-1+3i)$, and indeed
+$X\cdot H = (3\cdot2,\,(1-2i)(1-i),\,(-1)\cdot0,\,(1+2i)(1+i)) = (6,\,-1-3i,\,0,\,-1+3i)$.
+(3) For length $2$: $y[0] = x[0]h[0] + x[1]h[1] = 1+2 = 3$ and $y[1] = x[0]h[1] + x[1]h[0] = 1+2 = 3$, so $(3,3)$. The linear convolution $(1,3,2)$ has length $3 > 2$, and its last entry wraps around onto index $0$: $1+2 = 3$. Padding to length $\ge 2+2-1 = 3$ (as in part~2) removes the wrap-around.
+
+\solution{fourier-analysis:exr:5}
+The samples are $x[n] = \cos(2\pi\cdot7n/10)$. Since $\cos(2\pi n - \theta) = \cos\theta$ for integer $n$, $x[n] = \cos(2\pi n - 2\pi\cdot 7n/10) = \cos(2\pi\cdot3n/10)$: the same samples as a $3$\,Hz cosine. In the DTFT picture, the replica of the spectral line at $7$\,Hz shifted by the sampling rate $10$\,Hz lands at $-3$\,Hz, inside the band $(-5,5)$\,Hz. To avoid aliasing the sampling rate must exceed twice the highest frequency, that is, be more than $14$ samples per second.
+
+\section{\nameref*{ch:dft-to-gnn}}
+
+\solution{dft-to-gnn:exr:1}
+$(L_N)_{ij} = 2$ if $i = j$, $-1$ if $i - j \equiv \pm1 \pmod N$, and $0$ otherwise, so $(L_N)_{ij} = c_{(i-j)\bmod N}$ with $c_0 = 2$, $c_1 = c_{N-1} = -1$ and $c_\ell = 0$ otherwise: $L_N$ is circulant. Its eigenvalues are the DFT of $\mathbf c$:
+$\lambda_k = 2 - e^{-2\pi ik/N} - e^{-2\pi ik(N-1)/N} = 2 - e^{-2\pi ik/N} - e^{2\pi ik/N} = 2 - 2\cos(2\pi k/N)$.
+For $N = 4$: $\lambda = 0, 2, 4, 2$ for $k = 0, 1, 2, 3$.
+
+\solution{dft-to-gnn:exr:2}
+The conditions $p(1) = e^{-1}$ and $p(3) = e^{-3}$ give $a + b = e^{-1} - 1$ and $3a + 9b = e^{-3} - 1$, hence $b = \frac{e^{-3} - 3e^{-1} + 2}{6} \approx 0.1577$ and $a = e^{-1} - 1 - b \approx -0.7898$; $p(0) = 1$ holds by construction. Since $L = U\Lambda U^\top$ and $p(\lambda_k) = e^{-\lambda_k}$ for every $k$, $p(L) = Up(\Lambda)U^\top = Ue^{-\Lambda}U^\top = e^{-L}$.
+Nodes $0$ and $2$ are at distance $2$, so $I_{20} = L_{20} = 0$ (\cref{dft-to-gnn:lem:local}), and $(e^{-L})_{20} = b\,(L^2)_{20} = b\,L_{21}L_{10} = b \approx 0.158$. The heat reaching node $2$ from node $0$ comes entirely from the quadratic term. (Numerically, $e^{-L}\mathbf e_0 = (0.526, 0.317, 0.158)$.)
+
+\solution{dft-to-gnn:exr:3}
+Linear: $(x*h)[0] = 1$, $[1] = 1\cdot2 + (-1)\cdot1 = 1$, $[2] = 1\cdot1 + (-1)\cdot2 = -1$, $[3] = -1$, so $x * h = (1, 1, -1, -1)$.
+Circular of length $3$: $y[0] = x[0]h[0] + x[1]h[2] = 1 - 1 = 0$, $y[1] = x[0]h[1] + x[1]h[0] = 2 - 1 = 1$, $y[2] = x[0]h[2] + x[1]h[1] = 1 - 2 = -1$, so $y = (0, 1, -1)$. Folding entry $3$ of the linear convolution onto entry $0$ gives $(1 + (-1), 1, -1) = (0, 1, -1)$. The smallest valid length is $N + M - 1 = 2 + 3 - 1 = 4$.
+
+\solution{dft-to-gnn:exr:4}
+$I - \hat P = \hat D^{-1/2}(\hat D - \hat A)\hat D^{-1/2}$ and $\hat D - \hat A = D - A = L \succeq 0$, so $I - \hat P \succeq 0$ and $\mu \le 1$.
+$I + \hat P = \hat D^{-1/2}(\hat D + \hat A)\hat D^{-1/2}$ with $\hat D + \hat A = (D + A) + 2I$. For $\mathbf y = \hat D^{-1/2}\mathbf x$,
+$\mathbf x^\top(I + \hat P)\mathbf x = \mathbf y^\top(D + A)\mathbf y + 2\norm{\mathbf y}^2 \ge 2\norm{\mathbf y}^2 \ge \frac{2}{d_{\max}+1}\norm{\mathbf x}^2$,
+using $\mathbf y^\top(D + A)\mathbf y = \sum_{(i,j)\in E}A_{ij}(y_i + y_j)^2 \ge 0$ and $\norm{\mathbf y}^2 = \sum_i x_i^2/(d_i + 1)$. Hence $1 + \mu \ge 2/(d_{\max} + 1)$.
+Without self-loops, on a bipartite graph with parts $V_1, V_2$ take $y_i = +1$ on $V_1$ and $-1$ on $V_2$, and $\mathbf x = D^{1/2}\mathbf y$. Then $(D + A)\mathbf y = 0$, since $(A\mathbf y)_i = -d_iy_i$, so $(I + D^{-1/2}AD^{-1/2})\mathbf x = D^{-1/2}(D + A)\mathbf y = 0$: $-1$ is an eigenvalue (as in \cref{graph-laplacians:exr:3}).
+
+\solution{dft-to-gnn:exr:5}
+Relabelling gives $A' = \Pi A\Pi^\top$, $\hat A' = \Pi\hat A\Pi^\top$ and, since degrees are permuted along with the nodes, $\hat D' = \Pi\hat D\Pi^\top$, so $\hat D'^{-1/2} = \Pi\hat D^{-1/2}\Pi^\top$ (a permuted diagonal matrix). Using $\Pi^\top\Pi = I$,
+$\hat D'^{-1/2}\hat A'\hat D'^{-1/2}(\Pi H)W = \Pi\hat D^{-1/2}\hat A\hat D^{-1/2}HW$.
+The nonlinearity acts entrywise and therefore commutes with permuting rows: $\sigma(\Pi M) = \Pi\sigma(M)$. Hence $f(\Pi A\Pi^\top, \Pi H) = \Pi f(A, H)$.
+The numbering of the nodes carries no information, so relabelling the input should only relabel the output: node $i$ should receive the same representation whatever number it is given. Equivariance guarantees this, and an invariant readout (a sum or mean over nodes) then gives graph-level outputs that do not depend on the numbering at all.
+
+\section{\nameref*{ch:node-similarity}}
+
+\solution{node-similarity:exr:1}
+The eigenvalues of the path $1 - 2 - 3$ are $0, \pm\sqrt2$, so $\lambda_1 = \sqrt2$ and $0 < \beta < 1/\sqrt2$. The walks from $1$ to $3$ have even length, and a walk of length $2k$ ($k \ge 1$) is $1\to2\to3$ with $k-1$ back-and-forth excursions from node $2$ inserted, each to $1$ or $3$: $\mathbf A^{2k}[1,3] = 2^{k-1}$. Hence
+$S_{\text{Katz}}[1,3] = \sum_{k\ge1}\beta^{2k}2^{k-1} = \frac12\cdot\frac{2\beta^2}{1-2\beta^2} = \frac{\beta^2}{1-2\beta^2}$.
+Closed form: $\det(\mathbf I - \beta\mathbf A) = 1 - 2\beta^2$ and the $(3,1)$ cofactor is $\beta^2$, so $[(\mathbf I - \beta\mathbf A)^{-1}]_{13} = \beta^2/(1-2\beta^2)$, which agrees (the identity does not contribute off the diagonal). The series begins $\beta^2 + 2\beta^4 + 4\beta^6 + \cdots$.
+
+\solution{node-similarity:exr:2}
+Label the stubs $1a, 1b, 2a, 2b, 3, 4$; there are $5\cdot3\cdot1 = 15$ equally likely pairings. Counting them, $5$ give no edge between $1$ and $2$, $8$ give one and $2$ give two (both stubs of $1$ paired with the stubs of $2$, in two ways). Hence $\E[\mathbf A_{G'}[1,2]] = (8 + 2\cdot2)/15 = 0.8$, which equals $d_1d_2/(2m-1) = 4/5$ exactly, while the approximation $d_1d_2/2m = 4/6 \approx 0.67$ is off by $17\%$ on this tiny graph.
+
+\solution{node-similarity:exr:3}
+$\mathbf P$ moves from the centre to each leaf with probability $\frac13$ and from a leaf to the centre with probability $1$. With $\mathbf q_0 = (a, b, b, b)$, \eqref{node-similarity:eq:ppr-recurrence} gives $a = 3cb + (1-c)$ and $b = ca/3$, so $a = c^2a + 1 - c$: $a = \frac{1}{1+c}$ and $b = \frac{c}{3(1+c)}$.
+For the source $1$, write $\mathbf q_1 = (x, y, z, z)$: $x = c(y + 2z)$, $y = \frac{cx}3 + (1-c)$, $z = \frac{cx}3$. Then $x = c(cx + 1 - c)$, so $\mathbf q_1[0] = x = \frac{c}{1+c}$.
+Reversibility: $\mathbf q_0[1]/d_1 = b/1 = \frac{c}{3(1+c)}$ and $\mathbf q_1[0]/d_0 = x/3 = \frac{c}{3(1+c)}$. They agree, while the raw scores differ by the factor $d_0/d_1 = 3$.
+
+\solution{node-similarity:exr:4}
+For a connected $k$-regular graph, $\mathbf D = k\mathbf I$, $\lambda_1 = k$ (eigenvector $\mathbf 1$) and $2m = nk$. With $\beta < 1/k$:
+Katz: $\mathbf S_{\text{Katz}} = (\mathbf I - \beta\mathbf A)^{-1} - \mathbf I$.
+LHN with parameter $\beta k < 1$: $\mathbf S_{\text{LHN}} = nk\cdot k\cdot k^{-2}(\mathbf I - \frac{\beta k}{k}\mathbf A)^{-1} = n(\mathbf I - \beta\mathbf A)^{-1}$.
+Random walk with $c = \beta k < 1$: $\mathbf P = \mathbf A/k$, so $\mathbf I - c\mathbf P = \mathbf I - \beta\mathbf A$ and $\mathbf q_u[v] = (1-c)[(\mathbf I - \beta\mathbf A)^{-1}]_{vu}$; this matrix is symmetric, so $S_{\text{RW}}[u,v] = 2(1-c)[(\mathbf I - \beta\mathbf A)^{-1}]_{uv}$.
+Off the diagonal all three equal positive multiples ($1$, $n$ and $2(1-\beta k)$) of $[(\mathbf I - \beta\mathbf A)^{-1}]_{uv}$: on a regular graph there is no degree effect to correct, and the three measures coincide up to scale.
+
+\solution{node-similarity:exr:5}
+Let node $0$ be the centre and $\mathbf x$ the indicator of the $\ell$ leaves, $\norm{\mathbf x}_2 = \sqrt\ell$. Each leaf has degree $1$, so column $j$ of $\mathbf P$ is $\mathbf e_0$ for every leaf $j$, and $\mathbf P\mathbf x = \ell\,\mathbf e_0$, of norm $\ell$. Hence $\norm{\mathbf P}_2 \ge \ell/\sqrt\ell = \sqrt\ell$, which exceeds $1$ as soon as $\ell \ge 2$. In contrast $\norm{\mathbf P}_1 = 1$ for every graph.
+
+\section{\nameref*{ch:rkhs}}
+
+\solution{rkhs:exr:1}
+Symmetry is clear. For points $x_1, \ldots, x_m \ge 0$ and reals $c_i$, using $\min(x,x') = \int_0^\infty\bbone[t\le x]\bbone[t\le x']\,dt$,
+$\sum_{i,j}c_ic_j\min(x_i,x_j) = \int_0^\infty\bigl(\sum_ic_i\bbone[t\le x_i]\bigr)^2dt \ge 0$.
+This is a feature map into $L^2([0,\infty))$: $\phi(x) = \bbone_{[0,x]}$. (It is the covariance of Brownian motion.)
+
+\solution{rkhs:exr:2}
+Yes: $\cos(x - x') = \cos x\cos x' + \sin x\sin x' = \phi(x)^\top\phi(x')$ with $\phi(x) = (\cos x, \sin x)^\top \in \R^2$, so every Gram matrix is $\Phi\Phi^\top \succeq 0$. The RKHS is spanned by the functions $K(\cdot, x) = \cos x\cos(\cdot) + \sin x\sin(\cdot)$, that is by $\cos$ and $\sin$, which are linearly independent: it is two-dimensional, with $\norm{a\cos + b\sin}_{\mathcal H_K}^2 = a^2 + b^2$.
+
+\solution{rkhs:exr:3}
+Every function on $\{a,b\}$ is $f = c_aK_a + c_bK_b$ for a unique $\mathbf c$, since $\mathbf f = \mathbf K\mathbf c$ and $\mathbf K$ is invertible. Then $\norm{f}_{\mathcal H_K}^2 = \mathbf c^\top\mathbf K\mathbf c = \mathbf f^\top\mathbf K^{-1}\mathbf f$. Here $\mathbf K^{-1} = \frac13\bigl(\begin{smallmatrix}2&-1\\-1&2\end{smallmatrix}\bigr)$ and for $\mathbf f = (5,1)$: $\frac13(2\cdot25 - 2\cdot5 + 2\cdot1) = \frac{42}{3} = 14$, as in the example.
+
+\solution{rkhs:exr:4}
+With $K(x,x') = x^\top x'$, $\mathbf K = \mathbf X\mathbf X^\top$ and $\mathbf k_* = \mathbf Xx_*$. Kernel ridge predicts $\mathbf k_*^\top(\mathbf K + \lambda\mathbf I_n)^{-1}\mathbf y = x_*^\top\mathbf X^\top(\mathbf X\mathbf X^\top + \lambda\mathbf I_n)^{-1}\mathbf y$. The push-through identity follows from $\mathbf X^\top(\mathbf X\mathbf X^\top + \lambda\mathbf I_n) = (\mathbf X^\top\mathbf X + \lambda\mathbf I_d)\mathbf X^\top$ by multiplying on the left by $(\mathbf X^\top\mathbf X + \lambda\mathbf I_d)^{-1}$ and on the right by $(\mathbf X\mathbf X^\top + \lambda\mathbf I_n)^{-1}$. Hence the prediction is $x_*^\top(\mathbf X^\top\mathbf X + \lambda\mathbf I_d)^{-1}\mathbf X^\top\mathbf y = x_*^\top w^*$. Kernel ridge inverts an $n\times n$ matrix, ridge a $d\times d$ one; the kernel form pays off when $d > n$ or $d = \infty$.
+
+\solution{rkhs:exr:5}
+$(\mathbf K\boldsymbol\alpha)_i$ is linear in $\boldsymbol\alpha$, and a convex function of a linear map is convex, so each loss term is convex. $\boldsymbol\alpha^\top\mathbf K\boldsymbol\alpha$ is a positive semidefinite quadratic form, and so is $\boldsymbol\alpha^\top\mathbf K\mathbf L\mathbf K\boldsymbol\alpha = (\mathbf K\boldsymbol\alpha)^\top\mathbf L(\mathbf K\boldsymbol\alpha) \ge 0$, since $\mathbf L \succeq 0$; a positive combination of convex functions is convex. The matrix of the system is $\frac1l\mathbf K_l^\top\mathbf K_l + \gamma_A\mathbf K + \frac{\gamma_I}{n^2}\mathbf K\mathbf L\mathbf K$, a sum of positive semidefinite matrices of which $\gamma_A\mathbf K$ is positive definite when $\mathbf K$ is; the sum is then positive definite, hence invertible, and the solution unique (the objective is strictly convex).
+
+\section{\nameref*{ch:semi-supervised-graphs}}
+
+\solution{semi-supervised-graphs:exr:1}
+$\mathcal V_U = \{1, 2\}$, $\mathcal V_L = \{0, 3\}$. Each interior node has degree $2$, so $P_{UU} = \bigl(\begin{smallmatrix}0&1/2\\1/2&0\end{smallmatrix}\bigr)$ and $P_{UL}Y_L = (\frac12\cdot1, \frac12\cdot0)^\top = (\frac12, 0)^\top$. Then $(I - P_{UU})^{-1} = \frac43\bigl(\begin{smallmatrix}1&1/2\\1/2&1\end{smallmatrix}\bigr)$ and $Y_U^* = \frac43(\frac12, \frac14)^\top = (\frac23, \frac13)^\top$: the values $1, \frac23, \frac13, 0$ along the path are linear, and each interior value is the average of its two neighbours, as harmonicity requires.
+
+\solution{semi-supervised-graphs:exr:2}
+With $d = (1,2,2,1)$, $S_{01} = S_{23} = 1/\sqrt2$ and $S_{12} = \frac12$. By the antisymmetry of the data, $F = (a, b, -b, -a)$, and the first two equations of $(I - \frac12S)F = \frac12Y^{(0)}$ are $a - \frac{b}{2\sqrt2} = \frac12$ and $b - \frac{a}{2\sqrt2} + \frac b4 = 0$. The second gives $b = \frac{\sqrt2}{5}a$, then $a(1 - \frac1{10}) = \frac12$: $a = \frac59 \approx 0.556$, $b = \frac{\sqrt2}{9} \approx 0.157$. So $F \approx (0.556, 0.157, -0.157, -0.556)$. The labeled nodes are no longer clamped: their scores shrink from $\pm1$ to $\pm0.556$, pulled towards their neighbours. The signs of all nodes still give the expected classes; label propagation would keep $\pm1$ at the labeled nodes and give the linear values $\pm\frac13$ in between.
+
+\solution{semi-supervised-graphs:exr:3}
+Take the path $u_1 - u_2 - \ell - u_3$ with $\ell$ the only labeled node. Unlabeled node $u_3$ is reachable from $u_1$ only through $\ell$, so $P_{UU}$ (order $u_1, u_2, u_3$) is block diagonal: $\bigl(\begin{smallmatrix}0&1\\1/2&0\end{smallmatrix}\bigr) \oplus (0)$, reducible. The first block has eigenvalues $\pm1/\sqrt2$, the second $0$, so $\rho(P_{UU}) = 1/\sqrt2 < 1$, in accordance with the component-by-component argument of the appendix.
+
+\solution{semi-supervised-graphs:exr:4}
+If $D = kI$ then $S = k^{-1/2}Ak^{-1/2} = A/k = D^{-1}A = P$, and $S\mathbf 1 = \mathbf 1$. For any $Y$ whose rows sum to $1$, $SY\mathbf 1 = S\mathbf 1 = \mathbf 1$ and $(1-\alpha)Y^{(0)}\mathbf 1 + \alpha SY\mathbf 1 = \mathbf 1$, so every iterate (and the limit) has rows summing to $1$. In the 5-node example the degrees are $2, 2, 2, 3, 1$, so $S$ is not stochastic; for instance row $5$ of $S$ has the single entry $S_{52} = 1/\sqrt{1\cdot2} \approx 0.707$, and the smoothed scores of the example have row sums different from $1$ (for $v_4$, $0.622 + 0.523 = 1.145$).
+
+\solution{semi-supervised-graphs:exr:5}
+With $F = XW$, $\norm{M(XW - Y)}_F^2$ has gradient $2X^\top M(XW - Y)$ (as $M^\top M = M$) and $\lambda\tr(W^\top X^\top LXW)$ has gradient $2\lambda X^\top LXW$. Setting the sum to zero gives $(X^\top MX + \lambda X^\top LX)W = X^\top MY$; both matrices on the left are positive semidefinite, and the solution is unique when their sum is invertible. The matrix $X^\top MX$ involves only the features of labeled nodes, but $X^\top LX = \sum_{\{i,j\}\in E}A_{ij}(x_i - x_j)(x_i - x_j)^\top$ involves the features of all nodes: directions in feature space along which neighbouring nodes differ are penalized, and this is where the unlabeled nodes act on $W$.
+
+\section{\nameref*{ch:shallow-embeddings}}
+
+\solution{shallow-embeddings:exr:1}
+By the Eckart--Young theorem, among matrices of rank at most $d$ the truncated SVD $\mathbf U_d\boldsymbol\Sigma_d\mathbf V_d^\top$ minimizes $\norm{\mathbf S - \mathbf M}_F$, with error $\bigl(\sum_{k>d}\sigma_k^2\bigr)^{1/2}$; writing it as $(\mathbf U_d\boldsymbol\Sigma_d^{1/2})(\mathbf V_d\boldsymbol\Sigma_d^{1/2})^\top$ gives $\mathbf Y_s$ and $\mathbf Y_t$. If $\mathbf S$ is symmetric positive semidefinite, its SVD is its eigendecomposition, $\mathbf U = \mathbf V$, so $\mathbf Y_s = \mathbf Y_t$. If $\mathbf S$ is symmetric but has negative eigenvalues $\mu$, the singular values are $\abs\mu$ and the right singular vector is minus the left one for those directions: $\mathbf V \ne \mathbf U$, and no single $\mathbf Y$ with $\mathbf Y\mathbf Y^\top \approx \mathbf S$ can produce a negative eigenvalue, since $\mathbf Y\mathbf Y^\top \succeq 0$. The Katz matrix has eigenvalues $\beta\lambda/(1 - \beta\lambda)$ for the eigenvalues $\lambda$ of $\mathbf A$, negative when $\lambda < 0$, which happens on every graph with at least one edge (the trace of $\mathbf A$ is $0$).
+
+\solution{shallow-embeddings:exr:2}
+With $t = 1$ and $v = 2$, the neighbours of $2$ are $1$ (return, weight $1/p$), $3$ (a neighbour of $1$, weight $1$) and $4$ (not adjacent to $1$, weight $1/q$).
+$(p,q) = (1,1)$: weights $(1,1,1)$, probabilities $(\frac13, \frac13, \frac13)$, as in DeepWalk.
+$(4,1)$: weights $(0.25, 1, 1)$, sum $2.25$: $(0.11, 0.44, 0.44)$.
+$(1, 0.25)$: weights $(1, 1, 4)$, sum $6$: $(0.17, 0.17, 0.67)$, so the walk crosses the bridge with probability $\frac23$.
+The walk stays in community A (moves to $1$ or $3$) with probability $0.67$, $0.56$ and $0.33$ respectively; the first setting keeps it inside most often, and a large $q$, for instance $(1,4)$ with probabilities $(0.44, 0.44, 0.11)$, would do so even more (BFS-like behaviour).
+
+\solution{shallow-embeddings:exr:3}
+Adding the two equations gives $\mathbf z_h + \mathbf z_t + 2\mathbf r = \mathbf z_t + \mathbf z_h$, so $\mathbf r = 0$, and then $\mathbf z_h = \mathbf z_t$: a symmetric relation forces the two entities to coincide. In RotatE, $\mathbf z_h\circ\mathbf r = \mathbf z_t$ and $\mathbf z_t\circ\mathbf r = \mathbf z_h$ give $\mathbf z_h\circ\mathbf r\circ\mathbf r = \mathbf z_h$, satisfied for any $\mathbf z_h$ when $r_i^2 = 1$; with $r_i = -1$ ($\theta = \pi$) we can take $\mathbf z_t = -\mathbf z_h \ne \mathbf z_h$.
+
+\solution{shallow-embeddings:exr:4}
+For real $\mathbf z_h, \mathbf r_\tau, \mathbf z_t$, $\bar{\mathbf z}_t = \mathbf z_t$ and $\mathrm{Re}\sum_i z_{h,i}r_{\tau,i}z_{t,i} = \sum_iz_{h,i}r_{\tau,i}z_{t,i}$, the DistMult score. If $r_{\tau,i} = ib_i$ with $b_i$ real, then $f(h,\tau,t) = \mathrm{Re}\sum_iib_iz_{h,i}\bar z_{t,i} = -\sum_ib_i\,\mathrm{Im}(z_{h,i}\bar z_{t,i})$. Since $z_{t,i}\bar z_{h,i} = \overline{z_{h,i}\bar z_{t,i}}$ has the opposite imaginary part, $f(t,\tau,h) = -f(h,\tau,t)$.
+
+\solution{shallow-embeddings:exr:5}
+If $\mathbf z_h^\top\mathbf R_1 = \mathbf z_y^\top$ and $\mathbf z_y^\top\mathbf R_2 = \mathbf z_t^\top$, then $\mathbf z_h^\top\mathbf R_1\mathbf R_2 = \mathbf z_t^\top$, so with $\mathbf R_3 = \mathbf R_1\mathbf R_2$ the score $f(h, \tau_3, t) = \mathbf z_h^\top\mathbf R_3\mathbf z_t = \norm{\mathbf z_t}^2$ equals the score $f(y, \tau_2, t)$ of the second hop: the two-hop relation is represented by a matrix product, as composition is for TransE by a sum of vectors. Parameters: entity embeddings $nd = 10^6$ in both models; relations $Rd^2 = 10^6$ for RESCAL and $Rd = 10^4$ for DistMult, so about $2\times10^6$ against $1.01\times10^6$.
+
+\section{\nameref*{ch:graph-autoencoders}}
+
+\solution{graph-autoencoders:exr:1}
+Zero output: each row contributes its number of ones, $d_i$, so the loss is $\sum_id_i = n\bar d$. Constant $c = \bar d/n$: row $i$ contributes $d_i(1-c)^2 + (n - d_i)c^2$; summing, $n\bar d(1-c)^2 + n(n - \bar d)c^2 = n\bar d(1-c)^2 + n\bar d\,c(1-c) = n\bar d(1 - c) = n\bar d - \bar d^2$. The best constant improves on the trivial zero output only by $\bar d^2$, negligible against $n\bar d$ when $\bar d \ll n$: the unweighted loss has almost nothing to gain from predicting edges. With the SDNE weights the zero output costs $\beta^2n\bar d$, and the constant $\frac12$ costs $\frac14\bigl(\beta^2n\bar d + n(n - \bar d)\bigr)$. The constant wins when $\beta^2n\bar d + n(n-\bar d) < 4\beta^2n\bar d$, that is $\beta^2 > \frac{n - \bar d}{3\bar d}$. For $n = 1000$ and $\bar d = 10$ this needs $\beta > 5.7$, consistent with the recommended range $\beta \in [5, 10]$.
+
+\solution{graph-autoencoders:exr:2}
+Expanding as in \cref{graph-autoencoders:eq:l1_expanded}, $\sum_{i,j}S_{ij}\norm{\bm y_i}^2 = \sum_id_i\norm{\bm y_i}^2$ and, by symmetry of $S$, $\sum_{i,j}S_{ij}\norm{\bm y_j}^2 = \sum_jd_j\norm{\bm y_j}^2$. Hence $\mathcal L_{1^{st}} = 2\sum_id_i\norm{\bm y_i}^2 - 2\sum_{i,j}S_{ij}\bm y_i^\top\bm y_j = 2\tr(\bm Y^\top D\bm Y) - 2\tr(\bm Y^\top S\bm Y) = 2\tr(\bm Y^\top L\bm Y)$. Each term $S_{ij}\norm{\bm y_i - \bm y_j}^2$ is nonnegative, so $\mathcal L_{1^{st}} \ge 0$, with equality iff $\bm y_i = \bm y_j$ whenever $S_{ij} > 0$. On a connected graph this propagates along paths and forces all $\bm y_i$ to be equal; conversely equal embeddings give $0$.
+
+\solution{graph-autoencoders:exr:3}
+$L = \bigl(\begin{smallmatrix}1&-1&0\\-1&2&-1\\0&-1&1\end{smallmatrix}\bigr)$, $D = \diag(1,2,1)$. The constraint $\bm y^\top D\mathbf 1 = 0$ excludes the eigenvector $\mathbf 1$ ($\mu = 0$). The vector $(a, 0, -a)$ satisfies $L\bm y = (a, 0, -a) = 1\cdot D\bm y$, so $\mu = 1$; the vector $(b, -b, b)$ gives $L\bm y = (2b, -4b, 2b) = 2D\bm y$, so $\mu = 2$. The minimum of $\bm y^\top L\bm y$ under the constraints is the smallest admissible $\mu$, attained at $\bm y = (1/\sqrt2, 0, -1/\sqrt2)$ (normalized by $\bm y^\top D\bm y = 2a^2 = 1$). Nodes $1$ and $3$ end up at $\pm1/\sqrt2$, symmetric about node $2$. There is no contradiction: in Laplacian eigenmaps the $\bm y_i$ are free variables, not a function of the adjacency rows. The reflection exchanging $1$ and $3$ maps this solution to its negative, which is equally optimal; which of the two nodes goes to the left is arbitrary.
+
+\solution{graph-autoencoders:exr:4}
+For independent coordinates the divergence adds up, and for one coordinate $\mathrm{KL}(\mathcal N(\mu,\sigma^2)\,\|\,\mathcal N(0,1)) = \frac12(\mu^2 + \sigma^2 - 1 - \log\sigma^2)$. Hence $\mathrm{KL} = \frac12\sum_{k=1}^d(\mu_k^2 + \sigma_k^2 - 1 - \log\sigma_k^2)$. For $\boldsymbol\mu = (1, 0)$ and $\boldsymbol\sigma = (1, \frac12)$: the first coordinate gives $1 + 1 - 1 - 0 = 1$, the second $0 + \frac14 - 1 + \log4 \approx 0.636$, so $\mathrm{KL} \approx \frac12(1.636) \approx 0.818$.

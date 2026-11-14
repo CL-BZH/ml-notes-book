@@ -1,15 +1,21 @@
 % Source: Graph_ML/Graph_AE/graph_autoencoders_tutorial.tex
 \begin{notechapter}
 % ---- chapter-local definitions ----
-\forgetcs\R\newcommand{\R}{\mathbb{R}}
-\forgetcs\norm\newcommand{\norm}[1]{\left\|#1\right\|}
 \forgetcs\hadamard\newcommand{\hadamard}{\odot}
 % -----------------------------------
 \chapter{Graph Autoencoders}\label{ch:graph-autoencoders}
+\chaptersubtitle{SDNE, GAE and VGAE}
 
-\begin{abstract}
-This document provides a comprehensive introduction to Graph Autoencoders, focusing on the mathematical foundations of the loss functions used in Structural Deep Network Embedding (SDNE). We develop the intuition behind why standard autoencoder approaches fail for graph structures, and explain in detail how the combined loss function addresses these challenges. Multiple concrete examples illustrate the mathematical concepts.
-\end{abstract}
+\begin{chapterintro}
+An autoencoder compresses its input into a low-dimensional code and reconstructs the input from it. Applied to a graph, the natural input of a node is its row of the adjacency matrix, and the code is the node's embedding. This chapter explains why the plain reconstruction loss fails on sparse graphs and how the structural deep network embedding (SDNE) of Wang, Cui and Zhu (\emph{Structural Deep Network Embedding}, 2016) repairs it with two terms: a weighted reconstruction loss that preserves second-order proximity, and a Laplacian penalty that preserves first-order proximity. It then presents the graph autoencoders of Kipf and Welling (\emph{Variational Graph Auto-Encoders}, 2016), whose encoder is a GCN and whose decoder is an inner product. You will learn
+\begin{itemize}[nosep]
+  \item the SDNE loss $\mathcal L_{2^{nd}} + \alpha\mathcal L_{1^{st}} + \lambda\mathcal L_{reg}$, what each term does, and how to compute it on small examples;
+  \item why the first-order term is the Laplacian quadratic form $2\tr(Y^\top LY)$, and why the two terms are complementary;
+  \item what an encoder that reads adjacency rows can and cannot distinguish;
+  \item GAE and VGAE, and how they relate to SDNE and to the shallow embeddings of \cref{ch:shallow-embeddings}.
+\end{itemize}
+\prerequisites{autoencoders and the evidence lower bound (variational autoencoders); \cref{ch:graph-laplacians} (Laplacian quadratic form) and \cref{ch:shallow-embeddings} (first- and second-order proximity); the GCN layer of \cref{ch:dft-to-gnn}.}
+\end{chapterintro}
 
 \section{Introduction}
 
@@ -36,46 +42,11 @@ When applying autoencoders to graphs, several critical issues arise:
     \item \textbf{Imbalanced learning}: The model naturally tends to predict 0 everywhere to minimize standard reconstruction error
 \end{enumerate}
 
-\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black,title=Key Insight]
+\begin{keyidea}
 Standard reconstruction loss treats all errors equally. For sparse graphs, this leads to trivial solutions where the model learns to output all zeros.
-\end{tcolorbox}
+\end{keyidea}
 
-\section{Graph Proximity Measures}
-
-Before diving into the loss functions, we need to understand two fundamental concepts in graph embedding:
-
-\begin{definition}[First-Order Proximity]
-First-order proximity measures the direct connection between two nodes. Nodes that are directly connected by an edge should be close in the embedding space.
-\end{definition}
-
-\begin{definition}[Second-Order Proximity]
-Second-order proximity measures the similarity of two nodes' neighborhoods. Nodes that have similar neighbors should be close in the embedding space, even if they are not directly connected.
-\end{definition}
-
-\begin{example}[Proximity Types]
-Consider a simple graph:
-\begin{center}
-\begin{tikzpicture}[node distance=2cm,
-    every node/.style={circle,draw,minimum size=0.8cm}]
-    \node (1) {1};
-    \node (2) [right of=1] {2};
-    \node (3) [below of=1] {3};
-    \node (4) [below of=2] {4};
-    \node (5) [right of=2] {5};
-    
-    \draw[thick] (1) -- (2);
-    \draw[thick] (1) -- (3);
-    \draw[thick] (2) -- (4);
-    \draw[thick] (2) -- (5);
-    \draw[thick] (3) -- (4);
-\end{tikzpicture}
-\end{center}
-
-\begin{itemize}
-    \item \textbf{First-order}: Nodes 1 and 2 are directly connected, so they should be close
-    \item \textbf{Second-order}: Nodes 1 and 5 are not directly connected, but they both connect to node 2, giving them some similarity
-\end{itemize}
-\end{example}
+We use the two notions of proximity of \cref{ch:shallow-embeddings}: nodes have high \emph{first-order} proximity when they are joined by an edge, and high \emph{second-order} proximity when their neighbourhoods (rows of $\bm A$) are similar. SDNE has one loss term for each.
 
 \section{Loss Function 1: Second-Order Proximity}
 
@@ -106,13 +77,13 @@ where:
 
 The key innovation is the weight vector $\bm{B}_i$. By setting $B_{ij} = \beta$ when an edge exists, we penalize errors on existing edges much more heavily than errors on non-edges.
 
-\begin{tcolorbox}[colback=green!5!white,colframe=green!75!black,title=Why This Works]
+\begin{intuition}[Why this works]
 \begin{itemize}
-    \item If the model predicts $\tilde{A}_{ij} = 0.1$ when $A_{ij} = 1$, the error $(0.9)^2 \cdot \beta$ is large
-    \item If the model predicts $\tilde{A}_{ij} = 0.1$ when $A_{ij} = 0$, the error $(0.1)^2 \cdot 1$ is small
+    \item If the model predicts $\tilde{A}_{ij} = 0.1$ when $A_{ij} = 1$, the term is $(0.9\,\beta)^2 = 0.81\,\beta^2$, large. (The weight multiplies the error before squaring, so an edge counts $\beta^2$ times as much as a non-edge.)
+    \item If the model predicts $\tilde{A}_{ij} = 0.1$ when $A_{ij} = 0$, the term is $(0.1)^2 = 0.01$, small
     \item This forces the model to focus on correctly reconstructing existing edges
 \end{itemize}
-\end{tcolorbox}
+\end{intuition}
 
 \subsection{Detailed Example: Computing $\mathcal{L}_{2^{nd}}$}
 
@@ -154,24 +125,19 @@ With $\beta = 5$, the weight vector is:
 \textbf{Comparison without weighting} ($\beta = 1$):
 \begin{align*}
 \mathcal{L}_{2^{nd}-{unweighted}}(i) &= (-0.1)^2 + (0.2)^2 + (0.1)^2 + (-0.05)^2 + (0.3)^2 \\
-&= 0.155
+&= 0.01 + 0.04 + 0.01 + 0.0025 + 0.09 = 0.1525
 \end{align*}
-
-The weighted version is approximately 22 times larger! This demonstrates how the weighting scheme dramatically increases the penalty for errors on existing edges.
+The weighted version is about $23$ times larger. This demonstrates how the weighting scheme dramatically increases the penalty for errors on existing edges.
 \end{example}
 
 \subsection{Why "Second-Order"?}
 
 The loss function preserves second-order proximity because:
 
-\begin{proposition}
-If nodes $i$ and $j$ have similar adjacency vectors ($\bm{A}_i \approx \bm{A}_j$),
-then minimizing $\mathcal{L}_{2^{nd}}$ encourages their embeddings to be similar.
-\end{proposition}
-
-\begin{proof}[Intuition]
-The encoder maps adjacency vectors to embeddings. If $\bm{A}_i \approx \bm{A}_j$, and both are reconstructed accurately, then the encoder must map them to similar embeddings $\bm{y}_i \approx \bm{y}_j$ (otherwise, the decoder could not produce similar outputs from different embeddings).
-\end{proof}
+\begin{intuition}[Second-order proximity]
+If nodes $i$ and $j$ have similar adjacency vectors ($\bm{A}_i \approx \bm{A}_j$), minimizing $\mathcal{L}_{2^{nd}}$ tends to give them similar embeddings.
+The encoder maps adjacency vectors to embeddings. If $\bm{A}_i \approx \bm{A}_j$, and both are reconstructed accurately, then the encoder must map them to similar embeddings $\bm{y}_i \approx \bm{y}_j$ (different embeddings would have to be decoded into nearly the same row). This is a tendency rather than a theorem: a flexible decoder could map different codes to similar outputs. In the extreme case $\bm A_i = \bm A_j$ it becomes exact, for any loss (\cref{graph-autoencoders:rem:identical}).
+\end{intuition}
 
 \section{Loss Function 2: First-Order Proximity}
 
@@ -201,9 +167,9 @@ The loss function explicitly penalizes distance between embeddings of connected 
     \item Connected nodes are pulled together in embedding space
 \end{itemize}
 
-\begin{tcolorbox}[colback=yellow!5!white,colframe=yellow!75!black,title=Geometric Interpretation]
+\begin{intuition}[Geometric interpretation]
 Think of $\mathcal{L}_{1^{st}}$ as a spring system where each edge is a spring pulling connected nodes together. Stronger edges ($S_{ij}$ larger) correspond to stiffer springs.
-\end{tcolorbox}
+\end{intuition}
 
 \subsection{Detailed Example: Computing $\mathcal{L}_{1^{st}}$}
 
@@ -228,14 +194,10 @@ Suppose the encoder produces 2D embeddings:
 
 \textbf{Computing the loss}:
 
-Since $S_{ij} = A_{ij}$, only edges $(1,2)$ and $(2,3)$ contribute:
-
+Since $S_{ij} = A_{ij}$, only the edges $\{1,2\}$ and $\{2,3\}$ contribute, each twice in the double sum (as $(i,j)$ and as $(j,i)$):
 \begin{align*}
-\mathcal{L}_{1^{st}} &= S_{12} \norm{\bm{y}_1 - \bm{y}_2}^2 + S_{23} \norm{\bm{y}_2 - \bm{y}_3}^2 \\
-&= 1 \cdot \norm{[0,0] - [1,0]}^2 + 1 \cdot \norm{[1,0] - [2,0]}^2 \\
-&= 1 \cdot \norm{[-1,0]}^2 + 1 \cdot \norm{[-1,0]}^2 \\
-&= 1 \cdot 1 + 1 \cdot 1 \\
-&= 2
+\mathcal{L}_{1^{st}} &= 2\bigl(S_{12} \norm{\bm{y}_1 - \bm{y}_2}^2 + S_{23} \norm{\bm{y}_2 - \bm{y}_3}^2\bigr) \\
+&= 2\bigl(\norm{[-1,0]}^2 + \norm{[-1,0]}^2\bigr) = 2(1 + 1) = 4 .
 \end{align*}
 
 \textbf{Compare with bad embeddings}:
@@ -249,9 +211,7 @@ Suppose instead:
 
 Then:
 \begin{align*}
-\mathcal{L}_{1^{st}} &= 1 \cdot \norm{[5,5]}^2 + 1 \cdot \norm{[5,5]}^2 \\
-&= 1 \cdot 50 + 1 \cdot 50 \\
-&= 100
+\mathcal{L}_{1^{st}} &= 2\bigl(\norm{[5,5]}^2 + \norm{[5,5]}^2\bigr) = 2(50 + 50) = 200
 \end{align*}
 
 The poor embeddings result in a loss that is 50 times larger!
@@ -269,11 +229,12 @@ We can expand equation \eqref{graph-autoencoders:eq:l1_loss} to better understan
 \label{graph-autoencoders:eq:l1_expanded}
 \end{align}
 
-This form shows that the loss:
-\begin{itemize}
-    \item Encourages the dot product $\bm{y}_i^T\bm{y}_j$ to be large (embeddings aligned)
-    \item Is minimized when connected nodes have similar embeddings
-\end{itemize}
+Summing the first and last terms over $j$ and $i$ gives $2\sum_id_i\norm{\bm y_i}^2$ for symmetric $S$ with degrees $d_i = \sum_jS_{ij}$, so
+\begin{equation}
+\mathcal{L}_{1^{st}} = 2\sum_id_i\norm{\bm y_i}^2 - 2\sum_{i,j}S_{ij}\bm y_i^\top\bm y_j = 2\tr(\bm Y^\top L\bm Y),
+\label{graph-autoencoders:eq:l1_trace}
+\end{equation}
+where $\bm Y$ stacks the embeddings as rows and $L = D - S$ is the graph Laplacian: column by column this is the Laplacian quadratic form of \cref{ch:graph-laplacians}. Two consequences follow. The loss rewards large inner products between neighbours, but only relative to the norms. And it is minimized, with value $0$, by giving \emph{every} node the same embedding: on its own, $\mathcal L_{1^{st}}$ is degenerate, which is why Laplacian eigenmaps add the constraint $\bm Y^\top D\bm Y = I$ and SDNE adds the reconstruction term.
 
 \section{Combined Loss: SDNE Framework}
 
@@ -309,92 +270,15 @@ The model has three key hyperparameters:
 
 \subsection{Why Combine Both Losses?}
 
-\begin{proposition}
-Using $\mathcal{L}_{2^{nd}}$ alone may separate directly connected nodes. Using $\mathcal{L}_{1^{st}}$ alone may not capture broader community structure.
-\end{proposition}
+The two terms are complementary. $\mathcal{L}_{2^{nd}}$ alone only asks that each embedding carry enough information to reconstruct its row; nothing makes neighbours close, and two adjacent nodes with dissimilar neighbourhoods can be far apart. $\mathcal{L}_{1^{st}}$ alone collapses all embeddings (\cref{graph-autoencoders:eq:l1_trace}). Together, the reconstruction term keeps the embeddings informative and the first-order term arranges them so that edges are short.
 
-\subsection{A Critical Observation: The Collapsing Embeddings Problem}
+\subsection{Identical neighbourhoods give identical embeddings}
 
-\begin{remark}[Identical Neighborhoods Lead to Identical Embeddings]
-Consider the simple path graph $1 - 2 - 3$ from our earlier example. Notice that:
-\begin{align*}
-\bm{A}_1 &= [0, 1, 0] \\
-\bm{A}_3 &= [0, 1, 0]
-\end{align*}
+\begin{remark}[What an adjacency-row encoder can distinguish]\label{graph-autoencoders:rem:identical}
+In SDNE the embedding of node $i$ is a function of its adjacency row, $\bm y_i = f(\bm A_i)$. If two nodes have identical rows, $\bm A_i = \bm A_j$, then $\bm y_i = f(\bm A_i) = f(\bm A_j) = \bm y_j$ \emph{whatever the loss and whatever the training}. In the path $1 - 2 - 3$, $\bm A_1 = \bm A_3 = [0,1,0]$, so nodes $1$ and $3$ always receive the same embedding; in a star, all leaves do. The first-order term cannot change this: it acts on the parameters of $f$, not on the individual $\bm y_i$, and in any case it pulls neighbours together and never pushes nodes apart.
 
-Nodes 1 and 3 have \textbf{identical adjacency vectors}—both connect only to node 2. If we use only $\mathcal{L}_{2^{nd}}$, what happens to their embeddings?
+This is not necessarily a defect. Nodes with identical neighbourhoods are \emph{structurally equivalent}: some automorphism of the graph exchanges them (in the path, the reflection; in a star, any permutation of the leaves), so no structural method can tell them apart. Shallow embeddings, whose vectors are free parameters, can separate them, but only through the random initialization, not through the graph. When structurally equivalent nodes must be distinguished, the input must contain more than the structure: node features, or a one-hot identity, as in the GAE below with $X = I$.
 \end{remark}
-
-\textbf{The Problem:}
-
-With only second-order proximity loss:
-\begin{itemize}
-    \item The encoder receives identical inputs: $\bm{A}_1 = \bm{A}_3$
-    \item To minimize reconstruction error, the encoder should produce similar embeddings: $\bm{y}_1 \approx \bm{y}_3$
-    \item The decoder must reconstruct identical adjacency patterns from these embeddings
-    \item Result: \textbf{Nodes 1 and 3 collapse to the same embedding!}
-\end{itemize}
-
-This is clearly undesirable—nodes 1 and 3 are distinct nodes in different positions in the graph, even though they have identical neighborhoods.
-
-\textbf{How First-Order Loss Resolves This:}
-
-The first-order loss creates different constraints for each node:
-\begin{align*}
-\mathcal{L}_{1^{st}} &= S_{12} \norm{\bm{y}_1 - \bm{y}_2}^2 + S_{23} \norm{\bm{y}_2 - \bm{y}_3}^2
-\end{align*}
-
-Key insight:
-\begin{itemize}
-    \item Node 1 must be close to node 2: $\bm{y}_1 \approx \bm{y}_2$
-    \item Node 3 must be close to node 2: $\bm{y}_3 \approx \bm{y}_2$
-    \item But there is \textbf{no direct constraint} forcing $\bm{y}_1 \approx \bm{y}_3$
-\end{itemize}
-
-The optimal configuration might place nodes 1 and 3 on opposite sides of node 2:
-\begin{align*}
-\bm{y}_1 &= [0, 0] \\
-\bm{y}_2 &= [1, 0] \quad \text{(central node)} \\
-\bm{y}_3 &= [2, 0]
-\end{align*}
-
-Both nodes 1 and 3 are close to node 2 (distance 1), but they are far from each other (distance 2).
-
-\begin{example}[Star Graph: A More Dramatic Case]
-Consider a star graph where node 5 is connected to four peripheral nodes:
-
-\begin{center}
-\begin{tikzpicture}[node distance=1.5cm,
-    every node/.style={circle,draw,minimum size=0.6cm}]
-    \node (5) {5};
-    \node (1) [above of=5] {1};
-    \node (2) [left of=5] {2};
-    \node (3) [right of=5] {3};
-    \node (4) [below of=5] {4};
-    
-    \draw[thick] (1) -- (5);
-    \draw[thick] (2) -- (5);
-    \draw[thick] (3) -- (5);
-    \draw[thick] (4) -- (5);
-\end{tikzpicture}
-\end{center}
-
-All peripheral nodes have \textbf{identical adjacency vectors}:
-\begin{align*}
-\bm{A}_1 = \bm{A}_2 = \bm{A}_3 = \bm{A}_4 = [0, 0, 0, 0, 1]
-\end{align*}
-
-\textbf{With only $\mathcal{L}_{2^{nd}}$:} All four peripheral nodes would collapse to a single point in the embedding space—a complete loss of structural information!
-
-\textbf{With $\mathcal{L}_{2^{nd}} + \mathcal{L}_{1^{st}}$:} 
-\begin{itemize}
-    \item All peripheral nodes are forced close to the center (node 5)
-    \item But they can maintain distinct positions around the center
-    \item The embedding might look like points arranged in a circle around node 5
-\end{itemize}
-
-This demonstrates why \textbf{neither loss alone is sufficient}—we need both to capture the full graph structure.
-\end{example}
 
 \subsection{The Role of the Hyperparameter $\alpha$}
 
@@ -404,24 +288,10 @@ The balance between the two losses is controlled by $\alpha$ in:
 \]
 
 \begin{itemize}
-    \item \textbf{Small $\alpha$ (e.g., $10^{-6}$):} Emphasis on second-order proximity
-    \begin{itemize}
-        \item Nodes with similar neighborhoods cluster tightly
-        \item Risk of collapsing embeddings for nodes with identical neighborhoods
-        \item Good for capturing global community structure
-    \end{itemize}
-    \item \textbf{Large $\alpha$ (e.g., $10^{-2}$):} Emphasis on first-order proximity
-    \begin{itemize}
-        \item Direct connections strongly preserved
-        \item Nodes with identical neighborhoods can be distinguished
-        \item Good for preserving local graph topology
-    \end{itemize}
-    \item \textbf{Moderate $\alpha$ (e.g., $10^{-5}$):} Balanced approach
-    \begin{itemize}
-        \item Captures both local and global structure
-        \item Typically the best choice in practice
-    \end{itemize}
+    \item \textbf{Small $\alpha$:} emphasis on reconstruction (second-order proximity). Nodes with similar neighbourhoods are placed close, but the global arrangement of the embedding is unconstrained.
+    \item \textbf{Large $\alpha$:} emphasis on short edges (first-order proximity). Too large a value pulls all embeddings together, towards the degenerate minimizer of $\mathcal L_{1^{st}}$.
 \end{itemize}
+The useful range depends on the scale of the two terms: $\mathcal L_{2^{nd}}$ sums $n^2$ entries, $\mathcal L_{1^{st}}$ only $2\abs E$, and Wang et al.\ report values of $\alpha$ between $10^{-6}$ and $10^{-2}$ on large graphs. On the $34$-node karate club graph below, $\alpha$ between $10^{-2}$ and $1$ works well.
 
 \begin{example}[Why We Need Both]
 Consider a graph with two tightly-knit communities connected by a single edge:
@@ -499,23 +369,21 @@ Consider the following 4-node graph:
 \end{bmatrix}
 \]
 
-\textbf{Suppose} the encoder produces embeddings:
+This is the $4$-cycle $1 - 2 - 4 - 3 - 1$. Nodes $1$ and $4$ have the same row, and so do nodes $2$ and $3$, so by \cref{graph-autoencoders:rem:identical} the encoder gives $\bm y_1 = \bm y_4$ and $\bm y_2 = \bm y_3$, and the decoder gives them the same reconstructed rows. \textbf{Suppose} the encoder produces
 \begin{align*}
-\bm{y}_1 &= [0.5, 0.5] \\
-\bm{y}_2 &= [1.0, 0.5] \\
-\bm{y}_3 &= [0.5, 1.0] \\
-\bm{y}_4 &= [1.0, 1.0]
+\bm{y}_1 = \bm y_4 &= [0.5, 0.5], \qquad
+\bm{y}_2 = \bm y_3 = [1.0, 0.5],
 \end{align*}
-
-And the decoder reconstructs:
+and the decoder reconstructs
 \[
 \tilde{\bm{A}} = \begin{bmatrix}
 0.05 & 0.90 & 0.85 & 0.10 \\
 0.90 & 0.05 & 0.10 & 0.92 \\
-0.85 & 0.10 & 0.05 & 0.88 \\
-0.10 & 0.92 & 0.88 & 0.05
+0.90 & 0.05 & 0.10 & 0.92 \\
+0.05 & 0.90 & 0.85 & 0.10
 \end{bmatrix}
 \]
+(the decoder does not know which entry of a row is the diagonal one, so rows $1$ and $4$, and rows $2$ and $3$, are equal).
 
 \subsection*{Computing $\mathcal{L}_{2^{nd}}$ (with $\beta = 5$)}
 
@@ -529,28 +397,23 @@ Weighted error: $[-0.05, 0.50, 0.75, -0.10]$
 
 Squared norm: $0.0025 + 0.25 + 0.5625 + 0.01 = 0.825$
 
-Similarly computing for all nodes:
-\begin{align*}
-\mathcal{L}_{2^{nd}}(1) &= 0.825 \\
-\mathcal{L}_{2^{nd}}(2) &= 0.845 \\
-\mathcal{L}_{2^{nd}}(3) &= 0.870 \\
-\mathcal{L}_{2^{nd}}(4) &= 0.850
-\end{align*}
+For node 2: $\bm{A}_2 = [1, 0, 0, 1]$, $\bm B_2 = [5, 1, 1, 5]$, error $[0.10, -0.05, -0.10, 0.08]$, weighted error $[0.50, -0.05, -0.10, 0.40]$, squared norm $0.25 + 0.0025 + 0.01 + 0.16 = 0.4225$.
 
-Total: $\mathcal{L}_{2^{nd}} = 3.39$
+Nodes $4$ and $3$ repeat nodes $1$ and $2$:
+\begin{align*}
+\mathcal{L}_{2^{nd}}(1) = \mathcal{L}_{2^{nd}}(4) &= 0.825, \qquad
+\mathcal{L}_{2^{nd}}(2) = \mathcal{L}_{2^{nd}}(3) = 0.4225 .
+\end{align*}
+Total: $\mathcal{L}_{2^{nd}} = 2(0.825 + 0.4225) = 2.495$.
 
 \subsection*{Computing $\mathcal{L}_{1^{st}}$}
 
 The graph has edges: $(1,2), (1,3), (2,4), (3,4)$
 
 \begin{align*}
-\norm{\bm{y}_1 - \bm{y}_2}^2 &= \norm{[-0.5, 0]}^2 = 0.25 \\
-\norm{\bm{y}_1 - \bm{y}_3}^2 &= \norm{[0, -0.5]}^2 = 0.25 \\
-\norm{\bm{y}_2 - \bm{y}_4}^2 &= \norm{[0, -0.5]}^2 = 0.25 \\
-\norm{\bm{y}_3 - \bm{y}_4}^2 &= \norm{[-0.5, 0]}^2 = 0.25
+\norm{\bm{y}_1 - \bm{y}_2}^2 = \norm{\bm{y}_1 - \bm{y}_3}^2 = \norm{\bm{y}_2 - \bm{y}_4}^2 = \norm{\bm{y}_3 - \bm{y}_4}^2 = \norm{[-0.5, 0]}^2 = 0.25 .
 \end{align*}
-
-Total: $\mathcal{L}_{1^{st}} = 0.25 + 0.25 + 0.25 + 0.25 = 1.0$
+Each edge appears twice in the double sum: $\mathcal{L}_{1^{st}} = 2(4\times0.25) = 2.0$.
 
 \subsection*{Computing Total Loss}
 
@@ -558,9 +421,9 @@ With $\alpha = 1$ and $\lambda = 0.001$, and assuming $\norm{\bm{W}}^2_F = 100$:
 
 \begin{align*}
 \mathcal{L}_{total} &= \mathcal{L}_{2^{nd}} + \alpha \mathcal{L}_{1^{st}} + \lambda \mathcal{L}_{reg} \\
-&= 3.39 + 1 \cdot 1.0 + 0.001 \cdot 100 \\
-&= 3.39 + 1.0 + 0.1 \\
-&= 4.49
+&= 2.495 + 1 \cdot 2.0 + 0.001 \cdot 100 \\
+&= 2.495 + 2.0 + 0.1 \\
+&= 4.595
 \end{align*}
 \end{example}
 
@@ -598,9 +461,8 @@ With $\alpha = 1$ and $\lambda = 0.001$, and assuming $\norm{\bm{W}}^2_F = 100$:
 \subsection{Computational Complexity}
 
 \begin{itemize}
-    \item \textbf{$\mathcal{L}_{2^{nd}}$}: $O(n \cdot m)$ where $m$ is average degree
-    \item \textbf{$\mathcal{L}_{1^{st}}$}: $O(|E|)$ where $|E|$ is number of edges
-    \item \textbf{Per iteration}: $O(n \cdot m + |E|)$
+    \item \textbf{$\mathcal{L}_{2^{nd}}$}: the input and output layers have width $n$, and the loss involves every entry of each reconstructed row, edges and non-edges alike. With a first hidden layer of width $h$, one epoch costs $O(n^2h)$ (sparse inputs reduce the encoder side to $O(\abs Eh)$, but the decoder still produces $n$ outputs per node).
+    \item \textbf{$\mathcal{L}_{1^{st}}$}: $O(\abs Ed)$, one term per edge.
 \end{itemize}
 
 For large graphs, the input dimension (number of nodes) can be millions, making naive implementations infeasible. Solutions include:
@@ -616,48 +478,29 @@ For large graphs, the input dimension (number of nodes) can be millions, making 
 
 The trained embeddings have several interesting properties:
 
-\begin{proposition}[Community Detection]
-Nodes in the same community (densely connected subgraph) will cluster together in the embedding space due to shared second-order proximity.
-\end{proposition}
-
-\begin{proposition}[Bridge Nodes]
-Nodes that connect different communities will have embeddings positioned between the community clusters, preserving first-order connections to both sides.
-\end{proposition}
+\begin{intuition}[Communities and bridges]
+Nodes of the same densely connected community share many neighbours, so the reconstruction term places them close, and the first-order term shortens the many edges inside the community. A node with neighbours in two communities is pulled towards both and tends to lie between the two clusters.
+\end{intuition}
 
 \subsection{Visualization Example}
 
-Consider the Karate Club graph (see Section \ref{graph-autoencoders:sec:karate_club}). After training SDNE with $d=2$, we can visualize the embeddings:
+We trained SDNE on the karate club graph (\cref{graph-autoencoders:sec:karate_club}) with $d = 2$: encoder $34 \to 16 \to 2$ and decoder $2 \to 16 \to 34$ with $\tanh$ hidden units and sigmoid outputs, $\beta = 5$, $\lambda = 10^{-4}$ on the weight matrices, $\alpha = 1$, Adam with learning rate $0.01$ for $3000$ full-batch steps (PyTorch, seed $0$). \Cref{graph-autoencoders:fig:karate} shows the embeddings coloured by the faction each member joined after the split. To measure the effect of the first-order term we fit a linear classifier (least squares on the two coordinates) and report the fraction of members on the correct side: $53\%$ for $\alpha = 0$, against $94\%$, $91\%$ and $94\%$ for $\alpha = 0.01, 0.1$ and $1$. Without the first-order term the reconstruction is good, but the arrangement of the codes ignores the factions.
 
-\begin{center}
-\begin{tikzpicture}[scale=1.5]
-    % Community 1 (Instructor)
-    \foreach \i/\x/\y in {1/0/0, 2/0.2/0.3, 3/0.1/0.5, 4/0.3/0.4, 5/0.4/0.2, 6/0.5/0.5, 7/0.3/0.7, 8/0.6/0.3} {
-        \node[circle,fill=blue!30,draw,inner sep=1pt] at (\x,\y) {\tiny \i};
-    }
-    
-    % Community 2 (Administrator)
-    \foreach \i/\x/\y in {9/2.5/0.3, 10/2.7/0.5, 11/2.6/0.7, 12/2.8/0.4, 13/2.9/0.6, 14/3.0/0.3} {
-        \node[circle,fill=red!30,draw,inner sep=1pt] at (\x,\y) {\tiny \i};
-    }
-    
-    % Bridge nodes
-    \node[circle,fill=green!30,draw,inner sep=1pt] at (1.5,0.5) {\tiny 34};
-    \node[circle,fill=green!30,draw,inner sep=1pt] at (1.3,0.3) {\tiny 33};
-    
-    \draw[dashed,blue!50] (0.3,0.4) circle (0.6cm);
-    \draw[dashed,red!50] (2.7,0.5) circle (0.6cm);
-    
-    \node[below,blue] at (0.3,-0.4) {Community 1};
-    \node[below,red] at (2.7,-0.4) {Community 2};
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.75\linewidth, height=6cm, ymax=0.34, xlabel={$y_1$}, ylabel={$y_2$}, grid=both, legend pos=outer north east, legend style={font=\small}]
+\addplot[only marks, mark=*, mark size=2pt, blue!70] coordinates {(-0.26,-0.21) (-0.26,-0.10) (-0.18,0.11) (-0.17,-0.17) (0.04,-0.31) (0.05,-0.46) (0.05,-0.46) (-0.11,-0.16) (0.01,0.03) (0.03,-0.39) (0.06,-0.24) (-0.08,-0.20) (-0.10,-0.09) (0.27,-0.41) (-0.03,-0.22) (-0.01,-0.12) (-0.03,-0.22)};
+\addlegendentry{Mr.\ Hi's faction}
+\addplot[only marks, mark=square*, mark size=2pt, red!70] coordinates {(0.08,0.02) (0.17,0.02) (0.17,0.02) (0.17,0.02) (0.17,0.02) (0.17,0.02) (0.33,0.08) (0.18,0.08) (0.21,0.11) (0.39,-0.16) (0.17,0.12) (0.10,0.06) (0.44,0.01) (-0.07,0.04) (-0.01,0.14) (0.19,0.19) (0.17,0.25)};
+\addlegendentry{Officer's faction}
+\node[font=\scriptsize, anchor=south] at (axis cs:-0.26,-0.21) {0};
+\node[font=\scriptsize, anchor=south] at (axis cs:0.17,0.25) {33};
+\end{axis}
 \end{tikzpicture}
-\end{center}
-
-The embedding space preserves:
-\begin{itemize}
-    \item Community structure (blue and red clusters)
-    \item Bridge connections (green nodes in between)
-    \item Local neighborhood similarity
-\end{itemize}
+\caption{SDNE embedding ($d = 2$, $\alpha = 1$) of Zachary's karate club graph, computed as described in the text. Node $0$ is the instructor, node $33$ the club officer. Two members lie on the wrong side of the best linear separator: node $8$ (Mr.\ Hi's faction) and node $30$ (the officer's). Node $8$, member $9$ in Zachary's numbering, is also the one member that Zachary's minimum cut misassigned.}
+\label{graph-autoencoders:fig:karate}
+\end{figure}
 
 \section{The Karate Club Graph}
 \label{graph-autoencoders:sec:karate_club}
@@ -666,11 +509,11 @@ The embedding space preserves:
 
 The Zachary's Karate Club graph is one of the most famous datasets in network science. It was collected by anthropologist Wayne Zachary in the 1970s during a study of a university karate club.
 
-\begin{tcolorbox}[colback=orange!5!white,colframe=orange!75!black,title=The Story]
+\begin{remark}[The story]
 Zachary observed social interactions between 34 members of a karate club over a period of 3 years (1970-1972). During this time, a conflict arose between the club's instructor (Mr. Hi) and the club's administrator (John A.) over various issues including the instructor's pricing policies.
 
-This conflict eventually led to a split of the club into two separate organizations. Remarkably, Zachary found that the eventual split could be accurately predicted from the network structure of social ties using community detection algorithms—even before the split actually occurred!
-\end{tcolorbox}
+This conflict eventually led to a split of the club into two separate organizations. Zachary modelled the network as a flow network and showed that a minimum cut separating the instructor from the officer, computed from ties observed before the split, assigned all but one member to the faction they actually joined (Zachary, \emph{An Information Flow Model for Conflict and Fission in Small Groups}, 1977).
+\end{remark}
 
 \subsection{Graph Properties}
 
@@ -690,7 +533,7 @@ This conflict eventually led to a split of the club into two separate organizati
 The Karate Club graph has become a standard benchmark in network science because:
 
 \begin{enumerate}
-    \item \textbf{Real-world validation}: The network structure predicted the actual social split with high accuracy
+    \item \textbf{Real-world validation}: The network structure predicts the actual social split (all members but one, in Zachary's analysis)
     \item \textbf{Clear community structure}: It exhibits two well-defined communities with some inter-community connections
     \item \textbf{Manageable size}: With only 34 nodes, it's small enough to visualize completely and understand intuitively
     \item \textbf{Complex enough}: Despite its size, it demonstrates important phenomena like community detection, bridge nodes, and the predictive power of network analysis
@@ -709,7 +552,7 @@ The Karate Club graph is now a standard benchmark for:
 
 \subsection{Python Implementation Snippet}
 
-Here's how you can use SDNE in practice with the GEM library:
+The GEM library of Goyal and Ferrara provides an implementation of SDNE (the library targets older versions of Python and TensorFlow; a short PyTorch implementation such as the one used for \cref{graph-autoencoders:fig:karate} is an alternative):
 
 \begin{verbatim}
 import networkx as nx
@@ -737,7 +580,7 @@ sdne = SDNE(
 sdne.learn_embedding(G)
 embeddings = sdne.get_embedding()
 
-# embeddings is now a dict: node_id -> embedding_vector
+# embeddings: array of shape (34, 2), one row per node
 \end{verbatim}
 
 \subsection{Hyperparameter Tuning}
@@ -793,60 +636,66 @@ Consider alternatives when:
     \item Have rich node features $\rightarrow$ use feature-aware methods
 \end{itemize}
 
-\section{Extensions and Related Methods}
+\section{Graph Autoencoders with a GNN Encoder (GAE, VGAE)}
 
-\subsection{Variational Graph Autoencoders (VGAE)}
+SDNE's encoder reads one adjacency row at a time and has an input layer of width $n$. Kipf and Welling (\emph{Variational Graph Auto-Encoders}, 2016) proposed instead to compute all embeddings at once with a graph convolutional network on node features $X \in \R^{n\times p}$ (or $X = I$ when there are no features) and to decode with inner products.
 
-Replace deterministic encoder with variational encoder:
-\begin{itemize}
-    \item Encoder outputs mean $\bm{\mu}_i$ and variance $\bm{\sigma}_i^2$
-    \item Sample: $\bm{y}_i \sim \mathcal{N}(\bm{\mu}_i, \bm{\sigma}_i^2)$
-    \item Add KL divergence term to loss
-\end{itemize}
-
-Benefits: Better generalization, uncertainty quantification
-
-\subsection{Graph Attention Autoencoders}
-
-Incorporate attention mechanisms to weight neighborhood importance:
+\begin{definition}[Graph autoencoder (GAE)]
+The encoder is a two-layer GCN, $\bm Y = \hat A\,\mathrm{ReLU}(\hat AXW^{(1)})W^{(2)} \in \R^{n\times d}$ with $\hat A = \tilde D^{-1/2}(A + I)\tilde D^{-1/2}$ as in \cref{dft-to-gnn:sec:gcn}. The decoder predicts each edge from the inner product of its endpoints, $\tilde A_{ij} = \sigma(\bm y_i^\top\bm y_j)$, and training minimizes the binary cross-entropy
 \[
-\bm{y}_i = \sum_{j \in \mathcal{N}(i)} \alpha_{ij} \bm{h}_j
+\mathcal L_{\text{GAE}} = -\sum_{i,j}\Bigl[w\,A_{ij}\log\tilde A_{ij} + (1 - A_{ij})\log(1 - \tilde A_{ij})\Bigr],
 \]
-where $\alpha_{ij}$ are learned attention weights.
+where the weight $w$ (the ratio of non-edges to edges) plays the role of SDNE's $\beta$.
+\end{definition}
 
-\subsection{Deep Graph Infomax}
+The inner-product decoder has no parameters, so, as for the shallow methods of \cref{ch:shallow-embeddings}, the geometry of the embeddings must itself encode the edges. Because the encoder is a GCN, it uses node features, and it applies to nodes or graphs not seen in training whenever their features and neighbourhoods are known.
 
-Maximize mutual information between local and global graph representations instead of reconstruction.
+\paragraph{Variational graph autoencoder (VGAE).} In the variational version, two GCN heads output for each node a mean $\boldsymbol\mu_i$ and a diagonal log-variance $\log\boldsymbol\sigma_i^2$, the embedding is sampled as $\bm y_i = \boldsymbol\mu_i + \boldsymbol\sigma_i\odot\boldsymbol\varepsilon_i$ with $\boldsymbol\varepsilon_i \sim \mathcal N(0, I)$ (the reparameterization trick), and the loss is the negative evidence lower bound
+\[
+-\E_q\Bigl[\sum_{i,j}\log p(A_{ij}\mid\bm y_i,\bm y_j)\Bigr] + \sum_i\mathrm{KL}\bigl(\mathcal N(\boldsymbol\mu_i, \diag\boldsymbol\sigma_i^2)\,\|\,\mathcal N(0, I)\bigr),
+\]
+with the same inner-product likelihood $p(A_{ij} = 1\mid\bm y_i,\bm y_j) = \sigma(\bm y_i^\top\bm y_j)$. Kipf and Welling report that both GAE and VGAE outperform spectral clustering and DeepWalk for link prediction on citation networks, and that node features help substantially.
 
-\section{Conclusion}
+\paragraph{Other variants.} Attention-based encoders replace the GCN aggregation by learned weights $\bm y_i = \sum_{j\in\mathcal N(i)}\alpha_{ij}\bm h_j$ (graph attention autoencoders, Salehi and Davulcu, 2019). Deep Graph Infomax (Veličković et al., 2019) drops reconstruction altogether and trains the encoder to maximize the mutual information between node embeddings and a summary of the whole graph, with a contrastive objective of the kind studied in \cref{ch:contrastive-learning}.
 
-Graph autoencoders provide a powerful framework for learning node embeddings by:
-\begin{enumerate}
-    \item Using weighted reconstruction loss ($\mathcal{L}_{2^{nd}}$) to handle graph sparsity
-    \item Explicitly preserving direct connections ($\mathcal{L}_{1^{st}}$)
-    \item Combining both to capture multi-scale graph structure
-\end{enumerate}
-
-The key innovation of SDNE is recognizing that standard reconstruction error fails for graphs and designing loss functions that account for the asymmetric information content of edges versus non-edges.
-
-\subsection{Key Takeaways}
-
-\begin{tcolorbox}[colback=purple!5!white,colframe=purple!75!black,title=Summary]
+\begin{chaptersummary}
 \begin{itemize}
-    \item \textbf{$\beta$-weighting} addresses sparse graph reconstruction by penalizing edge errors more heavily
-    \item \textbf{Second-order proximity} ($\mathcal{L}_{2^{nd}}$) preserves community structure and neighborhood similarity
-    \item \textbf{First-order proximity} ($\mathcal{L}_{1^{st}}$) preserves direct connections between nodes
-    \item \textbf{Combined loss} captures multi-scale structure (local and global)
-    \item \textbf{Scalability} remains a challenge for very large graphs (millions of nodes)
+\item A plain reconstruction loss on adjacency rows is dominated by the zeros of a sparse graph. SDNE weights the errors on edges by $\beta > 1$ inside the norm, $\mathcal L_{2^{nd}} = \sum_i\norm{(\tilde{\bm A}_i - \bm A_i)\odot\bm B_i}^2$, which preserves second-order proximity.
+\item The first-order term $\mathcal L_{1^{st}} = \sum_{i,j}S_{ij}\norm{\bm y_i - \bm y_j}^2 = 2\tr(\bm Y^\top L\bm Y)$ shortens edges; alone it is minimized by collapsing all embeddings, so the two terms are complementary.
+\item An encoder that reads adjacency rows maps structurally equivalent nodes (identical rows) to the same embedding, whatever the loss; distinguishing them requires features or identities in the input.
+\item GAE and VGAE encode with a GCN and decode with $\sigma(\bm y_i^\top\bm y_j)$; VGAE adds a Gaussian posterior per node and a KL term. They use node features and scale better than SDNE, whose input width is $n$.
 \end{itemize}
-\end{tcolorbox}
+\end{chaptersummary}
 
-\section*{Further Reading}
+\section*{Further reading}
+\addcontentsline{toc}{section}{Further reading}
+SDNE is due to Wang, Cui and Zhu (\emph{Structural Deep Network Embedding}, 2016), and GAE and VGAE to Kipf and Welling (\emph{Variational Graph Auto-Encoders}, 2016). Hamilton (\emph{Graph Representation Learning}, 2020, Chapters~3 and~6) places them in the encoder--decoder view of node embeddings. The karate club data come from Zachary (1977).
 
-\begin{itemize}
-    \item Wang, D., Cui, P., \& Zhu, W. (2016). Structural deep network embedding. \textit{KDD}.
-    \item Kipf, T. N., \& Welling, M. (2016). Variational graph auto-encoders. \textit{NIPS Workshop}.
-    \item Hamilton, W. L. (2020). \textit{Graph representation learning}. Synthesis Lectures on AI and ML.
-    \item Zachary, W. W. (1977). An information flow model for conflict and fission in small groups. \textit{Journal of Anthropological Research}, 33(4), 452-473.
-\end{itemize}
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{graph-autoencoders:exr:1}
+A graph has $n$ nodes and average degree $\bar d$; each row $\bm A_i$ has $n$ entries (the diagonal one is $0$). Compute the unweighted reconstruction loss $\sum_i\norm{\tilde{\bm A}_i - \bm A_i}^2$ of the model that outputs $\tilde{\bm A} = 0$, and of the model that outputs the constant $c = \bar d/n$ everywhere. With the SDNE weights, for which $\beta$ does the constant output $\frac12$ have a smaller loss than the zero output?
+\solutionlink{graph-autoencoders:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{graph-autoencoders:exr:2}
+Prove \cref{graph-autoencoders:eq:l1_trace} for a symmetric weight matrix $S$, and deduce that the minimizers of $\mathcal L_{1^{st}}$ on a connected graph are exactly the configurations with all $\bm y_i$ equal.
+\solutionlink{graph-autoencoders:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{graph-autoencoders:exr:3}
+Minimize $\mathcal L_{1^{st}}$ for the path $1 - 2 - 3$ with $d = 1$ under the constraints $\bm Y^\top D\bm Y = 1$ and $\bm Y^\top D\mathbf 1 = 0$ (Laplacian eigenmaps). Where do nodes $1$ and $3$ end up, and why does this not contradict \cref{graph-autoencoders:rem:identical}?
+\hint{Generalized eigenproblem $L\bm y = \mu D\bm y$.}
+\solutionlink{graph-autoencoders:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{graph-autoencoders:exr:4}
+For VGAE with $d$-dimensional embeddings, compute in closed form the divergence
+\[
+\mathrm{KL}\bigl(\mathcal N(\boldsymbol\mu, \diag\boldsymbol\sigma^2)\,\|\,\mathcal N(0, I)\bigr),
+\] and its value for $\boldsymbol\mu = (1, 0)$, $\boldsymbol\sigma = (1, \frac12)$.
+\solutionlink{graph-autoencoders:exr:4}
+\end{exercise}
+
 \end{notechapter}
