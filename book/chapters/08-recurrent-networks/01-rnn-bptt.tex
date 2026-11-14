@@ -1,0 +1,670 @@
+\begin{notechapter}
+\chapter{Recurrent Networks and Backpropagation Through Time}\label{ch:rnn-bptt}
+\chaptersubtitle{One set of weights applied at every time step, and the gradient that flows back through all of them}
+
+\begin{chapterintro}
+A sentence, a speech signal or a sensor recording is a sequence whose length changes from
+one example to the next, and in which what happens at time $t$ depends on what happened
+before. A recurrent neural network (RNN) processes such a sequence one element at a time,
+with the same weights at every step, and carries a \emph{hidden state} from one step to
+the next. Training it needs the gradient of a loss that depends on the weights through
+every time step. Unrolling the recurrence turns the RNN into an ordinary computational
+graph with shared weights, and backpropagation on that graph is called
+\emph{backpropagation through time} (BPTT). You will learn
+\begin{itemize}[nosep]
+  \item the equations of the simple (Elman) RNN and what its hidden state represents;
+  \item how unrolling turns the RNN into a computational graph, and the two different
+        meanings of ``$\partial L/\partial h_t$'';
+  \item the BPTT recursion, its proof, and the gradients of all parameters, including the
+        passage from one weight to the whole matrix $W_{hh}$;
+  \item a complete numerical example, checked with PyTorch;
+  \item why the gradient contributions of distant time steps vanish or explode, with a
+        precise statement in terms of singular values;
+  \item gradient clipping and truncated BPTT.
+\end{itemize}
+\prerequisites{backpropagation and the three local rules (\cref{ch:backpropagation});
+computational graphs and shared weights (\cref{ch:computational-graphs}); the softmax
+output and the cross-entropy loss (\cref{ch:sigmoid-softmax}).}
+\end{chapterintro}
+
+\section{The recurrence}\label{rnn-bptt:sec:recurrence}
+
+\paragraph{Why not an MLP.} An MLP takes an input of fixed size. One could pad every
+sequence to a maximal length and feed the concatenation to an MLP, but this has two
+defects: the number of weights grows with the maximal length, and a pattern learned at
+position $3$ is not reused at position $30$, because the weights that see position $3$ are
+different from those that see position $30$. The RNN solves both problems in the same way
+as the convolutional layer of \cref{ch:convolutional-layers}: it shares its weights, here
+across time instead of across space.
+
+\begin{definition}[Simple recurrent network]\label{rnn-bptt:def:rnn}
+Let $x_1,\dots,x_T\in\R^{n}$ be an input sequence and $h_0\in\R^m$ an initial state (usually
+$h_0 = 0$). The \emph{simple} or \emph{Elman} RNN (Elman, \emph{Finding Structure in Time}, 1990) computes, for
+$t = 1,\dots,T$,
+\begin{align*}
+  a_t &= W_{hh}h_{t-1} + W_{xh}x_t + b_h &&\text{(pre-activation, }\R^m\text{)}\\
+  h_t &= \phi(a_t) &&\text{(hidden state, }\R^m\text{)}\\
+  o_t &= W_{ho}h_t + b_o &&\text{(output scores, }\R^K\text{)}\\
+  \hat y_t &= \softmax(o_t) &&\text{(predicted class probabilities)}
+\end{align*}
+with a coordinatewise activation $\phi$ (usually $\tanh$), $W_{hh}\in\R^{m\times m}$,
+$W_{xh}\in\R^{m\times n}$, $b_h\in\R^m$, $W_{ho}\in\R^{K\times m}$ and $b_o\in\R^K$. For targets
+$y_1,\dots,y_T\in\{1,\dots,K\}$, the loss is
+\[
+  L = \sum_{t=1}^T\ell_t,\qquad \ell_t = -\log\hat y_{t,y_t}.
+\]
+\end{definition}
+
+The weights carry no index $t$: the same five arrays are used at every step, so the number
+of parameters, $m^2 + mn + m + Km + K$, does not depend on $T$. Unrolling the recursion
+shows what the hidden state is:
+\[
+  h_t = \phi\bigl(W_{hh}\,\phi(W_{hh}\,h_{t-2} + W_{xh}x_{t-1} + b_h) + W_{xh}x_t + b_h\bigr)
+  = \cdots = F_t(x_1,\dots,x_t;\,h_0) .
+\]
+It is a function of the whole prefix $x_{1:t} = (x_1,\dots,x_t)$, computed incrementally: $h_t$ is a
+\emph{summary of the past}, of fixed size $m$, however long the past is. Whether it is a
+\emph{good} summary, one that keeps the information the task needs, is what training
+decides; \cref{rnn-bptt:sec:vanishing} shows why distant information is hard to learn.
+
+\paragraph{Task shapes.} The definition attaches a loss to every step
+(\emph{many-to-many}, as in tagging every word of a sentence). If only the last output
+matters, as in classifying a whole sequence, then $L = \ell_T$ (\emph{many-to-one}); if one
+input is followed by a generated sequence, the outputs are fed back as the next inputs
+(\emph{one-to-many}, \cref{ch:sequence-models}). The gradient computation below covers all
+cases: a step without a loss simply has $\ell_t = 0$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  st/.style={draw, circle, minimum size=8mm, inner sep=0pt, fill=bookaccent!12},
+  io/.style={draw, rectangle, rounded corners=2pt, minimum size=7mm, inner sep=1pt},
+  ar/.style={-{Stealth[length=2mm]}, thick},
+  lab/.style={font=\scriptsize, fill=white, inner sep=1pt}]
+  % rolled
+  \node[io] (x) at (0,0) {$x_t$};
+  \node[st] (h) at (0,1.6) {$h_t$};
+  \node[io] (o) at (0,3.1) {$o_t$};
+  \node[io, fill=bookpitfall!10] (l) at (0,4.5) {$\ell_t$};
+  \draw[ar] (x) -- node[lab, right]{$W_{xh}$} (h);
+  \draw[ar] (h) -- node[lab, right]{$W_{ho}$} (o);
+  \draw[ar] (o) -- (l);
+  \draw[ar] (h.west) .. controls +(-1.3,0.7) and +(-1.3,-0.7) .. node[lab, left]{$W_{hh}$} (h.west);
+  \node[font=\small] at (0,-0.9) {rolled};
+  \node at (1.5,1.6) {\Large$=$};
+  % unrolled
+  \foreach \t/\xx in {1/4.4,2/6.4,3/8.4} {
+    \node[io] (x\t) at (\xx,0) {$x_{\t}$};
+    \node[st] (h\t) at (\xx,1.6) {$h_{\t}$};
+    \node[io] (o\t) at (\xx,3.1) {$o_{\t}$};
+    \node[io, fill=bookpitfall!10] (l\t) at (\xx,4.5) {$\ell_{\t}$};
+    \draw[ar] (x\t) -- node[lab, right]{$W_{xh}$} (h\t);
+    \draw[ar] (h\t) -- node[lab, right]{$W_{ho}$} (o\t);
+    \draw[ar] (o\t) -- (l\t);
+  }
+  \node[st, fill=white] (h0) at (2.6,1.6) {$h_0$};
+  \draw[ar] (h0) -- node[lab, above]{$W_{hh}$} (h1);
+  \draw[ar] (h1) -- node[lab, above]{$W_{hh}$} (h2);
+  \draw[ar] (h2) -- node[lab, above]{$W_{hh}$} (h3);
+  \node (dots) at (9.9,1.6) {$\cdots$};
+  \draw[ar] (h3) -- (dots);
+  \node[io, fill=bookpitfall!25] (L) at (10.4,4.5) {$L$};
+  \draw[ar, gray] (l3) -- (L);
+  \draw[ar, gray] (l2.north) .. controls +(0.5,0.6) and +(-0.8,0.6) .. (L.north west);
+  \draw[ar, gray] (l1.north) .. controls +(0.8,1.0) and +(-1.0,0.9) .. (L.north);
+  \node[font=\small] at (6.4,-0.9) {unrolled for $T = 3$};
+\end{tikzpicture}
+\caption{The RNN of \cref{rnn-bptt:def:rnn}. Left: the loop on $h_t$ means that $h_{t-1}$ is an input of
+the computation of $h_t$. Right: the same network unrolled in time. Every arrow labelled
+$W_{hh}$ carries the \emph{same} matrix; the biases and the softmax are not drawn.}
+\label{rnn-bptt:fig:unrolled}
+\end{figure}
+
+\section{The unrolled computational graph}\label{rnn-bptt:sec:graph}
+
+For a given sequence, the unrolled network of \cref{rnn-bptt:fig:unrolled} is a
+computational graph in the sense of \cref{computational-graphs:def:graph}: a directed
+acyclic graph whose nodes are $h_0$, the $a_t$, $h_t$, $o_t$, $\ell_t$, the loss $L$ and the
+parameters. Its only unusual feature is that each parameter feeds $T$ nodes. By
+\cref{computational-graphs:sec:params}, the gradient with respect to a shared parameter is
+the \emph{sum} of the contributions of the nodes that use it. Everything else is the
+backpropagation of \cref{ch:backpropagation}, applied to a graph that is as deep as the
+sequence is long.
+
+We use the notation of \cref{backpropagation:sec:local}: for an intermediate quantity
+$u$, $\bar u = \nabla_uL$ is the gradient of the total loss $L$ with respect to $u$, a vector of the
+shape of $u$. We also write
+\[
+  \delta_t = \bar a_t = \nabla_{a_t}L\in\R^m
+\]
+for the \emph{error signal} at time $t$, as $\delta^{(l)}$ was the error signal of layer $l$ in
+\cref{backpropagation:thm:backprop}.
+
+\begin{pitfall}[Two meanings of $\partial L/\partial h_t$]
+The symbol $\partial L/\partial h_t$ is used in the literature with two different meanings, and mixing them
+is the most common source of wrong BPTT formulas.
+\begin{itemize}[nosep]
+  \item The \emph{partial} derivative, with every other variable of the formula held fixed.
+        In $L = \sum_s\ell_s$, $h_t$ appears explicitly only in $\ell_t$ (through $o_t$), so this
+        derivative is $W_{ho}^\top\bar o_t$. It ignores that $h_{t+1},h_{t+2},\dots$ are themselves functions of $h_t$.
+  \item The \emph{total} derivative through the graph: the change of $L$ when $h_t$ changes and
+        all later quantities are recomputed. It contains the effect on all future losses.
+\end{itemize}
+In this chapter $\bar h_t$ always denotes the total derivative, the one gradient descent needs.
+The partial derivative is the ``direct'' or ``local'' part of it.
+\end{pitfall}
+
+\section{Backpropagation through time}\label{rnn-bptt:sec:bptt}
+
+In the graph, $h_t$ has exactly two children: $o_t$ (through which it affects $\ell_t$) and
+$a_{t+1}$ (through which it affects everything that comes later). For $t = T$ only the first
+exists. This is the whole content of the following theorem.
+
+\begin{theorem}[BPTT]\label{rnn-bptt:thm:bptt}
+In the RNN of \cref{rnn-bptt:def:rnn}, let $\bar o_t = \hat y_t - e_{y_t}$, where $e_k$ is the $k$-th standard basis
+vector of $\R^K$. The gradients of $L$ satisfy the backward recursion
+\begin{align*}
+  \bar h_T &= W_{ho}^\top\bar o_T,\\
+  \bar h_t &= W_{ho}^\top\bar o_t + W_{hh}^\top\delta_{t+1}\qquad(t = T-1,\dots,1),\\
+  \delta_t &= \bar h_t\odot\phi'(a_t)\qquad(t = T,\dots,1),
+\end{align*}
+and the parameter gradients are sums over time:
+\begin{gather*}
+  \nabla_{W_{hh}}L = \sum_{t=1}^T\delta_t\,h_{t-1}^\top,\qquad
+  \nabla_{W_{xh}}L = \sum_{t=1}^T\delta_t\,x_t^\top,\qquad
+  \nabla_{b_h}L = \sum_{t=1}^T\delta_t,\\
+  \nabla_{W_{ho}}L = \sum_{t=1}^T\bar o_t\,h_t^\top,\qquad
+  \nabla_{b_o}L = \sum_{t=1}^T\bar o_t .
+\end{gather*}
+\end{theorem}
+
+\begin{proof}
+\emph{Outputs.} $o_t$ influences $L$ only through $\ell_t$, and the softmax with the cross-entropy
+loss gives $\nabla_{o_t}\ell_t = \hat y_t - e_{y_t}$ (\cref{backpropagation:sec:output}).
+
+\emph{Hidden states.} By the path-sum recursion of \cref{computational-graphs:lem:paths}
+(the chain rule summed over the children of a node), the gradient at $h_t$ is the sum, over
+its children, of the gradient at the child pulled back by the transposed local Jacobian.
+The child $o_t = W_{ho}h_t + b_o$ contributes $W_{ho}^\top\bar o_t$ and the child $a_{t+1} = W_{hh}h_t + \cdots$ contributes
+$W_{hh}^\top\bar a_{t+1}$ (rule through an affine map, \cref{backpropagation:sec:affine}). For $t = T$ there is no
+child $a_{T+1}$.
+
+\emph{Pre-activations.} $a_t$ has the single child $h_t = \phi(a_t)$, and the rule through a
+coordinatewise activation (\cref{backpropagation:sec:activation}) gives
+$\bar a_t = \bar h_t\odot\phi'(a_t)$.
+
+\emph{Parameters.} $W_{hh}$ is used by the $T$ nodes $a_1,\dots,a_T$. For the node $a_t$ alone, with $h_{t-1}$
+held fixed, the affine rule gives the contribution $\bar a_t\,h_{t-1}^\top$; summing over the nodes that
+share the parameter (\cref{computational-graphs:sec:params}) gives $\nabla_{W_{hh}}L$. The other four
+formulas are obtained in the same way: $W_{xh}$ and $b_h$ are used by the $a_t$, $W_{ho}$ and $b_o$ by
+the $o_t$.
+\end{proof}
+
+The recursion runs backward in time, hence the name. The forward pass must store every
+$h_t$ (and $a_t$, or $\phi'(a_t)$), since the backward pass needs them all.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  nd/.style={draw, rounded corners=2pt, minimum width=10mm, minimum height=7mm, inner sep=1pt},
+  ar/.style={-{Stealth[length=2mm]}, thick},
+  bk/.style={-{Stealth[length=2mm]}, thick, bookpitfall, dashed},
+  lab/.style={font=\scriptsize, inner sep=1pt}]
+  \node[nd] (hm) at (0,0) {$h_{t-1}$};
+  \node[nd] (at) at (2.2,0) {$a_t$};
+  \node[nd, fill=bookaccent!15] (ht) at (4.4,0) {$h_t$};
+  \node[nd] (at1) at (7.4,0) {$a_{t+1}$};
+  \node[nd] (ht1) at (9.6,0) {$h_{t+1}$};
+  \node[nd] (ot) at (4.4,2.0) {$o_t$};
+  \node[nd] (lt) at (4.4,3.6) {$\ell_t$};
+  \node (fut) at (11.4,0) {$\cdots$};
+  \draw[ar] (hm) -- (at); \draw[ar] (at) -- node[lab, below]{$\phi$} (ht);
+  \draw[ar] (ht) -- node[lab, below]{$W_{hh}$} (at1); \draw[ar] (at1) -- node[lab, below]{$\phi$} (ht1);
+  \draw[ar] (ht1) -- (fut);
+  \draw[ar] (ht) -- node[lab, left]{$W_{ho}$} (ot); \draw[ar] (ot) -- (lt);
+  \draw[bk] (ot.east) to[bend left=40] node[lab, right, text=bookpitfall]{$W_{ho}^\top\bar o_t$} (ht.north east);
+  \draw[bk] (at1.south west) to[bend left=35] node[lab, below, text=bookpitfall]{$W_{hh}^\top\delta_{t+1}$} (ht.south east);
+  \draw[bk] (ht.north west) to[bend right=35] node[lab, above, text=bookpitfall]{$\delta_t = \bar h_t\odot\phi'(a_t)$} (at.north east);
+\end{tikzpicture}
+\caption{The two children of $h_t$ in the unrolled graph. Forward computations in black; the
+backward pass (dashed) adds the gradients coming back from $o_t$ (the current loss) and from
+$a_{t+1}$ (all future losses), then multiplies coordinatewise by $\phi'(a_t)$.}
+\label{rnn-bptt:fig:children}
+\end{figure}
+
+\paragraph{The recursion unrolled.} Iterating the recursion shows where each part of the
+gradient comes from. Write $J_r = \partial h_r/\partial h_{r-1} = \diag(\phi'(a_r))\,W_{hh}$ for the Jacobian of one step,
+and, for $s\geq t$,
+\[
+  \frac{\partial h_s}{\partial h_t} = J_sJ_{s-1}\cdots J_{t+1}\qquad(\text{the identity for }s = t).
+\]
+
+\begin{proposition}[Contributions of the future losses]\label{rnn-bptt:prop:unrolled}
+\[
+  \bar h_t = \sum_{s=t}^T\Bigl(\frac{\partial h_s}{\partial h_t}\Bigr)^{\!\top}W_{ho}^\top\,\bar o_s .
+\]
+\end{proposition}
+
+\begin{proof}
+By backward induction on $t$. For $t = T$ the sum has the single term $W_{ho}^\top\bar o_T$. If the formula holds at $t+1$,
+then $W_{hh}^\top\delta_{t+1} = W_{hh}^\top\diag(\phi'(a_{t+1}))\bar h_{t+1} = J_{t+1}^\top\bar h_{t+1}$, and by the induction hypothesis
+\[
+  \bar h_t = W_{ho}^\top\bar o_t + J_{t+1}^\top\sum_{s=t+1}^T\Bigl(\frac{\partial h_s}{\partial h_{t+1}}\Bigr)^{\!\top}W_{ho}^\top\bar o_s
+  = W_{ho}^\top\bar o_t + \sum_{s=t+1}^T\Bigl(\frac{\partial h_s}{\partial h_{t+1}}J_{t+1}\Bigr)^{\!\top}W_{ho}^\top\bar o_s ,
+\]
+and $\frac{\partial h_s}{\partial h_{t+1}}J_{t+1} = \frac{\partial h_s}{\partial h_t}$.
+\end{proof}
+
+The loss at time $s$ reaches the state at time $t$ through a product of $s - t$ Jacobians. This
+product is the object of \cref{rnn-bptt:sec:vanishing}.
+
+\section{From one weight to the matrix \texorpdfstring{$W_{hh}$}{W\_hh}}\label{rnn-bptt:sec:weight}
+
+The formula $\nabla_{W_{hh}}L = \sum_t\delta_th_{t-1}^\top$ hides two steps that are worth doing once by hand: the
+derivative with respect to a matrix, and the sum over time. We follow one weight, then
+assemble the matrix.
+
+\paragraph{One weight.} The weight $(W_{hh})_{kl}$ connects unit $l$ of $h_{t-1}$ to unit $k$ of $a_t$, at every $t$. It
+influences $L$ through the $mT$ numbers $a_{t,i}$, so by the chain rule
+\begin{equation}\label{rnn-bptt:eq:one-weight}
+  \frac{\partial L}{\partial(W_{hh})_{kl}} = \sum_{t=1}^T\sum_{i=1}^m\frac{\partial L}{\partial a_{t,i}}\,
+  \frac{\partial a_{t,i}}{\partial(W_{hh})_{kl}} .
+\end{equation}
+Here $\partial L/\partial a_{t,i} = \delta_{t,i}$ is a total derivative (the gradient at node $a_t$), while
+$\partial a_{t,i}/\partial(W_{hh})_{kl}$ is the local derivative of the formula
+$a_{t,i} = \sum_j(W_{hh})_{ij}(h_{t-1})_j + \cdots$, with $h_{t-1}$ held fixed:
+\[
+  \frac{\partial a_{t,i}}{\partial(W_{hh})_{kl}} = \begin{cases}(h_{t-1})_l & \text{if } i = k,\\ 0 & \text{if } i\neq k,\end{cases}
+  \qquad\text{that is}\qquad \frac{\partial a_{t,i}}{\partial(W_{hh})_{kl}} = [i = k]\,(h_{t-1})_l .
+\]
+The indicator collapses the sum over $i$ in \cref{rnn-bptt:eq:one-weight}:
+\begin{equation}\label{rnn-bptt:eq:entry}
+  \frac{\partial L}{\partial(W_{hh})_{kl}} = \sum_{t=1}^T\delta_{t,k}\,(h_{t-1})_l .
+\end{equation}
+For each $t$: the error signal at the head of the connection, times the activity at its tail.
+
+\paragraph{The three-index array.} For a fixed $t$, the $m^3$ local derivatives
+$\partial a_{t,i}/\partial(W_{hh})_{kl}$ form a three-index array $\partial a_t/\partial W_{hh}$. Fixing the output index $i$ gives an
+$m\times m$ slice, the derivative of the single number $a_{t,i}$ with respect to the whole matrix: it
+is zero except in row $k = i$, which contains $h_{t-1}^\top$ (\cref{rnn-bptt:fig:slices}). The array is very sparse,
+with $m^2$ non-zero entries out of $m^3$, because $a_{t,i}$ depends only on row $i$ of $W_{hh}$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=1.1]
+  \node[inner sep=0pt, opacity=0.55] (back) at (6.6,5.0) {%
+    $\begin{bNiceMatrix}
+      0 & 0 & \Cdots & 0 \\
+      \Vdots & \Vdots & & \Vdots \\
+      0 & 0 & \Cdots & 0 \\
+      (h_{t-1})_1 & (h_{t-1})_2 & \Cdots & (h_{t-1})_m
+    \end{bNiceMatrix}$};
+  \node[font=\scriptsize, text=bookaccent] at ($(back.east)+(0.45,0.9)$) {$i = m$};
+  \node[inner sep=0pt, opacity=0.8] (middle) at (3.3,2.5) {%
+    $\begin{bNiceMatrix}
+      0 & 0 & \Cdots & 0 \\
+      \Vdots & \Vdots & & \Vdots \\
+      (h_{t-1})_1 & (h_{t-1})_2 & \Cdots & (h_{t-1})_m \\
+      \Vdots & \Vdots & & \Vdots \\
+      0 & 0 & \Cdots & 0
+    \end{bNiceMatrix}$};
+  \node[font=\scriptsize, text=bookaccent] at ($(middle.east)+(0.45,1.1)$) {$i = k$};
+  \node[inner sep=0pt, fill=white] (front) at (0,0) {%
+    $\begin{bNiceMatrix}
+      (h_{t-1})_1 & (h_{t-1})_2 & \Cdots & (h_{t-1})_m \\
+      0 & 0 & \Cdots & 0 \\
+      \Vdots & \Vdots & & \Vdots \\
+      0 & 0 & \Cdots & 0
+    \end{bNiceMatrix}$};
+  \node[font=\scriptsize, text=bookaccent] at ($(front.east)+(0.4,0.9)$) {$i = 1$};
+  \draw[dotted, gray] (back.north west) -- (front.north west);
+  \draw[dotted, gray] (back.north east) -- (front.north east);
+  \draw[dotted, gray] (back.south east) -- (front.south east);
+  \draw[->, thick, bookpitfall!80] ($(front.south west)+(0.1,-0.25)$) --
+    node[midway, below, font=\scriptsize]{$l$ (column of $W_{hh}$)} ($(front.south east)+(-0.1,-0.25)$);
+  \draw[->, thick, bookexample!80!black] ($(front.north west)+(-0.25,-0.1)$) --
+    node[midway, left, font=\scriptsize, align=right]{$k$ (row\\ of $W_{hh}$)} ($(front.south west)+(-0.25,0.1)$);
+  \draw[->, thick, bookaccent] ($(front.east)+(1.0,-0.4)$) --
+    node[midway, below right, font=\scriptsize]{$i$ (slices)} ++(6.6,5.0);
+\end{tikzpicture}
+\caption{The array $\partial a_t/\partial W_{hh}$, drawn as $m$ slices of size $m\times m$. Slice $i$ is
+$\partial a_{t,i}/\partial W_{hh} = e_i\,h_{t-1}^\top$: only its row $i$ is non-zero, and it contains $h_{t-1}^\top$.}
+\label{rnn-bptt:fig:slices}
+\end{figure}
+
+\paragraph{Contraction.} The chain rule \cref{rnn-bptt:eq:one-weight} for all $(k,l)$ at once multiplies
+the $i$-th slice by the number $\delta_{t,i}$ and adds the slices:
+\[
+  \sum_{i=1}^m\delta_{t,i}\,\frac{\partial a_{t,i}}{\partial W_{hh}} = \sum_{i=1}^m\delta_{t,i}\,e_i\,h_{t-1}^\top
+  = \Bigl(\sum_{i=1}^m\delta_{t,i}e_i\Bigr)h_{t-1}^\top = \delta_t\,h_{t-1}^\top .
+\]
+The contraction of the sparse array with the error signal is an outer product, which is
+the matrix of the entries \cref{rnn-bptt:eq:entry} at time $t$. This is the computation of
+\cref{backpropagation:sec:affine}, where $\partial y/\partial W$ was the same array for a single affine map.
+
+\paragraph{Sum over time.} The only new ingredient of the recurrent case is the sum over
+$t$: $W_{hh}$ is used at every step, so
+\[
+  \nabla_{W_{hh}}L = \sum_{t=1}^T\delta_t\,h_{t-1}^\top
+  = \begin{bmatrix}\delta_1 & \delta_2 & \cdots & \delta_T\end{bmatrix}
+    \begin{bmatrix}h_0^\top\\ h_1^\top\\ \vdots\\ h_{T-1}^\top\end{bmatrix} = \Delta H_{-}^\top ,
+\]
+where $\Delta\in\R^{m\times T}$ stores the error signals as columns and $H_-\in\R^{m\times T}$ the states $h_0,\dots,h_{T-1}$. The
+second form is how the sum is computed in practice: one matrix product after the backward
+pass, instead of $T$ outer products.
+
+\begin{keyidea}[The gradient of a shared weight]
+Each use of $W_{hh}$ contributes \emph{(error signal at the output of the use)} $\times$ \emph{(input of the use)}$^\top$,
+computed as if that use were the only one, and the contributions are added. The coupling
+between time steps is entirely contained in the error signals $\delta_t$, which carry the effect of
+all the future losses.
+\end{keyidea}
+
+\section{The algorithm}\label{rnn-bptt:sec:algorithm}
+
+\begin{algorithm}[ht]
+\caption{Backpropagation through time for one sequence}\label{rnn-bptt:alg:bptt}
+\begin{algorithmic}[1]
+\For{$t = 1,\dots,T$} \Comment{forward pass: store $h_t$ and $\phi'(a_t)$}
+  \State $a_t\gets W_{hh}h_{t-1} + W_{xh}x_t + b_h$;\quad $h_t\gets\phi(a_t)$;\quad $\hat y_t\gets\softmax(W_{ho}h_t + b_o)$
+\EndFor
+\State $g\gets 0\in\R^m$ \Comment{$g = W_{hh}^\top\delta_{t+1}$, the gradient arriving from the future}
+\For{$t = T,\dots,1$} \Comment{backward pass}
+  \State $\bar o_t\gets\hat y_t - e_{y_t}$;\quad $\bar h_t\gets W_{ho}^\top\bar o_t + g$;\quad $\delta_t\gets\bar h_t\odot\phi'(a_t)$
+  \State accumulate $\nabla_{W_{ho}}\mathrel{+}=\bar o_th_t^\top$, $\nabla_{b_o}\mathrel{+}=\bar o_t$, $\nabla_{W_{hh}}\mathrel{+}=\delta_th_{t-1}^\top$, $\nabla_{W_{xh}}\mathrel{+}=\delta_tx_t^\top$, $\nabla_{b_h}\mathrel{+}=\delta_t$
+  \State $g\gets W_{hh}^\top\delta_t$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Cost.} Both passes do $O(T(m^2 + mn + Km))$ operations, as for an MLP of depth $T$. The memory is
+$O(Tm)$ for the stored states, which is what limits the length of the sequences in practice and
+motivates truncation (\cref{rnn-bptt:sec:truncated}). Unlike the layers of an MLP, the time steps
+cannot be computed in parallel: $h_t$ needs $h_{t-1}$.
+
+\section{A worked example}\label{rnn-bptt:sec:example}
+
+\begin{example}[BPTT with $m = 2$, $T = 3$]\label{rnn-bptt:ex:numbers}
+Take $\phi = \tanh$, a scalar input ($n = 1$), $K = 2$ classes, $h_0 = 0$, zero biases and
+\[
+  W_{hh} = \begin{bmatrix}0.5 & -0.3\\ 0.2 & 0.4\end{bmatrix},\qquad
+  W_{xh} = \begin{bmatrix}1\\ -0.5\end{bmatrix},\qquad
+  W_{ho} = \begin{bmatrix}1 & -1\\ 0.5 & 0.5\end{bmatrix},
+\]
+with inputs $x = (1,\ 0.5,\ -1)$ and targets $y = (1,\ 2,\ 1)$. All numbers are rounded to four digits.
+
+\emph{Forward pass.}
+\begin{center}
+\begin{tabular}{c|cccc}
+$t$ & $a_t$ & $h_t$ & $\hat y_t$ & $\ell_t$\\\hline
+$1$ & $(1,\ -0.5)$ & $(0.7616,\ -0.4621)$ & $(0.7454,\ 0.2546)$ & $0.2939$\\
+$2$ & $(1.0194,\ -0.2825)$ & $(0.7696,\ -0.2752)$ & $(0.6895,\ 0.3105)$ & $1.1696$\\
+$3$ & $(-0.5326,\ 0.5438)$ & $(-0.4874,\ 0.4959)$ & $(0.2714,\ 0.7286)$ & $1.3041$
+\end{tabular}
+\end{center}
+For instance $a_2 = W_{hh}h_1 + W_{xh}x_2 = (0.5\cdot0.7616 + 0.3\cdot0.4621 + 0.5,\ 0.2\cdot0.7616 - 0.4\cdot0.4621 - 0.25) = (1.0194,\ -0.2825)$. The
+loss is $L = 2.7675$.
+
+\emph{Backward pass}, from $t = 3$, with $\phi'(a_t) = 1 - h_t^2$:
+\begin{center}
+\begin{tabular}{c|ccc}
+$t$ & $\bar o_t = \hat y_t - e_{y_t}$ & $\bar h_t = W_{ho}^\top\bar o_t + W_{hh}^\top\delta_{t+1}$ & $\delta_t = \bar h_t\odot(1 - h_t^2)$\\\hline
+$3$ & $(-0.7286,\ 0.7286)$ & $(-0.3643,\ 1.0929)$ & $(-0.2778,\ 0.8242)$\\
+$2$ & $(0.6895,\ -0.6895)$ & $(0.3707,\ -0.6212)$ & $(0.1511,\ -0.5742)$\\
+$1$ & $(-0.2546,\ 0.2546)$ & $(-0.1666,\ 0.1070)$ & $(-0.0700,\ 0.0841)$
+\end{tabular}
+\end{center}
+At $t = 2$, the two children contribute $W_{ho}^\top\bar o_2 = (0.3448,\ -1.0343)$ (current loss) and
+$W_{hh}^\top\delta_3 = (0.0259,\ 0.4130)$ (future loss). The second is not small: the second
+coordinate of $h_2$ matters more through $\ell_3$ than through $\ell_2$.
+
+\emph{Gradient of $W_{hh}$.} The contributions $\delta_th_{t-1}^\top$ are
+\[
+  \delta_1h_0^\top = 0,\qquad
+  \delta_2h_1^\top = \begin{bmatrix}0.1151 & -0.0698\\ -0.4373 & 0.2653\end{bmatrix},\qquad
+  \delta_3h_2^\top = \begin{bmatrix}-0.2138 & 0.0765\\ 0.6343 & -0.2268\end{bmatrix},
+\]
+and their sum is
+\[
+  \nabla_{W_{hh}}L = \begin{bmatrix}-0.0987 & 0.0066\\ 0.1970 & 0.0385\end{bmatrix}.
+\]
+The first contribution vanishes because $h_0 = 0$: at the first step, $W_{hh}$ multiplies the zero vector.
+The other gradients are $\nabla_{W_{xh}}L = \sum_t\delta_tx_t = (0.2834,\ -1.0271)$, $\nabla_{b_h}L = (-0.1966,\ 0.3341)$,
+$\nabla_{b_o}L = (-0.2938,\ 0.2938)$ and
+\[
+  \nabla_{W_{ho}}L = \begin{bmatrix}0.6918 & -0.4334\\ -0.6918 & 0.4334\end{bmatrix}.
+\]
+The two rows of $\nabla_{W_{ho}}L$ and the two entries of $\nabla_{b_o}L$ are opposite because $\hat y_{t,1} + \hat y_{t,2} = 1$, so the two
+coordinates of every $\bar o_t$ are opposite.
+\end{example}
+
+Automatic differentiation computes the same numbers from the forward pass alone, which is
+how every gradient of this chapter was checked:
+\begin{lstlisting}[language=Python]
+import torch
+torch.set_default_dtype(torch.float64)
+Whh = torch.tensor([[0.5, -0.3], [0.2, 0.4]], requires_grad=True)
+Wxh = torch.tensor([[1.0], [-0.5]], requires_grad=True)
+Who = torch.tensor([[1.0, -1.0], [0.5, 0.5]], requires_grad=True)
+h, L = torch.zeros(2), 0.0
+for x, y in zip([1.0, 0.5, -1.0], [0, 1, 0]):          # classes numbered from 0
+    h = torch.tanh(Whh @ h + Wxh @ torch.tensor([x]))
+    L = L - torch.log_softmax(Who @ h, dim=0)[y]
+L.backward()
+print(L.item(), Whh.grad)   # 2.7675  [[-0.0987, 0.0066], [0.1970, 0.0385]]
+\end{lstlisting}
+
+\section{Vanishing and exploding gradients}\label{rnn-bptt:sec:vanishing}
+
+By \cref{rnn-bptt:prop:unrolled}, the loss at time $s$ contributes to $\bar h_t$ through the product
+\[
+  \frac{\partial h_s}{\partial h_t} = \prod_{r=s}^{t+1}\diag\bigl(\phi'(a_r)\bigr)\,W_{hh}\qquad(\text{factors ordered from }r = s\text{ on the left to }r = t+1)
+\]
+of $k = s - t$ Jacobians. Products of many matrices tend to shrink or grow exponentially in $k$,
+which was identified as the central difficulty of training RNNs by Hochreiter (diploma
+thesis, 1991) and by Bengio, Simard and Frasconi (\emph{Learning Long-Term Dependencies
+with Gradient Descent is Difficult}, 1994).
+
+\begin{proposition}[A bound on the Jacobian product]\label{rnn-bptt:prop:bound}
+Let $\gamma = \sup_a\abs{\phi'(a)}$ ($\gamma = 1$ for $\tanh$, $\gamma = \tfrac14$ for the logistic sigmoid) and let $s_1 = \norm{W_{hh}}_2$
+be the largest singular value of $W_{hh}$. Then, for $s\geq t$,
+\[
+  \Bigl\|\frac{\partial h_s}{\partial h_t}\Bigr\|_2\leq(\gamma s_1)^{s-t} .
+\]
+\end{proposition}
+
+\begin{proof}
+The spectral norm is submultiplicative, and the norm of a diagonal matrix is the largest
+absolute value of its entries, so $\norm{\diag(\phi'(a_r))W_{hh}}_2\leq\gamma s_1$ for every factor.
+\end{proof}
+
+Two consequences follow, which are the precise form of the statements of
+Pascanu, Mikolov and Bengio (\emph{On the Difficulty of Training Recurrent Neural Networks}, 2013).
+\begin{itemize}
+  \item \textbf{Vanishing.} If $\gamma s_1 < 1$, the contribution of the loss at time $s$ to $\bar h_t$ decreases at least
+        geometrically with the distance $s - t$, whatever the inputs. The gradient then
+        contains almost no information about long-range dependencies, and the network
+        cannot learn them by gradient descent.
+  \item \textbf{Exploding.} The contributions can grow exponentially only if $\gamma s_1 > 1$: this
+        condition is \emph{necessary} for explosion, but not sufficient, because the factors
+        $\phi'(a_r)$ can be much smaller than $\gamma$ when the units saturate.
+\end{itemize}
+Pascanu et al.\ state these conditions with the largest \emph{eigenvalue modulus} of $W_{hh}$ (its
+spectral radius $\rho$). For a symmetric matrix, or more generally a normal one, $\rho = s_1$ and the two
+statements coincide. For a general matrix only $\rho\leq s_1$ holds, and the bound of
+\cref{rnn-bptt:prop:bound} is the one that the argument proves: a matrix whose eigenvalues all
+have modulus smaller than $1$ can still multiply a vector by a large factor for many steps
+before the product decays (\cref{rnn-bptt:exr:nonnormal}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.78\textwidth, height=6cm, xlabel={distance $k = T - t$}, ylabel={$\log_{10}\norm{\partial h_T/\partial h_{T-k}}_2$},
+  xmin=0, xmax=60, ymin=-12, ymax=3, grid=major, grid style={gray!20},
+  legend pos=south west, legend style={font=\scriptsize}, tick label style={font=\scriptsize}, label style={font=\small}]
+\addplot[thick, bookpitfall, mark=none] coordinates {(0,0.00) (3,0.59) (6,0.74) (9,0.86) (12,0.94) (15,1.02) (18,1.04) (21,1.12) (24,1.14) (27,1.22) (30,1.27) (33,1.35) (36,1.41) (39,1.44) (42,1.49) (45,1.52) (48,1.58) (51,1.62) (54,1.69) (57,1.77) (60,2.07)};
+\addlegendentry{$s_1 = 2$}
+\addplot[thick, bookexample, mark=none] coordinates {(0,0.00) (3,-0.05) (6,-0.36) (9,-0.68) (12,-1.07) (15,-1.44) (18,-1.76) (21,-2.09) (24,-2.58) (27,-2.98) (30,-3.41) (33,-3.84) (36,-4.26) (39,-4.67) (42,-5.14) (45,-5.53) (48,-5.92) (51,-6.37) (54,-6.77) (57,-7.18) (60,-7.56)};
+\addlegendentry{$s_1 = 1.1$}
+\addplot[thick, bookaccent, mark=none] coordinates {(0,0.00) (3,-0.28) (6,-0.77) (9,-1.37) (12,-1.91) (15,-2.47) (18,-3.04) (21,-3.63) (24,-4.28) (27,-4.90) (30,-5.52) (33,-6.14) (36,-6.73) (39,-7.38) (42,-8.02) (45,-8.63) (48,-9.27) (51,-9.89) (54,-10.50) (57,-11.08) (60,-11.64)};
+\addlegendentry{$s_1 = 0.9$}
+\end{axis}
+\end{tikzpicture}
+\caption{Norm of the Jacobian product for a $\tanh$ RNN with $m = 50$ units, $W_{hh} = s_1Q$ with $Q$ a random
+orthogonal matrix (all singular values equal $s_1$), random scalar inputs, $T = 60$; average of $\log_{10}$ over
+$20$ networks. With $s_1 = 0.9$ the decay is guaranteed by \cref{rnn-bptt:prop:bound}. With $s_1 = 1.1$ the
+bound allows growth, but saturation ($\phi' < 1$) makes the product vanish anyway. With $s_1 = 2$ it grows.}
+\label{rnn-bptt:fig:vanishing}
+\end{figure}
+
+\begin{pitfall}[What vanishes]
+``The gradient vanishes'' is loose language. The gradient $\nabla_{W_{hh}}L$ is a sum over pairs $(t,s)$
+with $t\leq s$ of terms involving $\partial h_s/\partial h_t$. When the Jacobian products decay, the terms with $s - t$
+large become negligible, and the sum is dominated by the short-range terms, which can
+be perfectly large. The gradient does not vanish; it becomes \emph{blind to long-range
+dependencies}. Gradient descent then improves the short-range predictions and has no
+signal to improve the long-range ones.
+\end{pitfall}
+
+\paragraph{Remedies.} For exploding gradients, \textbf{gradient norm clipping} is simple and
+effective (Pascanu et al., 2013): compute the full gradient $g$ (all parameters together) and,
+if $\norm g > c$ for a threshold $c$, replace it by $c\,g/\norm g$. The direction is kept and only the step
+length is bounded. In PyTorch this is \texttt{torch.nn.utils.clip\_grad\_norm\_(model.parameters(), c)},
+called between \texttt{backward()} and \texttt{step()}. Clipping does nothing against vanishing
+contributions. For those the architecture must change: the gated networks of
+\cref{ch:gated-rnn} add a path through time whose Jacobian is not a product of
+$\diag(\phi')\,W_{hh}$.
+
+\section{Truncated BPTT}\label{rnn-bptt:sec:truncated}
+
+For a very long sequence (a whole book, an hour of audio), storing all the states for one
+backward pass is impossible, and one update per sequence is too few. \emph{Truncated BPTT}
+(Williams and Peng, \emph{An Efficient Gradient-Based Algorithm for On-Line Training
+of Recurrent Network Trajectories}, 1990) cuts the sequence into chunks of length $k$ and processes them in order:
+\begin{itemize}[nosep]
+  \item the forward pass of each chunk starts from the last hidden state of the previous
+        chunk, so the state still carries information from the whole past;
+  \item the backward pass stops at the beginning of the chunk: the incoming state is
+        treated as a constant input;
+  \item the parameters are updated after every chunk.
+\end{itemize}
+The gradient computed for a chunk is therefore the exact gradient of the chunk's losses
+with respect to the parameters \emph{used inside the chunk}, with the initial state fixed. It
+ignores the effect of the parameters on the initial state, so dependencies longer than $k$
+steps receive no gradient. Each chunk costs $O(km)$ memory instead of $O(Tm)$.
+
+\begin{lstlisting}[language=Python]
+h = torch.zeros(batch_size, hidden_size)
+for chunk_x, chunk_y in chunks:                 # consecutive pieces of the sequence
+    h = h.detach()                              # keep the value, cut the graph
+    loss = 0.0
+    for x_t, y_t in zip(chunk_x, chunk_y):
+        h = torch.tanh(x_t @ Wxh.T + h @ Whh.T + bh)
+        loss = loss + F.cross_entropy(h @ Who.T + bo, y_t)
+    optimizer.zero_grad(); loss.backward()
+    torch.nn.utils.clip_grad_norm_(params, max_norm=1.0)
+    optimizer.step()
+\end{lstlisting}
+\texttt{detach()} returns a tensor with the same value and no history: the forward
+computation continues, but the backward pass of the next chunk stops there. Without it, the
+second \texttt{backward()} would try to go back through the graph of the first chunk, which
+has already been freed. (The rows of a mini-batch are vectors, hence $x_tW_{xh}^\top$ instead of
+$W_{xh}x_t$, as in \cref{backpropagation:sec:batch}.)
+
+\section{Appendix: a proof of the chain rule}\label{rnn-bptt:sec:chain-proof}
+
+Everything in this chapter rests on the chain rule (\cref{backpropagation:thm:chain}). We
+prove it, because the most common proof contains a gap.
+
+\begin{theorem}\label{rnn-bptt:thm:chain}
+Let $f:\R^n\to\R^m$ be differentiable at $x$ and $g:\R^m\to\R^p$ differentiable at $y = f(x)$, with Jacobians $A = J_f(x)$
+and $B = J_g(y)$. Then $g\circ f$ is differentiable at $x$ and $J_{g\circ f}(x) = BA$.
+\end{theorem}
+
+\begin{proof}
+Differentiability of $f$ at $x$ means $f(x + v) = f(x) + Av + r(v)$ with $\norm{r(v)}/\norm v\to0$ as $v\to0$. For $g$, define
+\[
+  \varepsilon(k) = \frac{g(y + k) - g(y) - Bk}{\norm k}\quad(k\neq0),\qquad\varepsilon(0) = 0,
+\]
+so that $g(y + k) = g(y) + Bk + \norm k\,\varepsilon(k)$ holds for \emph{every} $k$, including $k = 0$, and $\varepsilon(k)\to0 = \varepsilon(0)$
+as $k\to0$: $\varepsilon$ is continuous at $0$. Put $k(v) = f(x + v) - f(x) = Av + r(v)$. Then
+\[
+  g(f(x + v)) = g(y + k(v)) = g(y) + BAv + \underbrace{Br(v) + \norm{k(v)}\,\varepsilon(k(v))}_{R(v)} ,
+\]
+and it remains to show $\norm{R(v)}/\norm v\to0$. First, $\norm{Br(v)}/\norm v\leq\norm B\,\norm{r(v)}/\norm v\to0$. Second,
+\[
+  \frac{\norm{k(v)}}{\norm v}\leq\norm A + \frac{\norm{r(v)}}{\norm v},
+\]
+which is \emph{bounded} for small $v$ (it need not converge), and $k(v)\to0$ as $v\to0$, so $\varepsilon(k(v))\to0$ by
+continuity of $\varepsilon$ at $0$. A bounded quantity times one that tends to $0$ tends to $0$.
+\end{proof}
+
+The gap of the usual proof is the division by $\norm{k(v)}$: one writes the remainder of $g$ as
+$\norm k\,\varepsilon(k)$ only for $k\neq0$, and $k(v) = f(x + v) - f(x)$ can be $0$ for $v\neq0$ arbitrarily close to $0$ (take $f$
+constant). Defining $\varepsilon(0) = 0$ removes the problem. A second, related mistake is to claim
+that $\norm{k(v)}/\norm v$ tends to $\norm{Av}/\norm v$ or to $\norm A$: it does not converge in general (it depends on the
+direction of $v$), and only its boundedness is needed.
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item An RNN applies the same affine map and activation at every step,
+        $h_t = \phi(W_{hh}h_{t-1} + W_{xh}x_t + b_h)$; $h_t$ is a fixed-size summary of $x_{1:t}$ and the number of parameters
+        does not depend on the length.
+  \item Unrolled, the RNN is a computational graph with shared weights. Backpropagation on it
+        (BPTT) gives $\bar h_t = W_{ho}^\top\bar o_t + W_{hh}^\top\delta_{t+1}$, $\delta_t = \bar h_t\odot\phi'(a_t)$, and parameter gradients that are
+        sums over time, such as $\nabla_{W_{hh}}L = \sum_t\delta_th_{t-1}^\top$.
+  \item $\bar h_t$ is a \emph{total} derivative; the loss at time $s$ reaches $h_t$ through the product of
+        $s - t$ Jacobians $\diag(\phi'(a_r))W_{hh}$.
+  \item $\norm{\partial h_s/\partial h_t}_2\leq(\gamma s_1)^{s-t}$: if $\gamma s_1 < 1$ the long-range contributions vanish
+        geometrically; $\gamma s_1 > 1$ is necessary, not sufficient, for explosion. Singular values, not
+        eigenvalues, control the bound.
+  \item Gradient norm clipping bounds exploding steps; truncated BPTT bounds memory and
+        ignores dependencies longer than the chunk; vanishing contributions call for gated
+        architectures.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{rnn-bptt:exr:1}
+An RNN reads sequences of $100$-dimensional word vectors with $m = 128$ hidden units and
+predicts one of $K = 10$ tags at every step. Count its parameters. How many would an MLP with
+one hidden layer of $128$ units need to read sentences of $50$ words at once and output
+$50$ tags?
+\solutionlink{rnn-bptt:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{rnn-bptt:exr:2}
+In a many-to-one RNN, the loss is $L = \ell_T$ only. Write the BPTT recursion and the
+gradient of $W_{ho}$. Express $\bar h_t$ with the Jacobian products.
+\solutionlink{rnn-bptt:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{rnn-bptt:exr:3}
+In \cref{rnn-bptt:ex:numbers}, recompute $\bar h_3$ and $\delta_3$ from $\hat y_3$ and $h_3$, and check the
+contribution $\delta_3h_2^\top$.
+\solutionlink{rnn-bptt:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{rnn-bptt:exr:nonnormal}
+Let $W = \begin{bmatrix}0.5 & 3\\ 0 & 0.5\end{bmatrix}$ and consider the linear RNN $h_t = Wh_{t-1}$ (so $\partial h_s/\partial h_t = W^{s-t}$). Give the
+eigenvalues of $W$, prove that $W^k = \begin{bmatrix}0.5^k & 6k\,0.5^k\\ 0 & 0.5^k\end{bmatrix}$, and compute the largest entry of $W^k$ for
+$k = 1,\dots,5$. What does this say about the eigenvalue condition for vanishing gradients?
+\hint{Write $W = 0.5(I + N)$ with $N^2 = 0$.}
+\solutionlink{rnn-bptt:exr:nonnormal}
+\end{exercise}
+
+\begin{exercise}\label{rnn-bptt:exr:5}
+Truncated BPTT with chunks of length $k = 1$. Show that the computed gradient of $W_{hh}$ is
+$\sum_t\bigl((W_{ho}^\top\bar o_t)\odot\phi'(a_t)\bigr)h_{t-1}^\top$. Which term of \cref{rnn-bptt:prop:unrolled} is kept?
+\solutionlink{rnn-bptt:exr:5}
+\end{exercise}
+
+\begin{exercise}\label{rnn-bptt:exr:6}
+Let $f:\R\to\R^2$, $f(v) = (v^2\sin(1/v),\,0)$ for $v\neq0$, $f(0) = 0$. Show that $f$ is differentiable at $0$ with $J_f(0) = 0$, that $k(v) = f(v) - f(0)$
+vanishes for $v = 1/(j\pi)$, $j\in\N^*$, and explain why this example defeats a proof of the chain rule that
+divides by $\norm{k(v)}$.
+\solutionlink{rnn-bptt:exr:6}
+\end{exercise}
+\end{notechapter}

@@ -1,0 +1,339 @@
+\begin{notechapter}
+\chapter{Gated Recurrent Networks: LSTM and GRU}\label{ch:gated-rnn}
+\chaptersubtitle{An additive path through time, opened and closed by learned gates}
+
+\begin{chapterintro}
+In a simple RNN, the loss at time $s$ reaches the state at time $t$ through a product of $s - t$
+Jacobians $\diag(\phi'(a_r))\,W_{hh}$, and such products usually shrink exponentially
+(\cref{rnn-bptt:sec:vanishing}). The long short-term memory (LSTM) adds a second state, the
+\emph{cell}, which is updated by addition instead of by a matrix product followed by a
+squashing function. Along the cell, the Jacobian of one step is a diagonal matrix of
+learned ``forget'' values, which the network can keep close to $1$. The gated recurrent unit (GRU)
+obtains the same effect with a single state. You will learn
+\begin{itemize}[nosep]
+  \item the LSTM equations, the role of each gate, and the shapes and parameter count of
+        a PyTorch \texttt{nn.LSTM};
+  \item the Jacobian of the cell update, the ``constant error carousel'', and what is
+        and is not approximated when it is said that LSTMs do not suffer from vanishing
+        gradients;
+  \item a two-step numerical example, and why the forget-gate bias sets the memory time;
+  \item the GRU, and the two different conventions in which it is written;
+  \item how to check a hand-written cell against the library.
+\end{itemize}
+\prerequisites{\cref{ch:rnn-bptt}; the logistic sigmoid (\cref{ch:sigmoid-softmax}).}
+\end{chapterintro}
+
+\section{The idea: an additive memory}\label{gated-rnn:sec:idea}
+
+Suppose the state were updated by \emph{adding} something to it, $c_t = c_{t-1} + u_t$, where $u_t$
+does not depend on $c_{t-1}$. Then $\partial c_t/\partial c_{t-1} = I$, and a gradient arriving at $c_s$ reaches $c_t$
+unchanged, however large $s - t$ is. Hochreiter and Schmidhuber (\emph{Long Short-Term Memory}, 1997), in the paper that introduced
+the LSTM, called this identity path the \emph{constant error carousel}. A pure accumulator is useless,
+however: it can never forget, and every input is written into it. The LSTM therefore puts
+three multiplicative \emph{gates} around it, each a vector of numbers in $(0,1)$ computed from the
+current input and the previous output:
+\begin{itemize}[nosep]
+  \item the \textbf{input gate} decides how much of the new candidate content is written;
+  \item the \textbf{forget gate} decides how much of the old cell is kept;
+  \item the \textbf{output gate} decides how much of the cell is exposed to the rest of
+        the network.
+\end{itemize}
+The original LSTM of 1997 had input and output gates only; the forget gate was added by
+Gers, Schmidhuber and Cummins (\emph{Learning to Forget: Continual Prediction with LSTM},
+2000), and the version with forget gate is the one used today.
+
+\section{The LSTM equations}\label{gated-rnn:sec:lstm}
+
+\begin{definition}[LSTM cell]\label{gated-rnn:def:lstm}
+Let $x_t\in\R^n$ be the input, and $h_{t-1}\in\R^m$, $c_{t-1}\in\R^m$ the previous output and cell (both $0$ at $t = 0$
+by default). With $\sigma$ the logistic sigmoid, applied coordinatewise,
+\begin{align*}
+  i_t &= \sigma(W_{ii}x_t + W_{hi}h_{t-1} + b_i) &&\text{(input gate)}\\
+  f_t &= \sigma(W_{if}x_t + W_{hf}h_{t-1} + b_f) &&\text{(forget gate)}\\
+  g_t &= \tanh(W_{ig}x_t + W_{hg}h_{t-1} + b_g) &&\text{(candidate content)}\\
+  o_t &= \sigma(W_{io}x_t + W_{ho}h_{t-1} + b_o) &&\text{(output gate)}\\
+  c_t &= f_t\odot c_{t-1} + i_t\odot g_t &&\text{(cell)}\\
+  h_t &= o_t\odot\tanh(c_t) &&\text{(output, or hidden state)}
+\end{align*}
+with $W_{i\bullet}\in\R^{m\times n}$, $W_{h\bullet}\in\R^{m\times m}$ and $b_\bullet\in\R^m$.
+\end{definition}
+
+The four pre-activations are four affine maps of the same vector $(x_t, h_{t-1})$, so they are
+computed by one matrix product with the stacked weights
+\[
+  \begin{bmatrix}W_{ii} & W_{hi}\\ W_{if} & W_{hf}\\ W_{ig} & W_{hg}\\ W_{io} & W_{ho}\end{bmatrix}\in\R^{4m\times(n+m)},
+\]
+which is how libraries store them. The cell has $4m(n + m + 1)$ parameters. PyTorch keeps two bias vectors,
+\texttt{bias\_ih} and \texttt{bias\_hh}, which are simply added, so \texttt{nn.LSTM} reports
+$4m(n + m + 2)$: one of the two is redundant. Its stacking order is $(i, f, g, o)$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  op/.style={draw, circle, inner sep=0pt, minimum size=5.5mm, fill=white, font=\small},
+  gate/.style={draw, rounded corners=2pt, minimum width=8mm, minimum height=6mm, font=\scriptsize, fill=bookaccent!15},
+  tn/.style={draw, rounded corners=2pt, minimum width=8mm, minimum height=6mm, font=\scriptsize, fill=bookexample!20},
+  ar/.style={-{Stealth[length=1.8mm]}, thick},
+  lab/.style={font=\scriptsize, inner sep=1pt}]
+  \fill[gray!6, rounded corners=6pt] (-0.4,-0.6) rectangle (8.4,3.9);
+  % cell line
+  \node (cin) at (-1.3,3.2) {$c_{t-1}$};
+  \node[op] (mf) at (1.5,3.2) {$\times$};
+  \node[op] (pl) at (4.0,3.2) {$+$};
+  \node (cout) at (9.5,3.2) {$c_t$};
+  \draw[ar, line width=1.4pt, bookpitfall!80!black] (cin) -- (mf);
+  \draw[ar, line width=1.4pt, bookpitfall!80!black] (mf) -- (pl);
+  \draw[ar, line width=1.4pt, bookpitfall!80!black] (pl) -- (cout);
+  % gates
+  \node[gate] (f) at (1.5,0.6) {$\sigma$};
+  \node[gate] (i) at (3.0,0.6) {$\sigma$};
+  \node[tn] (g) at (4.5,0.6) {$\tanh$};
+  \node[gate] (o) at (6.0,0.6) {$\sigma$};
+  \node[lab, left=1pt of f] {$f_t$};
+  \node[lab, left=1pt of i] {$i_t$};
+  \node[lab, left=1pt of g] {$g_t$};
+  \node[lab, left=1pt of o] {$o_t$};
+  \node[op] (mi) at (3.75,1.9) {$\times$};
+  \draw[ar] (f) -- (mf);
+  \draw[ar] (i) |- (mi); \draw[ar] (g) |- (mi);
+  \draw[ar] (mi) -- (pl);
+  \node[tn] (tc) at (7.2,2.4) {$\tanh$};
+  \draw[ar] (7.2,3.2) -- (tc);
+  \node[op] (mo) at (7.2,1.2) {$\times$};
+  \draw[ar] (tc) -- (mo); \draw[ar] (o) -- (mo);
+  \node (hout) at (9.5,1.2) {$h_t$};
+  \draw[ar] (mo) -- (hout);
+  % inputs
+  \node (hin) at (-1.3,-0.2) {$h_{t-1}$};
+  \node (xin) at (0.2,-1.3) {$x_t$};
+  \draw[thick] (hin) -- (0.2,-0.2);
+  \draw[thick] (xin) -- (0.2,-0.2) -- (6.0,-0.2);
+  \foreach \n in {f,i,g,o} \draw[ar] (\n|- 0,-0.2) -- (\n);
+  \draw[ar] (8.0,1.2) -- (8.0,-1.0) node[below, lab]{to the next step and to the output layer};
+\end{tikzpicture}
+\caption{The LSTM cell. The thick line is the cell path: one coordinatewise multiplication by $f_t$
+and one addition per step, with no weight matrix and no squashing function. The gates (blue)
+and the candidate (green) are computed from $(x_t, h_{t-1})$.}
+\label{gated-rnn:fig:lstm}
+\end{figure}
+
+\paragraph{Reading the equations.} Each coordinate of the cell is a leaky accumulator:
+$c_{t,j} = f_{t,j}\,c_{t-1,j} + i_{t,j}\,g_{t,j}$. With $f_{t,j} = 1$ and $i_{t,j} = 0$ the value is kept exactly; with $f_{t,j} = 0$ and
+$i_{t,j} = 1$ it is overwritten by $g_{t,j}\in(-1,1)$. Between the two, it decays geometrically and absorbs
+new content. The output $h_t$ is a gated, squashed view of the cell; it is what the next
+step's gates see and what the output layer uses. The cell itself never leaves the unit.
+
+\section{The gradient along the cell}\label{gated-rnn:sec:gradient}
+
+In the unrolled graph, $c_{t-1}$ has two children: $c_t$ (through the product $f_t\odot c_{t-1}$) and $h_{t-1}$
+(through $\tanh(c_{t-1})$), and $h_{t-1}$ in turn feeds the four gates of step $t$.
+
+\begin{proposition}[Local Jacobian of the cell update]\label{gated-rnn:prop:cell}
+With $h_{t-1}$ and $x_t$ held fixed (so that $f_t$, $i_t$, $g_t$ are fixed),
+\[
+  \frac{\partial c_t}{\partial c_{t-1}} = \diag(f_t) .
+\]
+The total derivative of $c_t$ with respect to $c_{t-1}$ adds the paths through $h_{t-1}$:
+\begin{multline*}
+  \frac{dc_t}{dc_{t-1}} = \diag(f_t) + \Bigl(\diag(c_{t-1})\frac{\partial f_t}{\partial h_{t-1}} + \diag(g_t)\frac{\partial i_t}{\partial h_{t-1}}
+  + \diag(i_t)\frac{\partial g_t}{\partial h_{t-1}}\Bigr)\\
+  \cdot\diag(o_{t-1})\diag\bigl(1 - \tanh^2(c_{t-1})\bigr),
+\end{multline*}
+where, for instance, $\partial f_t/\partial h_{t-1} = \diag\bigl(f_t\odot(1 - f_t)\bigr)W_{hf}$.
+\end{proposition}
+
+\begin{proof}
+The first formula: $c_t = f_t\odot c_{t-1} + i_t\odot g_t$ is linear in $c_{t-1}$ with diagonal coefficient $f_t$ when the gates
+are fixed. For the second, $f_t$, $i_t$, $g_t$ depend on $c_{t-1}$ only through $h_{t-1} = o_{t-1}\odot\tanh(c_{t-1})$, in which $o_{t-1}$
+does not depend on $c_{t-1}$; the product rule on each term of $c_t$ and the chain rule through $h_{t-1}$ give the
+bracket.
+\end{proof}
+
+The first term is the constant error carousel: along the cell path alone, the loss at
+time $s$ reaches $c_t$ through
+\[
+  \diag(f_s)\diag(f_{s-1})\cdots\diag(f_{t+1}) = \diag\bigl(f_s\odot f_{s-1}\odot\cdots\odot f_{t+1}\bigr),
+\]
+a product of numbers, coordinate by coordinate, with no matrix $W_{hh}$ and no factor $\phi'$. If the
+network keeps $f\approx1$ on a coordinate, this product stays close to $1$ over long distances, and
+the gradient carries information about long-range dependencies.
+
+\begin{pitfall}[``LSTMs have no vanishing gradient'']
+This statement is too strong, in two ways.
+\begin{itemize}[nosep]
+  \item Along the cell path, the factor is $\prod f$. It is close to $1$ only on the coordinates and
+        time spans where the network has \emph{learned} to keep its forget gates open. On the
+        others the contributions vanish, by design: forgetting is the purpose of the gate.
+  \item The total Jacobian of \cref{gated-rnn:prop:cell} also contains the paths through $h_{t-1}$, which
+        are products of weight matrices and sigmoid derivatives, exactly like those of the
+        simple RNN. These paths can vanish or explode; the cell path does not remove them,
+        it adds a well-behaved path next to them. The original LSTM went further and
+        \emph{truncated} the gradient through the gates, so that only the carousel carried
+        errors through time (Hochreiter and Schmidhuber, 1997); modern implementations compute the
+        full gradient.
+\end{itemize}
+The precise statement is: the LSTM \emph{can} propagate gradient information over long
+distances along the coordinates where its forget gates are near $1$.
+\end{pitfall}
+
+\section{A worked example: memory time}\label{gated-rnn:sec:example}
+
+\begin{example}[A scalar LSTM remembers a pulse]\label{gated-rnn:ex:memory}
+Take $m = n = 1$, all recurrent weights $W_{h\bullet} = 0$ (so the gates depend only on $x_t$), input weights
+$W_{ii} = W_{ig} = W_{io} = 1$, $W_{if} = 0$, biases $b_i = b_g = b_o = 0$, a forget bias $b_f$, and the input sequence
+$x = (1, 0, 0, \dots)$: a pulse followed by silence.
+
+\emph{Step $1$.} $i_1 = \sigma(1) = 0.7311$, $g_1 = \tanh(1) = 0.7616$, $o_1 = \sigma(1) = 0.7311$, and $c_0 = 0$, so
+\[
+  c_1 = i_1g_1 = 0.5568,\qquad h_1 = o_1\tanh(c_1) = 0.7311\times0.5055 = 0.3696 .
+\]
+\emph{Steps $t\geq2$.} $x_t = 0$ gives $g_t = \tanh(0) = 0$, so nothing is written, and $f_t = \sigma(b_f)$ is constant: the cell
+decays geometrically, $c_t = \sigma(b_f)^{t-1}c_1$, while $h_t = \sigma(0)\tanh(c_t) = 0.5\tanh(c_t)$. With $b_f = 2$, $f = 0.8808$:
+$c_2 = 0.4904$, $h_2 = 0.2273$, and after five more steps $c_7 = 0.2600$.
+
+\emph{Memory time.} The half-life of the cell, the number of steps after which half of the
+pulse is left, is $\tau_{1/2} = \ln2/(-\ln\sigma(b_f))$:
+\begin{center}
+\begin{tabular}{c|cccc}
+$b_f$ & $0$ & $1$ & $2$ & $3$\\\hline
+$f = \sigma(b_f)$ & $0.5$ & $0.7311$ & $0.8808$ & $0.9526$\\
+$\tau_{1/2}$ (steps) & $1.00$ & $2.21$ & $5.46$ & $14.27$
+\end{tabular}
+\end{center}
+The same factor $f^{s-t}$ multiplies the gradient along the cell from step $s$ back to step $t$.
+\end{example}
+
+The example explains a practical rule. With the usual initialization, all biases are near $0$,
+so every forget gate starts near $\sigma(0) = 0.5$: the cell halves at every step, and the
+carousel is no better than a simple RNN at the start of training.
+Jozefowicz, Zaremba and Sutskever (\emph{An Empirical Exploration of Recurrent Network
+Architectures}, 2015) found that initializing the forget bias to $1$ (an idea already in
+Gers et al., 2000) substantially improves the LSTM, enough to close its gap with the GRU on
+their benchmarks, and they recommend it for every LSTM. PyTorch does not do it by default;
+with its stacking order $(i, f, g, o)$ the forget slice of each bias vector is the second
+quarter:
+\begin{lstlisting}[language=Python]
+lstm = torch.nn.LSTM(input_size=n, hidden_size=m)
+with torch.no_grad():
+    for name, b in lstm.named_parameters():
+        if name.startswith("bias_ih"):        # bias_ih and bias_hh are added:
+            b[m:2 * m].fill_(1.0)              # set one of them, zero the other
+        elif name.startswith("bias_hh"):
+            b[m:2 * m].fill_(0.0)
+\end{lstlisting}
+
+\section{The gated recurrent unit}\label{gated-rnn:sec:gru}
+
+The GRU (Cho et al., \emph{Learning Phrase Representations using RNN
+Encoder--Decoder for Statistical Machine Translation}, 2014) merges cell and output into a single state and the input and
+forget gates into a single \emph{update gate}.
+
+\begin{definition}[GRU, PyTorch convention]\label{gated-rnn:def:gru}
+\begin{align*}
+  r_t &= \sigma(W_{ir}x_t + b_{ir} + W_{hr}h_{t-1} + b_{hr}) &&\text{(reset gate)}\\
+  z_t &= \sigma(W_{iz}x_t + b_{iz} + W_{hz}h_{t-1} + b_{hz}) &&\text{(update gate)}\\
+  n_t &= \tanh\bigl(W_{in}x_t + b_{in} + r_t\odot(W_{hn}h_{t-1} + b_{hn})\bigr) &&\text{(candidate)}\\
+  h_t &= (1 - z_t)\odot n_t + z_t\odot h_{t-1} .
+\end{align*}
+\end{definition}
+
+The last line is a convex combination, coordinate by coordinate, of the old state and the
+candidate. With $h_{t-1}$ held fixed in the gates, $\partial h_t/\partial h_{t-1}$ contains the diagonal term $\diag(z_t)$: $z_t$
+plays the role of the LSTM forget gate, and $1 - z_t$ that of its input gate, which are thus tied.
+The reset gate decides how much of the old state enters the candidate. The GRU has $3m(n + m + 1)$
+parameters ($3m(n + m + 2)$ as counted by PyTorch), three quarters of an LSTM of the same width.
+
+\begin{pitfall}[Two GRUs]
+The original paper writes the update as $h_t = z_t\odot h_{t-1} + (1 - z_t)\odot\tilde h_t$ with
+$\tilde h_t = \tanh\bigl(Wx_t + U(r_t\odot h_{t-1})\bigr)$: the reset gate is applied to $h_{t-1}$ \emph{before} the matrix $U$.
+PyTorch (and cuDNN) apply it \emph{after}, $r_t\odot(W_{hn}h_{t-1} + b_{hn})$. The two are different functions,
+since $U(r\odot h)\neq r\odot(Uh)$ in general (\cref{gated-rnn:exr:gru}); the second lets the product $W_{hn}h_{t-1}$ be computed
+together with the other two gates in one matrix product. Other texts also swap $z_t$ and $1 - z_t$.
+Weights trained in one convention cannot be loaded into the other.
+\end{pitfall}
+
+\paragraph{LSTM or GRU?} Neither dominates. Chung et al.\ (\emph{Empirical Evaluation of Gated Recurrent Neural
+Networks on Sequence Modeling}, 2014) found the two gated units
+clearly better than the simple RNN and comparable to each other on music and speech
+modelling. In the large architecture search of Jozefowicz et al., the GRU outperformed
+the LSTM with default initialization on all tasks except language modelling, the LSTM with
+forget bias $1$ nearly matched it, and no architecture consistently beat both.
+
+\section{Checking a cell against the library}\label{gated-rnn:sec:check}
+
+Library implementations hide the stacking and bias conventions. Writing the cell by hand
+and comparing on random inputs removes any doubt; this check passes for the LSTM of
+\cref{gated-rnn:def:lstm} and the GRU of \cref{gated-rnn:def:gru}:
+\begin{lstlisting}[language=Python]
+import torch
+torch.set_default_dtype(torch.float64); torch.manual_seed(1)
+n, m, T = 3, 4, 5
+lstm = torch.nn.LSTM(n, m)                    # input of shape (T, batch, n)
+x = torch.randn(T, 1, n)
+W, U = lstm.weight_ih_l0, lstm.weight_hh_l0   # shapes (4m, n) and (4m, m)
+b = lstm.bias_ih_l0 + lstm.bias_hh_l0
+h, c, outs = torch.zeros(m), torch.zeros(m), []
+for t in range(T):
+    i, f, g, o = (W @ x[t, 0] + U @ h + b).chunk(4)  # stacking order (i, f, g, o)
+    i, f, g, o = i.sigmoid(), f.sigmoid(), g.tanh(), o.sigmoid()
+    c = f * c + i * g
+    h = o * c.tanh()
+    outs.append(h)
+y, (h_n, c_n) = lstm(x)
+print(torch.allclose(torch.stack(outs), y[:, 0]))          # True
+print(sum(p.numel() for p in lstm.parameters()))           # 144 = 4*4*(3+4+2)
+\end{lstlisting}
+The module returns \texttt{y}, the outputs $h_1,\dots,h_T$ of the last layer, and the final pair
+$(h_T, c_T)$. By default the time axis comes first, shape $(T, \text{batch}, n)$; \texttt{batch\_first=True}
+changes this. With \texttt{num\_layers=2}, the outputs $h_t$ of the first layer are the inputs $x_t$ of the
+second.
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item The LSTM adds a cell $c_t = f_t\odot c_{t-1} + i_t\odot g_t$ to the recurrent state; three sigmoid gates control
+        forgetting, writing and reading, and $h_t = o_t\odot\tanh(c_t)$.
+  \item With the gates held fixed, $\partial c_t/\partial c_{t-1} = \diag(f_t)$: along the cell, the gradient is multiplied by
+        products of forget values, not by products of $\diag(\phi')W_{hh}$. This is the constant error carousel.
+  \item The total Jacobian also contains paths through the gates, which behave like those of a
+        simple RNN; the LSTM does not abolish vanishing gradients, it adds a path that can avoid
+        them where the forget gates are open.
+  \item The forget bias sets the memory time, $\tau_{1/2} = \ln2/(-\ln\sigma(b_f))$; initializing it to $1$ is
+        recommended.
+  \item The GRU interpolates $h_t = (1 - z_t)\odot n_t + z_t\odot h_{t-1}$, with $3/4$ of the LSTM's parameters; its
+        original and PyTorch forms differ in where the reset gate is applied.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{gated-rnn:exr:1}
+Count the parameters of an LSTM layer and of a GRU layer with $n = 100$ inputs and $m = 256$
+units, with one bias vector per gate, then as PyTorch counts them.
+\solutionlink{gated-rnn:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{gated-rnn:exr:2}
+Suppose that $f_t = 1$ and $i_t = 0$ (coordinatewise) for $t = 2,\dots,T$. Show that $c_T = c_1$, and that
+$\partial c_T/\partial c_1$ computed along the cell path is the identity. What does $h_T$ depend on?
+\solutionlink{gated-rnn:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{gated-rnn:exr:3}
+In \cref{gated-rnn:ex:memory}, which forget bias gives a half-life of $50$ steps? What is the forget value
+$f$, and the factor $f^{50}$ applied to the gradient along the cell over $50$ steps?
+\solutionlink{gated-rnn:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{gated-rnn:exr:4}
+Show that a GRU (PyTorch convention) with $z_t = 0$ and $r_t = 1$ for all $t$ is a simple RNN. Which
+weights and activation does it have?
+\solutionlink{gated-rnn:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{gated-rnn:exr:gru}
+Let $U = \begin{bmatrix}1 & 1\\ 0 & 1\end{bmatrix}$, $h = (1, 1)$ and $r = (1, 0)$. Compute $U(r\odot h)$ and $r\odot(Uh)$. Conclude that the original and
+the PyTorch GRU are different functions.
+\solutionlink{gated-rnn:exr:gru}
+\end{exercise}
+\end{notechapter}

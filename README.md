@@ -7,7 +7,7 @@ graph neural networks.
 
 The notes started as ~100 standalone LaTeX documents, Markdown files and
 notebooks. They are organised here as a single LaTeX book (11 parts,
-71 chapters and three appendices, ~760 pages), with the accompanying code and notebooks.
+72 chapters and three appendices, ~760 pages), with the accompanying code and notebooks.
 
 **[📕 Download the PDF](https://github.com/CL-BZH/ml-notes-book/releases/latest/download/Notes_on_Machine_Learning.pdf)**
 
@@ -81,41 +81,42 @@ notebooks. They are organised here as a single LaTeX book (11 parts,
 
 **Part VIII — Recurrent Networks**
 
-46. Gradient Computation in RNNs
-47. From the Chain Rule to Backpropagation Through Time
-48. Long Short-Term Memory
+46. Recurrent Networks and Backpropagation Through Time
+47. Gated Recurrent Networks: LSTM and GRU
+48. Bidirectional RNNs and Autoregressive Sequence Models
+49. Case Study: Deep Kalman Filters
 
 **Part IX — Language Modeling and Structured Prediction**
 
-49. Bigram Language Modeling with Multinomial Logistic Regression
-50. Bigram Logistic Regression: Loss and Gradient
-51. A One-Hidden-Layer Neural Bigram Model
-52. Word Embeddings
-53. Hierarchical Softmax and Huffman Trees
-54. Noise Contrastive Estimation and Negative Sampling
-55. Structured Prediction
-56. The Viterbi Algorithm for Part-of-Speech Tagging
-57. Conditional Random Fields for Part-of-Speech Tagging
+50. Bigram Language Modeling with Multinomial Logistic Regression
+51. Bigram Logistic Regression: Loss and Gradient
+52. A One-Hidden-Layer Neural Bigram Model
+53. Word Embeddings
+54. Hierarchical Softmax and Huffman Trees
+55. Noise Contrastive Estimation and Negative Sampling
+56. Structured Prediction
+57. The Viterbi Algorithm for Part-of-Speech Tagging
+58. Conditional Random Fields for Part-of-Speech Tagging
 
 **Part X — Contrastive and Self-Supervised Learning**
 
-58. Contrastive Learning: An Overview
-59. Contrastive Learning: A Mathematical Treatment
+59. Contrastive Learning: An Overview
+60. Contrastive Learning: A Mathematical Treatment
 
 **Part XI — Machine Learning on Graphs**
 
-60. The Laplacian, Local Averages and Graphs
-61. From Harmonic Functions to Graph Laplacians
-62. Graph Laplacians and Spectral Methods
-63. A Unified View of Spectral Decomposition
-64. Fourier Analysis
-65. From the DFT to Graph Neural Networks
-66. Random-Walk Node Similarity
-67. The Leicht–Holme–Newman Similarity
-68. Reproducing Kernel Hilbert Spaces
-69. Semi-Supervised Learning on Graphs
-70. Shallow Graph Embedding Methods
-71. Graph Autoencoders
+61. The Laplacian, Local Averages and Graphs
+62. From Harmonic Functions to Graph Laplacians
+63. Graph Laplacians and Spectral Methods
+64. A Unified View of Spectral Decomposition
+65. Fourier Analysis
+66. From the DFT to Graph Neural Networks
+67. Random-Walk Node Similarity
+68. The Leicht–Holme–Newman Similarity
+69. Reproducing Kernel Hilbert Spaces
+70. Semi-Supervised Learning on Graphs
+71. Shallow Graph Embedding Methods
+72. Graph Autoencoders
 
 **Appendices**
 

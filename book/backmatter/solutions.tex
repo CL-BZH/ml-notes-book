@@ -1399,3 +1399,153 @@ adapted to the test distribution, which a real deployment cannot do, so the test
 longer measures generalization to unseen data. The effect is small for PCA with many
 examples, and large for supervised steps (feature selection using labels); the cure is
 the same: split first, fit every step on the training part only.
+
+\section{\nameref*{ch:rnn-bptt}}
+
+\solution{rnn-bptt:exr:1}
+The RNN has $m^2 + mn + m + Km + K = 16\,384 + 12\,800 + 128 + 1\,280 + 10 = 30\,602$ parameters, whatever the length of the
+sentence. The MLP reads $50\times100 = 5\,000$ numbers: its hidden layer has $5\,000\cdot128 + 128 = 640\,128$ parameters and
+its output layer, $50\times10 = 500$ scores, has $128\cdot500 + 500 = 64\,500$, in total $704\,628$, twenty-three times more. It
+also cannot read a sentence of $51$ words, and what it learns about a word at position $3$ does
+not transfer to position $30$.
+
+\solution{rnn-bptt:exr:2}
+Only $o_T$ receives a gradient: $\bar o_T = \hat y_T - e_{y_T}$ and $\bar o_t = 0$ for $t<T$. Hence $\bar h_T = W_{ho}^\top\bar o_T$, $\bar h_t = W_{hh}^\top\delta_{t+1}$ for $t<T$,
+$\delta_t = \bar h_t\odot\phi'(a_t)$, $\nabla_{W_{ho}}L = \bar o_Th_T^\top$, $\nabla_{b_o}L = \bar o_T$, and the formulas for $W_{hh}$, $W_{xh}$, $b_h$ are unchanged. By
+\cref{rnn-bptt:prop:unrolled} with a single non-zero $\bar o_s$, $\bar h_t = (\partial h_T/\partial h_t)^\top W_{ho}^\top\bar o_T$: every gradient
+signal must travel from the last step, which makes many-to-one tasks with long sequences
+especially sensitive to vanishing contributions.
+
+\solution{rnn-bptt:exr:3}
+$\bar o_3 = (0.2714 - 1,\ 0.7286) = (-0.7286,\ 0.7286)$ and, with $W_{ho}^\top = \bigl[\begin{smallmatrix}1 & 0.5\\ -1 & 0.5\end{smallmatrix}\bigr]$,
+\[
+  \bar h_3 = W_{ho}^\top\bar o_3 = (-0.7286 + 0.3643,\ 0.7286 + 0.3643) = (-0.3643,\ 1.0929)
+\]
+(no future term at $t = T$). Then $1 - h_3^2 = (1 - 0.2376,\ 1 - 0.2459) = (0.7624,\ 0.7541)$ and $\delta_3 = (-0.2778,\ 0.8242)$. Finally
+$\delta_3h_2^\top$ has rows $-0.2778\,(0.7696,\ -0.2752) = (-0.2138,\ 0.0765)$ and $0.8242\,(0.7696,\ -0.2752) = (0.6343,\ -0.2268)$.
+
+\solution{rnn-bptt:exr:nonnormal}
+$W$ is triangular, so its eigenvalues are its diagonal entries, $0.5$ twice: the spectral radius is $0.5$. Write
+$W = 0.5(I + N)$ with $N = \bigl[\begin{smallmatrix}0 & 6\\ 0 & 0\end{smallmatrix}\bigr]$; $N^2 = 0$ and $I$ commutes with $N$, so the binomial formula gives $(I + N)^k = I + kN$ and
+$W^k = 0.5^k(I + kN)$, the stated matrix. Its largest entry $6k\,0.5^k$ is $3,\ 3,\ 2.25,\ 1.5,\ 0.9375$ for $k = 1,\dots,5$. The products stay
+above $1$ for four steps although every eigenvalue has modulus $0.5$: the eigenvalue condition
+does not control the transient behaviour. The singular values of $W$ are $3.081$ and $0.081$, so $s_1 > 1$ and
+\cref{rnn-bptt:prop:bound} allows the growth. In the long run $6k\,0.5^k\to0$, as the spectral radius predicts.
+
+\solution{rnn-bptt:exr:5}
+Each chunk is one step $t$, with $h_{t-1}$ a constant and the single loss $\ell_t$. In that chunk $h_t$ has only the child $o_t$,
+so $\bar h_t = W_{ho}^\top\bar o_t$, $\delta_t = (W_{ho}^\top\bar o_t)\odot\phi'(a_t)$, and the chunk's gradient for $W_{hh}$ is $\delta_th_{t-1}^\top$; their sum over the
+chunks is the stated expression. Only the term $s = t$ of \cref{rnn-bptt:prop:unrolled} is kept, the
+one with the identity Jacobian: each loss is attributed to the step that produced it, and no
+dependency across steps is learned through the gradient.
+
+\solution{rnn-bptt:exr:6}
+$\norm{f(v) - f(0)}/\abs v = \abs{v\sin(1/v)}\leq\abs v\to0$, so $f$ is differentiable at $0$ with $J_f(0) = 0$. For $v = 1/(j\pi)$, $\sin(1/v) = \sin(j\pi) = 0$,
+so $k(v) = 0$. These points accumulate at $0$: there is no neighbourhood of $0$ on which $k(v)\neq0$ for $v\neq0$. A proof
+that writes the remainder of $g$ as $\norm k\,\varepsilon(k)$ with $\varepsilon(k)$ defined by a division by $\norm k$ is undefined at these
+points, and cannot avoid them by taking $v$ small. Defining $\varepsilon(0) = 0$, as in the proof of
+\cref{rnn-bptt:thm:chain}, makes the identity $g(y + k) = g(y) + Bk + \norm k\varepsilon(k)$ valid for every $k$.
+
+\section{\nameref*{ch:gated-rnn}}
+
+\solution{gated-rnn:exr:1}
+LSTM: $4m(n + m + 1) = 4\cdot256\cdot357 = 365\,568$, and $4m(n + m + 2) = 366\,592$ as counted by PyTorch. GRU:
+$3\cdot256\cdot357 = 274\,176$, and $274\,944$ with two bias vectors.
+
+\solution{gated-rnn:exr:2}
+For $t\geq2$, $c_t = 1\odot c_{t-1} + 0\odot g_t = c_{t-1}$, so $c_T = c_1$. Along the cell path the Jacobian is $\diag(f_T)\cdots\diag(f_2) = I$:
+an error arriving at $c_T$ reaches $c_1$ unchanged. The output $h_T = o_T\odot\tanh(c_1)$ depends on the stored content $c_1$ and
+on the output gate at time $T$, that is on $x_T$ and $h_{T-1}$: the cell has kept the content written at time
+$1$, and the output gate decides when to reveal it.
+
+\solution{gated-rnn:exr:3}
+$f^{50} = \tfrac12$ gives $f = 2^{-1/50} = 0.98623$ and $b_f = \log\frac f{1 - f} = 4.272$. The factor applied to the gradient along
+the cell over $50$ steps is $f^{50} = 0.5$, against $0.5^{50}\approx8.9\times10^{-16}$ with $b_f = 0$.
+
+\solution{gated-rnn:exr:4}
+With $z_t = 0$, $h_t = n_t$, and with $r_t = 1$, $n_t = \tanh(W_{in}x_t + W_{hn}h_{t-1} + b_{in} + b_{hn})$. This is the simple RNN of
+\cref{rnn-bptt:def:rnn} with $W_{xh} = W_{in}$, $W_{hh} = W_{hn}$, $b_h = b_{in} + b_{hn}$ and $\phi = \tanh$.
+
+\solution{gated-rnn:exr:gru}
+$r\odot h = (1, 0)$, so $U(r\odot h) = (1, 0)$; $Uh = (2, 1)$, so $r\odot(Uh) = (2, 0)$. With the same weights and inputs the two candidates
+differ, so the two definitions are different functions: in the original, the reset gate
+removes coordinates of $h_{t-1}$ before they are mixed by $U$; in PyTorch, it removes coordinates of the
+mixture.
+
+\section{\nameref*{ch:sequence-models}}
+
+\solution{sequence-models:exr:1}
+$h'_1$ has seen $x_5$ and is stored at $t = 5$; $h'_2$: $x_{4:5}$, at $t = 4$; $h'_3$: $x_{3:5}$, at $t = 3$; $h'_4$: $x_{2:5}$, at $t = 2$; $h'_5$: $x_{1:5}$, at $t = 1$. In
+general $h'_k$ is stored at $t = T - k + 1$ and has seen $x_{t:T}$.
+
+\solution{sequence-models:exr:2}
+Take the state $s_t = (h_t, c_t)$: the LSTM equations define $s_t = F(s_{t-1}, x_t)$ with $s_0$ fixed, so the induction of
+\cref{sequence-models:prop:summaries} applies to the pair, and $h_t$, a component of $s_t$, is a function of
+the inputs read so far. On the flipped sequence these are $x_T,\dots,x_t$ at the position stored as $t$
+after the second flip. With several layers, the induction is done layer by layer: the
+inputs of layer $2$ at step $k$ are outputs of layer $1$ up to step $k$, which depend on the first $k$ flipped
+inputs only.
+
+\solution{sequence-models:exr:3}
+$p(x_1 = 1) = 0.2689$; after $x_1 = 1$, $h_1 = 0.9640$ and $p(x_2 = 1\mid x_1) = 0.8690$; after $x_2 = 1$, $h_2 = \tanh(0.4820 + 2) = 0.9861$ and
+$p(x_3 = 1\mid x_{1:2}) = \sigma(3\cdot0.9861 - 1) = \sigma(1.9584) = 0.8764$. The product is $0.2689\times0.8690\times0.8764 = 0.2048$.
+
+\solution{sequence-models:exr:4}
+$q(0\mid0) = 1 - \sigma(3\tanh0 - 1) = 1 - \sigma(-1) = 0.7311$ and $q(1\mid1) = \sigma(3\tanh2 - 1) = \sigma(1.8921) = 0.8690$; the sum is $1.6001$. Each
+conditional $q(\cdot\mid x_1)$ is a distribution, but the sum takes a \emph{different} conditional for each value
+of its argument ($q(\cdot\mid0)$ evaluated at $0$, $q(\cdot\mid1)$ evaluated at $1$), so it is not the total mass of
+any single distribution. The proof of \cref{sequence-models:prop:normalized} fails because the
+factor of $x_1$ depends on $x_1$ through its conditioning.
+
+\solution{sequence-models:exr:5}
+$-\log\mathcal N(x_t;\mu_t,\sigma^2I) = \frac d2\log(2\pi\sigma^2) + \norm{x_t - \mu_t}^2/(2\sigma^2)$. With $\sigma$ fixed, the first term is a constant and the second
+is proportional to the squared error, so the negative log-likelihood is an increasing affine
+function of $\sum_t\norm{x_t - \mu_t}^2$. If the network outputs $\log\sigma_t^2$, the loss becomes
+$\frac12\sum_{t,j}\bigl(\log\sigma_{t,j}^2 + (x_{t,j} - \mu_{t,j})^2/\sigma_{t,j}^2\bigr)$ plus a constant: a squared error weighted by the predicted
+precision, plus a penalty on large variances. The model can declare itself uncertain where
+errors are large; the variance must be kept away from $0$ in practice (a lower bound or a
+softplus), since the loss tends to $-\infty$ if an error is exactly $0$ and its variance shrinks.
+
+\section{\nameref*{ch:deep-kalman-filters}}
+
+\solution{dkf:exr:1}
+The observations are leaves, so they are never intermediate nodes. (a) The only path is
+$x_1\leftarrow z_1\to z_2\to z_3\to x_3$; $z_2$ is an observed chain node, so the path is blocked: $x_1\indep x_3\mid z_2$. (b) With nothing
+observed, the same path has unobserved fork and chain nodes only and is active: $x_1$ and $x_3$ are
+dependent in general. (c) The path $z_1\to z_2\to z_3$ has the unobserved chain node $z_2$, so it is active, and
+$z_1$, $z_3$ are dependent given $x_2$. Observing the child $x_2$ of $z_2$ would matter only if $z_2$ were a collider on the
+path.
+
+\solution{dkf:exr:2}
+\emph{Transition.} Every path from $\{x_{1:t-1}, z_{1:t-2}\}$ to $z_t$ goes through $z_{t-1}$, entered from $z_{t-2}$ (chain) or from $x_{t-1}$
+(fork), as in the proof of \cref{dkf:prop:posterior}; with $z_{t-1}$ observed it is blocked, so
+$p(z_t\mid x_{1:t-1}, z_{1:t-1}) = p(z_t\mid z_{t-1})$. \emph{Observation.} The only neighbour of $x_t$ is $z_t$, and on any path from $x_t$ to
+$\{x_{1:t-1}, z_{1:t-1}\}$, $z_t$ is followed by $z_{t-1}$: the configuration $x_t\leftarrow z_t\leftarrow z_{t-1}$ is a chain, blocked at the observed
+$z_t$. So $p(x_t\mid x_{1:t-1}, z_{1:t}) = p(x_t\mid z_t)$, and the product rule becomes \cref{dkf:eq:generative}.
+
+\solution{dkf:exr:3}
+No. On the path $z_t\to z_{t+1}\leftarrow u_{t+1}$, $z_{t+1}$ is a collider whose descendant $x_{t+1}$ is observed, so the path is
+active and $z_t$ depends on $u_{t+1}$ given $z_{t-1}$ and $x_{t:T}$; the same holds for every later input through its
+own collider. Example: a thermometer reads a sharp rise of the temperature of a room at
+time $t+1$. If you learn that the heater was switched on at $t+1$, the rise is explained, and the
+room was probably not already warm at time $t$; if the heater stayed off, the rise suggests that
+the room was already warming at $t$. The input explains away part of the observation.
+
+\solution{dkf:exr:4}
+$\mathrm{KL}(q\Vert p) = 0.4431$ (\cref{dkf:ex:kl}). $\mathrm{KL}(p\Vert q) = \frac12\bigl(\log\frac{0.25}1 + \frac{1 + 0.25}{0.25} - 1\bigr) = \frac12(-1.3863 + 4) = 1.3069$: the
+divergence is not symmetric. For the equality case, write each term of
+\cref{dkf:prop:kl} as $\frac12\bigl(r - 1 - \log r\bigr) + (\mu_{q,j} - \mu_{p,j})^2/(2v_{p,j})$ with $r = v_{q,j}/v_{p,j}$. Since $\log r\leq r - 1$ with equality only at
+$r = 1$, both parts are nonnegative, and their sum over $j$ vanishes only if $v_{q,j} = v_{p,j}$ and $\mu_{q,j} = \mu_{p,j}$ for every $j$.
+
+\solution{dkf:exr:5}
+In the DKF, yes: $x_{t-2}$ is a leaf whose only neighbour is $z_{t-2}$, and every path from $z_{t-2}$ to $z_t$ goes through
+$z_{t-1}$ as an observed chain node. In the AR DKF, no: the transition into $z_t$ depends on $x_{0:t-1}$, so
+$x_{t-2}\to z_t$ is an edge of the graph, which no conditioning set blocks.
+
+\solution{dkf:exr:6}
+All three models share the generative forward LSTM \texttt{pz\_f\_rnn}, run on the shifted sequence
+$(x_0,\dots,x_{T-1})$, whose state used at time $t$ summarizes $x_{0:t-1}$; it parameterizes the transition
+$p_\theta(z_t\mid z_{t-1}, x_{0:t-1})$. Inference
+networks: the AR DKF has the backward LSTM \texttt{q\_b\_rnn} on $x_{1:T}$, whose state at $t$ summarizes $x_{t:T}$; the
+FAR DKF has the same backward LSTM and a forward LSTM \texttt{q\_f\_rnn} on $x_{1:T}$, whose state at $t$ summarizes
+$x_{1:t}$; the BAR DKF has one bidirectional LSTM on $x_{1:T}$, whose combined state at $t$ summarizes $x_{1:T}$.
