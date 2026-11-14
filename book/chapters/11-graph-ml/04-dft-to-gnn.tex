@@ -206,10 +206,9 @@ X_k = \sum_{n=0}^{N-1} x_n \, e^{-2\pi i kn/N}
 \end{equation}
 
 The $k$-th DFT coefficient is the inner product of the signal
-$\mathbf{x}$ with the vector
-$(1, e^{2\pi i k/N}, e^{2\pi i \cdot 2k/N}, \ldots)^T$, that is
+$\mathbf{x}$ with the vector $\mathbf w_k$ of entries $e^{2\pi i kn/N}$, $n = 0, \ldots, N-1$, that is
 \[
-X_k = \sqrt N\,\mathbf{v}_k^*\mathbf{x},
+X_k = \mathbf w_k^*\mathbf x = \sqrt N\,\mathbf{v}_k^*\mathbf{x},
 \]
 where $\mathbf{v}_k^*$ is the conjugate transpose of our eigenvector $\mathbf{v}_k$.
 

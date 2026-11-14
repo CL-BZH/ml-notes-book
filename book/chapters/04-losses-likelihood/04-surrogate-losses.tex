@@ -180,10 +180,10 @@ them the bound is easy to prove, and the proof shows how the argument works.
 
 \begin{proposition}[Excess-risk bounds]\label{surrogate-losses:prop:bounds}
 For every measurable $f$,
-\[
-  \text{(hinge)}\quad\Risk(\sign f) - R^*\leq\Risk_\phi(f) - \Risk^*_\phi,\qquad
-  \text{(logistic, $\ln$)}\quad\Risk(\sign f) - R^*\leq\sqrt{2\bigl(\Risk_\phi(f) - \Risk^*_\phi\bigr)}.
-\]
+\begin{align*}
+  \text{(hinge)}&\quad\Risk(\sign f) - R^*\leq\Risk_\phi(f) - \Risk^*_\phi,\\
+  \text{(logistic, $\ln$)}&\quad\Risk(\sign f) - R^*\leq\sqrt{2\bigl(\Risk_\phi(f) - \Risk^*_\phi\bigr)}.
+\end{align*}
 \end{proposition}
 
 \begin{proof}

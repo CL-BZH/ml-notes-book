@@ -1968,11 +1968,7 @@ adjacency~$S$, runs the correction and smoothing iterations, and prints the
 table values used in the text.
 
 
-\begin{tcolorbox}[
-  title={Listing 1: Correct \& Smooth on the 5-node example (Section~\ref{semi-supervised-graphs:sec:cs})},
-  colback=white, colframe=black!70, fonttitle=\small\bfseries,
-  breakable, enhanced, left=2mm, right=2mm, top=1mm, bottom=1mm]
-\begin{lstlisting}[language=Python, basicstyle=\ttfamily\small]
+\begin{lstlisting}[language=Python]
 import numpy as np
 
 # --- Graph -----------------------------------------------------------
@@ -2031,11 +2027,8 @@ for i in range(5):
     s = f"[{Z_norm[i,0]:.2f}, {Z_norm[i,1]:.2f}]"
     print(f"{names[i]:>6} {b:>14} {e:>14} {c:>14} {s:>14}")
 \end{lstlisting}
-\end{tcolorbox}
 
 \noindent\textbf{Expected output:}
-\begin{tcolorbox}[colback=black!3, colframe=black!40, left=2mm, right=2mm,
-  top=1mm, bottom=1mm]
 \begin{verbatim}
   Node     Base            E*        Corrected     Smoothed
  v1(R)  [0.70, 0.30]    (labeled)    [1.00, 0.00] [0.72, 0.28]
@@ -2044,7 +2037,6 @@ for i in range(5):
     v4  [0.55, 0.45] [-0.009,+0.009] [0.54, 0.46] [0.54, 0.46]
     v5  [0.45, 0.55] [-0.080,+0.080] [0.37, 0.63] [0.33, 0.67]
 \end{verbatim}
-\end{tcolorbox}
 
 \section*{Further reading}
 \addcontentsline{toc}{section}{Further reading}
