@@ -1,0 +1,312 @@
+\begin{notechapter}
+\chapter{Self-Supervised Representation Learning in Practice}\label{ch:contrastive-practice}
+\chaptersubtitle{SimCLR, MoCo, CLIP, and the methods that need no negatives}
+
+\begin{chapterintro}
+The InfoNCE loss of \cref{ch:contrastive-learning} became a practical way to learn visual
+representations without labels around 2020, when a few design choices made contrastive
+pre-training competitive with supervised pre-training: strong augmentations, a projection
+head, many negatives, normalized embeddings and a small temperature. This chapter
+describes the main frameworks, each through the problem it solves, with verified code for
+their losses, and the geometric view of what they learn: alignment of positives and uniformity
+on the sphere. It ends with the methods that dispense with negatives, and with the precise
+sense in which they avoid collapse. You will learn
+\begin{itemize}[nosep]
+  \item SimCLR: two augmented views, a projection head and the NT-Xent loss over $2B$ views;
+  \item how representations are evaluated: linear probing, fine-tuning, $k$-nearest neighbours;
+  \item MoCo: a queue of negatives and a momentum encoder, and why the momentum matters;
+  \item CLIP: a symmetric InfoNCE between images and texts, and zero-shot classification;
+  \item the alignment--uniformity decomposition of the contrastive loss;
+  \item complete and dimensional collapse, and how BYOL, SimSiam, Barlow Twins and VICReg avoid
+        the first without negatives.
+\end{itemize}
+\prerequisites{\cref{ch:contrastive-learning}; convolutional networks and transfer learning
+(\cref{ch:cnn-architectures,ch:transfer-learning}); batch normalization (\cref{ch:normalization}).}
+\end{chapterintro}
+
+\section{SimCLR}\label{contrastive-practice:sec:simclr}
+
+SimCLR (Chen, Kornblith, Norouzi and Hinton, \emph{A Simple Framework for Contrastive Learning
+of Visual Representations}, 2020) has four components (\cref{contrastive-practice:fig:simclr}).
+\begin{itemize}
+  \item \textbf{Augmentations.} Each image $x$ of a mini-batch is transformed twice by random
+        transformations $t, t'$ drawn from the same family: random crop and resize, horizontal flip,
+        colour distortion, Gaussian blur. The two views form a positive pair. The authors find the
+        composition of random cropping and colour distortion crucial: with crops alone, the colour
+        histogram of an image identifies both of its crops, and the network can solve the task
+        without learning anything about shapes.
+  \item \textbf{Encoder.} A network $f$ (a ResNet-50 in the paper) maps each view to a representation
+        $h = f(\tilde x)$, the vector used downstream.
+  \item \textbf{Projection head.} A small MLP $g$ maps $h$ to $z = g(h)$, of dimension $128$, on which the loss is computed.
+  \item \textbf{Loss.} The NT-Xent loss (normalized temperature-scaled cross-entropy), an InfoNCE over the
+        $2B$ views of the batch.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=2pt, minimum height=7mm, inner sep=3pt, font=\small, align=center},
+  ar/.style={-{Stealth[length=1.8mm]}, thick},
+  lab/.style={font=\scriptsize, inner sep=1pt}]
+  \node[box, fill=gray!10] (x) at (0,0) {image $x$};
+  \node[box, fill=bookaccent!12] (x1) at (2.4,0.9) {view $\tilde x_1$};
+  \node[box, fill=bookaccent!12] (x2) at (2.4,-0.9) {view $\tilde x_2$};
+  \draw[ar] (x) -- node[lab, above left]{$t\sim\mathcal T$} (x1); \draw[ar] (x) -- node[lab, below left]{$t'\sim\mathcal T$} (x2);
+  \node[box, fill=bookexample!15] (f1) at (4.7,0.9) {encoder $f$}; \node[box, fill=bookexample!15] (f2) at (4.7,-0.9) {encoder $f$};
+  \node[box, fill=bookkey!12] (h1) at (6.6,0.9) {$h_1$}; \node[box, fill=bookkey!12] (h2) at (6.6,-0.9) {$h_2$};
+  \node[box, fill=bookdef!15] (g1) at (8.3,0.9) {head $g$}; \node[box, fill=bookdef!15] (g2) at (8.3,-0.9) {head $g$};
+  \node[box] (z1) at (9.9,0.9) {$z_1$}; \node[box] (z2) at (9.9,-0.9) {$z_2$};
+  \foreach \i in {1,2} {\draw[ar] (x\i) -- (f\i); \draw[ar] (f\i) -- (h\i); \draw[ar] (h\i) -- (g\i); \draw[ar] (g\i) -- (z\i);}
+  \draw[<->, thick, bookpitfall] (z1) -- node[lab, right, text=bookpitfall]{maximize $\cos(z_1, z_2)$} (z2);
+  \draw[dashed, gray] (5.6,-1.6) -- (5.6,1.6);
+  \node[lab, text=gray] at (5.65,-1.85) {weights shared};
+  \node[lab, align=center] at (6.6,1.75) {used\\[-2pt]downstream};
+\end{tikzpicture}
+\caption{SimCLR. Two random augmentations of the same image go through the same encoder and
+projection head; the loss compares the projections, and the representation $h$ before the head is kept.}
+\label{contrastive-practice:fig:simclr}
+\end{figure}
+
+\paragraph{The NT-Xent loss.} Number the $2B$ views so that $2k - 1$ and $2k$ come from image $k$, let $s_{ij} = \cos(z_i, z_j)$, and let $\pi(i)$ be
+the partner of view $i$. Each view is an anchor whose candidates are the $2B - 1$ other views:
+\[
+  \ell_i = -\log\frac{e^{s_{i\pi(i)}/\tau}}{\sum_{k\neq i}e^{s_{ik}/\tau}},\qquad\mathcal L = \frac1{2B}\sum_{i=1}^{2B}\ell_i .
+\]
+It is the symmetric in-batch InfoNCE of \cref{contrastive-learning:sec:batch} with $N = 2B - 1$ candidates, $2B - 2$ of them
+negatives. A batch is a $2B\times2B$ similarity matrix: the diagonal is excluded, each row is a softmax
+classification, and the target column of row $i$ is $\pi(i)$. In code:
+\begin{lstlisting}[language=Python]
+import torch
+import torch.nn.functional as F
+
+def nt_xent(z, tau):
+    """z: (2B, d); rows 2k and 2k+1 are the two views of image k."""
+    z = F.normalize(z, dim=1)
+    sim = z @ z.T / tau                       # cosines / tau
+    sim.fill_diagonal_(float("-inf"))         # a view is not its own candidate
+    partner = torch.arange(z.shape[0]) ^ 1    # xor: 0<->1, 2<->3, ...
+    return F.cross_entropy(sim, partner)      # mean of the l_i
+\end{lstlisting}
+Setting the diagonal to $-\infty$ gives it probability $0$ in the softmax, which removes the term $k = i$ from the
+denominator without changing the tensor's shape.
+
+\begin{example}[Four views in the plane]\label{contrastive-practice:ex:ntxent}
+Two images, $B = 2$, with unit projections at angles $0^\circ$ and $20^\circ$ (image $1$) and $100^\circ$ and $140^\circ$ (image $2$). The
+cosine similarities are
+\[
+  S = \begin{bmatrix}1 & 0.9397 & -0.1736 & -0.7660\\ 0.9397 & 1 & 0.1736 & -0.5000\\ -0.1736 & 0.1736 & 1 & 0.7660\\ -0.7660 & -0.5000 & 0.7660 & 1\end{bmatrix}.
+\]
+With $\tau = 0.5$, view $1$ has $\ell_1 = -\log\frac{e^{1.8794}}{e^{1.8794} + e^{-0.3473} + e^{-1.5321}} = 0.1318$, and similarly $\ell_2 = 0.2408$, $\ell_3 = 0.3774$, $\ell_4 = 0.1188$, so
+$\mathcal L = 0.2172$. View $3$ has the largest loss: its partner is $40^\circ$ away, and view $2$ is only $80^\circ$ away. The
+function \texttt{nt\_xent} returns the same value.
+\end{example}
+
+\paragraph{The projection head.} The loss is computed on $z = g(h)$, but the representation kept for
+downstream tasks is $h$. Chen et al.\ report that a linear classifier on $h$ is more than $10$ percentage
+points more accurate than on $z$. The usual explanation: the contrastive loss makes $z$ invariant to
+the augmentations, discarding information such as colour or orientation, which may be useful
+downstream; the head absorbs this loss of information, and $h$ keeps it.
+
+\paragraph{Batch size and optimization.} With in-batch negatives, the number of negatives is
+tied to the batch size, and SimCLR benefits from very large batches (up to $8192$, trained with the
+LARS optimizer on many accelerators), with $\tau = 0.1$ in its best ImageNet setting. A ResNet-50
+pre-trained this way reaches $69.3\%$ top-1 accuracy on ImageNet with a linear classifier, and $76.5\%$ with
+a $4\times$ wider network, the accuracy of the supervised ResNet-50.
+
+\section{Evaluating representations}\label{contrastive-practice:sec:evaluation}
+
+A self-supervised representation is judged by what it makes easy downstream.
+\begin{itemize}
+  \item \textbf{Linear probing.} Freeze the encoder and train a linear classifier (logistic
+        regression) on its representations of a labelled data set. This measures how linearly
+        separable the classes are; it is the standard ImageNet benchmark.
+  \item \textbf{$k$-nearest neighbours.} Classify a test image by a vote among its nearest training
+        images in representation space; no training at all.
+  \item \textbf{Fine-tuning and transfer.} Use the encoder as initialization and train it on a
+        downstream task, possibly with few labels, as in \cref{ch:transfer-learning}.
+\end{itemize}
+The contrastive loss itself is a poor guide: a lower InfoNCE does not imply better downstream
+accuracy (\cref{contrastive-learning:sec:infonce}).
+
+\section{MoCo: a queue and a momentum encoder}\label{contrastive-practice:sec:moco}
+
+SimCLR's negatives are limited by the batch. MoCo (He, Fan, Wu, Xie and Girshick, \emph{Momentum
+Contrast for Unsupervised Visual Representation Learning}, 2020) keeps a \emph{queue} of the
+encoded keys of the last $K$ batches ($K = 65\,536$ in the paper) and uses them as negatives, so the
+number of negatives no longer depends on the batch size. For a query $q = f_q(\tilde x)$ and its positive key
+$k_+ = f_k(\tilde x')$ (normalized vectors),
+\[
+  \ell = -\log\frac{e^{q^\top k_+/\tau}}{e^{q^\top k_+/\tau} + \sum_{i=1}^Ke^{q^\top k_i/\tau}},
+\]
+with $\tau = 0.07$. The keys in the queue were computed by the key encoder at earlier steps, and no gradient
+flows into them. If the key encoder were the query encoder itself, the queue would contain
+keys from many different versions of a rapidly changing network, which are not comparable
+with each other or with the current query. MoCo makes the key encoder a slowly moving
+average of the query encoder,
+\[
+  \theta_k\leftarrow m\,\theta_k + (1 - m)\,\theta_q,\qquad m = 0.999,
+\]
+so that consecutive keys are produced by nearly the same function; with $m = 0$ (the key encoder
+copied at each step) the authors report that training fails. A training step:
+\begin{lstlisting}[language=Python]
+def moco_step(x_q, x_k):                       # two augmented views of the same batch
+    global queue                               # (K, d) normalized keys of earlier batches
+    q = F.normalize(f_q(x_q), dim=1)           # queries, (B, d)
+    with torch.no_grad():                      # no gradient flows into the keys
+        for p_k, p_q in zip(f_k.parameters(), f_q.parameters()):
+            p_k.mul_(m).add_((1 - m) * p_q)    # momentum update of the key encoder
+        k = F.normalize(f_k(x_k), dim=1)       # positive keys, (B, d)
+    l_pos = (q * k).sum(1, keepdim=True)       # (B, 1)
+    l_neg = q @ queue.T                        # (B, K) similarities to the queue
+    logits = torch.cat([l_pos, l_neg], 1) / tau
+    labels = torch.zeros(len(q), dtype=torch.long)   # the positive is column 0
+    loss = F.cross_entropy(logits, labels)
+    opt.zero_grad(); loss.backward(); opt.step()
+    queue = torch.cat([k, queue])[:K]          # enqueue the new keys, drop the oldest
+    return loss
+\end{lstlisting}
+MoCo~v2 added SimCLR's projection head and stronger augmentations, and matched its accuracy
+with batches of $256$.
+
+\section{CLIP: contrasting images with text}\label{contrastive-practice:sec:clip}
+
+CLIP (Radford et al., \emph{Learning Transferable Visual Models from Natural Language
+Supervision}, 2021) applies the same loss across modalities: an image encoder $f_I$ and a text
+encoder $f_T$ are trained on $400$ million image--caption pairs collected from the web. For a batch of $B$ pairs
+$(I_i, T_i)$, with normalized embeddings, the logits are $\ell_{ij} = f_I(I_i)^\top f_T(T_j)/\tau$, and the loss is the average of two
+cross-entropies over the $B\times B$ matrix, one over each row (which text matches image $i$?) and one over each
+column (which image matches text $j$?):
+\[
+  \mathcal L = \frac12\Bigl(-\frac1B\sum_i\log\frac{e^{\ell_{ii}}}{\sum_je^{\ell_{ij}}} - \frac1B\sum_j\log\frac{e^{\ell_{jj}}}{\sum_ie^{\ell_{ij}}}\Bigr).
+\]
+The batch size is $32\,768$, and the temperature is learned, as a log-parameterized scale initialized to
+$1/0.07$ and clipped at $100$. Because the text encoder can embed any phrase, CLIP classifies images
+\emph{zero-shot}: embed the prompts ``a photo of a \{label\}'' for every class name, and assign the image to
+the class whose prompt embedding has the highest cosine with the image embedding.
+
+\section{Alignment and uniformity}\label{contrastive-practice:sec:alignment}
+
+Wang and Isola (\emph{Understanding Contrastive Representation Learning through Alignment
+and Uniformity on the Hypersphere}, 2020) describe what the contrastive loss does to normalized
+representations $f(x)\in S^{d-1}$ with two quantities:
+\[
+  \mathcal L_{\mathrm{align}} = \E_{(x,y)\sim p_{\mathrm{pos}}}\norm{f(x) - f(y)}^2,\qquad
+  \mathcal L_{\mathrm{uniform}} = \log\E_{x,x'\sim p_{\mathrm{data}}}e^{-2\norm{f(x) - f(x')}^2} .
+\]
+Alignment is small when positives are mapped close together; uniformity is small when the
+representations spread over the sphere (the expectation is over independent pairs).
+
+\begin{theorem}[Asymptotic decomposition; Wang and Isola]\label{contrastive-practice:thm:alignment}
+For normalized representations, critic $f(x)^\top f(y)/\tau$ and $M$ negatives,
+\[
+  \lim_{M\to\infty}\bigl(\mathcal L_{M+1} - \log M\bigr) = -\frac1\tau\E_{p_{\mathrm{pos}}}\bigl[f(x)^\top f(y)\bigr] + \E_x\Bigl[\log\E_{x^-}\bigl[e^{f(x)^\top f(x^-)/\tau}\bigr]\Bigr].
+\]
+\end{theorem}
+
+The first term equals $\frac1{2\tau}\mathcal L_{\mathrm{align}} - \frac1\tau$, since $\norm{a - b}^2 = 2 - 2a^\top b$ for unit vectors
+(\cref{contrastive-practice:exr:2}); the second is minimized, under mild conditions, by representations
+uniformly distributed on the sphere, which $\mathcal L_{\mathrm{uniform}}$ measures in a related form. The contrastive loss thus
+trades off two goals: make positives coincide, and spread everything else out. Wang and Isola
+find that directly optimizing $\mathcal L_{\mathrm{align}} + \lambda\mathcal L_{\mathrm{uniform}}$ gives representations as good as InfoNCE, and that
+both quantities predict downstream accuracy.
+
+\section{Collapse, and methods without negatives}\label{contrastive-practice:sec:collapse}
+
+\paragraph{Two kinds of collapse.} \emph{Complete collapse} maps every input to the same vector: the
+positive pairs are perfectly aligned and the representation is useless. \emph{Dimensional
+collapse} is subtler: the representations vary, but only in a subspace of dimension much lower
+than $d$. It is measured by the spectrum of the covariance matrix of the representations,
+$\Sigma = \E\bigl[(f(x) - \mu)(f(x) - \mu)^\top\bigr]$ with $\mu = \E f(x)$: many near-zero eigenvalues indicate dimensional collapse. Negatives
+prevent complete collapse, since the uniformity term penalizes it, but Jing et al.\
+(\emph{Understanding Dimensional Collapse in Contrastive Self-Supervised Learning}, 2022)
+observe dimensional collapse in contrastive methods too, and relate it to strong
+augmentations and to the implicit regularization of training.
+
+\paragraph{Methods without negatives.} A loss on positive pairs alone, $\norm{z_1 - z_2}^2$, is minimized by complete
+collapse. Several methods nonetheless learn good representations from positives only.
+\begin{itemize}
+  \item \textbf{BYOL} (Grill et al., \emph{Bootstrap Your Own Latent}, 2020): an \emph{online} network with an extra
+        predictor MLP $q$ predicts the projection that a \emph{target} network gives to the other view; the
+        target is a momentum average of the online network, as in MoCo, and receives no gradient.
+        The loss is $\norm{\bar q(z_1) - \bar z'_2}^2$ for normalized vectors, symmetrized.
+  \item \textbf{SimSiam} (Chen and He, \emph{Exploring Simple Siamese Representation Learning}, 2021):
+        no momentum encoder; the same network on both views, a predictor on one side and a
+        \emph{stop-gradient} on the other. The authors show that removing the stop-gradient makes
+        training collapse immediately.
+  \item \textbf{Barlow Twins} (Zbontar et al., 2021): standardize each dimension of the two batches of
+        embeddings, compute their $d\times d$ cross-correlation matrix $C$, and minimize
+        $\sum_i(1 - C_{ii})^2 + \lambda\sum_{i\neq j}C_{ij}^2$: corresponding dimensions of the two views must agree, different
+        dimensions must be decorrelated, which rules out complete and dimensional collapse.
+  \item \textbf{VICReg} (Bardes, Ponce and LeCun, 2022): an invariance term (mean squared distance
+        between the two views), a variance term (a hinge keeping the standard deviation of every
+        dimension above a threshold) and a covariance term (penalizing off-diagonal
+        covariances).
+\end{itemize}
+The first two avoid collapse through the dynamics of training, not through the loss, whose
+global minimum is still the constant solution; why the asymmetric architecture and the
+stop-gradient prevent the optimizer from reaching it is the subject of ongoing analysis. The last
+two put explicit anti-collapse terms in the loss, playing the role that negatives play in
+InfoNCE.
+
+\begin{pitfall}[``Without negatives, representations collapse'']
+The statement is true of the loss $\norm{z_1 - z_2}^2$ trained naively, and false as a general claim: BYOL and
+SimSiam train without negatives and do not collapse in practice, and Barlow Twins and VICReg
+prevent collapse with variance and decorrelation terms instead of negatives. Conversely,
+having negatives does not rule out dimensional collapse.
+\end{pitfall}
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item SimCLR: two augmentations per image (cropping and colour distortion are essential), a shared
+        encoder, a projection head, and the NT-Xent loss over the $2B - 1$ other views; the representation before the
+        head is kept.
+  \item Representations are evaluated by linear probing, $k$-NN classification and fine-tuning.
+  \item MoCo decouples the number of negatives from the batch size with a queue, and keeps the
+        queued keys consistent with a momentum encoder ($m = 0.999$).
+  \item CLIP applies a symmetric InfoNCE to image--text pairs with a learned temperature, which
+        enables zero-shot classification by text prompts.
+  \item With many negatives the contrastive loss decomposes into an alignment term and a
+        uniformity term on the sphere.
+  \item Complete collapse is prevented by negatives or by explicit variance/decorrelation terms
+        (Barlow Twins, VICReg); BYOL and SimSiam avoid it through asymmetry and stop-gradients.
+        Dimensional collapse can occur in all of them.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{contrastive-practice:exr:1}
+In \cref{contrastive-practice:ex:ntxent}, compute $\ell_3$. How does $\mathcal L$ change if $\tau\to0$? If $\tau\to\infty$?
+\solutionlink{contrastive-practice:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{contrastive-practice:exr:2}
+Show that for unit vectors $\norm{a - b}^2 = 2 - 2a^\top b$, and deduce that
+\[
+  -\frac1\tau\E[f(x)^\top f(y)] = \frac1{2\tau}\mathcal L_{\mathrm{align}} - \frac1\tau .
+\]
+\solutionlink{contrastive-practice:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{contrastive-practice:exr:3}
+How many negatives does each anchor have in SimCLR with $B = 4096$? In MoCo with $B = 256$ and $K = 65\,536$? How
+many gradient-carrying embeddings does each method compute per step?
+\solutionlink{contrastive-practice:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{contrastive-practice:exr:4}
+With the momentum update $\theta_k\leftarrow m\theta_k + (1 - m)\theta_q$ and $m = 0.999$, the key encoder is an exponential moving average of the
+query encoder. Give the weight of the query parameters of $1\,000$ steps ago, and the number of steps over
+which the weights sum to about $63\%$.
+\solutionlink{contrastive-practice:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{contrastive-practice:exr:5}
+Compute the Barlow Twins cross-correlation matrix $C$ and the loss when every embedding is the same vector
+(complete collapse), assuming the standardization divides by the standard deviation plus a small
+$\varepsilon > 0$. What is the loss for two views whose standardized embeddings are equal and whose dimensions
+are uncorrelated?
+\solutionlink{contrastive-practice:exr:5}
+\end{exercise}
+\end{notechapter}
