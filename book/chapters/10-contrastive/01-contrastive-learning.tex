@@ -1,0 +1,345 @@
+\begin{notechapter}
+\chapter{Contrastive Learning and the InfoNCE Loss}\label{ch:contrastive-learning}
+\chaptersubtitle{Learning representations by recognizing the positive among negatives}
+
+\begin{chapterintro}
+Contrastive learning trains an encoder without labels: two views of the same object, such as
+two random crops of one image, should get similar representations, and views of different
+objects dissimilar ones. The loss that implements this, InfoNCE, is a softmax classifier that
+must pick the matching view among $N$ candidates. This chapter derives it from first principles:
+the contrastive structure already present in maximum likelihood, the Bayes-optimal
+classifier, which is a density ratio, and the lower bound that InfoNCE gives on the mutual
+information between the views, with its $\log N$ ceiling. It then analyses the temperature and the
+passage from the population loss to the in-batch loss used in practice. You will learn
+\begin{itemize}[nosep]
+  \item the contrastive setting: encoders, positive pairs, negatives and similarity;
+  \item why the gradient of any softmax likelihood pulls the observed item up and pushes the
+        model's average down;
+  \item InfoNCE as $N$-way classification, its optimal critic $\log\frac{p(y\mid x)}{p(y)} + c(x)$, and the bound $\mathrm I(X; Y)\geq\log N - \mathcal L$;
+  \item what the temperature does, and why it is needed with cosine similarities;
+  \item in-batch negatives, false negatives, and the related triplet, $N$-pair and supervised
+        contrastive losses.
+\end{itemize}
+\prerequisites{NCE and negative sampling (\cref{ch:nce-negative-sampling}); entropy and the
+KL divergence (\cref{ch:cross-entropy}); nested Monte Carlo estimators (\cref{ch:monte-carlo}).}
+\end{chapterintro}
+
+\section{The contrastive setting}\label{contrastive-learning:sec:setting}
+
+An encoder $f_\theta:\mathcal X\to\R^d$ maps an input (an image, a sentence, a sound) to a vector, its \emph{representation}.
+Without labels, the only supervision available is structure in the data itself, and
+contrastive learning uses one kind of structure: pairs of inputs known to share their
+meaning. These \emph{positive pairs} are obtained by
+\begin{itemize}[nosep]
+  \item \emph{data augmentation}: two random transformations (crop, colour jitter, blur) of the same
+        image;
+  \item \emph{temporal or spatial proximity}: neighbouring frames of a video, nearby words of a
+        text (the skip-gram pairs of \cref{ch:word-embeddings});
+  \item \emph{multiple modalities}: an image and its caption.
+\end{itemize}
+Pairs formed from unrelated inputs are \emph{negatives}. A similarity $s(z, z')$ between representations,
+usually the cosine $z^\top z'/(\norm z\,\norm{z'})$, is trained to be high on positive pairs and low on negative ones.
+Representations are then judged on \emph{downstream} tasks, typically by the accuracy of a
+linear classifier trained on top of the frozen encoder.
+
+\begin{pitfall}[Why negatives are needed]
+Making positive pairs similar is not enough: the constant encoder $f_\theta(x) = z_0$ makes every pair
+perfectly similar and carries no information. Something must push different inputs apart.
+Contrastive methods use negatives; non-contrastive methods (\cref{contrastive-practice:sec:collapse})
+use architectural asymmetries or explicit variance constraints instead.
+\end{pitfall}
+
+\section{The contrastive structure of maximum likelihood}\label{contrastive-learning:sec:mle}
+
+Contrast is not specific to representation learning: it is already present in the gradient of
+any softmax model. Let $p_\theta(x) = e^{s_\theta(x)}/Z_\theta$ over a finite set $\mathcal V$, with score $s_\theta$ (an energy-based model with energy $-s_\theta$) and
+$Z_\theta = \sum_{x'}e^{s_\theta(x')}$.
+
+\begin{proposition}[Gradient of a softmax log-likelihood]\label{contrastive-learning:prop:mle}
+\[
+  \nabla_\theta\log p_\theta(x) = g_x - \bar g,\qquad g_x = \nabla_\theta s_\theta(x),\qquad\bar g = \E_{x'\sim p_\theta}[g_{x'}] = \sum_{x'}p_\theta(x')\,g_{x'} .
+\]
+\end{proposition}
+
+\begin{proof}
+$\log p_\theta(x) = s_\theta(x) - \log Z_\theta$ and $\nabla_\theta\log Z_\theta = \frac1{Z_\theta}\sum_{x'}e^{s_\theta(x')}\nabla_\theta s_\theta(x') = \bar g$.
+\end{proof}
+
+The first term (the \emph{positive phase}) raises the score of the observed item, the second (the
+\emph{negative phase}) lowers the scores of everything in proportion to its current probability. To
+see what one gradient-ascent step $\theta\leftarrow\theta + \eta(g_x - \bar g)$ does to the probabilities, expand to first order:
+\[
+  \Delta\log p_\theta(x')\approx\eta\,(g_{x'} - \bar g)^\top(g_x - \bar g)\qquad\text{for every }x' .
+\]
+Three consequences follow.
+\begin{itemize}
+  \item The observed item gains: $\Delta\log p_\theta(x)\approx\eta\norm{g_x - \bar g}^2\geq0$.
+  \item An item $x'$ gains when its centred gradient $g_{x'} - \bar g$ points in the same direction as that of $x$, and
+        loses when it points the opposite way: ``similar'' items in the sense of the
+        parameterization rise together.
+  \item Probability is conserved: $\sum_{x'}p_\theta(x')\,\Delta\log p_\theta(x')\approx\eta\bigl(\sum_{x'}p_\theta(x')(g_{x'} - \bar g)\bigr)^\top(g_x - \bar g) = 0$, which is the first-order
+        form of $\sum_{x'}\Delta p_\theta(x') = 0$.
+\end{itemize}
+Note that it is $\log p$, not the score $s$, that behaves this way: the score change $\eta\,g_{x'}^\top(g_x - \bar g)$ can be
+negative even for the observed item, since scores are only defined up to a common constant.
+
+\paragraph{The cost of the negative phase.} The average $\bar g$ is a sum over $\mathcal V$, which is the whole difficulty
+of training softmax models over large sets (\cref{ch:hierarchical-softmax}). NCE and negative
+sampling (\cref{ch:nce-negative-sampling}) replace it with a few sampled noise items: NCE recovers
+normalized log-probabilities, negative sampling a shifted pointwise mutual information. InfoNCE,
+next, does the same with a softmax over sampled candidates, and estimates the density ratio
+$p(x, y)/(p(x)p(y))$ between paired variables.
+
+\section{InfoNCE}\label{contrastive-learning:sec:infonce}
+
+\paragraph{Setting.} Let $(X, Y)$ be a pair of random variables with joint density $p(x, y)$, for instance two views of
+the same image, and let $r(x, y) = \frac{p(x, y)}{p(x)p(y)} = \frac{p(y\mid x)}{p(y)}$ be their \emph{density ratio}. Its logarithm is the pointwise
+mutual information, and its average under the joint distribution is the mutual information,
+\[
+  \mathrm I(X; Y) = \E_{p(x,y)}\bigl[\log r(X, Y)\bigr] = \mathrm{KL}\bigl(p(x, y)\,\Vert\,p(x)p(y)\bigr) .
+\]
+Draw $x\sim p(x)$, a positive $y_0\sim p(y\mid x)$ and $N - 1$ negatives $y_1,\dots,y_{N-1}\sim p(y)$, independently, and place the positive at a
+uniformly random position among the $N$ candidates. Which candidate is the positive?
+
+\begin{proposition}[Bayes-optimal identification]\label{contrastive-learning:prop:bayes}
+Given $x$ and the candidates, the probability that candidate $j$ is the positive is
+\[
+  \Prob(\text{positive} = j\mid x, y_0,\dots,y_{N-1}) = \frac{r(x, y_j)}{\sum_{k=0}^{N-1}r(x, y_k)} .
+\]
+\end{proposition}
+
+\begin{proof}
+If candidate $j$ is the positive, the candidates have density $p(y_j\mid x)\prod_{k\neq j}p(y_k)$. With a uniform prior over $j$,
+Bayes' rule gives a posterior proportional to this density. Dividing by $\prod_kp(y_k)$, which does not depend on $j$,
+leaves $p(y_j\mid x)/p(y_j) = r(x, y_j)$.
+\end{proof}
+
+The ratio $r(x, y_j)$ is computed at the sampled point and is not $1$ for a negative: independence of $x$ and $y_j$ as
+random variables does not make the ratio equal to $1$ at the points drawn, only its expectation under
+$p(x)p(y)$ (\cref{contrastive-learning:exr:1}).
+
+\paragraph{The loss.} A \emph{critic} $f(x, y)$, for example $f(x, y) = \cos(f_\theta(x), f_\theta(y))/\tau$, defines the classifier $\softmax_j f(x, y_j)$. Its
+cross-entropy, with the positive at index $0$, is the \emph{InfoNCE} loss (van den Oord, Li and Vinyals,
+\emph{Representation Learning with Contrastive Predictive Coding}, 2018):
+\[
+  \mathcal L_N(f) = \E\Bigl[-\log\frac{e^{f(x, y_0)}}{\sum_{j=0}^{N-1}e^{f(x, y_j)}}\Bigr],
+\]
+the expectation being over $x$, $y_0\sim p(y\mid x)$ and the negatives. It is the softmax cross-entropy of
+\cref{bigram-models:sec:gradient} over the $N$ candidates.
+
+\begin{theorem}[The optimal critic]\label{contrastive-learning:thm:critic}
+Over all critics, $\mathcal L_N$ is minimized by $f^*(x, y) = \log r(x, y) + c(x)$, for any function $c$ of $x$ alone, and (for $N\geq2$) only by
+critics of this form, up to sets of probability zero.
+\end{theorem}
+
+\begin{proof}
+The loss is the expected cross-entropy between the Bayes posterior of
+\cref{contrastive-learning:prop:bayes} and the classifier $\softmax_jf(x, y_j)$ (by symmetry, the position of the positive
+does not change the loss). For each $(x, y_{0:N-1})$, the cross-entropy is minimized exactly when the two
+distributions over $j$ are equal (Gibbs' inequality, \cref{ch:cross-entropy}), that is when $f(x, y_j) - \log r(x, y_j)$ does not
+depend on $j$. Since the candidates are arbitrary draws, this forces $f(x, y) - \log r(x, y)$ to depend on $x$ only.
+\end{proof}
+
+A critic of the form $\cos(f_\theta(x), f_\theta(y))/\tau$ can only approximate $f^*$, but the theorem says what training aims at: the
+similarity between two representations should be the pointwise mutual information of the
+inputs, up to a per-anchor constant.
+
+\begin{theorem}[InfoNCE bounds the mutual information]\label{contrastive-learning:thm:bound}
+For every critic $f$,
+\[
+  \mathrm I(X; Y)\geq\log N - \mathcal L_N(f) .
+\]
+\end{theorem}
+
+\begin{proof}
+\emph{Step 1, a variational bound.} For distributions $P$, $Q$ and any function $T$,
+$\mathrm{KL}(P\Vert Q)\geq\E_P[T] - \E_Q[e^{T-1}]$ (the bound of Nguyen, Wainwright and Jordan, 2010, from the convex
+duality of the KL divergence; \cref{contrastive-learning:exr:2} proves it).
+
+\emph{Step 2, apply it to the whole batch.} Let $\mathbf Y = (y_0,\dots,y_{N-1})$, with $(x, y_0)\sim p(x, y)$ and the negatives
+independent. Since the negatives are independent of $(x, y_0)$, $\mathrm I(X;\mathbf Y) = \mathrm I(X; Y)$. Take $P$ the joint law of $(x, \mathbf Y)$, $Q$
+the product of its marginals, and
+\[
+  T(x,\mathbf Y) = 1 + \log\frac{e^{f(x, y_0)}}{m(x,\mathbf Y)},\qquad m(x,\mathbf Y) = \frac1N\sum_{j=0}^{N-1}e^{f(x, y_j)} .
+\]
+Under $Q$ the $y_j$ are i.i.d.\ from $p(y)$ and independent of $x$, so the $N$ expectations $\E_Q\bigl[e^{f(x, y_k)}/m\bigr]$, $k = 0,\dots,N-1$,
+are equal; their average is $\E_Q[m/m] = 1$, hence $\E_Q[e^{T-1}] = \E_Q\bigl[e^{f(x, y_0)}/m\bigr] = 1$.
+
+\emph{Step 3, conclude.} $\mathrm I(X; Y)\geq\E_P[T] - 1 = \E\bigl[\log\frac{e^{f(x, y_0)}}{\frac1N\sum_je^{f(x, y_j)}}\bigr] = \log N - \mathcal L_N(f)$.
+\end{proof}
+
+\begin{pitfall}[A tempting but wrong proof]
+A frequently reproduced argument plugs in the optimal critic, claims that $r(x, y_j) = 1$ for the
+negatives ``because $y_j$ is independent of $x$'', and uses $\E_{p(x,y)}[r] = 1$. Both claims are false: $r(x, y_j)$ is a
+random variable with mean $1$ under $p(x)p(y)$, and under the joint distribution
+$\E_{p(x,y)}[r] = 1 + \chi^2\bigl(p(x, y)\Vert p(x)p(y)\bigr)\geq1$. Moreover, a statement about the optimal critic could not give a bound valid for
+every critic, which is what training needs. The proof above uses neither claim.
+\end{pitfall}
+
+\paragraph{The $\log N$ ceiling.} Since $\mathcal L_N\geq0$, the bound never exceeds $\log N$: with $N$ candidates, InfoNCE can certify at
+most $\log N$ nats of mutual information, however strongly $X$ and $Y$ depend on each other. McAllester
+and Stratos (\emph{Formal Limitations on the Measurement of Mutual Information}, 2020) show that
+this is not a weakness of InfoNCE alone: any distribution-free high-confidence lower bound on
+mutual information computed from $N$ samples is at most $O(\log N)$.
+
+\begin{example}[Correlated Gaussians]\label{contrastive-learning:ex:gauss}
+Let $(X, Y)$ be standard normal with correlation $\rho$, so that $\mathrm I(X; Y) = -\frac12\log(1 - \rho^2)$ and $\log r$ is an explicit
+quadratic function. With the optimal critic $f^* = \log r$, Monte Carlo estimates of $\log N - \mathcal L_N(f^*)$ (\cref{contrastive-learning:fig:gauss})
+show both regimes. For $\rho = 0.9$, $\mathrm I = 0.830$ nats, and the bound rises from $0.337$ with $N = 2$ to $0.809$ with $N = 64$: a
+moderate mutual information is reached with tens of negatives. For $\rho = 0.999$, $\mathrm I = 3.108$ nats, and the bound
+stays close to the ceiling $\log N$ for small $N$ ($0.654$ for $N = 2$, where $\log2 = 0.693$; $1.831$ for $N = 8$, where $\log8 = 2.079$),
+and still falls short with $N = 1024$ ($3.087$). The optimal critic cannot do better: the gap is a
+property of the bound.
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.75\textwidth, height=5.8cm, xmode=log, log basis x=2, xlabel={number of candidates $N$}, ylabel={nats},
+  xmin=2, xmax=1024, ymin=0, ymax=3.6, grid=major, grid style={gray!20}, legend style={font=\scriptsize, at={(0.98,0.5)}, anchor=east},
+  tick label style={font=\scriptsize}, label style={font=\small}]
+\addplot[thick, gray, dashed, domain=2:1024, samples=50] {ln(x)};
+\addlegendentry{$\log N$}
+\addplot[thick, bookpitfall, mark=*, mark size=1.2pt] coordinates {(2,0.654) (4,1.274) (8,1.831) (16,2.291) (32,2.626) (64,2.839) (128,2.958) (256,3.025) (512,3.061) (1024,3.087)};
+\addlegendentry{bound, $\rho = 0.999$}
+\addplot[thin, bookpitfall, densely dotted, domain=2:1024, forget plot] {3.108};
+\addplot[thick, bookaccent, mark=*, mark size=1.2pt] coordinates {(2,0.337) (4,0.553) (8,0.679) (16,0.750) (32,0.787) (64,0.809) (128,0.819) (256,0.821) (512,0.824) (1024,0.835)};
+\addlegendentry{bound, $\rho = 0.9$}
+\addplot[thin, bookaccent, densely dotted, domain=2:1024, forget plot] {0.830};
+\end{axis}
+\end{tikzpicture}
+\caption{The InfoNCE bound $\log N - \mathcal L_N(f^*)$ with the optimal critic for correlated Gaussians, against the true mutual
+information (dotted). Monte Carlo estimates with $2\times10^7/N$ draws (at least $2\,000$), standard errors below
+$0.007$. For a large mutual information the bound is limited by $\log N$.}
+\label{contrastive-learning:fig:gauss}
+\end{figure}
+
+\begin{remark}[Mutual information is not the whole story]
+Maximizing a mutual-information bound does not by itself produce good representations:
+any invertible function of a representation has the same mutual information with the other
+view, yet linear classifiers may perform very differently on the two (Tschannen et al., \emph{On
+Mutual Information Maximization for Representation Learning}, 2020). The success of
+contrastive learning depends as much on the critic family (normalized dot products), the
+encoder architecture and the augmentations as on the bound.
+\end{remark}
+
+\section{Temperature}\label{contrastive-learning:sec:temperature}
+
+With cosine similarities, the critic is $f(x, y) = s(x, y)/\tau$ with $s\in[-1, 1]$ and a temperature $\tau > 0$:
+\[
+  \ell = -\log\frac{e^{s_0/\tau}}{\sum_{j=0}^{N-1}e^{s_j/\tau}},\qquad s_j = s(x, y_j) .
+\]
+
+\begin{proposition}[Effect of the temperature]\label{contrastive-learning:prop:temperature}
+\begin{enumerate}[nosep]
+  \item If $s_0 > s_j$ for all $j\geq1$, then $\ell\to0$ as $\tau\to0^+$; as $\tau\to\infty$, $\ell\to\log N$ whatever the similarities.
+  \item With $s\in[-1, 1]$, $\ell\geq\log\bigl(1 + (N - 1)e^{-2/\tau}\bigr) > 0$: with $\tau = 1$ and $N = 4096$, the loss cannot go below $6.32$.
+  \item $\nabla_\theta\ell = \frac1\tau\bigl(\sum_jp_j\nabla_\theta s_j - \nabla_\theta s_0\bigr)$ with $p_j = \softmax_j(s_j/\tau)$: each negative is pushed with weight $p_j$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(1) $\ell = \log\bigl(1 + \sum_{j\geq1}e^{(s_j - s_0)/\tau}\bigr)$; each exponent tends to $-\infty$ as $\tau\to0^+$ and to $0$ as $\tau\to\infty$. (2) Each term
+$e^{(s_j - s_0)/\tau}\geq e^{-2/\tau}$ since $s_j - s_0\geq-2$. For $\tau = 1$, $N = 4096$: $\log(1 + 4095e^{-2}) = 6.32$. (3) As in
+\cref{contrastive-learning:prop:mle}, with $f_j = s_j/\tau$.
+\end{proof}
+
+Point (2) explains why a small temperature is needed with cosine similarities: the
+logits are confined to an interval of width $2/\tau$, and with $\tau = 1$ the classifier cannot become confident.
+Point (3) explains its other effect: as $\tau$ decreases the weights $p_j$ concentrate on the negatives with the
+highest similarity, the \emph{hard negatives}, which dominate the gradient; as $\tau$ increases all negatives
+are pushed alike. Typical values are $\tau = 0.07$ (memory-bank methods and MoCo), $0.1$ to $0.5$ (SimCLR), or a
+learned temperature (CLIP), see \cref{ch:contrastive-practice}.
+
+\section{From the population loss to a batch}\label{contrastive-learning:sec:batch}
+
+In practice the candidates come from the mini-batch. Given $B$ positive pairs $(x_i, y_i)$, the other $y_j$ of the
+batch serve as negatives for $x_i$:
+\[
+  \hat{\mathcal L} = -\frac1B\sum_{i=1}^B\log\frac{e^{f(x_i, y_i)}}{\sum_{j=1}^Be^{f(x_i, y_j)}} .
+\]
+\begin{itemize}
+  \item \emph{What it estimates.} If the $B$ pairs are i.i.d., each term has exactly the distribution of the InfoNCE
+        loss with $N = B$ candidates, so $\E[\hat{\mathcal L}] = \mathcal L_B$: the batch loss is an unbiased estimate of the $N = B$ objective. (The
+        terms are dependent, since they share candidates, which affects the variance, not the
+        mean.) It is \emph{not} an unbiased estimate of the objective with more candidates: $\mathcal L_N$ is the
+        expectation of a nested quantity, a logarithm of a sum, and changes with $N$, as in the nested
+        estimators of \cref{monte-carlo:sec:nested}.
+  \item \emph{Symmetric version.} When both sides are views of the same kind, the loss is averaged with
+        the same loss with the roles of $x$ and $y$ exchanged (SimCLR, CLIP).
+  \item \emph{False negatives.} The negatives are drawn from $p(y)$, not from ``inputs with a different
+        meaning'': a negative may show an object of the same class as the anchor. With $C$
+        equally frequent classes, a batch of $B$ images gives each anchor about $(B - 1)/C$ same-class
+        images among its negatives: for ImageNet ($C = 1000$) and $B = 4096$, about $4$ images, $8$ views in the
+        two-view setting of SimCLR. They are pushed away although they should not be. Debiased
+        variants correct the loss for this effect (Chuang et al., \emph{Debiased Contrastive
+        Learning}, 2020).
+\end{itemize}
+
+\section{Related losses}\label{contrastive-learning:sec:related}
+
+\paragraph{Triplet loss.} With an anchor $a$, a positive $p$, a negative $n$, a distance $d$ and a margin $m > 0$, the
+triplet loss is $\max\bigl(0,\ d(a, p) - d(a, n) + m\bigr)$ (Schroff, Kalenichenko and Philbin, \emph{FaceNet}, 2015). InfoNCE with one
+negative and the critic $f = -d^2/\tau$ is $\log\bigl(1 + e^{(d(a,p)^2 - d(a,n)^2)/\tau}\bigr)$, a smooth version of the triplet loss with squared distances
+and no margin (\cref{contrastive-learning:exr:4}).
+
+\paragraph{$N$-pair loss.} $\log\bigl(1 + \sum_{j=1}^{N-1}e^{f(a, n_j) - f(a, p)}\bigr)$ (Sohn, 2016) is exactly InfoNCE with $N - 1$ negatives, written with the
+positive's logit subtracted.
+
+\paragraph{Supervised contrastive loss.} When labels are available, every other sample of the same
+class is a positive (Khosla et al., \emph{Supervised Contrastive Learning}, 2020): for anchor $i$ with
+positives $P(i)$,
+\[
+  \ell_i = -\frac1{\abs{P(i)}}\sum_{p\in P(i)}\log\frac{e^{f(x_i, x_p)}}{\sum_{a\neq i}e^{f(x_i, x_a)}},
+\]
+which removes the false negatives by construction.
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item Contrastive learning trains an encoder so that positive pairs (views sharing their meaning)
+        are similar and negatives dissimilar; negatives prevent the trivial constant encoder.
+  \item Every softmax likelihood has the gradient $g_x - \E_{p_\theta}[g]$: positive phase minus negative phase.
+        A step raises $\log p$ of the observed item by $\eta\norm{g_x - \bar g}^2$ and conserves probability.
+  \item InfoNCE is the cross-entropy of identifying the positive among $N$ candidates; the Bayes
+        posterior is $r(x, y_j)/\sum_kr(x, y_k)$ and the optimal critic is $\log r(x, y) + c(x)$, the pointwise mutual information.
+  \item $\mathrm I(X; Y)\geq\log N - \mathcal L_N(f)$ for every critic, so the certified mutual information never exceeds $\log N$.
+  \item The temperature scales the logits: needed for confident classification with cosine
+        similarities, and it controls how much the hardest negatives dominate the gradient.
+  \item The in-batch loss is unbiased for the $N = B$ objective; it contains false negatives.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{contrastive-learning:exr:1}
+Show that $\E_{p(x)p(y)}[r(X, Y)] = 1$ and $\E_{p(x,y)}[r(X, Y)] = 1 + \chi^2\bigl(p(x, y)\Vert p(x)p(y)\bigr)$, where $\chi^2(P\Vert Q) = \int(p - q)^2/q$. For the
+Gaussian pair of \cref{contrastive-learning:ex:gauss} with $\rho = 0.5$, is $r(x, y) = 1$ at $x = y = 1$?
+\solutionlink{contrastive-learning:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{contrastive-learning:exr:2}
+Prove the bound $\mathrm{KL}(P\Vert Q)\geq\E_P[T] - \E_Q[e^{T-1}]$ for discrete $P, Q$, with equality for $T = 1 + \log(p/q)$.
+\hint{Use $\log u\geq1 - 1/u$, or maximize $t\mapsto p\,t - q\,e^{t-1}$ pointwise.}
+\solutionlink{contrastive-learning:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{contrastive-learning:exr:3}
+Show that $\mathcal L_N(f)\leq\log N$ when $f$ is constant, and that the bound of \cref{contrastive-learning:thm:bound} is then $0$. What does a
+loss above $\log N$ mean?
+\solutionlink{contrastive-learning:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{contrastive-learning:exr:4}
+Derive the expression of InfoNCE with one negative and $f = -d^2/\tau$, and compare its behaviour with the
+triplet loss when $d(a, n)^2 - d(a, p)^2$ is large and when it is negative.
+\solutionlink{contrastive-learning:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{contrastive-learning:exr:5}
+In \cref{contrastive-learning:prop:temperature}, compute the minimal loss for $\tau = 0.1$ and $N = 4096$. For a batch with logits
+$s/\tau$, $s = (0.9, 0.8, 0.1, -0.5)$ (positive first), compute the weights $p_j$ for $\tau = 1$ and $\tau = 0.1$, and say which negative
+dominates the gradient.
+\solutionlink{contrastive-learning:exr:5}
+\end{exercise}
+\end{notechapter}

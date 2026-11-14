@@ -1755,3 +1755,60 @@ predict each tag without looking at the other predicted tags. The output can be 
 in BIO named-entity tagging, an \texttt{I-PER} directly after \texttt{O} is impossible, yet independent
 decisions can produce it. The CRF adds scores for pairs of neighbouring \emph{tags}, learns which
 transitions are likely or impossible, and decodes the whole sequence jointly with Viterbi.
+
+\section{\nameref*{ch:contrastive-learning}}
+
+\solution{contrastive-learning:exr:1}
+$\E_{p(x)p(y)}[r] = \iint p(x)p(y)\frac{p(x,y)}{p(x)p(y)} = \iint p(x, y) = 1$. Under the joint distribution, with $q = p(x)p(y)$,
+$\E_{p}[r] = \iint\frac{p^2}{q} = \iint\frac{(p - q)^2}{q} + 2\iint p - \iint q = \chi^2(p\Vert q) + 1$. For the Gaussian pair with $\rho = 0.5$,
+$\log r(x, y) = -\frac12\log(1 - \rho^2) - \frac{\rho^2(x^2 + y^2) - 2\rho xy}{2(1 - \rho^2)}$; at $x = y = 1$ this is $0.1438 + 0.3333 = 0.4772$, so $r = 1.61$: a pair drawn
+independently can perfectly well land at a point where $r\neq1$.
+
+\solution{contrastive-learning:exr:2}
+For each $x$, the function $t\mapsto p(x)\,t - q(x)e^{t-1}$ is concave, with derivative $p(x) - q(x)e^{t-1}$, which vanishes at $t = 1 + \log\frac{p(x)}{q(x)}$,
+where the function equals $p(x)\bigl(1 + \log\frac{p(x)}{q(x)}\bigr) - p(x) = p(x)\log\frac{p(x)}{q(x)}$. Hence $p(x)T(x) - q(x)e^{T(x)-1}\leq p(x)\log\frac{p(x)}{q(x)}$ for every $T$, and
+summing over $x$ gives $\E_P[T] - \E_Q[e^{T-1}]\leq\mathrm{KL}(P\Vert Q)$, with equality for $T = 1 + \log(p/q)$.
+
+\solution{contrastive-learning:exr:3}
+For a constant critic the softmax is uniform over the $N$ candidates, so each term is exactly $\log N$: $\mathcal L_N = \log N$ and the
+bound is $0$. A loss above $\log N$ means that the critic does worse than ignoring the inputs: on average it
+gives the positive less than its fair share $1/N$, and the bound becomes negative, hence vacuous.
+
+\solution{contrastive-learning:exr:4}
+$-\log\frac{e^{-d_p^2/\tau}}{e^{-d_p^2/\tau} + e^{-d_n^2/\tau}} = \log\bigl(1 + e^{(d_p^2 - d_n^2)/\tau}\bigr)$, a softplus of $(d_p^2 - d_n^2)/\tau$. When $d_n^2 - d_p^2$ is large it is about $e^{-(d_n^2 - d_p^2)/\tau}$:
+small but never $0$, whereas the triplet loss is exactly $0$ once the margin is satisfied, and its gradient
+vanishes. When $d_p^2 > d_n^2$ it is about $(d_p^2 - d_n^2)/\tau$, a linear penalty like the active part of the triplet hinge.
+
+\solution{contrastive-learning:exr:5}
+$\log(1 + 4095e^{-20}) = 8.4\times10^{-6}$: with $\tau = 0.1$ the confinement of cosine logits is no longer a limitation. With $\tau = 1$
+the softmax of $(0.9, 0.8, 0.1, -0.5)$ is $(0.3845, 0.3479, 0.1728, 0.0948)$ (loss $0.956$): the three negatives receive comparable pushes. With
+$\tau = 0.1$ it is $(0.7309, 0.2689, 0.0002, 0.0000)$ (loss $0.314$): the hard negative of similarity $0.8$ receives almost all the
+repulsion.
+
+\section{\nameref*{ch:contrastive-practice}}
+
+\solution{contrastive-practice:exr:1}
+For view $3$ the logits are $s_{31}/\tau = -0.3472$, $s_{32}/\tau = 0.3472$ and $s_{34}/\tau = 1.5321$ (partner), with exponentials $0.7067$, $1.4151$, $4.6274$.
+So $\ell_3 = -\log(4.6274/6.7492) = 0.3774$. As $\tau\to0$, every anchor's partner has a strictly larger similarity than its
+negatives (check each row of $S$), so every $\ell_i\to0$ and $\mathcal L\to0$. As $\tau\to\infty$, every softmax becomes uniform over the
+$3$ candidates and $\mathcal L\to\log3 = 1.0986$.
+
+\solution{contrastive-practice:exr:2}
+$\norm{a - b}^2 = \norm a^2 + \norm b^2 - 2a^\top b = 2 - 2a^\top b$. Hence $f(x)^\top f(y) = 1 - \frac12\norm{f(x) - f(y)}^2$, and taking expectations over positive pairs,
+$-\frac1\tau\E[f(x)^\top f(y)] = -\frac1\tau + \frac1{2\tau}\mathcal L_{\mathrm{align}}$.
+
+\solution{contrastive-practice:exr:3}
+SimCLR: each of the $2B = 8192$ views has $2B - 2 = 8190$ negatives, and all $8192$ embeddings carry gradients.
+MoCo: each of the $256$ queries has $65\,536$ negatives from the queue; only the $256$ queries carry gradients, the $256$ new
+keys are computed without gradient, and the queued keys are not recomputed.
+
+\solution{contrastive-practice:exr:4}
+Unrolling, $\theta_k^{(t)} = m^t\theta_k^{(0)} + (1 - m)\sum_{j=0}^{t-1}m^j\theta_q^{(t-j)}$: the query parameters of $j$ steps ago have weight $(1 - m)m^j$. For $j = 1000$:
+$0.001\times0.999^{1000} = 0.001\times0.368 = 3.7\times10^{-4}$. The last $n$ steps have total weight $1 - m^n$, which is $1 - e^{-1}\approx63\%$ for
+$n = -1/\log m\approx1000$: the key encoder averages the query encoder over about the last thousand steps.
+
+\solution{contrastive-practice:exr:5}
+If every embedding is the same vector, each dimension has mean equal to its value and standard
+deviation $0$; centred values are $0$, and dividing by $0 + \varepsilon$ leaves $0$. So $C = 0$ and the loss is $\sum_i(1 - 0)^2 = d$, whatever $\lambda$:
+complete collapse is heavily penalized. If the standardized embeddings of the two views are equal and
+their dimensions uncorrelated, then $C_{ii} = 1$ and $C_{ij} = 0$ for $i\neq j$, and the loss is $0$, its minimum.

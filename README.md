@@ -7,7 +7,7 @@ graph neural networks.
 
 The notes started as ~100 standalone LaTeX documents, Markdown files and
 notebooks. They are organised here as a single LaTeX book (11 parts,
-70 chapters and three appendices, ~760 pages), with the accompanying code and notebooks.
+70 chapters and three appendices, ~740 pages), with the accompanying code and notebooks.
 
 **[📕 Download the PDF](https://github.com/CL-BZH/ml-notes-book/releases/latest/download/Notes_on_Machine_Learning.pdf)**
 
@@ -98,8 +98,8 @@ notebooks. They are organised here as a single LaTeX book (11 parts,
 
 **Part X — Contrastive and Self-Supervised Learning**
 
-57. Contrastive Learning: An Overview
-58. Contrastive Learning: A Mathematical Treatment
+57. Contrastive Learning and the InfoNCE Loss
+58. Self-Supervised Representation Learning in Practice
 
 **Part XI — Machine Learning on Graphs**
 
