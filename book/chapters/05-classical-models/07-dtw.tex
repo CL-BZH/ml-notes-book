@@ -1,205 +1,210 @@
-% Source: dynamic_time_warping.tex
 \begin{notechapter}
 \chapter{Dynamic Time Warping}\label{ch:dtw}
+\chaptersubtitle{Comparing sequences that run at different speeds}
 
-\begin{abstract}
-Dynamic Time Warping (DTW) is a widely used algorithm for
-measuring similarity between temporal sequences that may
-vary in speed or time. This document provides an overview
-of the DTW algorithm, its differentiable variant (Soft-DTW),
-and their applications in fields such as speech recognition,
-bioinformatics, and finance. A Python implementation of DTW
-is also included to illustrate the algorithm's practical usage.
-\end{abstract}
-
-\section{Introduction}
-Dynamic Time Warping (DTW) is a powerful algorithm used to
-measure similarity between two temporal sequences that may
-vary in speed or time. It is widely used in various fields
-such as speech recognition, bioinformatics, and finance.
-
-\section{Problem Definition}
-Given two sequences \( X = (x_1, x_2, \dots, x_n) \) and
-\( Y = (y_1, y_2, \dots, y_m) \), where \( x_i \in \mathbb{R}^d \)
-and \( y_j \in \mathbb{R}^d \) are \( d \)-dimensional vectors,
-DTW aims to find an optimal alignment between them by
-minimizing the cumulative distance between aligned points.
-
-\section{DTW Algorithm}
-The DTW algorithm involves the following steps:
-
-\subsection{Initialization}
-\begin{itemize}
-    \item Create a cost matrix \( D \) of size \( n \times m \),
-    where \( D(i, j) \) represents the distance between
-    \( x_i \) and \( y_j \).
-    \item Initialize \( D(1, 1) = d(x_1, y_1) \), where
-    \( d(x_i, y_j) \) is the local distance between
-    \( x_i \) and \( y_j \).
-    \item Initialize the first row and first column of \( D \):
-    \[
-    D(i, 1) = D(i-1, 1) + d(x_i, y_1) \quad \text{for } i = 2, \dots, n,
-    \]
-    \[
-    D(1, j) = D(1, j-1) + d(x_1, y_j) \quad \text{for } j = 2, \dots, m.
-    \]
+\begin{chapterintro}
+Two recordings of the same word, spoken at different speeds, are close as sounds but
+far apart sample by sample: the Euclidean distance compares the $t$-th sample of one with
+the $t$-th sample of the other, which may belong to different syllables. Dynamic time
+warping (DTW) first aligns the two sequences, letting one of them wait while the other
+advances, and then compares aligned samples. The best alignment is found by dynamic
+programming in time proportional to the product of the lengths. You will learn
+\begin{itemize}[nosep]
+  \item alignment paths and the DTW recursion, on a worked example;
+  \item a tested implementation, its cost, and the usual band constraint;
+  \item why DTW is not a distance in the mathematical sense;
+  \item soft-DTW, a differentiable relaxation, and what its gradient means.
 \end{itemize}
+\prerequisites{none beyond basic algorithms; \cref{sigmoid-softmax:sec:numerics} for the
+log-sum-exp.}
+\end{chapterintro}
 
-\subsection{Recurrence Relation}
-The recurrence relation for DTW is:
+\section{Alignments}\label{dtw:sec:alignment}
+
+Let $x = (x_1,\dots,x_n)$ and $y = (y_1,\dots,y_m)$ be sequences of vectors in $\R^d$ (the lengths may differ),
+and $c(a, b) = \norm{a - b}^q$ a local cost, usually with $q = 2$.
+
+\begin{definition}[Alignment path]
+An \emph{alignment path} is a sequence of index pairs $\pi = ((i_1, j_1),\dots,(i_K, j_K))$ such that
+\begin{enumerate}[nosep]
+  \item $(i_1, j_1) = (1, 1)$ and $(i_K, j_K) = (n, m)$ (the ends are matched);
+  \item each step is $(1, 0)$, $(0, 1)$ or $(1, 1)$: $x$ advances, $y$ advances, or both.
+\end{enumerate}
+The \emph{DTW cost} is the smallest total cost over all paths, and the DTW distance its $q$-th root:
 \[
-D(i, j) = d(x_i, y_j) + \min 
-\begin{cases}
-D(i-1, j), \\
-D(i, j-1), \\
-D(i-1, j-1).
-\end{cases}
+  \mathrm{DTW}_q(x, y) = \Bigl(\min_\pi\sum_{(i,j)\in\pi}c(x_i, y_j)\Bigr)^{1/q} .
 \]
-Here, \( d(x_i, y_j) \) is the local distance between
-\( x_i \) and \( y_j \).
+\end{definition}
 
-\subsection{Path Finding}
-The optimal path is found by backtracking from \( D(n, m) \)
-to \( D(1, 1) \), selecting the minimum cost at each step.
+The conditions say that time runs forward in both sequences, no sample is skipped,
+and a sample may be repeated (matched with several consecutive samples of the other
+sequence) to absorb a difference of speed. The number of paths grows exponentially
+with $n$ and $m$, but the cost is additive along the path, so the minimum satisfies a
+recursion.
 
-\section{Soft-DTW}
-Soft-DTW is a differentiable variant of DTW that replaces
-the minimum operation with a soft minimum, allowing for
-gradient-based optimization. This makes it particularly
-useful in machine learning applications where
-differentiability is required.
-
-\subsection{Soft Minimum}
-The soft minimum is defined as:
+\begin{proposition}[DTW recursion]\label{dtw:prop:recursion}
+Let $D(i, j)$ be the minimal cost of a path from $(1, 1)$ to $(i, j)$. With $D(0, 0) = 0$ and $D(i, 0) = D(0, j) = +\infty$
+otherwise,
 \[
-\text{softmin}(a, b) = -\gamma \log 
-\left( e^{-a/\gamma} + e^{-b/\gamma} \right),
+  D(i, j) = c(x_i, y_j) + \min\bigl(D(i - 1, j),\ D(i, j - 1),\ D(i - 1, j - 1)\bigr),
 \]
-where \( \gamma \) is a smoothing parameter. As \( \gamma \to 0 \),
-the soft minimum converges to the true minimum.
+and $\mathrm{DTW}_q(x, y)^q = D(n, m)$.
+\end{proposition}
 
-\subsection{Advantages of Soft-DTW}
-\begin{itemize}
-    \item Differentiability: Soft-DTW is differentiable with
-    respect to its inputs, enabling gradient-based optimization.
-    \item Smoothness: The soft minimum provides a smooth
-    approximation to the minimum, which can help avoid local
-    minima in optimization problems.
-    \item Applications: Soft-DTW is widely used in machine
-    learning tasks such as sequence alignment, time series
-    classification, and clustering.
-\end{itemize}
+\begin{proof}
+The last step of an optimal path to $(i, j)$ comes from one of the three predecessors, and the
+part of the path before it is optimal for that predecessor (otherwise replacing it would
+lower the total). The infinite borders forbid paths that do not start at $(1, 1)$.
+\end{proof}
 
-\section{Applications}
-DTW and Soft-DTW have numerous applications, including:
+The table $D$ is filled row by row in $O(nm)$ time; the optimal path is recovered by
+walking back from $(n, m)$ to the predecessor with the smallest $D$ at each step.
 
-\subsection{Speech Recognition}
-DTW is used to align speech signals with reference
-templates, enabling accurate recognition.
+\begin{example}[A worked table]\label{dtw:ex:table}
+Let $x = (1, 3, 4, 2)$ and $y = (1, 2, 4, 3, 2)$ (scalars, $q = 2$). The local costs $(x_i - y_j)^2$ and the
+cumulative costs $D(i, j)$ are
+\[
+  C = \begin{pmatrix}0&1&9&4&1\\4&1&1&0&1\\9&4&0&1&4\\1&0&4&1&0\end{pmatrix},\qquad
+  D = \begin{pmatrix}\mathbf0&1&10&14&15\\4&\mathbf1&2&2&3\\13&5&\mathbf1&\mathbf2&6\\14&5&5&2&\mathbf2\end{pmatrix}.
+\]
+For instance $D(2, 3) = C(2, 3) + \min(D(1, 3), D(2, 2), D(1, 2)) = 1 + \min(10, 1, 1) = 2$. The cost is $D(4, 5) = 2$ and
+$\mathrm{DTW}_2 = \sqrt2$. Walking back along the bold entries gives the path
+$(1,1), (2,2), (3,3), (3,4), (4,5)$: $x_3 = 4$ is matched with both $y_3 = 4$ and $y_4 = 3$, and the total
+cost $0 + 1 + 0 + 1 + 0 = 2$ comes from the pairs $(3, 2)$ and $(4, 3)$. The Euclidean distance is not even
+defined here, since the lengths differ.
+\end{example}
 
-\subsection{Bioinformatics}
-In bioinformatics, DTW helps align DNA sequences and
-analyze time-series gene expression data.
+\section{Implementation and cost}\label{dtw:sec:implementation}
 
-\subsection{Finance}
-DTW is applied to compare financial time series, such as
-stock prices, to identify patterns and trends.
+The following function implements \cref{dtw:prop:recursion} with an infinite border and
+backtracking.
 
-\section{Python Implementation}
-Below is a Python implementation of the DTW algorithm:
-
-\begin{pyblock}
+\begin{lstlisting}[language=Python]
 import numpy as np
 
-def dtw(x, x_prime, q=2):
-    """
-    Compute the Dynamic Time Warping (DTW) distance between
-    two sequences.
+def dtw(x, y, q=2):
+    """DTW between sequences of vectors x (n x d) and y (m x d).
 
-    Parameters:
-        x (list): The first sequence.
-        x_prime (list): The second sequence.
-        q (int): The power to raise the distance (default is 2
-        for Euclidean distance).
+    Returns (D[n, m] ** (1/q), optimal path as a list of (i, j), 0-based),
+    where D is the cumulative cost with local cost ||x_i - y_j||^q."""
+    x, y = np.atleast_2d(x), np.atleast_2d(y)
+    n, m = len(x), len(y)
+    D = np.full((n + 1, m + 1), np.inf)
+    D[0, 0] = 0.0
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            cost = np.linalg.norm(x[i - 1] - y[j - 1]) ** q
+            D[i, j] = cost + min(D[i - 1, j], D[i, j - 1], D[i - 1, j - 1])
+    # backtrack from (n, m) to (1, 1)
+    i, j, path = n, m, [(n - 1, m - 1)]
+    while (i, j) != (1, 1):
+        steps = [(i - 1, j - 1), (i - 1, j), (i, j - 1)]
+        i, j = min(steps, key=lambda s: D[s])
+        path.append((i - 1, j - 1))
+    return D[n, m] ** (1.0 / q), path[::-1]
 
-    Returns:
-        float: The DTW distance between the two sequences.
-        list: The optimal alignment path.
-    """
-    n, m = len(x), len(x_prime)
-    R = np.zeros((n, m))  # Cumulative cost matrix
-    path = []  # To store the optimal alignment path
-
-    # Fill the cumulative cost matrix
-    for i in range(n):
-        for j in range(m):
-            R[i, j] = d(x[i], x_prime[j]) ** q
-            if i > 0 or j > 0:
-                R[i, j] += min(
-                    R[i-1, j] if i > 0 else np.inf,
-                    R[i, j-1] if j > 0 else np.inf,
-                    R[i-1, j-1] if (i > 0 and j > 0) else np.inf
-                )
-
-    # Backtracking to find the optimal path
-    i, j = n-1, m-1
-    while i > 0 or j > 0:
-        path.append((i, j))  # Add current cell to the path
-        if i > 0 and j > 0:
-            min_cost = min(R[i-1, j], R[i, j-1], R[i-1, j-1])
-            if min_cost == R[i-1, j-1]:
-                i, j = i-1, j-1
-            elif min_cost == R[i-1, j]:
-                i -= 1
-            else:
-                j -= 1
-        elif i > 0:
-            i -= 1
-        elif j > 0:
-            j -= 1
-
-    path.append((0, 0))  # Add the starting cell
-    path.reverse()  # Reverse to get the path from start to end
-
-    return R[-1, -1] ** (1. / q), path
-
-# Example local distance function (Euclidean distance)
-def d(a, b):
-    """
-    Compute the Euclidean distance between two points.
-
-    Parameters:
-        a (list): The first point.
-        b (list): The second point.
-
-    Returns:
-        float: The Euclidean distance between the two points.
-    """
-    return np.linalg.norm(np.array(a) - np.array(b))
-
-# Example usage
 x = [[1], [2], [3], [4]]
-x_prime = [[1], [1], [2], [3], [4]]
-distance, alignment_path = dtw(x, x_prime)
-print("DTW Distance:", distance)
-print("Alignment Path:", alignment_path)
+y = [[1], [1], [2], [3], [4]]
+dist, path = dtw(x, y)
+print(dist, path)  # 0.0 [(0, 0), (0, 1), (1, 2), (2, 3), (3, 4)]
+\end{lstlisting}
 
-for (i, j) in alignment_path:
-    print(f"x[{i}] = {x[i]} is aligned with x_prime[{j}] = {x_prime[j]}")
-\end{pyblock}
+The two sequences of the example differ only by a repeated first sample, and DTW
+matches $x_1$ with both copies: the distance is $0$.
 
-\section{Conclusion}
-Dynamic Time Warping (DTW) and its differentiable variant,
-Soft-DTW, are powerful tools for analyzing temporal data.
-DTW provides a robust method for aligning sequences and
-measuring similarity, while Soft-DTW enables gradient-based
-optimization, making it suitable for machine learning
-applications. These algorithms have proven invaluable in
-fields such as speech recognition, bioinformatics, and
-finance, where temporal data plays a crucial role.
+\paragraph{Cost and constraints.} Time and memory are $O(nm)$; for long sequences this is
+too much, and unconstrained paths may also produce pathological alignments (one
+sample matched with half of the other sequence). The \emph{Sakoe--Chiba band} restricts
+paths to $\abs{i - j}\leq w$ (for sequences of equal length), which reduces the cost to $O(nw)$ and
+limits how far one sequence may run ahead; the \emph{Itakura parallelogram} limits the
+local slope instead. Lower bounds such as LB\_Keogh, cheap to compute, let a nearest-
+neighbour search discard most candidates without computing their DTW.
 
-\begin{thebibliography}{9}
-\bibitem{dtw:tavenard.blog.dtw} R.~Tavenard, \emph{An introduction to Dynamic Time Warping}, 2021. \url{https://rtavenar.github.io/blog/dtw.html}
-\bibitem{dtw:tavenard.blog.softdtw} R.~Tavenard, \emph{Differentiability of DTW and the case of soft-DTW}, 2021. \url{https://rtavenar.github.io/blog/softdtw.html}
-\end{thebibliography}
+\begin{pitfall}[DTW is not a metric]
+DTW is symmetric and nonnegative, but two different sequences can be at distance $0$ (a
+sequence and its copy with a repeated sample), and the triangle inequality fails. With
+$q = 1$ and absolute differences: $a = (0, 0)$, $b = (0, 1)$, $c = (0, 1, 1)$ give $\mathrm{DTW}(a, b) = 1$,
+$\mathrm{DTW}(b, c) = 0$ and $\mathrm{DTW}(a, c) = 2>1 + 0$. Algorithms that rely on the triangle inequality
+(metric trees, some clustering guarantees) do not apply as such.
+\end{pitfall}
+
+\section{Soft-DTW}\label{dtw:sec:soft}
+
+The DTW cost is a minimum over paths, hence piecewise smooth and not differentiable
+where two paths tie. To use it as a loss (to train a network to output sequences, or to
+average sequences), Cuturi and Blondel (\emph{Soft-DTW: a Differentiable Loss Function for
+Time-Series}, ICML 2017) replace the minimum by a smooth one.
+
+\begin{definition}[Soft minimum, soft-DTW]
+For $\gamma>0$,
+\[
+  \operatorname{min}^\gamma(a_1,\dots,a_k) = -\gamma\log\sum_{l=1}^ke^{-a_l/\gamma},
+\]
+and soft-DTW is obtained by using $\operatorname{min}^\gamma$ in the recursion of \cref{dtw:prop:recursion}.
+\end{definition}
+
+The soft minimum is $-\gamma\,\mathrm{LSE}(-a/\gamma)$, so by \cref{sigmoid-softmax:prop:lse}
+\[
+  \min_la_l - \gamma\log k\leq\operatorname{min}^\gamma(a_1,\dots,a_k)\leq\min_la_l,
+\]
+and it tends to the minimum as $\gamma\to0$; its gradient with respect to $a$ is the softmax
+$\softmax(-a/\gamma)$. Unrolled, the soft-DTW recursion computes
+\[
+  \mathrm{sDTW}_\gamma(x, y) = -\gamma\log\sum_\pi\exp\Bigl(-\frac1\gamma\sum_{(i,j)\in\pi}c(x_i, y_j)\Bigr),
+\]
+a soft minimum over \emph{all} alignment paths, still in $O(nm)$ time. Its gradient with
+respect to the cost matrix is the expected alignment matrix
+$E_{ij} = P_\gamma\bigl((i, j)\in\pi\bigr)$ under the Gibbs distribution $P_\gamma(\pi)\propto\exp(-\mathrm{cost}(\pi)/\gamma)$ over paths, and a
+backward recursion computes it in $O(nm)$ as well. As $\gamma\to0$ it concentrates on the optimal
+path; for larger $\gamma$ it spreads over near-optimal ones.
+
+\begin{pitfall}[Soft-DTW of a sequence with itself]
+$\mathrm{sDTW}_\gamma(x, x)$ is not $0$; it can be negative, since every path, not only the diagonal,
+contributes to the sum. Minimizing $\mathrm{sDTW}_\gamma(x, y)$ over $y$ therefore need not return $y = x$.
+Blondel, Mensch and Vert (2021) proposed the \emph{soft-DTW divergence}
+$\mathrm{sDTW}_\gamma(x, y) - \frac12\mathrm{sDTW}_\gamma(x, x) - \frac12\mathrm{sDTW}_\gamma(y, y)$ (\emph{Differentiable Divergences
+Between Time Series}, AISTATS 2021). They prove it nonnegative and zero iff $x = y$ for
+two modified costs (a log-augmented squared Euclidean cost, and the absolute value in
+dimension~$1$); for the plain squared Euclidean cost they only conjecture it, with
+numerical support.
+\end{pitfall}
+
+\paragraph{Further reading.} R.~Tavenard's blog posts \emph{An Introduction to Dynamic Time
+Warping} and \emph{Differentiability of DTW and the Case of Soft-DTW} (2021) give
+illustrated introductions; the \texttt{tslearn} library implements both, with
+constraints and barycentres.
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item An alignment path matches the ends and moves by $(1, 0)$, $(0, 1)$ or $(1, 1)$; DTW is the minimal
+        total cost over paths, computed by $D(i, j) = c(x_i, y_j) + \min(D(i - 1, j), D(i, j - 1), D(i - 1, j - 1))$ in $O(nm)$.
+  \item Bands and lower bounds make DTW practical on long sequences and large
+        collections.
+  \item DTW can vanish between different sequences and violates the triangle inequality.
+  \item Soft-DTW replaces $\min$ by $-\gamma\log\sum e^{-a/\gamma}$; it is differentiable, and its gradient is the
+        expected alignment under a Gibbs distribution over paths. Its divergence version is
+        provably zero exactly on identical sequences for suitable costs (conjectured for the
+        squared Euclidean one).
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{dtw:exr:1}
+Show that the number of alignment paths between sequences of lengths $n$ and $m$ is at least
+$\binom{n + m - 2}{n - 1}$ (count the paths that use only steps $(1, 0)$ and $(0, 1)$).
+\solutionlink{dtw:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{dtw:exr:2}
+Compute $\mathrm{DTW}_1(a, c)$ for $a = (0, 0)$ and $c = (0, 1, 1)$ with absolute differences, filling the table
+$D$, and find the optimal path.
+\solutionlink{dtw:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{dtw:exr:3}
+Show that $\frac{\partial}{\partial a_l}\operatorname{min}^\gamma(a_1,\dots,a_k) = \softmax(-a/\gamma)_l$, and that $\operatorname{min}^\gamma(a, a) = a - \gamma\log2$.
+\solutionlink{dtw:exr:3}
+\end{exercise}
 \end{notechapter}

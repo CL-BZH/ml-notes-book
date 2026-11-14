@@ -1,228 +1,227 @@
-% Source: adaboost.tex
 \begin{notechapter}
-\chapter{Ensemble Methods}\label{ch:ensemble-methods}
-\chaptersubtitle{AdaBoost, forward stagewise additive modeling and gradient boosting}
+\chapter{Ensembles: Bagging, Random Forests and AdaBoost}\label{ch:ensemble-methods}
+\chaptersubtitle{Averaging to reduce variance, reweighting to reduce bias}
 
-\section{AdaBoost Algorithm}
-
-AdaBoost (Adaptive Boosting) is an ensemble learning algorithm that 
-combines multiple weak learners (e.g., shallow decision trees) to 
-create a strong learner. It focuses on instances that are difficult 
-to classify, iteratively improving the model's performance.
-
-\subsection{How AdaBoost Works}
-
-\subsubsection{Initialization}
-\begin{itemize}
-    \item Start with a dataset of \( N \) training instances: 
-    \( (x_1, y_1), (x_2, y_2), \dots, (x_N, y_N) \), where \( x_i \) 
-    are features and \( y_i \) are labels (e.g., \( y_i \in \{-1, 1\} \)).
-    \item Assign equal weights to all instances: 
-    \( w_i = \frac{1}{N} \) for \( i = 1, 2, \dots, N \).
+\begin{chapterintro}
+A single deep decision tree has low bias and high variance: a small change in the data
+can change its first split and everything below. Ensembles combine many models to do
+better than any of them. There are two families. \emph{Bagging} and \emph{random forests}
+train models independently on perturbed versions of the data and average them, which
+reduces variance. \emph{Boosting} trains models sequentially, each one correcting the
+mistakes of the current combination, which reduces bias. This chapter treats the
+first family and AdaBoost; gradient boosting, the general form of the second, is the
+subject of \cref{ch:gradient-boosting}. You will learn
+\begin{itemize}[nosep]
+  \item why averaging helps, and why correlation between the models limits it;
+  \item the bootstrap, bagging, out-of-bag error, and the random feature selection of
+        random forests;
+  \item AdaBoost, derived as forward stagewise minimization of the exponential loss;
+  \item AdaBoost's training-error bound, and what it estimates.
 \end{itemize}
+\prerequisites{\cref{ch:decision-trees}; the bootstrap (\cref{ch:stats-and-proba});
+\cref{ch:surrogate-losses} for the exponential loss.}
+\end{chapterintro}
 
-\subsubsection{Iterative Training}
-AdaBoost trains \( T \) weak learners. For each iteration 
-\( t = 1, 2, \dots, T \):
+\section{Why averaging helps}\label{ensemble-methods:sec:averaging}
 
-\begin{itemize}
-    \item \textbf{Step 1: Train a Weak Learner}
-    \begin{itemize}
-        \item Train a weak learner \( h_t(x) \) on the weighted data.
-        \item Compute the weighted error:
-        \[
-        \epsilon_t = \sum_{i=1}^N w_i \cdot \mathbb{I}(h_t(x_i) \neq y_i),
-        \]
-        where \( \mathbb{I} \) is 1 if incorrect, 0 otherwise.
-    \end{itemize}
-
-    \item \textbf{Step 2: Compute Weak Learner's Weight}
-    \begin{itemize}
-        \item Compute \( \alpha_t \) for \( h_t(x) \):
-        \[
-        \alpha_t = \frac{1}{2} \ln\left(\frac{1 - \epsilon_t}{\epsilon_t}\right).
-        \]
-        \item If \( \epsilon_t \) is small, \( \alpha_t \) is large.
-        \item If \( \epsilon_t \) is large, \( \alpha_t \) is small.
-    \end{itemize}
-
-    \item \textbf{Step 3: Update Instance Weights}
-    \begin{itemize}
-                \item Update the weights, with labels and predictions in \( \{-1, +1\} \):
-        \[
-        w_i \leftarrow w_i \cdot \exp\left(-\alpha_t \, y_i \, h_t(x_i)\right),
-        \]
-        i.e.\ multiply by \( e^{\alpha_t} > 1 \) the weights of misclassified instances
-        (\( y_i h_t(x_i) = -1 \)) and by \( e^{-\alpha_t} < 1 \) those of correctly classified ones.
-        Up to the normalization below, this is the same as multiplying only the misclassified weights by
-        \( e^{2\alpha_t} = \frac{1-\epsilon_t}{\epsilon_t} \). After normalization, the misclassified instances
-        carry exactly half of the total weight, so \( h_t \) has weighted error \( 1/2 \) under the new weights.
-        \item Normalize weights so they sum to 1:
-        \[
-        w_i \leftarrow \frac{w_i}{\sum_{j=1}^N w_j}.
-        \]
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Combine Weak Learners}
-After \( T \) iterations, the final strong learner \( H(x) \) is:
+Let $f_1,\dots,f_B$ be regression functions obtained from random perturbations of the
+training procedure, and $\bar f = \frac1B\sum_bf_b$. At a fixed input $x$, suppose each $f_b(x)$ has
+variance $\sigma^2$ and any two have correlation $\rho$. Then
 \[
-H(x) = \text{sign}\left(\sum_{t=1}^T \alpha_t \cdot h_t(x)\right).
+  \Var\bigl(\bar f(x)\bigr) = \frac1{B^2}\Bigl(\sum_b\Var f_b + \sum_{b\neq b'}\Cov(f_b, f_{b'})\Bigr)
+  = \frac1{B^2}\bigl(B\sigma^2 + B(B - 1)\rho\sigma^2\bigr)
+  = \rho\sigma^2 + \frac{1 - \rho}B\sigma^2 .
 \]
-\begin{itemize}
-    \item Weak learners with lower error contribute more.
-    \item The \( \text{sign} \) function outputs binary predictions.
-\end{itemize}
+The second term vanishes as $B$ grows; the first does not. Averaging removes the part of
+the variance that the models do not share, and the shared part $\rho\sigma^2$ is a floor. The bias
+is unchanged: $\E[\bar f(x)] = \E[f_b(x)]$. Ensembles of this kind therefore want models with low bias
+(deep trees), high variance, and \emph{low correlation}.
 
-\subsection{Key Features of AdaBoost}
-\begin{itemize}
-    \item Focuses on hard-to-classify instances.
-    \item Adaptively weights weak learners based on performance.
-    \item Reduces bias and improves generalization.
-    \item Less prone to overfitting with simple weak learners.
-\end{itemize}
+For classification by majority vote the effect can be dramatic, if the votes are
+independent: $B$ classifiers that are each right with probability $0.6$, independently, give
+a majority that is right with probability $0.683$ for $B = 5$, $0.846$ for $B = 25$ and $0.979$ for
+$B = 101$ (the tail of a binomial distribution). Real models trained on the same data are
+far from independent, and this is the whole difficulty.
 
-\subsection{Advantages of AdaBoost}
-\begin{itemize}
-    \item Simple and easy to implement.
-    \item Works well with weak learners like decision stumps.
-    \item Achieves high accuracy with minimal tuning.
-\end{itemize}
+\section{Bagging}\label{ensemble-methods:sec:bagging}
 
-\subsection{Limitations of AdaBoost}
-\begin{itemize}
-    \item Sensitive to noisy data and outliers.
-    \item Requires weak learners to perform better than random guessing.
-\end{itemize}
+\begin{definition}[Bagging (Breiman, 1996)]
+For $b = 1,\dots,B$: draw a \emph{bootstrap sample} of $n$ points from the training set uniformly
+\emph{with replacement}, and fit a model $f_b$ to it. Predict with the average $\frac1B\sum_bf_b(x)$
+(regression) or the majority vote (classification).
+\end{definition}
 
-\section{Forward Stagewise Additive Modeling (FSAM)}
+A given point is absent from a bootstrap sample with probability $(1 - \frac1n)^n\to e^{-1}\approx0.368$ (for
+$n = 100$ it is $0.366$). Each bootstrap sample therefore contains about $63.2\%$ of the distinct
+training points, some of them several times. The models differ because their samples
+differ; for an unstable procedure such as a deep tree, the differences are large and
+bagging reduces the variance substantially. For a stable procedure (linear regression,
+$k$-nearest neighbours with large $k$), the models are nearly identical and bagging does
+little.
 
-FSAM is a framework for building additive models sequentially. It is 
-the theoretical foundation for many boosting algorithms, including 
-AdaBoost and Gradient Boosting.
+\paragraph{Out-of-bag error.} The roughly $36.8\%$ of points left out of sample $b$ are a free
+validation set for $f_b$. For each training point $i$, average (or vote) the predictions of
+the models whose sample did not contain $i$, about $0.368B$ of them, and compare with $y_i$. The
+resulting \emph{out-of-bag error} estimates the test error of the ensemble without a
+separate validation set, much like cross-validation, and is used to choose
+hyperparameters and to compute permutation importances
+(\cref{decision-trees:sec:importance}).
 
-\subsection{How FSAM Works}
-1. \textbf{Additive Model}:
-   The goal is to build a model \( F(x) \) as a sum of simpler models:
-   \[
-   F(x) = \sum_{t=1}^T \alpha_t h_t(x),
-   \]
-   where \( h_t(x) \) is a weak learner and \( \alpha_t \) is its weight.
+\section{Random forests}\label{ensemble-methods:sec:rf}
 
-2. \textbf{Sequential Training}:
-   \begin{itemize}
-       \item At each step \( t \), a new weak learner \( h_t(x) \) is added.
-       \item The weak learner is chosen to minimize a loss function \( L \):
-         \[
-         h_t(x) = \arg\min_{h} \sum_{i=1}^N L\left(y_i, F_{t-1}(x_i) + \alpha_t h(x_i)\right).
-         \]
-       \item The weight \( \alpha_t \) is determined via optimization.
-   \end{itemize}
+Bagged trees are strongly correlated: if one feature is much better than the others, it
+is chosen at the root of almost every tree, and the trees look alike. Random forests
+(Breiman, 2001) lower the correlation $\rho$ by randomizing the splits as well.
 
-3. \textbf{Greedy Optimization}:
-   \begin{itemize}
-       \item FSAM is greedy because it optimizes one weak learner at a time.
-   \end{itemize}
+\begin{definition}[Random forest]
+Bagging of fully grown (or nearly so) decision trees, in which each split is chosen
+among a random subset of $m$ of the $p$ features, drawn anew at each node.
+\end{definition}
 
-\subsection{Connection to AdaBoost}
-AdaBoost is a special case of FSAM where:
-\begin{itemize}
-    \item The loss function is exponential: 
-    \[
-    L(y, F(x)) = \exp(-y F(x)).
-    \]
-    \item The weak learners are binary classifiers (e.g., decision stumps).
-\end{itemize}
+With $m = p$ this is bagging. Smaller $m$ decorrelates the trees, at the price of a small
+increase of each tree's variance and bias. The usual defaults are $m = \lfloor\sqrt p\rfloor$ for
+classification and $m = \lfloor p/3\rfloor$ for regression, and the number of trees $B$ is simply taken large
+enough for the out-of-bag error to stabilize: by the formula of
+\cref{ensemble-methods:sec:averaging}, adding trees never increases the variance, so a random
+forest does not overfit by having too many trees (it can overfit through deep trees on
+noisy data). Random forests need little tuning, handle mixed feature types, and give
+importance measures; their main costs are memory and the loss of the single tree's
+readability.
 
-\section{Gradient Boosting}
+\section{AdaBoost}\label{ensemble-methods:sec:adaboost}
 
-Gradient Boosting is a generalization of boosting algorithms that 
-uses gradient descent to minimize a differentiable loss function.
+Boosting asks whether \emph{weak learners}, each only slightly better than chance, can be
+combined into an arbitrarily accurate classifier. AdaBoost (Freund and Schapire, 1997)
+answers yes, with a simple reweighting scheme.
 
-\subsection{How Gradient Boosting Works}
-1. \textbf{Additive Model}:
-   The model is built sequentially:
-   \[
-   F(x) = \sum_{t=1}^T h_t(x),
-   \]
-   where \( h_t(x) \) is a weak learner (often a decision tree).
+\begin{definition}[AdaBoost]\label{ensemble-methods:def:adaboost}
+Labels $y_i\in\{-1, +1\}$, weak learners $h$ with values in $\{-1, +1\}$. Start with weights $w_i = \frac1n$. For
+$t = 1,\dots,T$:
+\begin{enumerate}[nosep]
+  \item fit $h_t$ to the weighted data, and compute its weighted error $\varepsilon_t = \sum_iw_i\bbone[h_t(x_i)\neq y_i]$;
+  \item set $\alpha_t = \frac12\ln\frac{1 - \varepsilon_t}{\varepsilon_t}$;
+  \item update $w_i\leftarrow w_i\,e^{-\alpha_ty_ih_t(x_i)}$ and normalize the weights to sum to $1$.
+\end{enumerate}
+Predict $\sign F_T(x)$, with $F_T = \sum_{t=1}^T\alpha_th_t$.
+\end{definition}
 
-2. \textbf{Gradient Descent in Function Space}:
-   \begin{itemize}
-       \item At each step \( t \), compute pseudo-residuals:
-         \[
-         r_{i,t} = -\frac{\partial L(y_i, F_{t-1}(x_i))}{\partial F_{t-1}(x_i)}.
-         \]
-       \item Train a weak learner \( h_t(x) \) to predict \( r_{i,t} \):
-         \[
-         h_t(x) = \arg\min_{h} \sum_{i=1}^N (r_{i,t} - h(x_i))^2.
-         \]
-   \end{itemize}
+The update multiplies the weights of misclassified points by $e^{\alpha_t}$ and those of correctly
+classified points by $e^{-\alpha_t}$. After normalization, the misclassified points carry exactly
+half of the total weight (\cref{ensemble-methods:exr:2}): $h_t$ is no better than chance on the new
+weights, and the next learner is forced to look elsewhere. The weight $\alpha_t$ is positive iff
+$\varepsilon_t<\frac12$, and large when $\varepsilon_t$ is small.
 
-3. \textbf{Update the Model}:
-   \begin{itemize}
-       \item Update the model:
-         \[
-         F_t(x) = F_{t-1}(x) + \nu h_t(x),
-         \]
-         where \( \nu \) is the learning rate.
-   \end{itemize}
+\paragraph{Where AdaBoost comes from.} Friedman, Hastie and Tibshirani (\emph{Additive
+Logistic Regression}, Annals of Statistics, 2000) showed that AdaBoost is \emph{forward
+stagewise additive modelling} with the exponential loss $L(y, F) = e^{-yF}$: at each step, add
+the term $\alpha h$ that most decreases the loss, without revising the earlier terms. Given
+$F_{t-1}$,
+\[
+  \sum_ie^{-y_i(F_{t-1}(x_i) + \alpha h(x_i))} = \sum_iw_i^{(t)}e^{-\alpha y_ih(x_i)},\qquad w_i^{(t)} = e^{-y_iF_{t-1}(x_i)} .
+\]
+The current loss of each point acts as its weight. With the weights normalized and
+$\varepsilon = \sum_iw_i\bbone[h(x_i)\neq y_i]$, the sum is
+\[
+  e^{-\alpha}(1 - \varepsilon) + e^{\alpha}\varepsilon .
+\]
+For any $\alpha>0$ this is increasing in $\varepsilon$, so the best $h$ minimizes the weighted error: step 1.
+Setting the derivative in $\alpha$ to zero, $-e^{-\alpha}(1 - \varepsilon) + e^\alpha\varepsilon = 0$, gives $\alpha = \frac12\ln\frac{1 - \varepsilon}\varepsilon$: step 2. The
+new weights $e^{-y_iF_t(x_i)} = w_i^{(t)}e^{-\alpha_ty_ih_t(x_i)}$ are step 3. By \cref{surrogate-losses:sec:conditional}, the
+population minimizer of the exponential loss is $F^* = \frac12\log\frac\eta{1 - \eta}$, so AdaBoost estimates half
+the log-odds, and $\sigma(2F_T(x))$ is an estimate of $P(Y = 1\mid x)$.
 
-4. \textbf{Iterate Until Convergence}:
-   \begin{itemize}
-       \item Repeat for \( T \) iterations or until the loss stops improving.
-   \end{itemize}
+\begin{theorem}[Training error of AdaBoost]\label{ensemble-methods:thm:training}
+With $\varepsilon_t = \frac12 - \gamma_t$,
+\[
+  \frac1n\sum_{i=1}^n\bbone[y_iF_T(x_i)\leq0]\ \leq\ \prod_{t=1}^T2\sqrt{\varepsilon_t(1 - \varepsilon_t)}
+  = \prod_{t=1}^T\sqrt{1 - 4\gamma_t^2}\ \leq\ \exp\Bigl(-2\sum_{t=1}^T\gamma_t^2\Bigr).
+\]
+\end{theorem}
 
-\subsection{Connection to FSAM}
-Gradient Boosting is a specific implementation of FSAM where:
-\begin{itemize}
-    \item The loss function is any differentiable loss.
-    \item The weak learners are trained to approximate the negative gradient.
-\end{itemize}
+\begin{proof}
+Since $\bbone[m\leq0]\leq e^{-m}$, the training error is at most $\frac1n\sum_ie^{-y_iF_T(x_i)}$. Let $Z_t$ be the
+normalizing constant of step 3. Unrolling the updates,
+$w_i^{(T+1)} = \frac1n e^{-y_iF_T(x_i)}/\prod_tZ_t$; summing over $i$, $\frac1n\sum_ie^{-y_iF_T(x_i)} = \prod_tZ_t$. With the optimal $\alpha_t$,
+$Z_t = e^{-\alpha_t}(1 - \varepsilon_t) + e^{\alpha_t}\varepsilon_t = 2\sqrt{\varepsilon_t(1 - \varepsilon_t)}$. Finally $1 - x\leq e^{-x}$ gives the last inequality.
+\end{proof}
 
-\subsection{Example: Gradient Boosting for Regression}
-For regression with squared error loss:
-\begin{itemize}
-    \item Pseudo-residuals:
-      \[
-      r_{i,t} = y_i - F_{t-1}(x_i).
-      \]
-    \item Weak learner: A decision tree predicts \( r_{i,t} \).
-    \item Update model:
-      \[
-      F_t(x) = F_{t-1}(x) + \nu h_t(x).
-      \]
-\end{itemize}
+If every weak learner has an edge $\gamma_t\geq\gamma>0$ over chance, the training error decreases
+exponentially in $T$ and is zero after $T>\ln n/(2\gamma^2)$ rounds.
 
-\section{Key Differences Between FSAM and Gradient Boosting}
-
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Feature} & \textbf{FSAM} & \textbf{Gradient Boosting} \\
-\hline
-Loss Function & Any loss function & Differentiable loss function \\
-\hline
-Weak Learner & Any weak learner & Typically decision trees \\
-\hline
-Optimization & Greedy, stepwise & Gradient descent in function space \\
-\hline
-Weight Calculation & Analytically derived & Determined via line search \\
-\hline
-Flexibility & Less flexible & Highly flexible \\
-\hline
+\begin{example}[Three stumps]\label{ensemble-methods:ex:adaboost}
+Ten points $x = 1,\dots,10$ with labels $(+, +, +, -, -, -, +, +, +, -)$, and decision stumps
+$h(x) = \pm\sign(s - x)$ as weak learners. No single stump fits: the classes alternate in four
+blocks.
+\begin{center}
+\begin{tabular}{@{}clcccc@{}}
+\toprule
+$t$ & stump & $\varepsilon_t$ & $\alpha_t$ & $Z_t$ & training error of $\sign F_t$ \\
+\midrule
+1 & $+1$ if $x\leq3.5$ & $0.300$ & $0.424$ & $0.917$ & $0.3$ \\
+2 & $+1$ if $x\leq9.5$ & $0.214$ & $0.650$ & $0.821$ & $0.3$ \\
+3 & $-1$ if $x\leq6.5$ & $0.182$ & $0.752$ & $0.771$ & $0$ \\
+\bottomrule
 \end{tabular}
+\end{center}
+After round 1, the three misclassified points $x = 7, 8, 9$ carry half the weight ($\frac16$ each,
+against $\frac1{14}$ for the others), so round 2 chooses a stump that gets them right, at the
+cost of $x = 4, 5, 6$. After round 3,
+\[
+  F_3 = 0.424h_1 + 0.650h_2 + 0.752h_3\ \text{takes the values}\ 0.321,\ -0.526,\ 0.978,\ -0.321
+\]
+on the four blocks, with the right signs. The bound $\prod_tZ_t\approx0.580$ is the average exponential
+loss; the training error is already $0$. Continuing the rounds keeps decreasing the
+exponential loss, which increases the margins $y_iF_T(x_i)$ of the training points.
+\end{example}
 
-\section{Advantages of Gradient Boosting}
-\begin{itemize}
-    \item Flexibility: Can handle any differentiable loss function.
-    \item Powerful: Often achieves state-of-the-art performance.
-    \item Interpretability: Weak learners (e.g., trees) are interpretable.
-\end{itemize}
+\paragraph{Strengths and weaknesses.} AdaBoost with stumps or small trees is simple and
+often accurate, and its test error frequently keeps decreasing after the training error
+reaches zero, which the margin theory of Schapire, Freund, Bartlett and Lee (1998)
+explains by the growth of the margins. The exponential loss is its weak point: a
+misclassified point with margin $m$ costs $e^{-m}$, so mislabelled points receive exponentially
+growing weights and can dominate the later rounds. Losses that grow linearly, such as
+the logistic loss, are more robust; using them requires the more general machinery of
+gradient boosting (\cref{ch:gradient-boosting}).
 
-\section{Limitations of Gradient Boosting}
-\begin{itemize}
-    \item Computationally expensive: Sequential training can be slow.
-    \item Sensitive to overfitting: Requires careful tuning.
-    \item Black-box nature: The ensemble can be complex.
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Averaging $B$ models with variance $\sigma^2$ and correlation $\rho$ gives variance
+        $\rho\sigma^2 + (1 - \rho)\sigma^2/B$: averaging reduces variance, not bias, down to the floor $\rho\sigma^2$.
+  \item Bagging fits models to bootstrap samples, each containing about $63.2\%$ of the points;
+        the rest give the out-of-bag error.
+  \item Random forests also restrict each split to $m$ random features, lowering the
+        correlation between trees. More trees never hurt.
+  \item AdaBoost is forward stagewise minimization of $e^{-yF}$: weights are the current losses,
+        each learner minimizes the weighted error, $\alpha_t = \frac12\ln\frac{1 - \varepsilon_t}{\varepsilon_t}$. It estimates half the
+        log-odds.
+  \item The training error is at most $\prod_t2\sqrt{\varepsilon_t(1 - \varepsilon_t)}\leq e^{-2\sum\gamma_t^2}$; label noise is its weakness.
 \end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{ensemble-methods:exr:1}
+A random forest's trees have variance $\sigma^2 = 1$ at some $x$ and pairwise correlation $\rho = 0.3$.
+How many trees are needed for the variance of the forest to be within $10\%$ of its limit?
+\solutionlink{ensemble-methods:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{ensemble-methods:exr:2}
+Show that after the update of step 3 and normalization, the points misclassified by $h_t$
+carry total weight exactly $\frac12$.
+\solutionlink{ensemble-methods:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{ensemble-methods:exr:3}
+What does AdaBoost do if a weak learner has $\varepsilon_t = 0$? If $\varepsilon_t>\frac12$? Show that in the second
+case using $-h_t$ instead gives the same $F_t$.
+\solutionlink{ensemble-methods:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{ensemble-methods:exr:4}
+Check the weights after round 1 of \cref{ensemble-methods:ex:adaboost}, and the value
+$\varepsilon_2 = 0.214$ for the stump chosen in round 2.
+\solutionlink{ensemble-methods:exr:4}
+\end{exercise}
 \end{notechapter}

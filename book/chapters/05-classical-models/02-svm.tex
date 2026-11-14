@@ -1,661 +1,354 @@
-% Source: svm.tex
 \begin{notechapter}
 \chapter{Support Vector Machines}\label{ch:svm}
+\chaptersubtitle{The maximum-margin hyperplane, its dual, and kernels}
 
-\section{Introduction}
-Support Vector Machines (SVM) are powerful supervised learning 
-models used for classification and regression. They work by finding 
-a hyperplane that best separates data points of different classes. 
-This tutorial explains the key concepts, mathematical formulation, 
-and practical insights behind SVMs.
+\begin{chapterintro}
+The perceptron stops at the first separating hyperplane it finds
+(\cref{ch:perceptron}). The support vector machine chooses one: the hyperplane
+farthest from the closest points. This single requirement leads to a convex
+quadratic program whose solution depends only on a few training points, the
+\emph{support vectors}, and whose dual involves the data only through inner
+products, which kernels can replace. You will learn
+\begin{itemize}[nosep]
+  \item the geometric margin and the hard-margin problem $\min\frac12\norm w^2$;
+  \item the soft margin, slack variables, and their equivalence with regularized
+        hinge-loss minimization;
+  \item the Lagrangian dual, the KKT conditions, and the three kinds of training
+        points they distinguish;
+  \item kernels: the Gram matrix, positive semidefiniteness, the usual kernels, and
+        conditionally positive definite kernels;
+  \item what the margin says about generalization, and how to handle several
+        classes.
+\end{itemize}
+\prerequisites{\cref{ch:perceptron}; \cref{ch:surrogate-losses} (hinge loss, calibration);
+Lagrange multipliers.}
+\end{chapterintro}
 
-\section{Key Concepts}
-\subsection{Hyperplane}
-A hyperplane in an \( n \)-dimensional space is defined by:
+\section{The maximum-margin hyperplane}\label{svm:sec:hard}
+
+Let $(x_i, y_i)$, $i = 1,\dots,n$, with $y_i\in\{-1, +1\}$, and the classifier $\sign f(x)$, $f(x) = w^\top x + b$. The
+distance from a point $x$ to the hyperplane $\{f = 0\}$ is $\abs{f(x)}/\norm w$
+(\cref{perceptron:sec:geometry}), so the distance of a correctly classified point,
+counted positively, is $y_if(x_i)/\norm w$. The \emph{geometric margin} of the classifier on the
+data is the smallest such distance, $\min_iy_if(x_i)/\norm w$.
+
+The pair $(w, b)$ is defined only up to a positive factor: $(cw, cb)$ gives the same
+hyperplane and the same geometric margin. Fix the factor by requiring
+$\min_iy_if(x_i) = 1$ (the \emph{canonical} scaling). The geometric margin is then $1/\norm w$, the
+closest points lie on the two hyperplanes $f(x) = \pm1$, and the band between them has
+width $2/\norm w$. Maximizing the margin is minimizing $\norm w$:
+
+\begin{definition}[Hard-margin SVM]
 \[
-w^T x + b = 0,
+  \min_{w, b}\ \frac12\norm w^2\qquad\text{subject to}\qquad y_i(w^\top x_i + b)\geq1,\quad i = 1,\dots,n .
 \]
-where:
-\begin{itemize}
-    \item \( w \) is the weight vector (normal to the hyperplane),
-    \item \( x \) is the input feature vector,
-    \item \( b \) is the bias term.
-\end{itemize}
+\end{definition}
 
-\subsection{Margin}
-The margin is the distance between the hyperplane and the nearest 
-data points (support vectors). A larger margin improves 
-generalization to unseen data because it makes the model more 
-robust to small perturbations in the data.
+The objective is strictly convex in $w$ and the constraints are affine, so when the data
+are separable the problem has a solution, with a unique $w$. The constraints that are
+active at the solution, $y_if(x_i) = 1$, belong to the points closest to the hyperplane, the
+\emph{support vectors}. All other points could be moved, as long as they stay outside
+the band, without changing the solution.
 
-\subsection{Slack Variables}
-In real-world scenarios, data may not be perfectly separable. Slack 
-variables (\( \xi_i \)) are introduced to allow for misclassification 
-errors. They measure the degree of margin violation:
+\begin{example}[Three support vectors]\label{svm:ex:hard}
+Take the six points of \cref{perceptron:ex:three}. Guess that the support vectors are $(2, 1)$
+and $(1, 2.5)$ (positive) and $(-1, 1)$ (negative). The three active constraints are
 \[
-\xi_i = \max(0, 1 - y_i (w^T x_i + b)).
+  2w_1 + w_2 + b = 1,\qquad w_1 + 2.5w_2 + b = 1,\qquad -w_1 + w_2 + b = -1 .
 \]
-\begin{itemize}
-    \item If \( \xi_i = 0 \), the point is correctly classified.
-    \item If \( 0 < \xi_i < 1 \), the point is inside the margin.
-        \item If \( \xi_i > 1 \), the point is misclassified (\( \xi_i = 1 \): it lies exactly on the decision boundary).
-\end{itemize}
-
-\section{Mathematical Formulation}
-\subsection{Objective Function}
-The SVM optimization problem is:
+Subtracting the first two gives $w_1 = 1.5w_2$; subtracting the third from the first,
+$3w_1 = 2$. Hence
 \[
-\min_{w, b, \xi} \frac{1}{2} \|w\|^2 + C \|\xi\|_p^p
-=
-\min_{w, b, \xi} \frac{1}{2} \|w\|^2 + C \sum_{i=1}^n \xi_i^p,
+  w = \bigl(\tfrac23, \tfrac49\bigr),\qquad b = -\tfrac79,\qquad
+  \norm w = \tfrac{\sqrt{52}}9\approx0.801,\qquad\text{margin } \tfrac1{\norm w}\approx1.248 .
 \]
-where:
-\begin{itemize}
-    \item \( \frac{1}{2} \|w\|^2 \) maximizes the margin,
-    \item \( C \) controls the trade-off between margin size and errors,
-    \item \( \xi_i \) are slack variables for margin violations,
-    \item \( p \) determines the penalty for margin violations.
-\end{itemize}
+The other points satisfy the constraints strictly: $y_if(x_i) = \frac{11}9$, $2$ and $\frac{23}9$ for $(0, -1)$,
+$(2.5, 2.5)$ and $(-2, -1)$. That the guess is right follows from the KKT conditions
+(\cref{svm:ex:dual}). \Cref{svm:fig:hard} compares this boundary with the one the perceptron
+found: both separate the data, but the closest point is at distance $1.25$ instead of
+$0.63$.
+\end{example}
 
-\subsection{Hinge Loss}
-The hinge loss measures margin violations and is equivalent to the 
-slack variable \( \xi_i \) when \( p = 1 \):
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=9.5cm, axis equal image, xmin=-3, xmax=3.5, ymin=-2.2, ymax=3.3,
+  xlabel={$x_1$}, ylabel={$x_2$}, axis lines=middle, xtick={-2,...,3}, ytick={-2,...,3},
+  tick label style={font=\scriptsize}, axis on top]
+  \fill[bookaccent!8] (axis cs:-3,{(1+7/9+2)*9/4}) -- (axis cs:3.5,{(1+7/9-7/3)*9/4}) -- (axis cs:3.5,{(-1+7/9-7/3)*9/4}) -- (axis cs:-3,{(-1+7/9+2)*9/4}) -- cycle;
+  \addplot[very thick, bookaccent, domain=-3:3.5, samples=2] {(7/9-2/3*x)*9/4};
+  \addplot[thin, bookaccent, dashed, domain=-3:3.5, samples=2] {(1+7/9-2/3*x)*9/4};
+  \addplot[thin, bookaccent, dashed, domain=-3:3.5, samples=2] {(-1+7/9-2/3*x)*9/4};
+  \addplot[thick, gray, densely dotted, domain=-3:3.5, samples=2] {1-3*x};
+  \addplot[only marks, mark=*, mark size=2.2pt, bookdef] coordinates {(2,1) (1,2.5) (2.5,2.5)};
+  \addplot[only marks, mark=square*, mark size=2.2pt, bookpitfall] coordinates {(0,-1) (-1,1) (-2,-1)};
+  \addplot[only marks, mark=o, mark size=4pt, black, thick] coordinates {(2,1) (1,2.5) (-1,1)};
+  \node[font=\scriptsize, anchor=west, bookaccent] at (axis cs:0.95,2.75) {$f = +1$};
+  \node[font=\scriptsize, anchor=west, bookaccent] at (axis cs:-2.95,2.75) {$f = -1$};
+  \node[font=\scriptsize, anchor=west, gray] at (axis cs:1.0,-1.8) {perceptron};
+\end{axis}
+\end{tikzpicture}
+\caption{The maximum-margin line $\frac23x_1 + \frac49x_2 - \frac79 = 0$ (solid) for the data of
+\cref{perceptron:ex:three}, its margin band (shaded, between $f = \pm1$), and the three support
+vectors (circled). The perceptron's line $3x_1 + x_2 - 1 = 0$ (dotted) also separates the data,
+but passes much closer to $(0, -1)$.}
+\label{svm:fig:hard}
+\end{figure}
+
+\section{The soft margin}\label{svm:sec:soft}
+
+If the data are not separable, the hard-margin problem has no feasible point; even if
+they are, a single outlier can force a very small margin. The \emph{soft margin} allows
+violations at a price.
+
+\begin{definition}[Soft-margin SVM]\label{svm:def:soft}
+For $C>0$,
 \[
-\text{Hinge Loss} = \xi_i = \max(0, 1 - y_i (w^T x_i + b)).
+  \min_{w, b, \xi}\ \frac12\norm w^2 + C\sum_{i=1}^n\xi_i\qquad\text{subject to}\qquad
+  y_i(w^\top x_i + b)\geq1 - \xi_i,\quad\xi_i\geq0 .
 \]
+\end{definition}
 
-\subsection{Quadratic Hinge Loss}
-The quadratic hinge loss penalizes violations more heavily and 
-corresponds to \( p = 2 \):
+The \emph{slack} $\xi_i$ measures how far point $i$ is on the wrong side of its own margin
+hyperplane $yf = 1$, in units of $1/\norm w$: its distance to that hyperplane is $\xi_i/\norm w$. At the
+optimum, each $\xi_i$ is as small as the constraints allow, $\xi_i = \max(0, 1 - y_if(x_i))$, which gives
+three cases:
+\begin{itemize}[nosep]
+  \item $\xi_i = 0$: the point is on or beyond its margin hyperplane, correctly classified;
+  \item $0<\xi_i\leq1$: the point is inside the band, on the correct side of the boundary (on it
+        if $\xi_i = 1$);
+  \item $\xi_i>1$: the point is misclassified.
+\end{itemize}
+So $\sum_i\xi_i$ is an upper bound on the number of training errors. Substituting the optimal
+slacks removes the constraints:
 \[
-\text{Quadratic Hinge Loss} = \xi_i^2 = \max(0, 1 - y_i (w^T x_i + b))^2.
+  \min_{w, b}\ \frac12\norm w^2 + C\sum_{i=1}^n\max\bigl(0, 1 - y_i(w^\top x_i + b)\bigr),
 \]
+which, divided by $Cn$, is the regularized empirical risk
+$\frac1n\sum_i\phi_{\mathrm{hinge}}(y_if(x_i)) + \lambda\norm w^2$ with $\lambda = 1/(2Cn)$. The soft-margin SVM is regularized
+hinge-loss minimization (\cref{ch:surrogate-losses}): large $C$ means little regularization and
+few margin violations, small $C$ a wide margin and many violations. Replacing $\xi_i$ by $\xi_i^2$
+in the objective gives the \emph{L2-SVM}, i.e.\ the squared hinge loss, which penalizes
+large violations more and is differentiable.
 
-\subsection{Generalized Hinge Loss}
-The generalized hinge loss (or \( p \)-hinge loss) is defined as:
+\section{The dual problem}\label{svm:sec:dual}
+
+Introduce multipliers $\alpha_i\geq0$ for the margin constraints and $\mu_i\geq0$ for $\xi_i\geq0$. The
+Lagrangian of the soft-margin problem is
 \[
-\text{Generalized Hinge Loss} = \xi_i^p = \max(0, 1 - y_i (w^T x_i + b))^p.
+  \mathcal L = \frac12\norm w^2 + C\sum_i\xi_i - \sum_i\alpha_i\bigl(y_i(w^\top x_i + b) - 1 + \xi_i\bigr) - \sum_i\mu_i\xi_i .
 \]
-This allows for flexible penalty structures:
-\begin{itemize}
-    \item \( p = 1 \): Standard hinge loss (linear penalty).
-    \item \( p = 2 \): Quadratic hinge loss (squared penalty).
-    \item \( p > 2 \): Higher penalties for larger violations.
-\end{itemize}
-
-\subsection{Relation Between Loss and Distance}
-The generalized hinge loss is directly related to the margin 
-violation. Specifically:
+Setting its derivatives with respect to the primal variables to zero:
 \[
-\xi_i = \max(0, 1 - y_i (w^T x_i + b)),
+  \frac{\partial\mathcal L}{\partial w} = 0\ \Rightarrow\ w = \sum_i\alpha_iy_ix_i,\qquad
+  \frac{\partial\mathcal L}{\partial b} = 0\ \Rightarrow\ \sum_i\alpha_iy_i = 0,\qquad
+  \frac{\partial\mathcal L}{\partial\xi_i} = 0\ \Rightarrow\ \alpha_i + \mu_i = C .
 \]
-and the distance to the margin is:
+Substituting back, the terms in $b$ and $\xi$ cancel and $\frac12\norm w^2 - \sum_i\alpha_iy_iw^\top x_i = -\frac12\norm w^2$.
+
+\begin{proposition}[Dual of the soft-margin SVM]\label{svm:prop:dual}
 \[
-\text{Distance to Margin} = \frac{\xi_i}{\|w\|_2},
+  \max_\alpha\ \sum_{i=1}^n\alpha_i - \frac12\sum_{i=1}^n\sum_{j=1}^n\alpha_i\alpha_jy_iy_j\,x_i^\top x_j
+  \qquad\text{subject to}\qquad 0\leq\alpha_i\leq C,\quad\sum_{i=1}^n\alpha_iy_i = 0 .
 \]
-where \( \|w\|_2 \) is the Euclidean norm (L2 norm) of \( w \). This 
-distance is independent of \( p \) and depends only on the slack 
-variable \( \xi_i \) and the L2 norm of \( w \).
+Strong duality holds (a convex quadratic program with affine constraints), and the
+primal solution is $w = \sum_i\alpha_iy_ix_i$. The hard-margin dual is the same with $C = \infty$.
+\end{proposition}
 
-For the generalized hinge loss, the penalty grows as the \( p \)-th power 
-of the margin violation:
+In matrix form, with $Q_{ij} = y_iy_jx_i^\top x_j$, i.e.\ $Q = \diag(y)\,XX^\top\diag(y)$ for the data matrix $X$ with
+rows $x_i^\top$, the objective is $\bbone^\top\alpha - \frac12\alpha^\top Q\alpha$. Since $Q$ is a Gram matrix up to signs, it is
+positive semidefinite and the dual is a concave maximization.
+
+\paragraph{The KKT conditions.} At the optimum, complementary slackness gives
+$\alpha_i\bigl(y_if(x_i) - 1 + \xi_i\bigr) = 0$ and $\mu_i\xi_i = (C - \alpha_i)\xi_i = 0$. Together they sort the training points:
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+multiplier & slack & position & name \\
+\midrule
+$\alpha_i = 0$ & $\xi_i = 0$ & $y_if(x_i)\geq1$, outside the band & not a support vector \\
+$0<\alpha_i<C$ & $\xi_i = 0$ & $y_if(x_i) = 1$, on the margin & margin support vector \\
+$\alpha_i = C$ & $\xi_i\geq0$ & $y_if(x_i) = 1 - \xi_i\leq1$ & bound support vector \\
+\bottomrule
+\end{tabular}
+\end{center}
+Bound support vectors are inside the band or misclassified (or, degenerately, on the
+margin). The solution $w = \sum_i\alpha_iy_ix_i$ involves the support vectors only. The bias follows
+from any margin support vector, $b = y_i - w^\top x_i$ (using $y_i^2 = 1$); numerically one averages
+over all of them. Note that this formula is wrong for bound support vectors.
+
+\begin{example}[The dual of \cref{svm:ex:hard}]\label{svm:ex:dual}
+With the three support vectors $x_1 = (2, 1)$, $x_3 = (1, 2.5)$ (positive) and $x_4 = (-1, 1)$ (negative),
+and $\alpha_i = 0$ for the others, the conditions $w = \sum\alpha_iy_ix_i$ and $\sum\alpha_iy_i = 0$ read
 \[
-\text{Generalized Hinge Loss} = \xi_i^p.
+  \alpha_1\begin{pmatrix}2\\1\end{pmatrix} + \alpha_3\begin{pmatrix}1\\2.5\end{pmatrix} - \alpha_4\begin{pmatrix}-1\\1\end{pmatrix} = \begin{pmatrix}2/3\\4/9\end{pmatrix},\qquad
+  \alpha_1 + \alpha_3 = \alpha_4 .
 \]
-This means:
-\begin{itemize}
-    \item For \( p = 1 \), the penalty is linear (standard hinge loss).
-    \item For \( p = 2 \), the penalty is quadratic (quadratic hinge loss).
-    \item For \( p > 2 \), the penalty grows rapidly with larger violations.
-\end{itemize}
+Substituting $\alpha_4$: $3\alpha_1 + 2\alpha_3 = \frac23$ and $\frac32\alpha_3 = \frac49$, so $\alpha_3 = \frac8{27}$, $\alpha_1 = \frac2{81}$, $\alpha_4 = \frac{26}{81}$. All
+three are positive, all other points satisfy their constraints strictly with $\alpha = 0$: the
+KKT conditions hold, which proves the solution optimal. Point 1 has a small
+multiplier: it is on the margin, but removing it would change little.
+\end{example}
 
-\subsection{Support Vectors and the Hyperplane Equation}
-In SVMs, the \textbf{support vectors} are the data points that contribute 
-to the definition of the hyperplane. These are the points for which 
-the Lagrange multipliers \( \alpha_i \) are non-zero. The support 
-vectors can be divided into two types: \textbf{margin support vectors} 
-and \textbf{outliers}.
+\section{Kernels}\label{svm:sec:kernels}
 
-\subsubsection{Margin Support Vectors}
-These are the points that lie exactly on the margin hyperplanes. For 
-these points:
-\begin{itemize}
-    \item The slack variable \( \xi_i = 0 \).
-    \item The condition \( y_i(w \cdot x_i + b) = 1 \) holds.
-    \item These points are critical for defining the margin and the 
-          decision boundary.
-\end{itemize}
+In the dual, the data enter only through the inner products $x_i^\top x_j$, and the decision
+function is $f(x) = \sum_i\alpha_iy_i\,x_i^\top x + b$. If the inputs are first mapped to a feature space by
+$\varphi$, everything still depends only on inner products $\varphi(x)^\top\varphi(x')$. A \emph{kernel} computes
+them directly.
 
-\subsubsection{Outliers}
-These are the points that are misclassified or lie within the margin. 
-For these points:
-\begin{itemize}
-    \item The slack variable \( \xi_i > 0 \).
-    \item The condition \( y_i(w \cdot x_i + b) = 1 - \xi_i \) holds.
-    \item The Lagrange multipliers satisfy \( \alpha_i = C \), where 
-          \( C \) is the regularization parameter.
-\end{itemize}
+\begin{definition}[Positive semidefinite kernel]
+A symmetric function $k:\Xs\times\Xs\to\R$ is a \emph{positive semidefinite kernel} if, for every $n$ and all
+$x_1,\dots,x_n\in\Xs$, the \emph{Gram matrix} $K_{ij} = k(x_i, x_j)$ is positive semidefinite:
+$c^\top Kc = \sum_{i,j}c_ic_jk(x_i, x_j)\geq0$ for all $c\in\R^n$.
+\end{definition}
 
-\subsubsection{Complementarity Condition}
-The complementarity condition links the Lagrange multipliers \( \alpha_i \), 
-the slack variables \( \xi_i \), and the margin. It states:
+If $k(x, x') = \inner{\varphi(x)}{\varphi(x')}$ for some map $\varphi$ into an inner-product space, then $k$ is positive
+semidefinite, since $c^\top Kc = \norm{\sum_ic_i\varphi(x_i)}^2\geq0$. Conversely, every positive semidefinite
+kernel is of this form, with $\varphi$ mapping into a Hilbert space of functions, its
+\emph{reproducing kernel Hilbert space} (\cref{ch:rkhs}). Replacing $x_i^\top x_j$ by $k(x_i, x_j)$ in the
+dual gives the kernel SVM, with decision function
 \[
-\alpha_i \left( y_i(w \cdot x_i + b) - 1 + \xi_i \right) = 0.
+  f(x) = \sum_{i\in\mathrm{SV}}\alpha_iy_i\,k(x_i, x) + b,
 \]
-This implies that if \( \alpha_i \neq 0 \), then:
+linear in the feature space, nonlinear in $x$. Positive semidefiniteness is exactly what
+keeps the dual concave.
+
+\begin{example}[The quadratic kernel, written out]\label{svm:ex:poly}
+For $x, z\in\R^2$, $k(x, z) = (x^\top z)^2$ expands as
 \[
-y_i(w \cdot x_i + b) = 1 - \xi_i.
+  (x_1z_1 + x_2z_2)^2 = x_1^2z_1^2 + 2x_1x_2z_1z_2 + x_2^2z_2^2
+  = \begin{pmatrix}x_1^2\\\sqrt2\,x_1x_2\\x_2^2\end{pmatrix}^{\!\top}\begin{pmatrix}z_1^2\\\sqrt2\,z_1z_2\\z_2^2\end{pmatrix},
 \]
-If \( \xi_i = 0 \), the point lies on the margin hyperplane. If \( \xi_i > 0 \), 
-the point is an outlier.
+so $k(x, z) = \varphi(x)^\top\varphi(z)$ with $\varphi(x) = (x_1^2, \sqrt2x_1x_2, x_2^2)$. A hyperplane in this three-dimensional
+feature space is a conic in the plane. Points inside and outside a circle centred at
+the origin, not separable by a line, are separated by the plane $\varphi_1 + \varphi_3 = r^2$. The kernel
+costs one inner product in $\R^2$; for degree $p$ in $\R^d$ the feature space has
+$\binom{d + p - 1}p$ dimensions, but the kernel still costs $O(d)$.
+\end{example}
 
-\subsubsection{Lagrange Multiplier Condition}
-The Lagrange multipliers satisfy:
-\[
-\alpha_i \leq C.
-\]
-For outliers, \( \alpha_i = C \).
+The usual kernels on $\R^d$ are
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+name & $k(x, z)$ & feature space \\
+\midrule
+linear & $x^\top z$ & $\R^d$ \\
+polynomial & $(x^\top z + c)^p$, $c\geq0$ & monomials of degree $\leq p$ \\
+Gaussian (RBF) & $\exp(-\gamma\norm{x - z}^2)$ & infinite-dimensional \\
+Laplacian & $\exp(-\gamma\norm{x - z})$ & infinite-dimensional \\
+\bottomrule
+\end{tabular}
+\end{center}
+Sums, products, positive multiples and limits of positive semidefinite kernels are
+positive semidefinite (\cref{svm:exr:3}). For the Gaussian kernel, $\gamma$ sets the scale: the
+decision function is a sum of bumps of width about $1/\sqrt\gamma$ around the support vectors,
+and a very large $\gamma$ memorizes the training set.
 
-\subsubsection{Hyperplane Equation}
-The hyperplane equation can be expressed as a linear combination of the 
-support vectors. The weight vector \( w \) is given by:
-\[
-w = \sum_{i=1}^n \alpha_i y_i x_i,
-\]
-where \( \alpha_i \) are the Lagrange multipliers, \( y_i \) are the class 
-labels (\( +1 \) or \( -1 \)), and \( x_i \) are the support vectors. 
-Substituting \( w \) into the hyperplane equation, we get:
-\[
-\sum_{i=1}^n \alpha_i y_i x_i^T x + b = 0.
-\]
-Here, the hyperplane is expressed as a linear combination of the 
-support vectors.
+\paragraph{Conditionally positive definite kernels.} The constraint $\sum_i\alpha_iy_i = 0$ of the
+dual means that the coefficient vector $c = (\alpha_iy_i)_i$ of the quadratic form always sums to
+zero. The dual therefore stays concave for a larger class of kernels.
 
-\subsubsection{Bias Term \( b \)}
-The bias term \( b \) is computed using the support vectors. For any 
-support vector \( x_i \), we have:
-\[
-y_i (w^T x_i + b) = 1.
-\]
-Solving for \( b \), we get:
-\[
-b = y_i - w^T x_i.
-\]
+\begin{definition}[Conditionally positive definite kernel]
+A symmetric $k$ is \emph{conditionally positive definite} (CPD) of order $m$ if
+$\sum_{i,j}c_ic_jk(x_i, x_j)\geq0$ for all points and all $c$ such that $\sum_ic_iP(x_i) = 0$ for every polynomial $P$ of
+degree less than $m$.
+\end{definition}
 
-\subsubsection{Kernel Trick}
-If a kernel function \( K(x_i, x_j) \) is used, the hyperplane equation 
-becomes:
-\[
-\sum_{i=1}^n \alpha_i y_i K(x_i, x) + b = 0.
-\]
-This allows the hyperplane to be expressed in terms of the support 
-vectors in the transformed feature space. The kernel trick generalizes 
-the hyperplane equation to nonlinear decision boundaries by replacing 
-the inner product \( x_i^T x \) with the kernel function \( K(x_i, x) \).
+For $m = 0$ there is no condition (the only polynomial of degree less than $0$ is the zero
+polynomial), and CPD of order $0$ is positive semidefinite. For $m = 1$ the condition is
+$\sum_ic_i = 0$, the one the SVM dual provides; CPD kernels of order $1$ can therefore be used in an
+SVM with a bias term (Schölkopf, \emph{The Kernel Trick for Distances}, NIPS 2000). Examples:
+$-\norm{x - z}^\beta$ for $0<\beta\leq2$ and the negative multiquadric $-\sqrt{\norm{x - z}^2 + c^2}$ are CPD of order $1$;
+the thin-plate spline $\norm{x - z}^2\log\norm{x - z}$ is CPD of order $2$ in $\R^2$. Order $2$ requires the
+coefficients to annihilate affine functions as well, which the SVM dual does not
+guarantee; such kernels are used in interpolation, where a polynomial of low degree is
+added to the model.
 
-\subsubsection{Summary of Support Vectors}
-\begin{itemize}
-    \item \textbf{Support Vectors}: Data points with \( \alpha_i \neq 0 \).
-    \item \textbf{Margin Support Vectors}: Points on the margin hyperplanes 
-          (\( \xi_i = 0 \)).
-    \item \textbf{Outliers}: Misclassified points or points within the margin 
-          (\( \xi_i > 0 \), \( \alpha_i = C \)).
+\section{Margin and generalization}\label{svm:sec:generalization}
+
+Why should a large margin help? For hyperplanes that separate points in a ball of
+radius $R$ with margin at least $\Delta$, Vapnik showed that the VC dimension is at most
+$\min(\lceil R^2/\Delta^2\rceil, d) + 1$: a margin requirement can make the capacity much smaller than the
+$d + 1$ of all hyperplanes (\cref{ch:symmetrization-lemma}), and independent of $d$ --- which is what allows
+infinite-dimensional feature spaces. Plugged into a VC bound, this controls the gap
+between training and test error by a term of order $\sqrt{(R^2/\Delta^2)\log n/n}$. Two caveats keep
+this from being a complete justification: the margin is chosen after seeing the data,
+which requires a more careful (``luckiness'' or fat-shattering) argument
+(Shawe-Taylor, Bartlett, Williamson and Anthony, 1998); and soft-margin SVMs trade margin
+against violations through $C$, which in practice is chosen by cross-validation. The
+lesson of $R/\Delta$, already met in Novikoff's theorem, is that the scale of the data matters:
+features should be standardized before training an SVM.
+
+\section{Several classes}\label{svm:sec:multiclass}
+
+An SVM separates two classes. For $K$ classes, the usual reductions are:
+\begin{itemize}[nosep]
+  \item \emph{One-versus-rest}: $K$ classifiers, the $k$-th separating class $k$ from all the
+        others; predict the class with the largest score $f_k(x)$. Each problem is imbalanced, and the scores of different
+        classifiers are not calibrated against each other.
+  \item \emph{One-versus-one}: $K(K - 1)/2$ classifiers, one per pair; each votes, and the class
+        with most votes wins (ties are broken by summed scores). Each problem is small
+        and balanced, which often makes this cheaper than one-versus-rest in total
+        despite the number of classifiers; it is the default of the LIBSVM library.
+  \item \emph{Joint formulations} (Weston--Watkins, Crammer--Singer) optimize all $K$ score
+        functions at once with a multiclass hinge loss; they are not calibrated in
+        general (\cref{surrogate-losses:sec:calibration}).
+  \item \emph{Error-correcting output codes} assign a binary code word to each class and
+        train one classifier per bit; prediction picks the nearest code word.
 \end{itemize}
 
-\section{Generalization and Margin}
-\subsection{Generalization Error Bound}
-The generalization error of a machine learning model refers to how 
-well the model is expected to perform on unseen data. For SVMs, 
-there is a theoretical relationship between the margin and the 
-generalization error, derived from \textbf{Vapnik-Chervonenkis (VC) theory}.
-
-The generalization error bound for SVMs can be expressed as:
-\[
-\text{Generalization Error} \leq \text{Training Error} + \text{Complexity Term},
-\]
-where the \textbf{complexity term} depends on the margin and the VC 
-dimension of the model.
-
-For SVMs, the complexity term is inversely related to the margin:
-\[
-\text{Complexity Term} \propto \frac{R^2}{\gamma^2},
-\]
-where:
-\begin{itemize}
-    \item \( R \) is the radius of the smallest ball containing all 
-          the training data,
-    \item \( \gamma \) is the margin (distance from the hyperplane 
-          to the nearest support vectors).
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item With the canonical scaling $\min_iy_if(x_i) = 1$, the geometric margin is $1/\norm w$; the
+        hard-margin SVM minimizes $\frac12\norm w^2$ under $y_if(x_i)\geq1$.
+  \item The soft margin adds slacks $\xi_i = \max(0, 1 - y_if(x_i))$ at cost $C$: it is $L_2$-regularized
+        hinge-loss minimization.
+  \item The dual maximizes $\sum\alpha_i - \frac12\sum\alpha_i\alpha_jy_iy_jx_i^\top x_j$ under $0\leq\alpha_i\leq C$, $\sum\alpha_iy_i = 0$; $w = \sum\alpha_iy_ix_i$. KKT
+        conditions sort the points into non-support vectors ($\alpha = 0$), margin support
+        vectors ($0<\alpha<C$, which give $b$) and bound support vectors ($\alpha = C$).
+  \item Kernels replace inner products; positive semidefiniteness keeps the dual
+        concave, and thanks to $\sum\alpha_iy_i = 0$ conditionally positive definite kernels of order
+        $1$ work too.
+  \item The margin bounds the capacity by $R^2/\Delta^2$ independently of the dimension; scale the
+        features.
 \end{itemize}
+\end{chaptersummary}
 
-\subsection{Interpretation}
-\begin{itemize}
-    \item A \textbf{larger margin (\(\gamma\))} reduces the complexity term, 
-          leading to a tighter generalization error bound. This means 
-          the model is expected to perform better on unseen data.
-    \item A \textbf{smaller margin} increases the complexity term, making 
-          the generalization error bound looser, which implies a 
-          higher risk of overfitting.
-\end{itemize}
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
 
-In other words, maximizing the margin in SVMs directly contributes 
-to better generalization by controlling the model's complexity and 
-reducing the risk of overfitting.
+\begin{exercise}\label{svm:exr:1}
+Show that the distance between the hyperplanes $w^\top x + b = 1$ and $w^\top x + b = -1$ is $2/\norm w$.
+\solutionlink{svm:exr:1}
+\end{exercise}
 
-\subsection{VC Dimension and Margin}
-The VC dimension of an SVM is inversely related to the margin. A 
-larger margin corresponds to a lower VC dimension, which reduces 
-the model's complexity and improves generalization.
+\begin{exercise}\label{svm:exr:2}
+Derive the dual of the hard-margin SVM for two points, $x_1 = (1, 0)$ with $y_1 = +1$ and
+$x_2 = (-1, 0)$ with $y_2 = -1$. Solve it and recover $w$, $b$ and the margin.
+\solutionlink{svm:exr:2}
+\end{exercise}
 
-\section{Geometric Intuition}
-\subsection{Flatter Hyperplanes}
-A "flatter" hyperplane has smaller weights (\( w \)), meaning the 
-decision boundary changes more gradually. This is achieved by 
-minimizing \( \|w\|^2 \), which:
-\begin{itemize}
-    \item Encourages larger margins,
-    \item Reduces sensitivity to noise and outliers,
-    \item Improves generalization.
-\end{itemize}
+\begin{exercise}\label{svm:exr:3}
+Show that if $k_1$ and $k_2$ are positive semidefinite kernels, so are $k_1 + k_2$, $ck_1$ for $c\geq0$,
+and $k_1k_2$.
+\hint{For the product, use that the Hadamard product of two positive semidefinite
+matrices is positive semidefinite (Schur), or write it as a kernel of the tensor
+product of the feature maps.}
+\solutionlink{svm:exr:3}
+\end{exercise}
 
-\subsection{Distance to Margin}
-The distance from a data point to the margin is:
-\[
-\text{Distance to Margin} = \frac{\xi_i}{\|w\|_2},
-\]
-where \( \xi_i \) is the slack variable and \( \|w\|_2 \) is the L2 norm 
-of the weight vector \( w \). This shows how slack variables are 
-related to the geometric properties of the hyperplane.
+\begin{exercise}\label{svm:exr:4}
+Show that $k(x, z) = -\norm{x - z}^2$ is conditionally positive definite of order $1$ on $\R^d$, but not
+positive semidefinite.
+\hint{Expand $\norm{x_i - x_j}^2$ and use $\sum_ic_i = 0$.}
+\solutionlink{svm:exr:4}
+\end{exercise}
 
-\section{Connection to Regularization}
-\subsection{Weight Decay and Regularization}
-Minimizing \( \|w\|^2 \) in SVMs is a form of \textbf{regularization}, 
-similar to weight decay in other models like linear regression or 
-neural networks. Regularization penalizes large weights, which:
-\begin{itemize}
-    \item Controls the complexity of the model,
-    \item Prevents overfitting by discouraging overly complex solutions,
-    \item Encourages smoother decision boundaries.
-\end{itemize}
-
-\subsection{Robustness to Noise and Outliers}
-A flatter hyperplane (smaller \( \|w\| \)) is less sensitive to small 
-variations in the input features, making it more robust to noise 
-and outliers. This is because:
-\begin{itemize}
-    \item Smaller weights \( w \) reduce the impact of individual 
-          features on the decision boundary,
-    \item The model becomes less likely to overfit to noisy or 
-          outlier data points.
-\end{itemize}
-
-\subsection{Simplicity in SVMs}
-In SVMs, "simplicity" refers to the geometric properties of the 
-hyperplane. A flatter hyperplane with a larger margin is considered 
-simpler because:
-\begin{itemize}
-    \item It is less likely to overfit the training data,
-    \item It generalizes better to unseen data,
-    \item It is more interpretable, as the decision boundary is 
-          less influenced by individual data points.
-\end{itemize}
-
-\section{Extensions and Variations}
-\subsection{Conditionally Positive Definite Kernels}
-In addition to positive definite (PD) kernels, there exists a more 
-general class of kernels called \textbf{conditionally positive definite 
-(CPD) kernels}. These kernels are particularly useful in interpolation 
-and approximation problems, as well as in certain kernel-based learning 
-algorithms.
-
-\subsubsection{Definition of CPD Kernels}
-A kernel function \( K(x_i, x_j) \) is called \textbf{conditionally 
-positive definite (CPD)} of order \( m \) if, for any set of points 
-\( \{x_1, x_2, \dots, x_n\} \) and any vector \( c \in \mathbb{R}^n \) 
-satisfying:
-\[
-\sum_{i=1}^n c_i p(x_i) = 0 \quad \text{for all polynomials } p \text{ 
-of degree less than } m,
-\]
-the following inequality holds:
-\[
-\sum_{i=1}^n \sum_{j=1}^n c_i c_j K(x_i, x_j) \geq 0.
-\]
-In simpler terms, a CPD kernel is "positive definite" under certain 
-constraints on the coefficients \( c_i \).
-
-\subsubsection{Special Case: \( m = 0 \)}
-For \( m = 0 \), the condition requires:
-\[
-\sum_{i=1}^n c_i p(x_i) = 0 \quad \text{for all polynomials } p \text{ 
-of degree less than } 0.
-\]
-The only polynomial of degree less than 0 is the zero polynomial. 
-Therefore, the condition is trivially satisfied for any vector \( c \). 
-As a result, the definition of a CPD kernel with \( m = 0 \) reduces to:
-\[
-\sum_{i=1}^n \sum_{j=1}^n c_i c_j K(x_i, x_j) \geq 0 \quad \text{for all } c \in \mathbb{R}^n.
-\]
-This is exactly the definition of a \textbf{positive definite (PD)} kernel. 
-Thus, PD kernels are a special case of CPD kernels with \( m = 0 \).
-
-\subsubsection{Special Case: \( m = 1 \)}
-For \( m = 1 \), the condition becomes:
-\[
-\sum_{i=1}^n c_i = 0.
-\]
-This means that the kernel \( K(x_i, x_j) \) is CPD of order 1 if the 
-inequality holds for all vectors \( c \) that sum to zero.
-
-\subsubsection{Examples of CPD Kernels}
-Some well-known examples of CPD kernels include:
-\begin{itemize}
-        \item \textbf{Thin-Plate Spline Kernel} (CPD of order 2 in \( \mathbb{R}^2 \)):
-          \[
-          K(x_i, x_j) = \|x_i - x_j\|^2 \log \|x_i - x_j\|.
-          \]
-    \item \textbf{Multiquadric Kernel} (CPD of order 1, \emph{with the minus sign}):
-          \[
-          K(x_i, x_j) = -\sqrt{\|x_i - x_j\|^2 + c^2},
-          \]
-          where \( c > 0 \) is a constant. (Without the minus sign, \( \sqrt{\|x_i - x_j\|^2 + c^2} \) is conditionally \emph{negative} definite of order 1.)
-    \item More generally, \( -\|x_i - x_j\|^\beta \) is CPD of order 1 for \( 0 < \beta \leq 2 \).
-\end{itemize}
-
-\subsubsection{Applications of CPD Kernels}
-CPD kernels are widely used in:
-\begin{itemize}
-    \item \textbf{Interpolation and Approximation}: They allow for the 
-          construction of interpolants that are exact for polynomials 
-          of a certain degree.
-    \item \textbf{Kernel Methods in Machine Learning}: They can be used 
-          in algorithms like support vector regression (SVR) to handle 
-          data with polynomial trends.
-    \item \textbf{Flexibility}: They provide greater flexibility than 
-          PD kernels, making them suitable for modeling complex 
-          relationships in the data.
-\end{itemize}
-
-\subsection{Kernel Trick in SVMs}
-The kernel trick is a powerful technique that allows SVMs to handle 
-nonlinear data by mapping the input features into a higher-dimensional 
-space where the data becomes linearly separable. This is done without 
-explicitly computing the transformation, making it computationally 
-efficient.
-
-\subsubsection{Gram Matrix}
-The \textbf{Gram matrix} is a matrix of pairwise inner products. Given 
-a set of vectors \( \{x_1, x_2, \dots, x_n\} \), the Gram matrix \( G \) 
-is defined as:
-\[
-G_{ij} = \langle x_i, x_j \rangle,
-\]
-where \( \langle \cdot, \cdot \rangle \) denotes the inner product. In 
-the context of kernel methods, the Gram matrix is defined using a 
-kernel function \( K(x_i, x_j) \):
-\[
-G_{ij} = K(x_i, x_j).
-\]
-A valid kernel function \( K(x_i, x_j) \) implicitly defines an inner 
-product in some feature space:
-\[
-K(x_i, x_j) = \langle \phi(x_i), \phi(x_j) \rangle,
-\]
-where \( \phi \) is a mapping from the input space to a (possibly 
-infinite-dimensional) feature space. Therefore, the kernel-based 
-Gram matrix is equivalent to the classical Gram matrix of the 
-feature vectors \( \{\phi(x_1), \phi(x_2), \dots, \phi(x_n)\} \).
-
-\subsubsection{Positive Semi-Definiteness of the Gram Matrix}
-A key property of the Gram matrix is that it is always 
-\textbf{positive semi-definite (PSD)}. This means that for any 
-vector \( z \in \mathbb{R}^n \), the following inequality holds:
-\[
-z^T G z \geq 0.
-\]
-This property arises from the fact that the Gram matrix is 
-constructed from inner products, and inner products are 
-inherently PSD.
-
-\subsubsection{Ensuring a Valid Gram Matrix}
-Before calling a matrix \( G \) a Gram matrix, we must verify 
-that it is PSD. This can be done using the following methods:
-\begin{itemize}
-    \item \textbf{Check the Eigenvalues}: Compute the eigenvalues 
-          of \( G \) and verify that they are all non-negative.
-    \item \textbf{Check the Quadratic Form}: For any vector 
-          \( z \in \mathbb{R}^n \), verify that \( z^T G z \geq 0 \).
-    \item \textbf{Use Kernel Properties}: If \( G \) is constructed 
-          from a known kernel function (e.g., linear, polynomial, 
-          RBF), it is automatically PSD.
-    \item \textbf{Numerical Verification}: Use numerical libraries 
-          to check if \( G \) is PSD (e.g., by computing its 
-          eigenvalues).
-\end{itemize}
-
-\subsubsection{Implications of Positive Semi-Definiteness}
-The PSD property of the Gram matrix has several important 
-implications:
-\begin{itemize}
-    \item \textbf{Kernel Validity}: A kernel function must produce 
-          a PSD Gram matrix to be valid.
-    \item \textbf{Optimization}: The PSD property ensures that the 
-          optimization problem in SVMs is convex and has a unique 
-          solution.
-    \item \textbf{Numerical Stability}: The PSD property ensures 
-          that the Gram matrix is well-behaved numerically, which 
-          is important for efficient and stable computations.
-\end{itemize}
-
-\subsubsection{Why Use the Kernel Trick?}
-In many real-world problems, data is not linearly separable in the 
-original feature space. For example, consider a 2D dataset where one 
-class is arranged in a circle and the other class is arranged in a 
-ring around the circle. No straight line can separate these classes 
-in the original 2D space. The kernel trick enables SVMs to:
-\begin{itemize}
-    \item Find nonlinear decision boundaries,
-    \item Handle complex datasets without explicitly transforming 
-          the data into a high-dimensional space,
-    \item Maintain computational efficiency by using kernel functions 
-          to compute inner products in the transformed space.
-\end{itemize}
-
-\subsubsection{How the Kernel Trick Works}
-The kernel trick relies on the observation that the SVM optimization 
-problem depends only on the inner products of the data points, 
-\( x_i^T x_j \). Instead of explicitly transforming the data into a 
-high-dimensional space, a kernel function \( K(x_i, x_j) \) is used 
-to compute the inner products directly in the transformed space:
-\[
-K(x_i, x_j) = \phi(x_i)^T \phi(x_j),
-\]
-where \( \phi \) is a mapping from the original feature space to a 
-higher-dimensional space.
-
-\subsubsection{Example of Nonlinear Data}
-Consider a simple 2D dataset where the points of one class are arranged 
-in a circle, and the points of the other class are arranged in a ring 
-around the circle. In the original 2D space, no straight line can separate 
-the two classes. However, if we map the data into a higher-dimensional 
-space (e.g., using a polynomial or RBF kernel), the data may become 
-linearly separable. For instance, a polynomial kernel of degree 2 can 
-transform the data into a 3D space where a plane can separate the classes.
-
-\subsubsection{Common Kernel Functions}
-Some commonly used kernel functions include:
-\begin{itemize}
-    \item \textbf{Linear Kernel}: \( K(x_i, x_j) = x_i^T x_j \).
-          This is equivalent to the standard SVM without any transformation.
-    \item \textbf{Polynomial Kernel}: \( K(x_i, x_j) = (x_i^T x_j + c)^d \).
-          This maps the data into a polynomial feature space of degree \( d \).
-    \item \textbf{Radial Basis Function (RBF) Kernel}: 
-          \( K(x_i, x_j) = \exp(-\gamma \|x_i - x_j\|^2) \).
-          This maps the data into an infinite-dimensional space, allowing 
-          for highly nonlinear decision boundaries.
-    \item \textbf{Exponential Kernel}: 
-          \( K(x_i, x_j) = \exp(-\gamma \|x_i - x_j\|) \).
-\end{itemize}
-
-\subsubsection{Advantages of the Kernel Trick}
-\begin{itemize}
-    \item \textbf{Efficiency}: The kernel trick avoids the need to explicitly 
-          compute the high-dimensional transformation \( \phi(x) \), which 
-          can be computationally expensive.
-    \item \textbf{Flexibility}: By choosing different kernel functions, SVMs 
-          can adapt to a wide range of data distributions.
-    \item \textbf{Nonlinearity}: The kernel trick enables SVMs to find complex 
-          nonlinear decision boundaries without explicitly transforming 
-          the data.
-\end{itemize}
-
-\subsection{Multi-Class SVMs}
-Support Vector Machines (SVMs) are inherently binary classifiers, 
-meaning they are designed to separate data into two classes. However, 
-many real-world problems involve more than two classes. To handle 
-multi-class classification, several strategies can be used to extend 
-binary SVMs. The two most common approaches are \textbf{one-vs-one (OvO)} 
-and \textbf{one-vs-all (OvA)}.
-
-\subsubsection{One-vs-All (OvA) Strategy}
-In the \textbf{one-vs-all (OvA)} strategy, also known as 
-\textbf{one-vs-rest}, a separate binary SVM is trained for each class. 
-Specifically:
-\begin{itemize}
-    \item For a problem with \( C \) classes, \( C \) binary SVMs are 
-          trained.
-    \item Each SVM is trained to distinguish one class from all the 
-          other classes.
-    \item During prediction, the class with the highest decision 
-          function value is selected as the predicted class.
-\end{itemize}
-
-\paragraph{Example}
-Suppose we have a dataset with 3 classes: Class A, Class B, and 
-Class C. We train 3 SVMs:
-\begin{itemize}
-    \item \textbf{SVM 1}: Class A vs (Class B + Class C)
-    \item \textbf{SVM 2}: Class B vs (Class A + Class C)
-    \item \textbf{SVM 3}: Class C vs (Class A + Class B)
-\end{itemize}
-For a new data point \( x \), the decision function values are:
-\begin{itemize}
-    \item \textbf{SVM 1}: \( f_1(x) = 2.5 \)
-    \item \textbf{SVM 2}: \( f_2(x) = 1.8 \)
-    \item \textbf{SVM 3}: \( f_3(x) = 0.7 \)
-\end{itemize}
-Since \( f_1(x) \) has the highest value, \( x \) is classified as 
-\textbf{Class A}.
-
-\paragraph{Decision Function Values}
-The decision function of an SVM is given by:
-\[
-f(x) = w^T x + b,
-\]
-where \( w \) is the weight vector, \( x \) is the input feature 
-vector, and \( b \) is the bias term. The sign of \( f(x) \) 
-determines the predicted class (\( +1 \) or \( -1 \)), while the 
-magnitude of \( f(x) \) represents the confidence of the prediction. 
-In OvA, the class with the highest \( f(x) \) is selected.
-
-\paragraph{Advantages of OvA}
-\begin{itemize}
-    \item Simple and easy to implement.
-    \item Requires training only \( C \) SVMs, which is computationally 
-          efficient for problems with a large number of classes.
-\end{itemize}
-
-\paragraph{Disadvantages of OvA}
-\begin{itemize}
-    \item Imbalanced training sets: Each SVM is trained on an imbalanced 
-          dataset (one class vs all others), which can lead to biased 
-          models.
-    \item Potential for ambiguous predictions: If multiple SVMs predict 
-          a positive class, the final decision may be unclear.
-\end{itemize}
-
-\subsubsection{One-vs-One (OvO) Strategy}
-In the \textbf{one-vs-one (OvO)} strategy, a binary SVM is trained for 
-every pair of classes. Specifically:
-\begin{itemize}
-    \item For a problem with \( C \) classes, \( \frac{C(C-1)}{2} \) 
-          binary SVMs are trained.
-    \item Each SVM is trained to distinguish between two classes.
-    \item During prediction, a voting scheme is used: each SVM votes for 
-          one of the two classes it was trained on, and the class with 
-          the most votes is selected as the predicted class.
-\end{itemize}
-
-\paragraph{Example}
-For the same dataset with 3 classes, we train 3 SVMs:
-\begin{itemize}
-    \item \textbf{SVM 1}: Class A vs Class B
-    \item \textbf{SVM 2}: Class A vs Class C
-    \item \textbf{SVM 3}: Class B vs Class C
-\end{itemize}
-For a new data point \( x \), the predictions are:
-\begin{itemize}
-    \item \textbf{SVM 1}: Predicts Class A
-    \item \textbf{SVM 2}: Predicts Class A
-    \item \textbf{SVM 3}: Predicts Class B
-\end{itemize}
-The votes are:
-\begin{itemize}
-    \item \textbf{Class A}: 2 votes
-    \item \textbf{Class B}: 1 vote
-    \item \textbf{Class C}: 0 votes
-\end{itemize}
-Since \textbf{Class A} has the most votes, \( x \) is classified as 
-\textbf{Class A}.
-
-\paragraph{Decision Function Values}
-In OvO, each SVM predicts one of the two classes it was trained on 
-based on the sign of \( f(x) \). The class with the most votes is 
-selected as the final prediction.
-
-\paragraph{Advantages of OvO}
-\begin{itemize}
-    \item Balanced training sets: Each SVM is trained on a balanced 
-          dataset (two classes only), which can lead to more accurate 
-          models.
-    \item Handles ambiguous predictions better than OvA.
-\end{itemize}
-
-\paragraph{Disadvantages of OvO}
-\begin{itemize}
-    \item Computationally expensive: Requires training 
-          \( \frac{C(C-1)}{2} \) SVMs, which can be prohibitive for 
-          problems with a large number of classes.
-    \item More complex to implement than OvA.
-\end{itemize}
-
-\subsubsection{Other Multi-Class SVM Strategies}
-In addition to OvA and OvO, other strategies for multi-class SVMs include:
-\begin{itemize}
-    \item \textbf{Directed Acyclic Graph SVM (DAGSVM)}: A hierarchical approach 
-          that reduces the number of SVMs evaluated during prediction.
-    \item \textbf{Error-Correcting Output Codes (ECOC)}: A method that uses 
-          error-correcting codes to combine binary SVMs for multi-class 
-          classification.
-\end{itemize}
-
-\subsubsection{Choosing a Multi-Class Strategy}
-The choice of strategy depends on the specific problem and computational 
-resources:
-\begin{itemize}
-    \item Use \textbf{OvA} for problems with a large number of classes or 
-          limited computational resources.
-    \item Use \textbf{OvO} for problems with a small number of classes or 
-          when higher accuracy is required.
-    \item Consider \textbf{DAGSVM} or \textbf{ECOC} for problems where 
-          computational efficiency during prediction is critical.
-\end{itemize}
-
-\section{Conclusion}
-SVMs are versatile models that balance margin maximization and 
-error minimization. By understanding the role of the hyperplane, 
-margin, slack variables, and regularization, you can effectively 
-apply SVMs to various machine learning tasks. The geometric 
-intuition and theoretical guarantees make SVMs a powerful tool for 
-both linear and nonlinear classification problems.
+\begin{exercise}\label{svm:exr:5}
+In \cref{svm:ex:hard}, add the point $(0.5, 0.5)$ with label $+1$. Is the data still separable?
+Which constraint of the old solution does it violate, and what is its slack for the old
+$(w, b)$?
+\solutionlink{svm:exr:5}
+\end{exercise}
 \end{notechapter}

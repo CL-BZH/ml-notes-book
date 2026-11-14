@@ -1,244 +1,233 @@
-% Source: support_vector_methods.tex
 \begin{notechapter}
-\chapter{Support Vector Methods: SVDD, OCSVM and SVR}\label{ch:support-vector-methods}
+\chapter{Support Vector Methods for Regression and Novelty Detection}\label{ch:support-vector-methods}
+\chaptersubtitle{SVR, the one-class SVM and support vector data description}
 
-\section{Introduction}
-Support Vector Machines (SVMs) are a family of powerful machine learning 
-algorithms used for classification, regression, and outlier detection. 
-This document provides an in-depth exploration of three specialized 
-SVM-based methods:
-\begin{itemize}
-    \item \textbf{Support Vector Data Description (SVDD)}: A method for 
-          outlier detection and one-class classification.
-    \item \textbf{One-Class SVM (OCSVM)}: Another approach for one-class 
-          classification and anomaly detection.
-    \item \textbf{Support Vector Regression (SVR)}: An extension of SVMs 
-          for regression tasks.
+\begin{chapterintro}
+The ingredients of the support vector machine --- a norm to minimize, slack
+variables for violations, a dual that involves only inner products --- are not tied
+to classification. This chapter applies them to regression, where the slack measures
+how far a target lies outside a tube around the prediction, and to novelty detection,
+where only one class is observed and the goal is to describe the region where it
+lives. You will learn
+\begin{itemize}[nosep]
+  \item support vector regression: the $\varepsilon$-insensitive loss, its dual, and why the
+        solution is sparse;
+  \item the one-class SVM, which separates the data from the origin in feature space,
+        and the meaning of its parameter $\nu$;
+  \item support vector data description, which encloses the data in a ball, and its
+        correct kernel form;
+  \item why the last two coincide for kernels such as the Gaussian.
 \end{itemize}
-Each method is explained in detail, including its mathematical formulation, 
-key concepts, practical applications, and connections to the standard SVM framework.
+\prerequisites{\cref{ch:svm} (dual, KKT conditions, kernels).}
+\end{chapterintro}
 
-\section{The Core Idea of SVM}
-The standard \textbf{Support Vector Machine (SVM)} is a supervised learning algorithm 
-primarily used for \textbf{binary classification}. The key idea is to find a \textbf{hyperplane} 
-that maximizes the \textbf{margin} (the distance between the hyperplane and the nearest 
-data points of each class). The hyperplane is defined by:
+\section{Support vector regression}\label{support-vector-methods:sec:svr}
+
+For real targets $y_i$ and a prediction $f(x) = w^\top\varphi(x) + b$, the \emph{$\varepsilon$-insensitive loss}
+ignores errors smaller than $\varepsilon\geq0$ and grows linearly beyond:
 \[
-w^T x + b = 0,
+  \abs{y - f(x)}_\varepsilon = \max\bigl(0, \abs{y - f(x)} - \varepsilon\bigr).
 \]
-where:
-\begin{itemize}
-    \item \( w \) is the weight vector,
-    \item \( x \) is the input feature vector,
-    \item \( b \) is the bias term.
+
+\begin{definition}[Support vector regression]
+\[
+  \min_{w, b, \xi, \xi^*}\ \frac12\norm w^2 + C\sum_{i=1}^n(\xi_i + \xi_i^*)\quad\text{subject to}\quad
+  \begin{cases}y_i - f(x_i)\leq\varepsilon + \xi_i,\\ f(x_i) - y_i\leq\varepsilon + \xi_i^*,\\ \xi_i, \xi_i^*\geq0 .\end{cases}
+\]
+\end{definition}
+
+The slack $\xi_i$ measures how far $y_i$ lies above the tube $\{\abs{y - f(x)}\leq\varepsilon\}$, and $\xi_i^*$ how far
+below; at most one of them is positive, and at the optimum $\xi_i + \xi_i^* = \abs{y_i - f(x_i)}_\varepsilon$. So SVR
+minimizes $\frac12\norm w^2 + C\sum_i\abs{y_i - f(x_i)}_\varepsilon$: an $L_2$-regularized robust regression. Compared with
+ridge regression, small errors cost nothing and large ones cost linearly, as in the
+Laplace model of \cref{output-distributions:sec:real}.
+
+\paragraph{The dual.} With multipliers $\alpha_i, \alpha_i^*\geq0$ for the two tube constraints and
+$\eta_i, \eta_i^*$ for the positivity of the slacks, the stationarity conditions of the Lagrangian
+are
+\[
+  w = \sum_i(\alpha_i - \alpha_i^*)\varphi(x_i),\qquad\sum_i(\alpha_i - \alpha_i^*) = 0,\qquad\alpha_i + \eta_i = C,\quad\alpha_i^* + \eta_i^* = C,
+\]
+and substituting gives the dual
+\[
+  \max_{\alpha, \alpha^*}\ -\frac12\sum_{i,j}(\alpha_i - \alpha_i^*)(\alpha_j - \alpha_j^*)\,k(x_i, x_j) - \varepsilon\sum_i(\alpha_i + \alpha_i^*) + \sum_iy_i(\alpha_i - \alpha_i^*)
+\]
+subject to $0\leq\alpha_i, \alpha_i^*\leq C$ and $\sum_i(\alpha_i - \alpha_i^*) = 0$ (\cref{support-vector-methods:exr:1}). The prediction is
+\[
+  f(x) = \sum_{i=1}^n(\alpha_i - \alpha_i^*)\,k(x_i, x) + b .
+\]
+By complementary slackness, $\alpha_i>0$ only if $y_i - f(x_i)\geq\varepsilon$, and $\alpha_i^*>0$ only if $f(x_i) - y_i\geq\varepsilon$.
+\emph{Points strictly inside the tube have $\alpha_i = \alpha_i^* = 0$}: they do not appear in the prediction.
+The width $\varepsilon$ thus controls sparsity: the wider the tube, the fewer support vectors.
+In \cref{support-vector-methods:fig:svr}, $7$ of the $25$ points are support vectors. A
+variant, $\nu$-SVR, replaces $\varepsilon$ by a parameter $\nu\in(0, 1]$ that bounds the fraction of support
+vectors from below and the fraction of points outside the tube from above, and
+learns $\varepsilon$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=11cm, height=5.5cm, xmin=0, xmax=6, ymin=-1.6, ymax=1.6, xlabel={$x$}, ylabel={$y$}]
+  \addplot[name path=up, thin, bookaccent, dashed] coordinates {(0.000,0.4850) (0.100,0.5384) (0.200,0.5948) (0.300,0.6534) (0.400,0.7131) (0.500,0.7731) (0.600,0.8322) (0.700,0.8892) (0.800,0.9429) (0.900,0.9924) (1.000,1.0365) (1.100,1.0742) (1.200,1.1047) (1.300,1.1272) (1.400,1.1411) (1.500,1.1460) (1.600,1.1415) (1.700,1.1276) (1.800,1.1042) (1.900,1.0715) (2.000,1.0297) (2.100,0.9793) (2.200,0.9206) (2.300,0.8542) (2.400,0.7808) (2.500,0.7011) (2.600,0.6158) (2.700,0.5257) (2.800,0.4319) (2.900,0.3353) (3.000,0.2370) (3.100,0.1381) (3.200,0.0399) (3.300,-0.0564) (3.400,-0.1493) (3.500,-0.2375) (3.600,-0.3197) (3.700,-0.3947) (3.800,-0.4612) (3.900,-0.5182) (4.000,-0.5651) (4.100,-0.6010) (4.200,-0.6258) (4.300,-0.6394) (4.400,-0.6421) (4.500,-0.6343) (4.600,-0.6167) (4.700,-0.5904) (4.800,-0.5565) (4.900,-0.5162) (5.000,-0.4708) (5.100,-0.4218) (5.200,-0.3703) (5.300,-0.3178) (5.400,-0.2652) (5.500,-0.2136) (5.600,-0.1638) (5.700,-0.1166) (5.800,-0.0723) (5.900,-0.0315) (6.000,0.0058)};
+  \addplot[name path=lo, thin, bookaccent, dashed] coordinates {(0.000,0.0850) (0.100,0.1384) (0.200,0.1948) (0.300,0.2534) (0.400,0.3131) (0.500,0.3731) (0.600,0.4322) (0.700,0.4892) (0.800,0.5429) (0.900,0.5924) (1.000,0.6365) (1.100,0.6742) (1.200,0.7047) (1.300,0.7272) (1.400,0.7411) (1.500,0.7460) (1.600,0.7415) (1.700,0.7276) (1.800,0.7042) (1.900,0.6715) (2.000,0.6297) (2.100,0.5793) (2.200,0.5206) (2.300,0.4542) (2.400,0.3808) (2.500,0.3011) (2.600,0.2158) (2.700,0.1257) (2.800,0.0319) (2.900,-0.0647) (3.000,-0.1630) (3.100,-0.2619) (3.200,-0.3601) (3.300,-0.4564) (3.400,-0.5493) (3.500,-0.6375) (3.600,-0.7197) (3.700,-0.7947) (3.800,-0.8612) (3.900,-0.9182) (4.000,-0.9651) (4.100,-1.0010) (4.200,-1.0258) (4.300,-1.0394) (4.400,-1.0421) (4.500,-1.0343) (4.600,-1.0167) (4.700,-0.9904) (4.800,-0.9565) (4.900,-0.9162) (5.000,-0.8708) (5.100,-0.8218) (5.200,-0.7703) (5.300,-0.7178) (5.400,-0.6652) (5.500,-0.6136) (5.600,-0.5638) (5.700,-0.5166) (5.800,-0.4723) (5.900,-0.4315) (6.000,-0.3942)};
+  \addplot[bookaccent!12] fill between[of=up and lo];
+  \addplot[very thick, bookaccent] coordinates {(0.000,0.2850) (0.100,0.3384) (0.200,0.3948) (0.300,0.4534) (0.400,0.5131) (0.500,0.5731) (0.600,0.6322) (0.700,0.6892) (0.800,0.7429) (0.900,0.7924) (1.000,0.8365) (1.100,0.8742) (1.200,0.9047) (1.300,0.9272) (1.400,0.9411) (1.500,0.9460) (1.600,0.9415) (1.700,0.9276) (1.800,0.9042) (1.900,0.8715) (2.000,0.8297) (2.100,0.7793) (2.200,0.7206) (2.300,0.6542) (2.400,0.5808) (2.500,0.5011) (2.600,0.4158) (2.700,0.3257) (2.800,0.2319) (2.900,0.1353) (3.000,0.0370) (3.100,-0.0619) (3.200,-0.1601) (3.300,-0.2564) (3.400,-0.3493) (3.500,-0.4375) (3.600,-0.5197) (3.700,-0.5947) (3.800,-0.6612) (3.900,-0.7182) (4.000,-0.7651) (4.100,-0.8010) (4.200,-0.8258) (4.300,-0.8394) (4.400,-0.8421) (4.500,-0.8343) (4.600,-0.8167) (4.700,-0.7904) (4.800,-0.7565) (4.900,-0.7162) (5.000,-0.6708) (5.100,-0.6218) (5.200,-0.5703) (5.300,-0.5178) (5.400,-0.4652) (5.500,-0.4136) (5.600,-0.3638) (5.700,-0.3166) (5.800,-0.2723) (5.900,-0.2315) (6.000,-0.1942)};
+  \addplot[only marks, mark=*, mark size=1.6pt, black] coordinates {(0.009,0.090) (0.514,0.782) (0.565,0.495) (0.682,0.594) (0.958,0.969) (1.421,0.856) (1.705,0.947) (1.756,1.115) (1.790,1.063) (1.884,0.965) (2.347,0.814) (2.584,0.105) (2.599,0.670) (2.874,0.120) (3.100,-0.209) (3.493,-0.303) (3.521,-0.265) (3.891,-0.748) (4.177,-1.022) (4.407,-0.950) (4.427,-0.967) (4.808,-0.785) (5.350,-0.691) (5.738,-0.490) (5.841,-0.261)};
+  \addplot[only marks, mark=o, mark size=3.8pt, bookpitfall, thick] coordinates {(0.009,0.090) (0.514,0.782) (1.756,1.115) (2.584,0.105) (2.599,0.670) (4.177,-1.022) (5.350,-0.691)};
+\end{axis}
+\end{tikzpicture}
+\caption{Support vector regression with a Gaussian kernel ($\gamma = 0.5$, $C = 10$, $\varepsilon = 0.2$) on
+$25$ noisy samples of $\sin x$. The shaded tube has half-width $\varepsilon$ around the fit. Only the
+seven circled points are support vectors: those outside the tube and some on its
+border. The points strictly inside the tube have $\alpha_i = \alpha_i^* = 0$ and could be removed without
+changing the fit.}
+\label{support-vector-methods:fig:svr}
+\end{figure}
+
+\section{The one-class SVM}\label{support-vector-methods:sec:ocsvm}
+
+In novelty (or anomaly) detection the training data come from a single class, and the
+task is to decide whether a new point resembles them. Schölkopf et al.\ (\emph{Estimating
+the Support of a High-Dimensional Distribution}, Neural Computation, 2001) proposed to
+separate the data from the origin in feature space with maximal margin.
+
+\begin{definition}[One-class SVM]
+For $\nu\in(0, 1]$,
+\[
+  \min_{w, \xi, \rho}\ \frac12\norm w^2 + \frac1{\nu n}\sum_{i=1}^n\xi_i - \rho\quad\text{subject to}\quad
+  w^\top\varphi(x_i)\geq\rho - \xi_i,\quad\xi_i\geq0 .
+\]
+A new point is declared normal if $f(x) = w^\top\varphi(x) - \rho\geq0$.
+\end{definition}
+
+The hyperplane $\{w^\top\varphi = \rho\}$ is at distance $\rho/\norm w$ from the origin; points beyond it, on the
+origin's side, pay a slack. The term $-\rho$ pushes the hyperplane away from the origin,
+the slacks pull it back. The same derivation as for the SVM gives $w = \sum_i\alpha_i\varphi(x_i)$ and the
+dual
+\[
+  \min_\alpha\ \frac12\sum_{i,j}\alpha_i\alpha_jk(x_i, x_j)\quad\text{subject to}\quad0\leq\alpha_i\leq\frac1{\nu n},\quad\sum_i\alpha_i = 1,
+\]
+with $f(x) = \sum_i\alpha_ik(x_i, x) - \rho$, and $\rho = \sum_j\alpha_jk(x_j, x_i)$ for any $i$ with $0<\alpha_i<\frac1{\nu n}$
+(\cref{support-vector-methods:exr:2}). With a Gaussian kernel, all feature vectors have
+norm $1$ and lie in one orthant (their inner products are positive), so separating them
+from the origin is always possible and the region $\{f\geq0\}$ is a union of bumps around the
+support vectors.
+
+\begin{proposition}[The $\nu$-property]\label{support-vector-methods:prop:nu}
+At the optimum, the fraction of \emph{outliers} (points with $\xi_i>0$) is at most $\nu$, and the fraction
+of support vectors (points with $\alpha_i>0$) is at least $\nu$.
+\end{proposition}
+
+\begin{proof}
+Outliers have $\xi_i>0$, hence (complementary slackness) $\alpha_i = \frac1{\nu n}$, the upper bound. Since the
+$\alpha_i$ sum to $1$, there are at most $\nu n$ of them. Conversely, each $\alpha_i$ is at most $\frac1{\nu n}$, so at least
+$\nu n$ of them must be positive to sum to $1$.
+\end{proof}
+
+So $\nu$ is not a regularization constant to be tuned blindly: it is the expected fraction of
+training points to be treated as anomalies. \Cref{support-vector-methods:fig:ocsvm} shows a
+fit with $\nu = 0.1$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=9cm, axis equal image, xmin=-2.5, xmax=4.2, ymin=-2.3, ymax=3.2, xlabel={$x_1$}, ylabel={$x_2$}]
+  \addplot[very thick, bookaccent, fill=bookaccent!8] coordinates {(-0.003,-1.314) (0.050,-1.313) (0.130,-1.304) (0.198,-1.291) (0.264,-1.272) (0.318,-1.253) (0.371,-1.230) (0.425,-1.203) (0.476,-1.174) (0.513,-1.151) (0.559,-1.118) (0.608,-1.080) (0.639,-1.055) (0.690,-1.010) (0.719,-0.982) (0.762,-0.940) (0.799,-0.901) (0.828,-0.870) (0.869,-0.823) (0.906,-0.779) (0.933,-0.747) (0.967,-0.706) (1.003,-0.659) (1.040,-0.612) (1.067,-0.576) (1.094,-0.540) (1.127,-0.495) (1.160,-0.448) (1.194,-0.401) (1.227,-0.355) (1.254,-0.316) (1.281,-0.277) (1.308,-0.237) (1.340,-0.191) (1.372,-0.144) (1.404,-0.097) (1.436,-0.050) (1.468,-0.003) (1.495,0.035) (1.522,0.073) (1.552,0.114) (1.588,0.161) (1.627,0.207) (1.656,0.240) (1.692,0.278) (1.736,0.318) (1.772,0.348) (1.816,0.379) (1.870,0.413) (1.923,0.441) (1.975,0.465) (2.030,0.488) (2.084,0.508) (2.137,0.528) (2.191,0.546) (2.244,0.565) (2.298,0.584) (2.357,0.605) (2.417,0.629) (2.473,0.652) (2.525,0.676) (2.572,0.699) (2.619,0.724) (2.672,0.755) (2.726,0.790) (2.761,0.816) (2.806,0.851) (2.846,0.886) (2.886,0.926) (2.915,0.957) (2.954,1.003) (2.988,1.050) (3.019,1.097) (3.046,1.144) (3.071,1.191) (3.092,1.237) (3.111,1.284) (3.127,1.331) (3.148,1.401) (3.159,1.448) (3.172,1.518) (3.181,1.587) (3.184,1.635) (3.186,1.706) (3.184,1.776) (3.180,1.823) (3.170,1.893) (3.156,1.963) (3.142,2.010) (3.127,2.057) (3.100,2.119) (3.074,2.171) (3.047,2.214) (3.020,2.251) (2.986,2.291) (2.940,2.336) (2.908,2.361) (2.860,2.393) (2.806,2.420) (2.753,2.440) (2.691,2.455) (2.619,2.462) (2.538,2.458) (2.485,2.449) (2.421,2.431) (2.362,2.408) (2.315,2.385) (2.271,2.359) (2.217,2.322) (2.178,2.291) (2.137,2.255) (2.102,2.221) (2.059,2.174) (2.030,2.140) (2.001,2.104) (1.967,2.057) (1.935,2.010) (1.905,1.963) (1.877,1.916) (1.850,1.870) (1.825,1.823) (1.801,1.776) (1.778,1.729) (1.755,1.682) (1.734,1.635) (1.709,1.581) (1.682,1.521) (1.660,1.472) (1.639,1.425) (1.618,1.378) (1.596,1.331) (1.573,1.284) (1.548,1.237) (1.522,1.191) (1.492,1.144) (1.458,1.097) (1.418,1.050) (1.388,1.021) (1.335,0.980) (1.295,0.957) (1.245,0.933) (1.174,0.911) (1.120,0.900) (1.040,0.893) (0.960,0.893) (0.880,0.900) (0.818,0.910) (0.746,0.924) (0.692,0.937) (0.617,0.957) (0.559,0.972) (0.505,0.987) (0.444,1.003) (0.371,1.021) (0.318,1.032) (0.237,1.045) (0.184,1.051) (0.104,1.057) (0.023,1.059) (-0.057,1.056) (-0.129,1.050) (-0.191,1.043) (-0.271,1.030) (-0.324,1.020) (-0.404,1.003) (-0.458,0.990) (-0.512,0.976) (-0.576,0.957) (-0.645,0.934) (-0.699,0.914) (-0.753,0.893) (-0.806,0.869) (-0.860,0.844) (-0.911,0.816) (-0.952,0.793) (-0.993,0.766) (-1.047,0.728) (-1.084,0.699) (-1.127,0.661) (-1.160,0.629) (-1.203,0.582) (-1.234,0.542) (-1.261,0.504) (-1.288,0.461) (-1.314,0.410) (-1.341,0.348) (-1.357,0.301) (-1.371,0.254) (-1.385,0.184) (-1.394,0.114) (-1.397,0.067) (-1.396,-0.003) (-1.393,-0.050) (-1.384,-0.120) (-1.370,-0.191) (-1.358,-0.237) (-1.341,-0.293) (-1.318,-0.355) (-1.299,-0.401) (-1.276,-0.448) (-1.252,-0.495) (-1.225,-0.542) (-1.195,-0.589) (-1.162,-0.635) (-1.127,-0.682) (-1.100,-0.716) (-1.069,-0.753) (-1.026,-0.799) (-0.993,-0.833) (-0.955,-0.870) (-0.913,-0.908) (-0.876,-0.940) (-0.833,-0.975) (-0.788,-1.010) (-0.753,-1.036) (-0.699,-1.073) (-0.651,-1.104) (-0.612,-1.127) (-0.565,-1.153) (-0.512,-1.181) (-0.458,-1.207) (-0.405,-1.230) (-0.351,-1.250) (-0.298,-1.268) (-0.217,-1.289) (-0.164,-1.300) (-0.084,-1.311) (-0.009,-1.314) (-0.003,-1.314)};
+  \addplot[only marks, mark=*, mark size=1.4pt, black] coordinates {(-0.123,-0.556) (0.350,0.350) (-0.129,-0.470) (0.414,0.295) (-0.983,0.037) (-0.578,0.454) (-1.221,-0.549) (0.426,0.694) (-1.295,-0.299) (0.197,-0.366) (0.954,-0.715) (0.213,-0.629) (0.844,-0.013) (-0.223,-1.031) (1.009,0.452) (0.452,0.683) (0.210,-0.384) (-0.480,-0.480) (0.822,-0.876) (-0.358,-0.193) (0.135,0.345) (-0.749,-1.038) (-0.003,0.728) (0.454,0.129) (-0.190,0.176) (-0.146,0.490) (-0.477,0.081) (-0.066,0.326) (0.899,0.898) (-1.224,-0.204) (-0.365,0.320) (0.640,-0.781) (-0.587,-0.481) (0.026,0.385) (1.229,-0.118) (0.461,0.093) (1.056,0.445) (0.821,-0.647) (-0.115,-0.488) (0.903,0.395) (-0.183,-0.271) (0.291,-0.421) (-0.558,0.289) (-0.334,-0.703) (-0.801,0.315) (0.510,0.006) (0.200,0.070) (0.083,-0.916) (-0.275,0.067) (-0.470,-0.286) (-0.491,-0.200) (0.512,-0.244) (-0.092,0.488) (0.387,1.017) (-1.254,0.514) (-0.289,0.081) (2.835,1.933) (2.916,1.562) (3.144,1.387) (2.444,1.820) (2.279,2.364) (2.489,1.347) (2.567,1.794) (2.265,1.652) (2.493,2.146) (2.235,1.918) (2.242,1.116) (2.216,1.024) (2.559,1.913) (2.566,1.750) (3.153,1.608) (2.578,1.390) (1.857,1.804) (1.797,1.761) (2.494,1.951) (2.473,1.171) (2.643,1.276) (2.428,1.517) (2.446,1.424) (2.167,1.424) (1.645,1.437) (2.021,1.948) (2.558,1.449) (2.081,1.713)};
+  \addplot[only marks, mark=x, mark size=3pt, bookpitfall, very thick] coordinates {(0.137,-1.496) (0.135,1.530) (-1.367,0.705) (1.478,-0.148) (2.908,2.370) (3.008,0.720)};
+  \addplot[only marks, mark=o, mark size=3.2pt, bookexample, thick] coordinates {(0.137,-1.496) (-1.221,-0.549) (0.822,-0.876) (-0.749,-1.038) (0.135,1.530) (0.899,0.898) (-1.367,0.705) (1.478,-0.148) (0.387,1.017) (-1.254,0.514) (3.144,1.387) (2.279,2.364) (2.908,2.370) (1.645,1.437) (3.008,0.720)};
+\end{axis}
+\end{tikzpicture}
+\caption{A one-class SVM with a Gaussian kernel ($\gamma = 0.5$, $\nu = 0.1$) on $90$ points from two
+clusters. The region $\{f\geq0\}$ (shaded) follows both clusters. Six points ($6.7\%$, crosses)
+fall outside it and $15$ ($16.7\%$, circled, including the six outliers) are support vectors, as the $\nu$-property
+requires: $0.067\leq\nu = 0.1\leq0.167$.}
+\label{support-vector-methods:fig:ocsvm}
+\end{figure}
+
+\section{Support vector data description}\label{support-vector-methods:sec:svdd}
+
+Tax and Duin (\emph{Support Vector Data Description}, Machine Learning, 2004) describe the data
+by the smallest ball that contains most of them.
+
+\begin{definition}[Support vector data description]
+For $C>0$,
+\[
+  \min_{R, a, \xi}\ R^2 + C\sum_{i=1}^n\xi_i\quad\text{subject to}\quad\norm{\varphi(x_i) - a}^2\leq R^2 + \xi_i,\quad\xi_i\geq0 .
+\]
+\end{definition}
+
+The centre $a$ lives in feature space, so it cannot be computed explicitly for a general
+kernel; the dual solves this. The Lagrangian
+$R^2 + C\sum\xi_i - \sum\alpha_i(R^2 + \xi_i - \norm{\varphi(x_i) - a}^2) - \sum\mu_i\xi_i$ has stationarity conditions
+\[
+  \frac{\partial}{\partial R}:\ \sum_i\alpha_i = 1,\qquad
+  \frac{\partial}{\partial a}:\ a = \sum_i\alpha_i\varphi(x_i),\qquad
+  \frac{\partial}{\partial\xi_i}:\ 0\leq\alpha_i\leq C .
+\]
+The centre is a convex combination of the feature vectors. Substituting, with
+$\norm{\varphi(x_i) - a}^2 = k(x_i, x_i) - 2\sum_j\alpha_jk(x_i, x_j) + \sum_{j,l}\alpha_j\alpha_lk(x_j, x_l)$, gives the dual
+\[
+  \max_\alpha\ \sum_i\alpha_ik(x_i, x_i) - \sum_{i,j}\alpha_i\alpha_jk(x_i, x_j)\quad\text{subject to}\quad0\leq\alpha_i\leq C,\quad\sum_i\alpha_i = 1 .
+\]
+A new point is accepted if its squared distance to the centre is at most $R^2$:
+\[
+  \norm{\varphi(x) - a}^2 = k(x, x) - 2\sum_i\alpha_ik(x_i, x) + \sum_{i,j}\alpha_i\alpha_jk(x_i, x_j)\leq R^2,
+\]
+where $R^2$ is this distance for any support vector with $0<\alpha_i<C$, which lies on the sphere.
+The kernel expression of the distance belongs to the decision function, not to the
+constraints of the primal problem: in the primal, $a$ is a free point of the feature
+space. The dual is feasible only if $C\geq\frac1n$, and $\frac1{Cn}$ plays the role of $\nu$.
+
+\begin{proposition}[SVDD and the one-class SVM coincide]\label{support-vector-methods:prop:equiv}
+If $k(x, x) = \kappa$ is constant (Gaussian, Laplacian, any kernel of the form $g(x - x')$), the SVDD with
+$C = \frac1{\nu n}$ and the one-class SVM with parameter $\nu$ have the same optimal $\alpha$ and the same
+decision regions.
+\end{proposition}
+
+\begin{proof}
+Under $\sum\alpha_i = 1$, the first term of the SVDD dual is the constant $\kappa$, so maximizing it
+is minimizing $\sum_{i,j}\alpha_i\alpha_jk(x_i, x_j)$ under the same constraints as the one-class SVM. The SVDD
+accepts $x$ iff $\kappa - 2\sum_i\alpha_ik(x_i, x) + c\leq R^2$, i.e.\ iff $\sum_i\alpha_ik(x_i, x)\geq(\kappa + c - R^2)/2$, a threshold
+on the same function as the one-class SVM; evaluating both at a margin support vector
+shows that the thresholds agree.
+\end{proof}
+
+Geometrically, when all feature vectors lie on a sphere, cutting the sphere with a
+hyperplane (one-class SVM) and with a ball (SVDD) produce the same family of caps. For a
+polynomial kernel, whose $k(x, x)$ varies, the two methods differ.
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item SVR minimizes $\frac12\norm w^2 + C\sum\abs{y_i - f(x_i)}_\varepsilon$; its dual has two multipliers per point,
+        $f(x) = \sum(\alpha_i - \alpha_i^*)k(x_i, x) + b$, and points strictly inside the $\varepsilon$-tube are not support vectors.
+  \item The one-class SVM separates the data from the origin in feature space. Its dual
+        minimizes $\frac12\alpha^\top K\alpha$ under $0\leq\alpha_i\leq\frac1{\nu n}$, $\sum\alpha_i = 1$, and $\nu$ bounds the fraction of outliers
+        from above and of support vectors from below.
+  \item SVDD finds the smallest enclosing ball; its centre is $\sum\alpha_i\varphi(x_i)$, and distances to it are
+        computed with the kernel in the decision function.
+  \item With a kernel of constant diagonal, SVDD and the one-class SVM are the same method.
 \end{itemize}
+\end{chaptersummary}
 
-The optimization problem for SVM is:
-\[
-\min_{w, b} \frac{1}{2} \|w\|^2 + C \sum_{i=1}^n \xi_i,
-\]
-subject to:
-\[
-y_i (w^T x_i + b) \geq 1 - \xi_i, \quad \xi_i \geq 0 \quad \forall i,
-\]
-where:
-\begin{itemize}
-    \item \( \xi_i \) are slack variables that allow for soft margins (misclassifications),
-    \item \( C \) is a regularization parameter that controls the trade-off 
-          between maximizing the margin and minimizing classification errors.
-\end{itemize}
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
 
-The \textbf{kernel trick} is often used to handle nonlinear data by mapping the input 
-space into a higher-dimensional feature space where the data becomes linearly separable.
+\begin{exercise}\label{support-vector-methods:exr:1}
+Derive the dual of SVR. Show also that at the optimum $\alpha_i\alpha_i^* = 0$ for every $i$ when $\varepsilon>0$.
+\solutionlink{support-vector-methods:exr:1}
+\end{exercise}
 
-\section{Support Vector Data Description (SVDD)}
-\subsection{Overview}
-\textbf{Support Vector Data Description (SVDD)} is an adaptation of SVM for \textbf{one-class 
-classification} and \textbf{outlier detection}. Instead of finding a hyperplane to 
-separate two classes, SVDD finds a \textbf{hypersphere} that encloses the majority 
-of the data points. The goal is to minimize the volume of the hypersphere while 
-allowing some data points to lie outside it (outliers).
+\begin{exercise}\label{support-vector-methods:exr:2}
+Derive the dual of the one-class SVM. What do the constraints $0\leq\alpha_i\leq\frac1{\nu n}$, $\sum_i\alpha_i = 1$ become
+when $\nu = 1$, and what is then the solution?
+\solutionlink{support-vector-methods:exr:2}
+\end{exercise}
 
-\subsection{Connection to SVM}
-\begin{itemize}
-    \item \textbf{Objective}: Both SVM and SVDD aim to find a decision boundary that separates 
-          data points. In SVM, the boundary is a hyperplane; in SVDD, it is a hypersphere.
-    \item \textbf{Optimization}: SVDD's optimization problem is similar to SVM's, but it minimizes 
-          the radius of the hypersphere instead of maximizing the margin of the hyperplane.
-    \item \textbf{Kernel Trick}: Like SVM, SVDD uses the kernel trick to handle nonlinear data by 
-          mapping the input space into a higher-dimensional feature space.
-\end{itemize}
-
-\subsection{Mathematical Formulation}
-The SVDD optimization problem is:
-\[
-\min_{R, a, \xi} R^2 + C \sum_{i=1}^n \xi_i,
-\]
-subject to:
-\[
-\|x_i - a\|^2 \leq R^2 + \xi_i, \quad \xi_i \geq 0 \quad \forall i,
-\]
-where:
-\begin{itemize}
-    \item \( R \) is the radius of the hypersphere,
-    \item \( a \) is the center of the hypersphere,
-    \item \( \xi_i \) are slack variables for soft margins,
-    \item \( C \) is a regularization parameter.
-\end{itemize}
-
-\subsection{Kernel Trick in SVDD}
-The kernel trick allows SVDD to handle nonlinear data by mapping the input space 
-into a higher-dimensional feature space. The kernelized formulation of SVDD is:
-\[
-\min_{R, a, \xi} R^2 + C \sum_{i=1}^n \xi_i,
-\]
-subject to:
-\[
-K(x_i, x_i) - 2 \sum_{j=1}^n \alpha_j K(x_i, x_j) + \sum_{k,l=1}^n \alpha_k \alpha_l K(x_k, x_l) \leq R^2 + \xi_i.
-\]
-
-\subsection{Applications of SVDD}
-SVDD is widely used in:
-\begin{itemize}
-    \item \textbf{Anomaly Detection}: Identifying rare events or outliers 
-          in datasets, such as fraud detection, network intrusion detection, 
-          or fault detection in industrial systems.
-    \item \textbf{One-Class Classification}: Training a model when only 
-          one class of data is available, such as in medical diagnosis, 
-          quality control, or novelty detection in image recognition.
-\end{itemize}
-
-\section{One-Class SVM (OCSVM)}
-\subsection{Overview}
-\textbf{One-Class SVM (OCSVM)} is another adaptation of SVM for \textbf{one-class classification} 
-and \textbf{anomaly detection}. Instead of separating two classes, OCSVM finds a 
-hyperplane that separates the data from the \textbf{origin} in a high-dimensional 
-feature space. Data points on one side of the hyperplane are considered inliers, 
-while those on the other side are outliers.
-
-\subsection{Connection to SVM}
-\begin{itemize}
-    \item \textbf{Objective}: Like SVM, OCSVM finds a hyperplane, but the goal is to separate 
-          the data from the origin rather than separating two classes.
-    \item \textbf{Optimization}: The optimization problem of OCSVM is similar to SVM's, but it 
-          \textbf{maximizes} the distance of the hyperplane from the origin while allowing some 
-          data points to lie on the wrong side (outliers).
-    \item \textbf{Kernel Trick}: OCSVM also uses the kernel trick to handle nonlinear data.
-\end{itemize}
-
-\subsection{Mathematical Formulation}
-The OCSVM optimization problem is:
-\[
-\min_{w, \xi, \rho} \frac{1}{2} \|w\|^2 + \frac{1}{\nu n} \sum_{i=1}^n \xi_i - \rho,
-\]
-subject to:
-\[
-w \cdot \phi(x_i) \geq \rho - \xi_i, \quad \xi_i \geq 0 \quad \forall i,
-\]
-where:
-\begin{itemize}
-    \item \( w \) is the weight vector,
-    \item \( \phi(x_i) \) is the feature mapping function, which maps the input 
-          data \( x_i \) into a higher-dimensional feature space,
-    \item \( \rho \) is the offset from the origin,
-    \item \( \xi_i \) are slack variables,
-        \item \( \nu \in (0, 1] \) controls the fraction of outliers: it is an upper bound on the fraction of training points outside the estimated region and a lower bound on the fraction of support vectors (Schölkopf et al., 2001).
-\end{itemize}
-
-\subsection{Kernel Trick in OCSVM}
-The kernel trick allows OCSVM to handle nonlinear data by mapping the input space 
-into a higher-dimensional feature space. The decision function for OCSVM is:
-\[
-f(x) = \text{sgn} \left( \sum_{i=1}^n \alpha_i K(x_i, x) - \rho \right),
-\]
-where \( K(x_i, x) \) is the kernel function, and \( \alpha_i \) are the 
-Lagrange multipliers.
-
-\subsection{Applications of OCSVM}
-OCSVM is commonly used in:
-\begin{itemize}
-    \item \textbf{Anomaly Detection}: Detecting unusual patterns in data, 
-          such as in cybersecurity (e.g., detecting network intrusions), 
-          industrial monitoring (e.g., detecting equipment failures), or 
-          fraud detection.
-    \item \textbf{Novelty Detection}: Identifying new or unseen data points 
-          that differ from the training data, such as in medical diagnosis 
-          (e.g., detecting rare diseases) or fault detection in machinery.
-\end{itemize}
-
-\section{Support Vector Regression (SVR)}
-\subsection{Overview}
-\textbf{Support Vector Regression (SVR)} is an extension of SVM for \textbf{regression tasks}. 
-Instead of finding a hyperplane to separate classes, SVR finds a hyperplane that 
-fits the data while allowing for a \textbf{margin of error} (\( \epsilon \)). The goal 
-is to minimize the deviation of the predicted values from the actual values.
-
-\subsection{Connection to SVM}
-\begin{itemize}
-    \item \textbf{Objective}: Both SVM and SVR aim to find a hyperplane, but in SVR, the hyperplane 
-          is used to predict continuous values rather than separating classes.
-    \item \textbf{Optimization}: SVR's optimization problem is similar to SVM's, but it minimizes 
-          the prediction error while allowing deviations within a margin \( \epsilon \).
-    \item \textbf{Kernel Trick}: Like SVM, SVR uses the kernel trick to handle nonlinear relationships 
-          in the data.
-\end{itemize}
-
-\subsection{Mathematical Formulation}
-The SVR optimization problem is:
-\[
-\min_{w, b, \xi, \xi^*} \frac{1}{2} \|w\|^2 + C \sum_{i=1}^n (\xi_i + \xi_i^*),
-\]
-subject to:
-\[
-y_i - (w \cdot \phi(x_i) + b) \leq \epsilon + \xi_i,
-\]
-\[
-(w \cdot \phi(x_i) + b) - y_i \leq \epsilon + \xi_i^*,
-\]
-\[
-\xi_i, \xi_i^* \geq 0 \quad \forall i,
-\]
-where:
-\begin{itemize}
-    \item \( w \) is the weight vector,
-    \item \( b \) is the bias term,
-    \item \( \phi(x_i) \) is the feature mapping function,
-    \item \( \epsilon \) is the margin of error,
-    \item \( \xi_i \) and \( \xi_i^* \) are slack variables for deviations outside the margin,
-    \item \( C \) is a regularization parameter.
-\end{itemize}
-
-\subsection{Kernel Trick in SVR}
-The kernel trick allows SVR to handle nonlinear relationships in the data. The 
-kernelized form of the SVR decision function is:
-\[
-f(x) = \sum_{i=1}^n (\alpha_i - \alpha_i^*) K(x_i, x) + b,
-\]
-where \( K(x_i, x) \) is the kernel function, and \( \alpha_i \) and \( \alpha_i^* \) 
-are the Lagrange multipliers.
-
-\subsection{Applications of SVR}
-SVR is widely used in:
-\begin{itemize}
-    \item \textbf{Time Series Prediction}: Forecasting future values based 
-          on past data, such as stock prices, weather patterns, or energy 
-          consumption.
-    \item \textbf{Regression Tasks}: Modeling complex relationships between 
-          variables, such as in economics (e.g., predicting GDP growth), 
-          engineering (e.g., predicting material properties), or healthcare 
-          (e.g., predicting patient outcomes).
-\end{itemize}
-
-\section{Conclusion}
-\textbf{Support Vector Data Description (SVDD)}, \textbf{One-Class SVM (OCSVM)}, and \textbf{Support 
-Vector Regression (SVR)} are powerful extensions of the SVM framework. Each 
-method has its unique mathematical formulation and applications:
-\begin{itemize}
-    \item \textbf{SVDD} is ideal for outlier detection and one-class classification.
-    \item \textbf{OCSVM} is effective for anomaly detection and novelty detection.
-    \item \textbf{SVR} is well-suited for regression tasks with complex, 
-          nonlinear relationships.
-\end{itemize}
-By understanding these methods, you can apply them to a wide range of 
-machine learning problems, from anomaly detection to regression analysis.
+\begin{exercise}\label{support-vector-methods:exr:3}
+For the linear kernel and points in $\R^d$, solve SVDD with $C\geq1$ (no slack is useful). Show
+that the centre is a convex combination of the points on the sphere, and find the ball for
+the three points $(0,0)$, $(2,0)$, $(0,2)$.
+\solutionlink{support-vector-methods:exr:3}
+\end{exercise}
 \end{notechapter}
