@@ -1257,3 +1257,145 @@ test gives $W_s(qa)$. With inverted dropout and $W_i = qW_s$, training gives $W_
 gives $W_ia = W_s(qa)$: the same functions at training and at test. The map $W_s\mapsto qW_s$ is a bijection, so
 the two families coincide, and so do the training trajectories up to a rescaling of the
 learning rate of that layer.
+
+\section{\nameref*{ch:convolution-filtering}}
+
+\solution{convolution-filtering:exr:1}
+$(x * k)[n] = x[n]k[0] + x[n - 1]k[1] = x[n] - x[n - 1]$: for $n = 0,1,2,3$ it is $(1, 1, 1, -3)$, the backward difference. The
+correlation is $(x\star k)[n] = x[n]k[0] + x[n + 1]k[1] = x[n] - x[n + 1]$: for $n = -1,0,1,2$ it is $(-1, -1, -1, 3)$, minus the forward
+difference.
+
+\solution{convolution-filtering:exr:2}
+The transpose has rows $(k_1, k_2, 0, 0)$, $(0, k_1, k_2, 0)$, $(0, 0, k_1, k_2)$, so $(T^\top y)_i = k_1y_i + k_2y_{i+1}$ for $i = 1,2,3$: the kernel slides
+unflipped over the four entries of $y$, taking the three positions where it fits. This is the valid
+cross-correlation of $y$ with $k$. In general, the transpose of a convolution with $k$ is a correlation
+with $k$, i.e.\ a convolution with the flipped kernel.
+
+\solution{convolution-filtering:exr:3}
+Each row of the Scharr kernel gives $I[\cdot, j + 1] - I[\cdot, j - 1] = 2a$, with weights summing to $3 + 10 + 3 = 16$: $32a$. The
+Laplacian gives $(I[i,j + 1] + I[i,j - 1] - 2I[i,j]) + (I[i + 1,j] + I[i - 1,j] - 2I[i,j])$, a sum of second differences, which vanish
+for an affine image. For $I = j^2$: $(j + 1)^2 + (j - 1)^2 - 2j^2 = 2$, and the vertical part is $0$.
+
+\solution{convolution-filtering:exr:4}
+Summing over the nine pixels, $\sum G_x^2 = 8400$, $\sum G_y^2 = 1200$, $\sum G_xG_y = 2400$, so $M = \begin{bmatrix}8400 & 2400\\2400 & 1200\end{bmatrix}$, with
+eigenvalues $9127$ and $473$ and $R = 4.32\times10^6 - 0.05\times9600^2 = -2.88\times10^5$. For the top row alone, $M = \diag(3200, 0)$, eigenvalues
+$3200$ and $0$, $R = -5.12\times10^5$: a pure edge. The full block has a second, small eigenvalue (the boundary
+bends), but $R<0$: it is still classified as an edge rather than a corner.
+
+\solution{convolution-filtering:exr:5}
+$7\times7 = 49$ multiplications directly; $7 + 7 = 14$ with a column pass and a row pass, since the Gaussian kernel is
+separable.
+
+\section{\nameref*{ch:convolutional-layers}}
+
+\solution{convolutional-layers:exr:1}
+$\lfloor(224 + 6 - 6 - 1)/2\rfloor + 1 = 111 + 1 = 112$, then $\lfloor(112 + 2 - 2 - 1)/2\rfloor + 1 = 55 + 1 = 56$.
+
+\solution{convolutional-layers:exr:2}
+Standard: $256\cdot256\cdot9 = 589\,824$ weights ($+256$ biases) and $589\,824\times196 = 115.6$ million multiply-adds. Separable:
+$256\cdot9 + 256\cdot256 = 67\,840$ weights and $13.3$ million multiply-adds, a ratio $0.115 = \frac1{256} + \frac19$.
+
+\solution{convolutional-layers:exr:3}
+Stride $1$: $r = 1 + 2 + 2 + 2 = 7$. Stride $2$: $r_1 = 3$, $j_1 = 2$; $r_2 = 3 + 2\cdot2 = 7$, $j_2 = 4$; $r_3 = 7 + 2\cdot4 = 15$. Three $3\times3$ layers have $27C^2$
+weights against $49C^2$ for one $7\times7$ layer with the same receptive field (stride $1$).
+
+\solution{convolutional-layers:exr:4}
+\[
+  M = \begin{bmatrix}1 & -2 & 1 & 0 & 0\\0 & 1 & -2 & 1 & 0\\0 & 0 & 1 & -2 & 1\end{bmatrix},\qquad
+  M^\top\begin{bmatrix}1\\0\\-1\end{bmatrix} = (1, -2, 1 - 1, 2, -1) = (1, -2, 0, 2, -1) .
+\]
+
+\solution{convolutional-layers:exr:5}
+$\frac1{HW}\sum_{i,j}(WX[:,i,j] + b) = W\bigl(\frac1{HW}\sum_{i,j}X[:,i,j]\bigr) + b$ by linearity: averaging commutes with the per-pixel linear map.
+
+\section{\nameref*{ch:cnn-architectures}}
+
+\solution{cnn-architectures:exr:1}
+With $C_{\mathrm{in}}\cdot C_{\mathrm{out}}\cdot9 + C_{\mathrm{out}}$ per layer: block 1, $1\,792 + 36\,928$; block 2, $73\,856 + 147\,584$; block 3, $295\,168 + 2\times590\,080$; block 4,
+$1\,180\,160 + 2\times2\,359\,808$; block 5, $3\times2\,359\,808$; total $14\,714\,688$. Fully connected:
+$25\,088\cdot4096 + 4096 = 102\,764\,544$, $4096\cdot4096 + 4096 = 16\,781\,312$, $4096\cdot1000 + 1000 = 4\,097\,000$. Total $138\,357\,544$.
+
+\solution{cnn-architectures:exr:2}
+Direct: $28^2\cdot128\cdot9\cdot256 = 231.2$ million multiply-adds. With the bottleneck: $28^2\cdot64\cdot256 = 12.8$ million, plus
+$28^2\cdot128\cdot9\cdot64 = 57.8$ million: $70.6$ million, about $3.3$ times less.
+
+\solution{cnn-architectures:exr:3}
+Plain: $\partial x_L/\partial x_0 = \prod_ma_m$, of magnitude at most $\varepsilon^L = 10^{-50}$. Residual: $\prod_m(1 + a_m)$, between $0.9^{50} = 0.005$ and
+$1.1^{50} = 117$, and close to $1$ when the $a_m$ have mixed signs ($\approx e^{\sum a_m}$). The plain gradient vanishes; the residual
+one does not, although it can still grow or shrink if all the corrections have the same sign.
+
+\solution{cnn-architectures:exr:4}
+$256\cdot64 + 64\cdot64\cdot9 + 64\cdot256 = 16\,384 + 36\,864 + 16\,384 = 69\,632$ weights, against $2\cdot256\cdot256\cdot9 = 1\,179\,648$: about $17$ times
+fewer.
+
+\section{\nameref*{ch:fully-convolutional}}
+
+\solution{fully-convolutional:exr:1}
+$33\to16\to8$ and $35\to17\to8$: the score map is $10\times8\times8$. The smallest input is $4\times4$ ($4\to2\to1$).
+
+\solution{fully-convolutional:exr:2}
+$r = 1 + 2(1 + 2 + 4 + 8 + 1 + 2 + 4 + 8) = 61$. Undilated $3\times3$ layers add $2$ each: $30$ layers.
+
+\solution{fully-convolutional:exr:3}
+\[
+  C^\top C = \begin{bmatrix}1&2&3&0&0\\2&4&6&0&0\\3&6&10&2&3\\0&0&2&4&6\\0&0&3&6&9\end{bmatrix}\neq I .
+\]
+$Cx = 0$ iff $x_0 + 2x_1 + 3x_2 = 0$ and $x_2 + 2x_3 + 3x_4 = 0$: a $3$-dimensional null space. Information is lost and cannot be
+recovered by $C^\top$ or by anything else.
+
+\solution{fully-convolutional:exr:4}
+$(16 - 1)\cdot2 - 2 + 4 = 32$. With $k = 4 = 2s$, every interior output receives exactly $2$ contributions per
+dimension: on a constant input with a constant kernel the interior is constant ($4$), only the
+border differs. With $k = 3$, $s = 2$, interior positions receive $1$ or $2$ contributions per dimension,
+giving the $1,2,4$ checkerboard.
+
+\solution{fully-convolutional:exr:5}
+Each block adds $2d + 2$: with dilations $(1,1,1,1,1)$, $r = 3 + 5\cdot4 = 23$; with $(1,2,4,8,16,32)$,
+$r = 3 + 2\cdot63 + 6\cdot2 = 141$.
+
+\section{\nameref*{ch:detection-segmentation}}
+
+\solution{detection-segmentation:exr:1}
+The intersection is $(1 - \delta)w\times w$, the union $2w^2 - (1 - \delta)w^2 = (1 + \delta)w^2$, so $\mathrm{IoU} = \frac{1 - \delta}{1 + \delta}$, which is $\frac12$ for $\delta = \frac13$.
+
+\solution{detection-segmentation:exr:2}
+With $\tau = 0.7$, no IoU exceeds the threshold ($0.6$ at most): all four boxes are kept. With $\tau = 0.5$ and $b_2$
+scored first: keep $b_2$; $\mathrm{IoU}(b_2, b_1) = 0.6$ removes $b_1$; $\mathrm{IoU}(b_2, b_4) = 9/23 = 0.39$ keeps $b_4$; $b_3$ is kept. Result
+$\{b_2, b_3, b_4\}$: NMS depends on the scores, and here leaves two boxes on what was one object.
+
+\solution{detection-segmentation:exr:3}
+$x = 100 + 64\cdot0.1 = 106.4$, $y = 80 - 32\cdot0.25 = 72$, $w = 64\cdot2 = 128$, $h = 32$. With $\log(w/w_a)$, doubling a box gives the same
+target for small and large anchors, the target is unbounded in both directions, and the
+decoded width $w_ae^{t_w}$ is always positive; $w - w_a$ depends on the absolute scale and can decode to a
+negative width.
+
+\solution{detection-segmentation:exr:4}
+Take $(x_0,y_0) = (0,0)$. The corners have $f_{00} = a$, $f_{10} = a + b$, $f_{01} = a + c$, $f_{11} = a + b + c + d$, and the formula gives
+$a + b\alpha + c\beta + d\alpha\beta = f(\alpha,\beta)$. The derivatives are $\partial f/\partial f_{11} = \alpha\beta$ and
+$\partial f/\partial\alpha = (1 - \beta)(f_{10} - f_{00}) + \beta(f_{11} - f_{01})$: the interpolation is differentiable in the features and in the
+coordinates.
+
+\section{\nameref*{ch:transfer-learning}}
+
+\solution{transfer-learning:exr:1}
+The pixels $0.1, 0.3, 0.6, 0.8$ have mean $0.45$ and variance $\frac14(0.35^2 + 0.15^2 + 0.15^2 + 0.35^2) = 0.0725$, standard deviation
+$0.269$. Each image has standard deviation $0.1$, so their average is $0.1$. Law of total variance: the
+mean within-image variance $0.01$ plus the variance $0.0625$ of the image means $0.2, 0.7$ is $0.0725$.
+
+\solution{transfer-learning:exr:2}
+$w^\top\frac{x - \mu}\sigma + b = \bigl(\frac w\sigma\bigr)^\top x + b - \frac{w^\top\mu}\sigma$ (coordinatewise division): any function of the standardized input is a
+function of the raw input with other parameters. The set of models is the same, but
+gradient descent is not invariant to this reparametrization: the conditioning of the
+problem in $w$ depends on the second moments of the inputs, and initialization schemes
+assume unit-scale inputs.
+
+\solution{transfer-learning:exr:3}
+The new head has $512\cdot5 + 5 = 2\,565$ parameters, so \texttt{layer4} has $8\,396\,293 - 2\,565 = 8\,393\,728$. The whole model has
+$11\,689\,512 - 513\,000 + 2\,565 = 11\,179\,077$, of which $75\%$ are trainable: the last stage holds most of the parameters.
+
+\solution{transfer-learning:exr:4}
+The principal directions are then chosen using the test features: the representation is
+adapted to the test distribution, which a real deployment cannot do, so the test set no
+longer measures generalization to unseen data. The effect is small for PCA with many
+examples, and large for supervised steps (feature selection using labels); the cure is
+the same: split first, fit every step on the training part only.

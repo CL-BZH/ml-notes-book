@@ -1,0 +1,271 @@
+\begin{notechapter}
+\chapter{Transfer Learning}\label{ch:transfer-learning}
+\chaptersubtitle{Reusing pretrained networks: preprocessing, feature extraction and fine-tuning}
+
+\begin{chapterintro}
+Training a large CNN from scratch needs a large labelled data set. Most applications do
+not have one, but they can start from a network pretrained on ImageNet: its features are
+useful far beyond the classes it was trained on. This chapter explains why features
+transfer, how to prepare inputs exactly as the pretrained network expects, and the two
+ways of reusing it: as a fixed feature extractor, or as an initialization for fine-tuning.
+You will learn
+\begin{itemize}[nosep]
+  \item how to standardize images per channel, and how to compute the statistics correctly;
+  \item what changes from the first to the last layers of a CNN, and what this implies for
+        transfer;
+  \item feature extraction with a new linear head or a classical classifier, without data
+        leakage;
+  \item fine-tuning: which layers, which learning rates, and what to do with batch
+        normalization;
+  \item when transfer helps, and when it does not.
+\end{itemize}
+\prerequisites{\cref{ch:cnn-architectures}; optimizers and weight decay (\cref{ch:optimizers});
+batch normalization (\cref{ch:normalization}); validation and data leakage
+(\cref{ch:measuring-performance}).}
+\end{chapterintro}
+
+\section{Preprocessing images}\label{transfer-learning:sec:preprocessing}
+
+\paragraph{Why standardize.} Pixel values are stored as integers in $[0, 255]$. Gradient
+descent on the first layer converges faster when its inputs are centred and of unit scale:
+inputs with a large common mean make the first layer badly conditioned
+(\cref{activation-functions:sec:centred}), and their scale multiplies the effective learning
+rate of the first-layer weights.
+
+\paragraph{The options.}
+\begin{itemize}
+  \item scaling to $[0,1]$: $x/255$ (\texttt{transforms.ToTensor()} does it);
+  \item scaling to $[-1,1]$: $(x - 127.5)/127.5$, common in generative models;
+  \item \emph{per-channel standardization}: $x^{(c)}\mapsto(x^{(c)} - \mu_c)/\sigma_c$ for each channel $c$, where $\mu_c$ and $\sigma_c$ are the
+        mean and standard deviation of channel $c$ over all pixels of all training images.
+\end{itemize}
+Per-channel statistics respect the different distributions of the colour channels; one
+global mean and standard deviation would not. The ImageNet values on $[0,1]$-scaled
+images, $\mu = (0.485, 0.456, 0.406)$ and $\sigma = (0.229, 0.224, 0.225)$ for (R, G, B), are those used by the
+\texttt{torchvision} models.
+
+\begin{pitfall}[Statistics from the training set, applied everywhere]
+Compute $\mu_c$ and $\sigma_c$ on the training set only, and apply the same values to validation and
+test data: recomputing them on test data, or on all the data, leaks information about the
+evaluation set into the model (\cref{ch:measuring-performance}). With a \emph{pretrained}
+network, use the statistics it was trained with (and its resizing and cropping), not those of
+your data set: its first layer expects exactly that input distribution.
+\end{pitfall}
+
+\paragraph{Computing the statistics correctly.} The standard deviation of a channel over the
+data set is \emph{not} the average of the per-image standard deviations. By the law of total
+variance, the variance over all pixels is the average within-image variance \emph{plus} the
+variance of the image means: averaging per-image standard deviations underestimates it.
+Accumulate sums and sums of squares instead:
+
+\begin{lstlisting}[language=Python]
+import torch
+from torch.utils.data import DataLoader
+
+def channel_mean_std(dataset, batch_size=256):
+    """Per-channel mean and std over all pixels of all images (pooled)."""
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    n, s, s2 = 0, 0.0, 0.0
+    for images, _ in loader:                    # images: (B, C, H, W) in [0, 1]
+        x = images.transpose(0, 1).flatten(1)   # (C, B*H*W)
+        n += x.shape[1]
+        s = s + x.sum(dim=1)
+        s2 = s2 + (x ** 2).sum(dim=1)
+    mean = s / n
+    std = (s2 / n - mean ** 2).sqrt()
+    return mean, std
+\end{lstlisting}
+
+On $50$ random images of varying contrast, this gives $\sigma\approx0.220$ per channel, the exact value,
+while the average of per-image standard deviations gives $0.171$. (For very large data sets in
+low precision, accumulate in double precision or use Welford's algorithm.)
+
+\begin{lstlisting}[language=Python]
+from torchvision import datasets, transforms
+
+mean, std = channel_mean_std(datasets.CIFAR10("data", train=True, download=True,
+                                              transform=transforms.ToTensor()))
+train_tf = transforms.Compose([transforms.RandomCrop(32, padding=4),       # augmentation:
+                               transforms.RandomHorizontalFlip(),          # training only
+                               transforms.ToTensor(), transforms.Normalize(mean, std)])
+test_tf = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean, std)])
+train_set = datasets.CIFAR10("data", train=True, transform=train_tf)
+test_set = datasets.CIFAR10("data", train=False, transform=test_tf)
+# a validation set is split off train_set (with test_tf), never taken from test_set
+\end{lstlisting}
+
+\paragraph{Data augmentation.} Random crops, flips, small rotations or colour changes
+create new training images with the same label: they encode invariances the model should
+have and act as a regularizer. They are applied to training images only; evaluation uses
+the deterministic transform.
+
+\section{Why features transfer}\label{transfer-learning:sec:why}
+
+A CNN trained for classification computes a hierarchy of features. Visualizations show
+oriented edges and colour blobs in the first layer, textures and simple patterns in the
+next, parts of objects in the middle, and class-specific configurations near the top
+(Zeiler and Fergus, \emph{Visualizing and Understanding Convolutional Networks}, ECCV,
+2014). The first layers are \emph{general}: similar features are learned on any natural images.
+The last layers are \emph{specific} to the training task. Yosinski, Clune, Bengio and Lipson (\emph{How
+Transferable Are Features in Deep Neural Networks?}, NeurIPS, 2014) measured this by
+transferring the first $n$ layers between networks trained on two halves of ImageNet:
+transfer degrades as $n$ grows and as the tasks become more different, and initializing with
+transferred features and fine-tuning helped even when the new data set was large.
+The penultimate features of an ImageNet network are, in practice, strong generic image
+descriptors: a linear classifier on them is a hard baseline for many vision tasks (Razavian,
+Azizpour, Sullivan and Carlsson, \emph{CNN Features Off-the-Shelf}, CVPR Workshops, 2014).
+
+\section{Feature extraction}\label{transfer-learning:sec:extraction}
+
+Remove the network's last (task-specific) layer, freeze the rest, and use the output of global
+average pooling as a fixed feature vector: $512$ numbers for ResNet-18, $2048$ for ResNet-50. Then
+either train a new linear layer on top (\emph{linear probing}), or extract the features once and
+train any classifier on them.
+
+\begin{lstlisting}[language=Python]
+import torch
+from torch import nn
+from torchvision import models
+
+model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+model.eval()                                       # batch norm in inference mode
+extractor = nn.Sequential(*list(model.children())[:-1], nn.Flatten())
+
+@torch.no_grad()
+def features(loader):
+    feats, labels = [], []
+    for x, y in loader:                            # x preprocessed as for ImageNet
+        feats.append(extractor(x)); labels.append(y)
+    return torch.cat(feats).numpy(), torch.cat(labels).numpy()
+
+F_train, y_train = features(train_loader)          # (n_train, 512)
+F_test, y_test = features(test_loader)
+\end{lstlisting}
+
+Any classifier can then be trained on the features: logistic regression, an SVM
+(\cref{ch:svm}), a random forest (\cref{ch:ensemble-methods}). With a few hundred examples
+and $512$ or $2048$ features, dimensionality reduction by PCA (\cref{ch:pca-overview}) can help.
+Every fitted step, the standardization and the PCA included, must be fitted on training data
+only; a pipeline guarantees it:
+
+\begin{lstlisting}[language=Python]
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.svm import SVC
+
+clf = make_pipeline(StandardScaler(), PCA(n_components=100), SVC(kernel="rbf", C=1.0))
+clf.fit(F_train, y_train)                         # scaler, PCA and SVM fitted on train only
+print(f"test accuracy: {clf.score(F_test, y_test):.3f}")
+\end{lstlisting}
+
+Fitting the PCA on all the features before splitting, a common mistake, uses the test set to
+choose the projection. Hyperparameters ($C$, the number of components) are tuned by
+cross-validation on the training set.
+
+\section{Fine-tuning}\label{transfer-learning:sec:finetuning}
+
+Fine-tuning continues training the pretrained weights on the new task, starting from the
+pretrained values, together with the new head.
+
+\begin{lstlisting}[language=Python]
+model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+for p in model.parameters():                       # freeze everything ...
+    p.requires_grad = False
+model.fc = nn.Linear(model.fc.in_features, 5)      # ... except a new head for 5 classes
+for p in model.layer4.parameters():                # ... and the last stage
+    p.requires_grad = True
+opt = torch.optim.AdamW([
+    {"params": model.layer4.parameters(), "lr": 1e-4},
+    {"params": model.fc.parameters(), "lr": 1e-3}], weight_decay=0.01)
+\end{lstlisting}
+
+\paragraph{Which layers.} The less data, and the closer the new task to ImageNet, the fewer
+layers should be trained. Typical choices: only the head (linear probing) for very small data
+sets; the last stage and the head for small ones; everything for large ones. Above, $8.4$ of the
+$11.2$ million parameters are trainable.
+
+\paragraph{Learning rates.} Pretrained layers need small steps, or the first updates, driven
+by a randomly initialized head, destroy the features. Common practice is a learning rate
+about ten times smaller than for training from scratch, smaller still for earlier layers
+(\emph{discriminative} learning rates, as in the parameter groups above), with warm-up
+(\cref{optimizers:sec:schedules}). Training the head first with the backbone frozen, then
+fine-tuning everything (``linear probing then fine-tuning'') protects the features; Kumar,
+Raghunathan, Jones, Ma and Liang (\emph{Fine-Tuning can Distort Pretrained Features and
+Underperform Out-of-Distribution}, ICLR, 2022) show that it also improves robustness to
+distribution shift.
+
+\paragraph{Batch normalization.} The running statistics of the pretrained network describe
+ImageNet activations. With reasonable batches they adapt during fine-tuning; with very
+small batches, the batch statistics are noisy (\cref{normalization:sec:bn}), and it is better to
+keep the batch normalization layers in evaluation mode (frozen statistics), or to freeze them
+entirely.
+
+\section{When does transfer help?}\label{transfer-learning:sec:when}
+
+\begin{center}\small
+\begin{tabular}{lp{4.6cm}p{4.6cm}}
+\toprule
+& similar task to the source & different task \\
+\midrule
+small data set & feature extraction, linear head & features of earlier layers; careful fine-tuning \\
+large data set & fine-tune everything & fine-tune everything, or train from scratch \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Transfer is most useful with little labelled data. For images very different from natural
+photographs (medical scans, satellite multispectral images, spectrograms), the general
+early features still help, but the higher ones less, and \emph{negative transfer}, where
+pretraining hurts, is possible. Inputs with a different number of channels need an adapted
+first layer (e.g.\ averaging the RGB filters for grey-level images). The same pattern of
+pretraining on a large generic data set and adapting to a small specific one is the basis of
+language models, with BERT and its successors in place of ImageNet CNNs
+(\cref{part:language}).
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Standardize inputs per channel with statistics computed on all pixels of the training
+        set, or, for a pretrained network, with the statistics and resizing it was trained with.
+        Averaging per-image standard deviations underestimates the true one.
+  \item CNN features go from general (edges, textures) to task-specific; penultimate features of
+        ImageNet networks are strong generic descriptors.
+  \item Feature extraction freezes the backbone and trains a head or a classical classifier;
+        every fitted preprocessing step must be fitted on training data only.
+  \item Fine-tuning trains some or all pretrained layers with small, often layer-dependent,
+        learning rates; probing first protects the features; batch normalization needs care
+        with small batches.
+  \item Transfer helps most with little data and similar domains; it can hurt for very different
+        inputs.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{transfer-learning:exr:1}
+Two grey-level images of $2$ pixels: $(0.1, 0.3)$ and $(0.6, 0.8)$. Compute the pooled standard deviation of the
+pixels and the average of the two per-image standard deviations, and check the law of total
+variance.
+\solutionlink{transfer-learning:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{transfer-learning:exr:2}
+A first layer computes $z = w^\top x + b$. Show that standardizing a channel, $x\mapsto(x - \mu)/\sigma$, can be undone by
+changing $w$ and $b$. Why does it still matter for training?
+\solutionlink{transfer-learning:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{transfer-learning:exr:3}
+Count the parameters of ResNet-18's new head for $5$ classes, and those of its last stage
+(\texttt{layer4}), given that ResNet-18 has $11\,689\,512$ parameters with its original $1000$-class head and $8\,396\,293$ are
+trainable in the fine-tuning example.
+\solutionlink{transfer-learning:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{transfer-learning:exr:4}
+Explain what is wrong with fitting \texttt{PCA} on the features of all images, then splitting into
+training and test sets, and why the reported test accuracy is optimistic.
+\solutionlink{transfer-learning:exr:4}
+\end{exercise}
+\end{notechapter}

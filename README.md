@@ -7,7 +7,7 @@ graph neural networks.
 
 The notes started as ~100 standalone LaTeX documents, Markdown files and
 notebooks. They are organised here as a single LaTeX book (11 parts,
-73 chapters and three appendices, ~750 pages), with the accompanying code and notebooks.
+71 chapters and three appendices, ~760 pages), with the accompanying code and notebooks.
 
 **[📕 Download the PDF](https://github.com/CL-BZH/ml-notes-book/releases/latest/download/Notes_on_Machine_Learning.pdf)**
 
@@ -72,52 +72,50 @@ notebooks. They are organised here as a single LaTeX book (11 parts,
 
 **Part VII — Convolutional Networks and Computer Vision**
 
-40. Convolution versus Cross-Correlation
-41. Convolution in CNNs
-42. Image Gradients by Convolution
-43. Transpose Convolution
-44. Normalization in Convolutional Networks
-45. The Evolution of CNNs
-46. Instance Segmentation
-47. Transfer Learning
+40. Convolution and Image Filtering
+41. Convolutional Layers
+42. Classic CNN Architectures
+43. Fully Convolutional Networks and Upsampling
+44. Object Detection and Instance Segmentation
+45. Transfer Learning
 
 **Part VIII — Recurrent Networks**
 
-48. Gradient Computation in RNNs
-49. From the Chain Rule to Backpropagation Through Time
-50. Long Short-Term Memory
+46. Gradient Computation in RNNs
+47. From the Chain Rule to Backpropagation Through Time
+48. Long Short-Term Memory
 
 **Part IX — Language Modeling and Structured Prediction**
 
-51. Bigram Language Modeling with Multinomial Logistic Regression
-52. Bigram Logistic Regression: Loss and Gradient
-53. A One-Hidden-Layer Neural Bigram Model
-54. Word Embeddings
-55. Hierarchical Softmax and Huffman Trees
-56. Noise Contrastive Estimation and Negative Sampling
-57. Structured Prediction
-58. The Viterbi Algorithm for Part-of-Speech Tagging
-59. Conditional Random Fields for Part-of-Speech Tagging
+49. Bigram Language Modeling with Multinomial Logistic Regression
+50. Bigram Logistic Regression: Loss and Gradient
+51. A One-Hidden-Layer Neural Bigram Model
+52. Word Embeddings
+53. Hierarchical Softmax and Huffman Trees
+54. Noise Contrastive Estimation and Negative Sampling
+55. Structured Prediction
+56. The Viterbi Algorithm for Part-of-Speech Tagging
+57. Conditional Random Fields for Part-of-Speech Tagging
 
 **Part X — Contrastive and Self-Supervised Learning**
 
-60. Contrastive Learning: An Overview
-61. Contrastive Learning: A Mathematical Treatment
+58. Contrastive Learning: An Overview
+59. Contrastive Learning: A Mathematical Treatment
 
 **Part XI — Machine Learning on Graphs**
 
-62. The Laplacian, Local Averages and Graphs
-63. From Harmonic Functions to Graph Laplacians
-64. Graph Laplacians and Spectral Methods
-65. A Unified View of Spectral Decomposition
-66. Fourier Analysis
-67. From the DFT to Graph Neural Networks
-68. Random-Walk Node Similarity
-69. The Leicht–Holme–Newman Similarity
-70. Reproducing Kernel Hilbert Spaces
-71. Semi-Supervised Learning on Graphs
-72. Shallow Graph Embedding Methods
-73. Graph Autoencoders
+60. The Laplacian, Local Averages and Graphs
+61. From Harmonic Functions to Graph Laplacians
+62. Graph Laplacians and Spectral Methods
+63. A Unified View of Spectral Decomposition
+64. Fourier Analysis
+65. From the DFT to Graph Neural Networks
+66. Random-Walk Node Similarity
+67. The Leicht–Holme–Newman Similarity
+68. Reproducing Kernel Hilbert Spaces
+69. Semi-Supervised Learning on Graphs
+70. Shallow Graph Embedding Methods
+71. Graph Autoencoders
 
 **Appendices**
 
@@ -134,7 +132,7 @@ nicematrix, witharrows, forest, listings, algorithmicx, cleveref …).
 ```bash
 cd book
 make                       # builds main.pdf (≈ 3 latexmk passes)
-make chapter CH=chapters/07-cnn-vision/04-transpose-convolution   # one chapter only → chapter.pdf
+make chapter CH=chapters/07-cnn-vision/04-fully-convolutional   # one chapter only → chapter.pdf
 make clean
 ```
 

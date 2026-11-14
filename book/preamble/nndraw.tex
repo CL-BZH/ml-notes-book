@@ -1,0 +1,28 @@
+% --- drawing neural networks --------------------------------------------
+% \nnbox{name}{x}{w}{h}{d}{colour}{label}
+%   A feature map drawn as a box: front face of width w (channels) and height h
+%   (image height), depth d (image width) drawn obliquely; x is the left edge.
+%   Defines the coordinates name-in (left face centre), name-out (right side
+%   centre), name-top and name-bottom. Labels are placed below the box, or on the
+%   common baseline \nnbaseline (a y coordinate) if that is lower: set
+%   \def\nnbaseline{-2} inside a figure to align all labels.
+\def\nnbaseline{0}
+\newcommand{\nnbox}[7]{%
+  \pgfmathsetmacro{\nnDx}{0.5*(#5)}%
+  \pgfmathsetmacro{\nnDy}{0.32*(#5)}%
+  \pgfmathsetmacro{\nnH}{0.5*(#4)}%
+  \fill[#6!45] (#2,-\nnH) rectangle ++(#3,#4);
+  \fill[#6!25] (#2,\nnH) -- ++(#3,0) -- ++(\nnDx,\nnDy) -- ++(-#3,0) -- cycle;
+  \fill[#6!65] (#2+#3,-\nnH) -- ++(\nnDx,\nnDy) -- ++(0,#4) -- ++(-\nnDx,-\nnDy) -- cycle;
+  \draw[#6!60!black, line width=0.3pt] (#2,-\nnH) rectangle ++(#3,#4)
+    (#2,\nnH) -- ++(\nnDx,\nnDy) -- ++(#3,0) -- ++(0,-#4) -- ++(-\nnDx,-\nnDy)
+    (#2+#3,\nnH) -- ++(\nnDx,\nnDy);
+  \coordinate (#1-in) at (#2,0);
+  \coordinate (#1-out) at ({#2+#3+0.5*\nnDx},{0.5*\nnDy});
+  \coordinate (#1-top) at ({#2+0.5*(#3)+0.5*\nnDx},{\nnH+\nnDy});
+  \coordinate (#1-bottom) at ({#2+0.5*(#3)},{-\nnH});
+  \pgfmathsetmacro{\nnLy}{min(-\nnH,\nnbaseline)}%
+  \node[font=\scriptsize, align=center, anchor=north] at ({#2+0.5*(#3)},\nnLy) {#7};
+}
+% \nnarrow{from}{to}: arrow between two boxes
+\newcommand{\nnarrow}[2]{\draw[-{Stealth[length=2mm]}, thick, gray!70!black] (#1-out) -- (#2-in);}

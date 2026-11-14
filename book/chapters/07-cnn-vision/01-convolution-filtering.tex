@@ -1,0 +1,295 @@
+\begin{notechapter}
+\chapter{Convolution and Image Filtering}\label{ch:convolution-filtering}
+\chaptersubtitle{Linear shift-equivariant maps, and the filters of classical vision}
+
+\begin{chapterintro}
+Convolution is the operation that convolutional networks are built on, and long before
+them it was the basic tool of signal and image processing. This chapter defines it
+precisely, distinguishes it from cross-correlation (which is what deep-learning libraries
+actually compute), proves the property that makes it the right operation for images, and
+uses it to compute image gradients, the starting point of classical feature extraction. You
+will learn
+\begin{itemize}[nosep]
+  \item convolution and cross-correlation in one and two dimensions, their properties, and
+        their matrix form;
+  \item why convolutions are exactly the linear maps that commute with translations;
+  \item boundary handling, separable kernels, smoothing and derivative filters;
+  \item what the Sobel kernel computes, with the right factor and sign;
+  \item gradient magnitude and direction, the Harris corner detector and HOG features.
+\end{itemize}
+\prerequisites{linear algebra (matrices, eigenvalues of symmetric matrices); partial
+derivatives.}
+\end{chapterintro}
+
+\section{Convolution and cross-correlation}\label{convolution-filtering:sec:definitions}
+
+Signals are sequences $x:\Z\to\R$, zero outside a finite support.
+
+\begin{definition}[Convolution and cross-correlation]\label{convolution-filtering:def:conv}
+The \emph{convolution} and the \emph{cross-correlation} of $x$ with a kernel $k$ are
+\[
+  (x * k)[n] = \sum_mx[m]\,k[n - m],\qquad\qquad(x\star k)[n] = \sum_mx[m + n]\,k[m] .
+\]
+\end{definition}
+
+Convolution flips the kernel before sliding it; cross-correlation slides it unflipped. With
+the flipped kernel $\tilde k[m] = k[-m]$, $x\star k = x * \tilde k$: the two operations differ only by the orientation of
+the kernel.
+
+\begin{proposition}[Algebraic properties]\label{convolution-filtering:prop:algebra}
+Convolution is bilinear, commutative ($x * k = k * x$) and associative
+($(x * k) * h = x * (k * h)$), with the unit impulse $\delta$ ($\delta[0] = 1$, $0$ elsewhere) as neutral element.
+Cross-correlation is bilinear but not commutative: $(k\star x)[n] = (x\star k)[-n]$.
+\end{proposition}
+
+\begin{proof}
+Commutativity: substitute $m' = n - m$. Associativity: both sides equal
+$\sum x[a]\,k[b]\,h[c]$ over the triples with $a + b + c = n$. For cross-correlation,
+\[
+  (k\star x)[n] = \sum_mk[m + n]\,x[m] = \sum_{m'}k[m']\,x[m' - n] = (x\star k)[-n] .
+\]
+\end{proof}
+
+\begin{example}[A short signal]\label{convolution-filtering:ex:short}
+Let $x = (x_1, x_2, x_3)$ at positions $1,2,3$ and $k = (k_1, k_2)$ at positions $1,2$.
+\[
+  \begin{array}{c|c}
+    n & (x * k)[n] = (k * x)[n]\\\hline
+    2 & x_1k_1\\
+    3 & x_1k_2 + x_2k_1\\
+    4 & x_2k_2 + x_3k_1\\
+    5 & x_3k_2
+  \end{array}
+  \qquad\qquad
+  \begin{array}{c|c|c}
+    n & (x\star k)[n] & (k\star x)[n]\\\hline
+    -2 & 0 & k_1x_3\\
+    -1 & x_1k_2 & k_1x_2 + k_2x_3\\
+    0 & x_1k_1 + x_2k_2 & k_1x_1 + k_2x_2\\
+    1 & x_2k_1 + x_3k_2 & k_2x_1\\
+    2 & x_3k_1 & 0
+  \end{array}
+\]
+The two correlation columns are mirror images of each other. In the convolution, $k_1$
+always multiplies the later sample: the kernel has been flipped.
+\end{example}
+
+\paragraph{Matrix form.} For fixed $k$, $x\mapsto x * k$ is linear, so on finite signals it is a matrix.
+With $x\in\R^3$ and $k = (k_1, k_2)$, the ``full'' convolution, of length $3 + 2 - 1 = 4$, is
+\[
+  \begin{bmatrix}(x * k)[2]\\(x * k)[3]\\(x * k)[4]\\(x * k)[5]\end{bmatrix}
+  = \begin{bmatrix}k_1 & 0 & 0\\ k_2 & k_1 & 0\\ 0 & k_2 & k_1\\ 0 & 0 & k_2\end{bmatrix}
+  \begin{bmatrix}x_1\\x_2\\x_3\end{bmatrix} .
+\]
+The matrix is \emph{Toeplitz}: constant along its diagonals. Software offers three output
+sizes for a signal of length $n$ and a kernel of length $k$: \emph{full} ($n + k - 1$ outputs, every
+overlap), \emph{valid} ($n - k + 1$, only full overlaps), and \emph{same} ($n$, centred).
+
+\section{Shift equivariance}\label{convolution-filtering:sec:equivariance}
+
+Let $(\tau_ax)[n] = x[n - a]$ be the translation by $a$. A map $T$ is \emph{shift-equivariant} if $T(\tau_ax) = \tau_a(Tx)$
+for all $x$ and $a$: translating the input translates the output.
+
+\begin{theorem}[Convolutions are the linear shift-equivariant maps]\label{convolution-filtering:thm:lti}
+For every kernel $k$, $x\mapsto x * k$ is linear and shift-equivariant. Conversely, every linear
+shift-equivariant map $T$ on finitely supported signals is a convolution: $Tx = x * h$ with
+$h = T\delta$, its \emph{impulse response}.
+\end{theorem}
+
+\begin{proof}
+$(\tau_ax * k)[n] = \sum_mx[m - a]k[n - m] = \sum_{m'}x[m']k[n - a - m'] = (x * k)[n - a]$. Conversely, write
+$x = \sum_mx[m]\,\tau_m\delta$. By linearity and equivariance, $Tx = \sum_mx[m]\,\tau_m(T\delta) = \sum_mx[m]\,\tau_mh$, whose value at $n$ is
+$\sum_mx[m]h[n - m] = (x * h)[n]$.
+\end{proof}
+
+This is the reason for convolutions in vision: an edge, an eye or a wheel should be
+detected in the same way wherever it appears. A layer that is linear and treats all
+positions alike \emph{must} be a convolution. The same holds for cross-correlation, which is a
+convolution with a flipped kernel.
+
+\begin{pitfall}[Convolution in deep learning]
+The ``convolution'' layers of PyTorch, TensorFlow and JAX compute a cross-correlation.
+Since the kernel is learned, this is harmless: learning $k$ or its flip is the same problem.
+It matters when a hand-designed kernel such as Sobel is applied with library functions:
+\texttt{scipy.signal.convolve2d} flips it, \texttt{scipy.signal.correlate2d},
+\texttt{cv2.filter2D} and \texttt{torch.nn.functional.conv2d} do not, and the results differ by a sign for
+antisymmetric kernels (\cref{convolution-filtering:ex:sobel}).
+\end{pitfall}
+
+\section{Images}\label{convolution-filtering:sec:images}
+
+A grey-level image is a function $I[i,j]$ of the row $i$ (increasing downwards) and the column $j$
+(increasing to the right). Two-dimensional cross-correlation with a kernel $K$ indexed by
+offsets $u,v\in\{-r,\dots,r\}$ is
+\[
+  (I\star K)[i,j] = \sum_{u=-r}^r\sum_{v=-r}^rI[i + u, j + v]\,K[u,v],
+\]
+the sum of the products of the kernel with the $(2r + 1)\times(2r + 1)$ patch centred at $(i,j)$. Convolution uses
+$K[-u,-v]$, the kernel rotated by $180^\circ$.
+
+\paragraph{Borders.} Near the border the patch leaves the image. Options are: compute only
+where it fits (``valid'', the output shrinks by $2r$ in each dimension); pad with zeros (the
+default in networks); replicate the border pixels; reflect the image; or wrap it around
+(circular). Zero padding creates artificial edges at the border; reflection does not.
+
+\paragraph{Separable kernels.} If $K = uv^\top$ is an outer product, $I\star K = (I\star u)\star v^\top$: a column filter followed
+by a row filter. The cost per pixel drops from $(2r + 1)^2$ to $2(2r + 1)$ multiplications.
+
+\paragraph{Smoothing.} The box filter $\frac19\mathbf 1\mathbf 1^\top$ averages a $3\times3$ patch. The binomial filter
+\[
+  \tfrac1{16}\begin{bmatrix}1\\2\\1\end{bmatrix}\begin{bmatrix}1&2&1\end{bmatrix} = \tfrac1{16}\begin{bmatrix}1&2&1\\2&4&2\\1&2&1\end{bmatrix}
+\]
+approximates a Gaussian; Gaussian filters
+$K[u,v]\propto e^{-(u^2 + v^2)/(2s^2)}$ are separable and isotropic, and are the standard way to remove noise before
+differentiating.
+
+\section{Image gradients}\label{convolution-filtering:sec:gradients}
+
+Think of the image as samples of a smooth intensity $I(x,y)$, with $x$ the column and $y$ the row
+coordinate. The central difference $\frac12(I[i,j + 1] - I[i,j - 1])$ approximates $\partial I/\partial x$ with error $O(h^2)$; it is the
+cross-correlation with $\frac12\begin{bmatrix}-1 & 0 & 1\end{bmatrix}$. Differences amplify noise, so they are combined with
+smoothing in the other direction.
+
+\begin{definition}[Sobel, Prewitt and Scharr kernels]\label{convolution-filtering:def:sobel}
+\[
+  S_x = \begin{bmatrix}1\\2\\1\end{bmatrix}\begin{bmatrix}-1 & 0 & 1\end{bmatrix} = \begin{bmatrix}-1 & 0 & 1\\-2 & 0 & 2\\-1 & 0 & 1\end{bmatrix},\qquad
+  S_y = S_x^\top = \begin{bmatrix}-1 & -2 & -1\\0 & 0 & 0\\1 & 2 & 1\end{bmatrix} .
+\]
+Prewitt uses the smoothing weights $(1,1,1)$, Scharr $(3,10,3)$, for better rotational accuracy.
+\end{definition}
+
+\begin{proposition}[What Sobel computes]\label{convolution-filtering:prop:sobel}
+On a linear image $I[i,j] = aj + bi + c$, the cross-correlations are $I\star S_x = 8a$ and $I\star S_y = 8b$ at every interior
+pixel: Sobel by cross-correlation computes $8\,\partial I/\partial x$ and $8\,\partial I/\partial y$, with $y$ pointing down. (Prewitt gives
+$6\times$, Scharr $32\times$ the derivative.) Convolution with $S_x$ gives $-8\,\partial I/\partial x$.
+\end{proposition}
+
+\begin{proof}
+Each row of $S_x$ computes $I[i + u,j + 1] - I[i + u, j - 1] = 2a$; the weights $1,2,1$ sum to $4$. Likewise for $S_y$.
+Convolution flips $S_x$, which changes its sign.
+\end{proof}
+
+The factor is irrelevant for detecting edges (thresholds are relative) but matters when
+the gradient is used quantitatively. From the two responses $G_x = I\star S_x$, $G_y = I\star S_y$:
+\[
+  G = \sqrt{G_x^2 + G_y^2},\qquad\theta = \operatorname{atan2}(G_y, G_x)\in(-180^\circ, 180^\circ] .
+\]
+$G$ is large on edges; $\theta$ is the direction of steepest increase, perpendicular to the edge.
+The two-argument arctangent distinguishes opposite directions, which $\arctan(G_y/G_x)$ cannot,
+and handles $G_x = 0$. For display, $\theta$ is mapped to the hue of the HSV colour wheel (red $0^\circ$, green
+$120^\circ$, blue $240^\circ$), so that opposite directions get complementary colours.
+
+\begin{example}[An edge with a step]\label{convolution-filtering:ex:sobel}
+The $5\times5$ image, dark ($0$) on the left and bright ($10$) on the right, with the boundary
+moving one column left in the bottom two rows:
+\[
+  I = \begin{bmatrix}0&0&0&10&10\\0&0&0&10&10\\0&0&0&10&10\\0&0&10&10&10\\0&0&10&10&10\end{bmatrix},\qquad
+  G_x = \begin{bmatrix}0&40&40\\10&40&30\\30&40&10\end{bmatrix},\qquad
+  G_y = \begin{bmatrix}0&0&0\\10&20&10\\10&20&10\end{bmatrix}
+\]
+(valid cross-correlation, so the outputs are the $3\times3$ interior pixels). The vertical part
+of the edge gives $G_x = 40 = 8\times(10/2)$, a jump of $10$ over two pixels; where the boundary steps, $G_y$
+is positive (brighter below). The magnitudes and directions are
+\[
+  G = \begin{bmatrix}0&40&40\\14.1&44.7&31.6\\31.6&44.7&14.1\end{bmatrix},\qquad
+  \theta = \begin{bmatrix}0^\circ&0^\circ&0^\circ\\45^\circ&26.6^\circ&18.4^\circ\\18.4^\circ&26.6^\circ&45^\circ\end{bmatrix}:
+\]
+the gradient points right, and tilts downwards near the step. \texttt{scipy.signal.convolve2d}
+with $S_x$ returns $-G_x$.
+\end{example}
+
+\paragraph{Second derivatives.} The Laplacian kernel $\begin{bmatrix}0&1&0\\1&-4&1\\0&1&0\end{bmatrix}$ approximates
+$\partial^2I/\partial x^2 + \partial^2I/\partial y^2$; edges are its zero crossings. The Canny detector (Canny, \emph{A
+Computational Approach to Edge Detection}, IEEE TPAMI, 1986) smooths with a Gaussian,
+computes $G$ and $\theta$, keeps local maxima of $G$ along $\theta$, and links them with two thresholds.
+
+\section{From gradients to features}\label{convolution-filtering:sec:features}
+
+\paragraph{Corners.} On an edge the gradient has one direction; at a corner, several. The
+\emph{structure tensor} summarizes the gradients in a window $\mathcal W$ around a pixel, with weights
+$w$ (often Gaussian):
+\[
+  M = \sum_{(i,j)\in\mathcal W}w_{ij}\begin{bmatrix}G_x^2 & G_xG_y\\ G_xG_y & G_y^2\end{bmatrix} .
+\]
+$M$ is symmetric positive semidefinite. Its eigenvalues $\lambda_1\geq\lambda_2\geq0$ measure the variation of the
+image along its eigenvectors: both small in a flat region, $\lambda_1\gg\lambda_2\approx0$ on an edge, both large at
+a corner. Harris and Stephens (\emph{A Combined Corner and Edge Detector}, Alvey Vision
+Conference, 1988) avoid the eigenvalues with the response $R = \det M - \kappa(\tr M)^2 = \lambda_1\lambda_2 - \kappa(\lambda_1 + \lambda_2)^2$,
+$\kappa\approx0.05$, which is large and positive at corners and negative on edges.
+
+\paragraph{Histograms of oriented gradients.} HOG (Dalal and Triggs, CVPR, 2005) divides
+the image into cells of, say, $8\times8$ pixels, builds in each cell a histogram of the directions $\theta$
+weighted by the magnitudes $G$, normalizes the histograms over overlapping blocks of cells,
+and concatenates them. The descriptor is robust to small shifts and to lighting changes;
+with a linear SVM (\cref{ch:svm}) it was the standard pedestrian detector before CNNs.
+SIFT (Lowe, \emph{Distinctive Image Features from Scale-Invariant Keypoints}, IJCV, 2004)
+detects keypoints as extrema of differences of Gaussians across scales and describes each
+by gradient histograms in a rotated local frame, which makes it invariant to scale and
+rotation.
+
+\paragraph{Learned filters.} The first layer of a convolutional network trained on natural
+images learns, among others, oriented edge detectors similar to Sobel kernels, and
+colour-blob detectors (Krizhevsky, Sutskever and Hinton, NeurIPS, 2012, Fig.~3). The
+following chapters replace hand-designed filters by learned ones, stacked in many layers.
+
+\paragraph{In code.}
+\begin{lstlisting}[language=Python]
+import numpy as np
+from scipy.signal import correlate2d
+
+Sx = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], float)
+Sy = Sx.T
+Gx = correlate2d(I, Sx, mode="same", boundary="symm")   # 8 dI/dx
+Gy = correlate2d(I, Sy, mode="same", boundary="symm")   # 8 dI/dy, y down
+G = np.hypot(Gx, Gy)
+theta = np.degrees(np.arctan2(Gy, Gx))                    # in (-180, 180]
+# OpenCV: cv2.Sobel(I, cv2.CV_64F, 1, 0, ksize=3) gives the same Gx
+\end{lstlisting}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Convolution $\sum_mx[m]k[n - m]$ flips the kernel and is commutative and associative; cross-correlation
+        $\sum_mx[m + n]k[m]$ does not flip, is not commutative, and is what deep-learning ``convolutions'' compute.
+  \item Convolutions are exactly the linear shift-equivariant maps, determined by their impulse
+        response; on finite signals they are Toeplitz matrices.
+  \item Sobel combines a central difference with $(1,2,1)$ smoothing; by cross-correlation it gives $8\,\partial I/\partial x$
+        and $8\,\partial I/\partial y$ ($y$ down), by convolution the opposite sign.
+  \item Gradient magnitude and $\operatorname{atan2}$ direction feed edge detection (Canny), corner detection (the
+        structure tensor and Harris response) and descriptors (HOG, SIFT).
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{convolution-filtering:exr:1}
+Compute $x * k$ and $x\star k$ for $x = (1, 2, 3)$ (positions $0,1,2$) and $k = (1, -1)$ (positions $0,1$). Which one computes
+the backward difference $x[n] - x[n - 1]$, and what does the other compute?
+\solutionlink{convolution-filtering:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{convolution-filtering:exr:2}
+Show that the transpose of the $4\times3$ Toeplitz matrix of $x\mapsto x * k$ (full convolution, $k = (k_1,k_2)$) is the
+matrix of a valid cross-correlation with $k$, mapping $\R^4\to\R^3$.
+\solutionlink{convolution-filtering:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{convolution-filtering:exr:3}
+Show that the Scharr kernel gives $32\,\partial I/\partial x$ on a linear image, and that the Laplacian kernel gives $0$ on
+any image of the form $aj + bi + c$ and $2$ on $I[i,j] = j^2$.
+\solutionlink{convolution-filtering:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{convolution-filtering:exr:4}
+Compute the structure tensor (all weights $1$) of the $3\times3$ block of $(G_x, G_y)$ in
+\cref{convolution-filtering:ex:sobel}, its eigenvalues, and the Harris response with $\kappa = 0.05$. Then do the
+same for the top row alone. Which looks more like a corner?
+\solutionlink{convolution-filtering:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{convolution-filtering:exr:5}
+How many multiplications per pixel does a $7\times7$ Gaussian filter need directly, and as two
+one-dimensional passes?
+\solutionlink{convolution-filtering:exr:5}
+\end{exercise}
+\end{notechapter}

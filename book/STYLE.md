@@ -73,3 +73,7 @@ Boxes take an optional title: `\begin{pitfall}[Zero counts]`.
 - Every claim is either proved, derived, or attributed to a reference.
 - Figures are drawn in TikZ/pgfplots; data for plots are computed, not
   sketched by hand, when they are meant to be read quantitatively.
+- Network architectures are drawn with the macros of `preamble/nndraw.tex`:
+  `\nnbox{name}{x}{w}{h}{d}{colour}{label}` draws a feature map as a box
+  (thickness for channels, height and depth for the spatial size) and
+  `\nnarrow{from}{to}` connects two boxes.
