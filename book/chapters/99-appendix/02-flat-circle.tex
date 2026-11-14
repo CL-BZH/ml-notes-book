@@ -1,0 +1,187 @@
+\begin{notechapter}
+\chapter{The Flat Circle \texorpdfstring{$\R/\Z$}{R/Z}}\label{ch:flat-circle}
+\chaptersubtitle{A circle, a group, and a curve with zero curvature}
+
+The pitfall of \cref{gradient-tangent-space:sec:affine} uses $\R/\Z$ as a space that is flat but
+not affine. This appendix explains the three claims hidden in the phrase ``the circle of length $1$,
+$\R/\Z$, is flat'': that $\R/\Z$ is a circle, that its length is $1$, and that its curvature is zero
+although it closes up on itself. It ends with what this means for parameters that are angles.
+
+\section{The quotient}
+
+Call $x, y\in\R$ equivalent when $y - x\in\Z$. This is an equivalence relation, and $\R/\Z$ is the set of
+its classes $[x] = x + \Z = \{\dots, x - 1, x, x + 1, \dots\}$, with the projection $\pi:\R\to\R/\Z$, $\pi(x) = [x]$.
+\begin{itemize}[nosep]
+  \item \emph{Representatives.} Every class has exactly one representative in $[0, 1)$, namely
+        $x - \lfloor x\rfloor$. As a set, $\R/\Z$ is ``$[0, 1)$'', but with $1$ identified with $0$.
+  \item \emph{Group.} $[x] + [y] = [x + y]$ is well defined (if $x' - x$ and $y' - y$ are integers, so is their
+        sum), which makes $\R/\Z$ an abelian group and $\pi$ a group homomorphism with kernel $\Z$.
+  \item \emph{Topology.} A set $U\subset\R/\Z$ is declared open when $\pi^{-1}(U)$ is open in $\R$ (the quotient
+        topology). Then $\R/\Z = \pi([0, 1])$ is compact, as the continuous image of a compact set.
+\end{itemize}
+
+\section{It is a circle}
+
+\begin{proposition}\label{flat-circle:prop:circle}
+Let $S^1 = \{z\in\mathbb C : \abs z = 1\}$ and $p(x) = e^{2\pi ix}$. Then $\bar p([x]) = p(x)$ defines a map
+$\bar p:\R/\Z\to S^1$ that is both a group isomorphism from $(\R/\Z, +)$ to $(S^1, \times)$ and a homeomorphism.
+\end{proposition}
+
+\begin{proof}
+$p(x) = p(y)\iff e^{2\pi i(y - x)} = 1\iff y - x\in\Z$. The implication from right to left says that $\bar p$ is well
+defined, the one from left to right that it is injective. It is surjective because every unit
+complex number is $e^{i\alpha}$ for some $\alpha$. It is a homomorphism because
+$e^{2\pi i(x + y)} = e^{2\pi ix}e^{2\pi iy}$. It is continuous because $\bar p\circ\pi = p$ is continuous and $\R/\Z$ carries the
+quotient topology. Finally, a continuous bijection from a compact space to a Hausdorff space is a
+homeomorphism (it maps closed, hence compact, sets to compact, hence closed, sets).
+\end{proof}
+
+Topologically, $\R/\Z$ is the segment $[0, 1]$ with its two ends glued together
+(\cref{flat-circle:fig:circle}); algebraically, adding in $\R/\Z$ is rotating the circle.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth, scale=1.35]
+  % the real line and a fundamental domain
+  \draw[->, gray] (-1.3,0) -- (4.6,0);
+  \foreach \x/\l in {0/0, 3/1}{\draw (\x,0.08) -- (\x,-0.08) node[below] {$\l$};}
+  \draw[very thick, bookaccent] (0,0) -- (3,0);
+  \fill[bookpitfall] (0,0) circle (2pt); \fill[bookpitfall] (3,0) circle (2pt);
+  \fill[bookdef] (0.75,0) circle (2pt) node[above, black] {$\tfrac14$};
+  \fill[bookexample] (1.5,0) circle (2pt) node[above, black] {$\tfrac12$};
+  \fill[bookpitfall!40] (-1,0) circle (1.6pt) node[below, black] {$-1$};
+  \fill[bookpitfall!40] (4,0) circle (1.6pt) node[below, black] {$2$};
+  \node[gray] at (1.5,-0.75) {$\R$};
+  \draw[->, thick] (5.0,0) -- node[above] {$c$} (6.0,0);
+  % the circle of length 1 (radius 1/(2 pi), drawn at the scale of the segment)
+  \begin{scope}[shift={(7.6,0)}]
+    \def\r{0.4775}
+    \draw[very thick, bookaccent] (0,0) circle (\r);
+    \fill[bookpitfall] (\r,0) circle (2pt) node[right, black] {$[0] = [1]$};
+    \fill[bookdef] (0,\r) circle (2pt) node[above, black] {$[\tfrac14]$};
+    \fill[bookexample] (-\r,0) circle (2pt) node[left, black] {$[\tfrac12]$};
+    \draw[densely dashed, gray] (-\r,0) -- (\r,0);
+  \end{scope}
+\end{tikzpicture}
+\caption{The curve $c$ wraps the real line around a circle of length $1$, drawn at the same scale as
+the segment $[0, 1]$. All the integers land on the same point $[0]$. The points $[0]$ and $[\frac12]$ are at
+distance $\frac12$ along the circle (half its length), but $\frac1\pi$ apart along the chord (dashed).}
+\label{flat-circle:fig:circle}
+\end{figure}
+
+\section{Its length is \texorpdfstring{$1$}{1}}
+
+Lengths on $\R/\Z$ are those of $\R$ transported by $\pi$. On any open interval $I$ of length less than $1$, $\pi$
+is a bijection onto its image, so the infinitesimal length $\abs{dx}$ of $\R$ passes to $\R/\Z$: this is the
+\emph{Riemannian metric} of $\R/\Z$. Walking once around, from $[0]$ to $[1] = [0]$, has length $1$. The
+distance between two points is the length of the shorter way round,
+\[
+  d([x], [y]) = \min_{k\in\Z}\abs{y - x - k}\in\bigl[0, \tfrac12\bigr],
+\]
+the distance from $y - x$ to the nearest integer.
+
+To see this circle in the plane with the right size, use
+\[
+  c(x) = \frac1{2\pi}\bigl(\cos 2\pi x, \sin 2\pi x\bigr),\qquad \norm{c'(x)} = \frac1{2\pi}\cdot2\pi = 1 .
+\]
+The curve $c$ has unit speed, so it preserves the length of every arc: it is an isometry of $\R/\Z$ onto
+the circle of radius $\frac1{2\pi}$, whose perimeter is $1$. (The map $p$ of
+\cref{flat-circle:prop:circle} has speed $2\pi$; it maps $\R/\Z$ onto the unit circle, of length $2\pi$, so it is
+a homeomorphism but not an isometry.) Note that $d$ measures along the circle, not along the chord:
+the points $[0]$ and $[\frac12]$ are at distance $\frac12$ in $\R/\Z$, but at distance $\frac1\pi$ in the plane.
+
+\section{Curvature: extrinsic and intrinsic}
+
+The circle $c(\R/\Z)$ is obviously curved in the plane: its unit tangent turns at the rate of $2\pi$ radians
+per unit of length, the \emph{curvature} $\kappa = 1/r = 2\pi$ of a circle of radius $r$. This curvature is
+\emph{extrinsic}: it describes how the curve sits in the ambient plane, and it changes if the same
+curve is placed differently (deformed into an oval of the same length, its curvature varies from
+point to point).
+
+The \emph{intrinsic} geometry is what an inhabitant of the curve can measure using only lengths
+along the curve. In dimension $1$ there is nothing to measure beyond arc length, and arc length
+identifies a neighbourhood of every point isometrically with an interval of $\R$. Locally, $\R/\Z$ and $\R$
+are indistinguishable: $\R/\Z$ is \emph{flat}. In the language of Riemannian geometry, the curvature tensor
+measures how vectors fail to come back to themselves when transported around a small loop
+spanned by two independent directions; in dimension $1$ there are no two independent directions,
+and every one-dimensional Riemannian manifold is flat.
+
+What the inhabitant \emph{can} detect is global: walking a distance $1$ in a straight line brings it back
+to its starting point. This is a property of the topology (of the loops that cannot be shrunk to a
+point), not of the curvature. ``Closing up on itself'' and ``being curved'' are different things: the
+first is global and topological, the second local and metric. The bending we see in the picture
+belongs to the drawing in $\R^2$, not to $\R/\Z$.
+
+\section{The flat torus}
+
+The same construction in dimension $2$ gives the \emph{flat torus} $\R^2/\Z^2$: the unit square with
+opposite sides glued, as on the screen of the video games in which an object leaving on one side
+comes back on the other (\cref{flat-circle:fig:torus}). It inherits the metric of $\R^2$, so it is intrinsically flat in the full
+two-dimensional sense: small triangles have angles summing to $\pi$, and a neighbourhood of every point
+is isometric to a piece of the plane. Here the intrinsic curvature could be nonzero, and it is zero.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth, scale=2.4,
+  mid1/.style={postaction={decorate}, decoration={markings, mark=at position 0.55 with {\arrow{>}}}},
+  mid2/.style={postaction={decorate}, decoration={markings, mark=at position 0.5 with {\arrow{>>}}}}]
+  \fill[bookaccent!6] (0,0) rectangle (1,1);
+  \draw[thick, bookaccent, mid1] (0,0) -- (1,0);
+  \draw[thick, bookaccent, mid1] (0,1) -- (1,1);
+  \draw[thick, bookexample, mid2] (0,0) -- (0,1);
+  \draw[thick, bookexample, mid2] (1,0) -- (1,1);
+  % a straight line of slope 1/2 wrapping around
+  \draw[very thick, bookdef] (0,0.2) -- (1,0.7);
+  \draw[very thick, bookdef] (0,0.7) -- (0.6,1);
+  \draw[very thick, bookdef] (0.6,0) -- (1,0.2);
+  \fill (0,0.2) circle (0.6pt); \fill (1,0.2) circle (0.6pt);
+  \node[below] at (0.5,0) {$x$};
+  \node[left] at (0,0.5) {$y$};
+\end{tikzpicture}
+\caption{The flat torus $\R^2/\Z^2$: the unit square with the bottom side glued to the top one (single
+arrows) and the left side to the right one (double arrows). A straight line (green, slope $\frac12$) leaving
+through one side re-enters through the opposite side; it closes up after advancing by $2$
+horizontally and $1$ vertically. Locally nothing distinguishes the square from the plane.}
+\label{flat-circle:fig:torus}
+\end{figure}
+
+The familiar doughnut surface in $\R^3$ is a torus too, but with a different metric. Its Gaussian
+curvature is positive on the outer part, negative on the inner part, and integrates to $0$
+(Gauss--Bonnet: $\int K\,dA = 2\pi\chi = 0$ for a torus). The flat torus cannot be placed in $\R^3$ with its
+lengths preserved by a twice differentiable surface, because every compact surface in $\R^3$ has a
+point of positive Gaussian curvature (take the point farthest from the origin). It can be placed
+isometrically in $\R^4$:
+\[
+  (x, y)\mapsto\frac1{2\pi}\bigl(\cos2\pi x, \sin2\pi x, \cos2\pi y, \sin2\pi y\bigr)
+\]
+is two copies of the curve $c$, one in each pair of coordinates. (A surprising theorem of Nash and
+Kuiper even provides isometric embeddings into $\R^3$ that are only once differentiable, with
+infinitely corrugated surfaces; they were first visualized by Borrelli, Jabrane, Lazarus and
+Thibert in 2012.)
+
+\section{Parameters that are angles}
+
+Angles, phases, compass directions, the time of day or the day of the year are points of a circle,
+and the rotation parameters of a model live on circles or tori. \Cref{gradient-tangent-space:exr:6}
+showed what survives and what does not.
+\begin{itemize}
+  \item \emph{Gradient steps survive.} If $f$ is a differentiable function on $\R/\Z$, i.e.\ a $1$-periodic $\tilde f$ on
+        $\R$, then $[x] - \eta\tilde f'(x) = [x - \eta\tilde f'(x)]$ is well defined. Locally the flat circle behaves like $\R$.
+  \item \emph{Differences need a choice.} The displacement from $[x]$ to $[y]$ is defined only up to an
+        integer. The usual choice is the representative in $[-\frac12, \frac12)$, of length $d([x], [y])$; it is
+        the right one for small steps (momentum terms, finite differences) and wrong for large ones.
+  \item \emph{Averages fail.} The arithmetic mean of representatives depends on the representatives:
+        for the angles $0.95$ and $0.05$ (in turns), the mean of the representatives $0.95$ and $0.05$ is $0.5$,
+        the opposite point, while the mean of $-0.05$ and $0.05$ is $0$. There is no affine structure, so
+        there is no affine combination (\cref{gradient-tangent-space:prop:affine-comb}).
+\end{itemize}
+The standard remedy uses the embedding $c$. Points of the plane can be averaged, so average the
+vectors $(\cos2\pi x_i, \sin2\pi x_i)$ and take the direction of the result:
+\[
+  \bar x = \frac1{2\pi}\operatorname{atan2}\Bigl(\sum_i\sin2\pi x_i,\ \sum_i\cos2\pi x_i\Bigr)\pmod 1 .
+\]
+For $0.95$ and $0.05$, the sines cancel and the cosines add up to $2\cos(0.1\pi)>0$, so $\bar x = 0$. This
+\emph{circular mean} is undefined when the vectors cancel (for $0$ and $0.5$, which have no reasonable
+mean). It is also the reason angles are usually given to a model as the pair $(\cos2\pi x, \sin2\pi x)$
+rather than as a number in $[0, 1)$: the pair is continuous across $0\equiv1$, the number is not.
+\end{notechapter}

@@ -13,6 +13,8 @@ natural gradient change. You will learn
         and how an inner product turns one into the other;
   \item why the gradient is the direction of steepest ascent and is orthogonal to level sets;
   \item why the gradient lives in parameter space and not on the graph of the loss;
+  \item which structure the update $\theta - \eta\nabla L(\theta)$ really uses (an affine space with an inner product),
+        and how to detect formulas that secretly depend on the origin, such as weight decay;
   \item how changing the metric changes the gradient: preconditioning, Newton, natural gradient;
   \item gradients on curved parameter spaces (manifolds), with the example of the sphere and the
         link to PCA.
@@ -91,22 +93,26 @@ descent steps across them (\cref{gradient-tangent-space:fig:contours}).
 \begin{figure}[ht]
 \centering
 \begin{tikzpicture}[>=Stealth]
-\begin{axis}[width=8.5cm, height=6cm, axis equal image, xmin=-3.3, xmax=3.3, ymin=-1.8, ymax=1.8,
-  xlabel={$\theta_1$}, ylabel={$\theta_2$}, axis lines=middle, xtick=\empty, ytick=\empty]
-  \foreach \c in {0.5,1.5,3,5,7.25,10}{
-    \addplot[thin, bookaccent!70, domain=0:360, samples=80] ({sqrt(\c)*cos(x)}, {sqrt(\c)/2*sin(x)});
+\begin{axis}[width=10cm, axis equal image, xmin=-3.5, xmax=3.5, ymin=-1.9, ymax=2.1,
+  xlabel={$\theta_1$}, ylabel={$\theta_2$}, axis lines=middle, xtick=\empty, ytick=\empty, clip=false]
+  \foreach \c in {0.5,1.5,3,5,7.25}{
+    \addplot[thin, bookaccent!50, domain=0:360, samples=80] ({sqrt(\c)*cos(x)}, {sqrt(\c)/2*sin(x)});
   }
+  % the level curve through theta_0 = (2.5, 1): L = 10.25
+  \addplot[thick, bookaccent, domain=0:360, samples=100] ({sqrt(10.25)*cos(x)}, {sqrt(10.25)/2*sin(x)});
   \addplot[thick, mark=*, mark size=1.4pt, bookpitfall] coordinates
     {(2.5,1.0) (2.0,0.2) (1.6,0.04) (1.28,0.008) (1.024,0.0016) (0.8192,0.0003) (0.6554,0.0001)};
-  \draw[->, very thick, bookexample] (axis cs:2.5,1.0) -- (axis cs:2.5+0.1*5,1.0+0.1*8);
-  \node[bookexample, right] at (axis cs:3.0,1.75) {$\nabla L$};
-  \node[above left] at (axis cs:2.5,1.0) {$\theta_0$};
+  % gradient (5, 8) at theta_0, scaled by 0.1
+  \draw[->, very thick, bookdef] (axis cs:2.5,1.0) -- (axis cs:3.0,1.8);
+  \node[bookdef, anchor=west] at (axis cs:3.0,1.8) {$\nabla L(\theta_0)$};
+  \fill (axis cs:2.5,1.0) circle (1.6pt);
+  \node[anchor=east] at (axis cs:2.45,1.15) {$\theta_0$};
 \end{axis}
 \end{tikzpicture}
-\caption{Level curves of $L(\theta) = \theta_1^2 + 4\theta_2^2$ in parameter space. The gradient at
-$\theta_0 = (2.5,1)$ (green) is orthogonal to the level curve through $\theta_0$. Gradient descent with
-$\eta = 0.1$ (red) multiplies $\theta_1$ by $0.8$ and $\theta_2$ by $0.2$ at each step: it first kills the steep
-direction, then crawls along the flat one.}
+\caption{Level curves of $L(\theta) = \theta_1^2 + 4\theta_2^2$ in parameter space; the thick one passes through
+$\theta_0 = (2.5,1)$. The gradient $\nabla L(\theta_0) = (5, 8)$ (green arrow, drawn at scale $0.1$) is orthogonal to that
+level curve. Gradient descent with $\eta = 0.1$ (red) multiplies $\theta_1$ by $0.8$ and $\theta_2$ by $0.2$ at each step:
+it first kills the steep direction, then crawls along the flat one.}
 \label{gradient-tangent-space:fig:contours}
 \end{figure}
 
@@ -141,9 +147,9 @@ a different object (\cref{gradient-tangent-space:fig:surface}).
   \addplot3[only marks, mark=*, mark size=1.6pt] coordinates {(1.8,0.2,3.4)};
   \addplot3[dashed, gray] coordinates {(1.8,0.2,-4) (1.8,0.2,3.4)};
   % gradient (3.6, 1.6) at theta = (1.8, 0.2), scaled by 0.2, drawn in the floor
-  \draw[->, very thick, bookexample] (axis cs:1.8,0.2,-4) -- (axis cs:2.52,0.52,-4);
+  \draw[->, very thick, bookdef] (axis cs:1.8,0.2,-4) -- (axis cs:2.52,0.52,-4);
   \addplot3[only marks, mark=*, mark size=1.6pt, bookpitfall] coordinates {(1.8,0.2,-4)};
-  \node[bookexample, anchor=south west] at (axis cs:2.52,0.52,-4) {$\nabla L(\theta)$};
+  \node[bookdef, anchor=south west] at (axis cs:2.52,0.52,-4) {$\nabla L(\theta)$};
   \node[bookpitfall, anchor=north] at (axis cs:1.8,0.2,-4) {$\theta$};
   \node[anchor=west] at (axis cs:1.8,0.2,3.4) {$(\theta, L(\theta))$};
 \end{axis}
@@ -177,14 +183,170 @@ So the downhill arrow on the surface \emph{projects} onto a multiple of $-\nabla
 what popular pictures are trying to show. For $n$ in the millions there is no surface to look at,
 and only the parameter-space view remains.
 
-\subsection{The hidden identification}
+\subsection{The hidden identification}\label{gradient-tangent-space:sec:affine}
 
-In $\theta\leftarrow\theta - \eta\nabla L(\theta)$ we add a gradient (a tangent vector at $\theta$, a velocity) to a point
-$\theta$. This is legitimate because $\R^n$ is flat: the tangent space at every point is canonically
-identified with $\R^n$ itself, and we use that identification without saying so. Already for
-$f:\R\to\R$, the derivative $f'(a)$ is a velocity at $a$ that we read as a displacement along the
-axis. On a curved parameter space the identification fails, and the update must be rethought
-(\cref{gradient-tangent-space:sec:manifolds}).
+The update $\theta\leftarrow\theta - \eta\nabla L(\theta)$ involves objects of two different kinds: $\theta$ is a
+\emph{point} (a state of the model), while $\nabla L(\theta)$ and $-\eta\nabla L(\theta)$ are \emph{vectors} (a velocity at
+$\theta$, and a displacement). The formula adds a displacement to a point. When parameters are
+stored as arrays of $n$ numbers, points and vectors are both elements of $\R^n$ and the
+distinction is invisible; it is worth making explicit, because the structure that legitimates
+the update is not the one usually invoked.
+
+\paragraph{Affine spaces.}
+
+\begin{definition}[Affine space]\label{gradient-tangent-space:def:affine}
+An \emph{affine space} is a set $\mathcal A$ (the \emph{points}) together with a real vector space $V$ (the
+\emph{displacements}, or translations) and an operation $\mathcal A\times V\to\mathcal A$, written $(a, v)\mapsto a + v$,
+such that for all $a, b\in\mathcal A$ and $u, v\in V$:
+\begin{enumerate}[nosep]
+  \item $a + 0 = a$;
+  \item $(a + u) + v = a + (u + v)$;
+  \item there is exactly one $v\in V$ with $a + v = b$; it is written $b - a$.
+\end{enumerate}
+The dimension of $\mathcal A$ is that of $V$.
+\end{definition}
+
+Point $+$ vector is a point and point $-$ point is a vector; that is all. There is no sum of two
+points, no multiple of a point, and no distinguished point. Choosing a point $o\in\mathcal A$ as
+\emph{origin} gives a bijection $\mathcal A\to V$, $a\mapsto a - o$, and choosing in addition a basis of $V$ gives
+coordinates in $\R^n$. Both choices are arbitrary, like the zero of a temperature scale: the zero
+of the Celsius scale is a point, whereas a difference of zero degrees is a vector, and it means the
+same in every scale (an example of Hubbard and Hubbard). A vector space $V$ is an affine space over itself, with $a + v$ the vector
+addition; this is how $\R^n$ is usually used, origin included.
+
+Textbooks differ in how openly they say so. Hubbard and Hubbard (\emph{Vector Calculus, Linear
+Algebra, and Differential Forms}, 5th ed., §1.1) separate ``positional data'' (points) from
+``incremental data'' (vectors), give them different notations, and state that points cannot be
+added while vectors can --- the axioms above without the name. Loomis and Sternberg
+(\emph{Advanced Calculus}, §1.2) build the coordinate correspondence between Euclidean space $\mathbb E^3$
+and $\R^3$ from a chosen origin, then state that ``it is natural to transfer all this geometric
+terminology from sets in $\mathbb E^3$ to the corresponding sets in $\R^3$'', the translation through $b$
+becoming the map $x\mapsto x + b$, and that ``these notions all carry over to an arbitrary real vector
+space in a perfectly satisfactory way'' (p.~40). From then on, as in their definition of the
+differential (§3.6), a point and an increment are both elements of the same normed vector space. Both are legitimate. The second is what our arrays do.
+
+\begin{proposition}[Affine combinations]\label{gradient-tangent-space:prop:affine-comb}
+Let $a_1,\dots,a_k\in\mathcal A$, $\lambda_1,\dots,\lambda_k\in\R$ and $o\in\mathcal A$.
+\begin{enumerate}[nosep]
+  \item If $\sum_i\lambda_i = 1$, the point $o + \sum_i\lambda_i(a_i - o)$ does not depend on $o$. It is written
+        $\sum_i\lambda_ia_i$ (an \emph{affine combination}, or barycentre).
+  \item If $\sum_i\lambda_i = 0$, the vector $\sum_i\lambda_i(a_i - o)$ does not depend on $o$.
+  \item Otherwise both depend on $o$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+Replace $o$ by $o' = o + w$. Then $a_i - o' = (a_i - o) - w$, so
+$\sum_i\lambda_i(a_i - o') = \sum_i\lambda_i(a_i - o) - \bigl(\sum_i\lambda_i\bigr)w$ and
+\[
+  o' + \sum_i\lambda_i(a_i - o') = o + \sum_i\lambda_i(a_i - o) + \Bigl(1 - \sum_i\lambda_i\Bigr)w .
+\]
+The vector is unchanged for every $w$ iff $\sum_i\lambda_i = 0$, and the point iff $\sum_i\lambda_i = 1$.
+\end{proof}
+
+The midpoint $\frac12a + \frac12b$ and the mean of a cloud of points are affine combinations; $a + b$ and
+$2a$ are not, and $b - a$ (coefficients $1$ and $-1$) is a vector.
+
+\paragraph{Tangent vectors and the identification.} Let $\gamma$ be a curve in $\mathcal A$ with $\gamma(0) = \theta$.
+For each $t$, $\gamma(t) - \theta$ is a vector of $V$, so the velocity
+\[
+  \gamma'(0) = \lim_{t\to0}\frac{\gamma(t) - \theta}{t}
+\]
+is a limit in the finite-dimensional space $V$ (whose topology does not depend on the norm). The
+tangent space at $\theta$ --- the set of velocities of curves through $\theta$ --- is therefore $V$ itself,
+for every $\theta$: the curve $t\mapsto\theta + tv$ has velocity $v$, and every velocity arises this way. This
+identification of each tangent space $T_\theta\mathcal A$ with the one space $V$ involves no choice; it is the
+identification that $\theta - \eta\nabla L(\theta)$ uses without saying so. Already for $f:\R\to\R$, the derivative
+$f'(a)$ is a velocity at $a$ that we read as a displacement along the axis.
+
+\paragraph{Three structures, three objects.} Each object in the update needs one more piece of
+structure than the previous one.
+\begin{itemize}[nosep]
+  \item \emph{Affine structure} $(\mathcal A, V)$. Points, displacements, and the identification
+        $T_\theta\mathcal A = V$. Enough to write $\theta + v$ and to define velocities.
+  \item \emph{The dual space} $V^*$, which needs nothing more. For $L:\mathcal A\to\R$, the differential is the linear
+        form $dL_\theta\in V^*$ with $L(\theta + v) = L(\theta) + dL_\theta(v) + o(\norm v)$
+        (\cref{gradient-tangent-space:sec:differential}); like the velocity, it involves no inner
+        product and no origin.
+  \item \emph{An inner product on $V$.} It turns the form $dL_\theta$ into the vector $\nabla L(\theta)\in V$, by
+        $\inner{\nabla L(\theta)}{v} = dL_\theta(v)$. Different inner products give different gradients
+        (\cref{gradient-tangent-space:prop:metric}).
+\end{itemize}
+An affine space whose space of displacements carries an inner product is a \emph{Euclidean affine
+space}. This, not $\R^n$ with its origin and its standard basis, is the structure that gradient
+descent requires: the origin is never used, and the basis enters only through the inner
+product.
+
+\begin{pitfall}[``$\R^n$ is flat'' is true, but it is not the reason]
+Flatness is a property of a Riemannian metric (zero curvature). It is neither necessary nor
+sufficient for $\theta + v$ to make sense.
+\begin{itemize}[nosep]
+  \item An affine space without inner product has no curvature at all, flat or not, and $\theta + v$
+        is defined.
+  \item A circle of length $1$, $\R/\Z$, is flat (every one-dimensional Riemannian manifold is), yet
+        it is not an affine space: the displacement from $0.1$ to $0.3$ could be $0.2$, $1.2$ or $-0.8$
+        (\cref{gradient-tangent-space:exr:6}). Flatness gives the affine picture only locally.%
+        \footnote{Why $\R/\Z$ is a circle, why it is flat although it closes up on itself, and what
+        this means for parameters such as angles: \cref{ch:flat-circle}.}
+\end{itemize}
+What the update uses is the affine structure; the inner product then supplies the gradient.
+\end{pitfall}
+
+\paragraph{A test for hidden origins.} Since the origin is arbitrary, a formula has a geometric
+meaning only if it gives the same result whichever origin is used to compute it. Concretely, move
+the origin by $w$: a point with coordinates $x$ gets coordinates $x' = x - w$, a vector keeps its
+coordinates, and the loss becomes $L'(x') = L(x' + w)$.
+
+\begin{proposition}[Gradient descent ignores the origin]\label{gradient-tangent-space:prop:origin}
+$\nabla L'(x') = \nabla L(x' + w)$. Consequently, if $x_{k+1} = x_k - \eta\nabla L(x_k)$ and $x'_k = x_k - w$, then
+$x'_{k+1} = x'_k - \eta\nabla L'(x'_k)$: the two computations describe the same points.
+\end{proposition}
+
+\begin{proof}
+A translation has the identity as differential, so the chain rule gives $\nabla L'(x') = \nabla L(x' + w)$.
+Then $x'_{k+1} = x_{k+1} - w = (x_k - w) - \eta\nabla L(x_k) = x'_k - \eta\nabla L'(x'_k)$.
+\end{proof}
+
+The test is useful because the computer does not apply it: on arrays, $x + y$ and $2x$ are as
+easy to write as $x + v$. Here is how common updates fare.
+\begin{itemize}[nosep]
+  \item \emph{Momentum} (heavy ball), $\theta_{k+1} = \theta_k - \eta\nabla L(\theta_k) + \beta(\theta_k - \theta_{k-1})$: the added term is a
+        difference of points, a vector. It passes.
+  \item \emph{Iterate averaging}, $\bar\theta_K = \frac1K\sum_{k=1}^K\theta_k$ (Polyak averaging), and the exponential moving
+        average $\bar\theta\leftarrow\beta\bar\theta + (1 - \beta)\theta$: affine combinations, with weights summing to $1$. They pass.
+  \item \emph{Weight decay}, $\theta\leftarrow\theta - \eta\bigl(\nabla L(\theta) + \lambda\theta\bigr) = (1 - \eta\lambda)\theta - \eta\nabla L(\theta)$: the
+        coefficients of $\theta$ do not sum to $1$. It fails (\cref{gradient-tangent-space:ex:decay}).
+\end{itemize}
+
+\begin{example}[Weight decay has a hidden origin]\label{gradient-tangent-space:ex:decay}
+Written honestly, the term $\lambda\theta$ is $\lambda(\theta - o)$, where $o$ is the point whose coordinates are $0$:
+\[
+  \theta\leftarrow\theta - \eta\bigl(\nabla L(\theta) + \lambda(\theta - o)\bigr)
+  = \bigl(o + (1 - \eta\lambda)(\theta - o)\bigr) - \eta\nabla L(\theta),
+\]
+a contraction of ratio $1 - \eta\lambda$ towards $o$, followed by a gradient step. It is gradient descent
+on $L(\theta) + \frac\lambda2\norm{\theta - o}^2$, that is, MAP estimation with a Gaussian prior centred at $o$
+(\cref{bayesian-reasoning:sec:map}). The test does not say that weight decay is wrong; it says that
+the formula contains a modelling choice --- the centre of the prior --- that the notation $\lambda\theta$ hides.
+For a network trained from scratch, decaying towards the zero weights is a reasonable prior. For a
+network fine-tuned from pre-trained weights $\theta_0$, decaying towards $\theta_0$, i.e.\ replacing $\lambda\theta$ by
+$\lambda(\theta - \theta_0)$, is often the better one. This is the ``L2-SP'' regularizer (Li, Grandvalet and
+Davoine, \emph{Explicit Inductive Bias for Transfer Learning with Convolutional Networks}, ICML
+2018), $\frac\alpha2\norm{w_S - w_S^0}^2 + \frac\beta2\norm{w_{\bar S}}^2$: the layers $S$ shared with the source model are pulled
+towards their pre-trained values $w_S^0$, while the new layers $\bar S$, which have no such values,
+keep the zero weights as their centre. One regularizer, two chosen origins.
+\end{example}
+
+The same test applied to a change of \emph{basis} rather than of origin is the subject of
+\cref{gradient-tangent-space:exr:2}. Plain gradient descent is unchanged by an orthonormal change
+of basis but not by a general one, because ``the dot product of the coordinates'' is a different
+inner product in each non-orthonormal basis. Coordinate-wise methods such as Adam pass the origin
+test but are changed even by a rotation of an orthonormal basis
+(\cref{gradient-tangent-space:exr:4}): they use the basis itself, not only an inner product.
+
+On a curved parameter space there is no space of displacements at all: the tangent spaces at
+different points are different vector spaces, $\theta + v$ is not defined, and the update must be
+rethought (\cref{gradient-tangent-space:sec:manifolds}).
 
 \section{Changing the metric}\label{gradient-tangent-space:sec:metric}
 
@@ -205,12 +367,168 @@ Three choices of $M$ are classical.
         distribution (locally, the KL divergence), independently of the parametrization.
 \end{itemize}
 
-\begin{example}[The right metric removes the zig-zag]
-For $L(\theta) = \theta_1^2 + 4\theta_2^2$, the Euclidean gradient is $(2\theta_1, 8\theta_2)$ and gradient descent crawls
-(\cref{gradient-tangent-space:fig:contours}). With $M = \nabla^2L = \diag(2, 8)$,
-$M^{-1}\nabla L(\theta) = (\theta_1, \theta_2) = \theta$: the gradient for this metric points straight at the minimum, and
-one step with $\eta = 1$ reaches it. In the metric $M$ the level sets are circles.
-\end{example}
+\subsection{Worked example: the zig-zag and its cure}\label{gradient-tangent-space:sec:zigzag}
+
+Take again $L(\theta) = \theta_1^2 + 4\theta_2^2 = \frac12\theta^\top H\theta$, with constant Hessian $H = \diag(2, 8)$, and start from
+$\theta_0 = (2.5, 1)$.
+
+\paragraph{Euclidean gradient descent.} Since $\nabla L(\theta) = H\theta$, one step is linear in $\theta$:
+\[
+  \theta_{k+1} = \theta_k - \eta H\theta_k = (I - \eta H)\,\theta_k,\qquad
+  \begin{pmatrix}\theta_{1,k+1}\\\theta_{2,k+1}\end{pmatrix}
+  = \begin{pmatrix}1 - 2\eta & 0\\0 & 1 - 8\eta\end{pmatrix}
+    \begin{pmatrix}\theta_{1,k}\\\theta_{2,k}\end{pmatrix},
+\]
+so the coordinates evolve independently, $\theta_{1,k} = (1 - 2\eta)^k\,\theta_{1,0}$ and $\theta_{2,k} = (1 - 8\eta)^k\,\theta_{2,0}$. One learning
+rate must serve two curvatures, and the factor $1 - 8\eta$ of the steep direction decides the regime:
+\begin{itemize}[nosep]
+  \item $0<\eta\leq\frac18$: both factors lie in $[0, 1)$. The iterates approach the minimum monotonically, the
+        steep coordinate quickly, the flat one slowly: the method \emph{crawls}.
+  \item $\frac18<\eta<\frac14$: $1 - 8\eta\in(-1, 0)$, so $\theta_2$ changes sign at every step. The iterates jump from one
+        side of the valley to the other: the \emph{zig-zag}.
+  \item $\eta>\frac14$: $\abs{1 - 8\eta}>1$ and $\theta_2$ diverges, however well $\theta_1$ behaves.
+\end{itemize}
+The error is governed by the larger factor, $\max(\abs{1 - 2\eta}, \abs{1 - 8\eta})$. It is smallest when
+$1 - 2\eta = -(1 - 8\eta)$, at $\eta = \frac15$, where it equals $\frac35$. In general, for eigenvalues $\mu_{\min}\leq\mu_{\max}$ of $H$, the
+best learning rate is $\eta = 2/(\mu_{\min} + \mu_{\max})$ and the best factor is
+\[
+  \frac{\kappa - 1}{\kappa + 1},\qquad \kappa = \frac{\mu_{\max}}{\mu_{\min}}\quad\text{(the \emph{condition number})};
+\]
+here $\kappa = 4$. The cost is easy to count: to divide the error by $10^6$ takes
+\begin{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+ & factor per step & regime & steps \\
+\midrule
+$\eta = 0.1$ & $0.8$ & crawl & $62$ \\
+$\eta = 0.2$ (best) & $0.6$ & zig-zag & $28$ \\
+$\eta = 0.24$ & $0.92$ & strong zig-zag & $166$ \\
+$M = H$, $\eta = 1$ & $0$ & --- & $1$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+The best fixed learning rate already zig-zags: it accepts oscillations in the steep direction to
+move faster in the flat one (\cref{gradient-tangent-space:fig:zigzag}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth]
+\begin{axis}[width=11cm, axis equal image, xmin=-0.4, xmax=3.4, ymin=-1.15, ymax=1.35,
+  xlabel={$\theta_1$}, ylabel={$\theta_2$}, axis lines=middle, xtick=\empty, ytick=\empty]
+  \foreach \c in {0.5,1.5,3,5,7.25,10.25}{
+    \addplot[thin, bookaccent!50, domain=0:360, samples=80] ({sqrt(\c)*cos(x)}, {sqrt(\c)/2*sin(x)});
+  }
+  \addplot[thick, mark=*, mark size=1.2pt, bookpitfall] coordinates
+    {(2.5,1.0) (2.0,0.2) (1.6,0.04) (1.28,0.008) (1.024,0.0016) (0.8192,0.0003) (0.6554,0.0001) (0.5243,0) (0.4194,0) (0.3355,0)};
+  \addplot[thick, mark=*, mark size=1.2pt, bookexample] coordinates
+    {(2.5,1.0) (1.3,-0.92) (0.676,0.8464) (0.3515,-0.7787) (0.1828,0.7164) (0.0951,-0.6591) (0.0494,0.6064) (0.0257,-0.5578)};
+  \draw[->, very thick, dashed, bookdef] (axis cs:2.5,1.0) -- (axis cs:0.05,0.02);
+  \fill (axis cs:2.5,1.0) circle (1.6pt);
+  \node[anchor=south west] at (axis cs:2.5,1.0) {$\theta_0$};
+  \node[bookpitfall, anchor=north, font=\small] at (axis cs:2.0,-0.12) {$\eta = 0.1$: crawl};
+  \node[bookexample, anchor=west, font=\small] at (axis cs:1.38,-0.95) {$\eta = 0.24$: zig-zag};
+  \node[bookdef, anchor=south, font=\small, rotate=21.8] at (axis cs:1.75,0.72) {$M = H$: one step};
+\end{axis}
+\end{tikzpicture}
+\caption{Gradient descent on $L(\theta) = \theta_1^2 + 4\theta_2^2$ from $\theta_0 = (2.5, 1)$. With $\eta = 0.1$ (red, first nine
+steps) the steep coordinate $\theta_2$ is killed at once and $\theta_1$ then shrinks by only $0.8$ per step. With
+$\eta = 0.24$, close to the stability limit $\frac14$ (orange, seven steps), $\theta_1$ converges fast but $\theta_2$ is multiplied by
+$-0.92$: the iterates bounce between the walls of the valley. Gradient descent for the metric $M = H$
+(green) reaches the minimum in one step.}
+\label{gradient-tangent-space:fig:zigzag}
+\end{figure}
+
+\paragraph{Why the metric $M = H$ fixes it.} By \cref{gradient-tangent-space:thm:steepest}, ``steepest'' means
+steepest among the vectors of unit length, and the unit ball depends on the metric. For the inner
+product $\inner uv_H = u^\top Hv$, the unit ball is the ellipse $\{v : 2v_1^2 + 8v_2^2\leq1\}$, which is short in the steep
+direction: a step in $\theta_2$ is ``expensive''. The gradient for this metric is
+\[
+  \nabla_HL(\theta) = H^{-1}\nabla L(\theta) = H^{-1}H\theta = \theta,
+\]
+which points from the minimum to $\theta$, so $\theta - \eta\theta = (1 - \eta)\theta$: every coordinate is multiplied by the same
+factor $1 - \eta$, there is nothing left to zig-zag, and $\eta = 1$ reaches the minimum.
+
+The two steepest directions have a common geometric description. The steepest-descent unit
+vector minimizes the linear form $v\mapsto dL_{\theta_0}(v) = \nabla L(\theta_0)^\top v$ over the unit ball. The level lines of this
+form are the lines orthogonal (for the dot product) to $\nabla L(\theta_0) = (5, 8)$, all parallel to the tangent of
+the contour through $\theta_0$, and the minimum is reached where the unit ball touches the lowest line of
+this family that it meets.
+\begin{itemize}[nosep]
+  \item For the Euclidean disc, the contact point lies along $-\nabla L(\theta_0) = -(5, 8)$.
+  \item For the ellipse $v^\top Hv = 1$, the contact point $v$ is where the normal to the ellipse, $Hv$, is parallel to
+        $(5, 8) = H\theta_0$, that is, $v\parallel\theta_0$; descent takes $v\parallel-\theta_0$.
+\end{itemize}
+The family of lines is the same, because $dL_{\theta_0}$ does not depend on the metric; only the ball changes.
+In \cref{gradient-tangent-space:fig:balls} (left) the two balls are scaled so as to touch the same
+line, at two different points.
+Orthogonality changes with it. The contour through $\theta_0$ has tangent $t = (8, -5)$, since
+$\nabla L(\theta_0)^\top t = 40 - 40 = 0$, and the $H$-gradient is $H$-orthogonal to it:
+\[
+  \inner{\theta_0}{t}_H = \begin{pmatrix}2.5 & 1\end{pmatrix}\begin{pmatrix}2 & 0\\0 & 8\end{pmatrix}\begin{pmatrix}8\\-5\end{pmatrix}
+  = \begin{pmatrix}2.5 & 1\end{pmatrix}\begin{pmatrix}16\\-40\end{pmatrix} = 40 - 40 = 0 .
+\]
+\Cref{gradient-tangent-space:prop:level} holds in every metric, provided ``orthogonal'' is understood in
+that metric.
+
+\paragraph{The same thing in better coordinates.} Set $\phi = H^{1/2}\theta$, i.e.\ $\phi_1 = \sqrt2\,\theta_1$ and $\phi_2 = 2\sqrt2\,\theta_2$.
+Then
+\[
+  L = \theta_1^2 + 4\theta_2^2 = \tfrac12\bigl(2\theta_1^2 + 8\theta_2^2\bigr) = \tfrac12\bigl(\phi_1^2 + \phi_2^2\bigr):
+\]
+in the coordinates $\phi$ the level sets are circles, the Euclidean gradient is $\phi$ itself, and plain
+gradient descent with $\eta = 1$ reaches the minimum. Mapped back by $\theta = H^{-1/2}\phi$, this is exactly
+gradient descent for the metric $H$ in $\theta$ (\cref{gradient-tangent-space:exr:2} with $A = H^{-1/2}$, which gives
+$M = (AA^\top)^{-1} = H$). Conversely, the Euclidean step in $\theta$, $-0.1\,\nabla L(\theta_0) = (-0.5, -0.8)$, becomes in
+$\phi$ the vector $H^{1/2}(-0.5, -0.8) = (-0.71, -2.26)$, which does not point at the centre of the circles
+(\cref{gradient-tangent-space:fig:balls}, right). Preconditioning is a change of coordinates that makes
+the problem round; the condition number $\kappa$ measures how far from round it was.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth]
+\begin{axis}[name=left, width=7.6cm, axis equal image, xmin=1.0, xmax=3.75, ymin=0.05, ymax=1.85,
+  hide axis, clip=false, title={coordinates $\theta$ (near $\theta_0$)}]
+  \begin{scope}
+  \clip (axis cs:1.0,0.05) rectangle (axis cs:3.75,1.85);
+  \addplot[thick, bookaccent, domain=0:90, samples=100] ({sqrt(10.25)*cos(x)}, {sqrt(10.25)/2*sin(x)});
+  \end{scope}
+  % Euclidean ball (radius 0.8) and H-ball (rho = 1.6668), scaled to touch the same level line of dL
+  \addplot[thin, gray, domain=0:360, samples=80] ({2.5+0.8*cos(x)}, {1+0.8*sin(x)});
+  \addplot[thin, bookdef, domain=0:360, samples=80] ({2.5+1.1786*cos(x)}, {1+0.5893*sin(x)});
+  % that level line, parallel to the contour tangent (8,-5)
+  \addplot[densely dashed, black, domain=-0.95:0.6, samples=2] ({2.076+0.848*x}, {0.322-0.530*x});
+  % steepest descent directions = contact points
+  \draw[->, very thick, black] (axis cs:2.5,1) -- (axis cs:2.076,0.322);
+  \draw[->, very thick, bookdef] (axis cs:2.5,1) -- (axis cs:1.580,0.632);
+  \draw[densely dotted, bookdef] (axis cs:1.580,0.632) -- (axis cs:1.15,0.46) node[anchor=north, font=\footnotesize] {towards $0$};
+  \fill (axis cs:2.5,1) circle (1.5pt);
+  \node[anchor=south west] at (axis cs:2.5,1.02) {$\theta_0$};
+  \node[font=\footnotesize, anchor=west] at (axis cs:2.33,0.62) {$-\nabla L$};
+  \node[font=\footnotesize, bookdef, anchor=south east] at (axis cs:2.0,0.84) {$-\nabla_HL$};
+\end{axis}
+\begin{axis}[at={(left.east)}, anchor=west, xshift=1.2cm, width=7.2cm, axis equal image,
+  xmin=-0.5, xmax=5.0, ymin=-0.8, ymax=4.6,
+  xlabel={$\phi_1$}, ylabel={$\phi_2$}, axis lines=middle, xtick=\empty, ytick=\empty, clip=false,
+  title={coordinates $\phi = H^{1/2}\theta$}]
+  \foreach \r in {1,1.732,2.449,3.162,3.808}{
+    \addplot[thin, bookaccent!50, domain=0:90, samples=40] ({\r*cos(x)}, {\r*sin(x)});
+  }
+  \addplot[thick, bookaccent, domain=-10:100, samples=60] ({4.528*cos(x)}, {4.528*sin(x)});
+  \draw[->, very thick, black] (axis cs:3.536,2.828) -- (axis cs:2.829,0.565);
+  \draw[->, very thick, bookdef] (axis cs:3.536,2.828) -- (axis cs:2.652,2.121);
+  \draw[densely dotted, bookdef] (axis cs:2.652,2.121) -- (axis cs:0,0);
+  \fill (axis cs:3.536,2.828) circle (1.5pt);
+  \fill (axis cs:0,0) circle (1.2pt);
+  \node[anchor=south west] at (axis cs:3.536,2.828) {$\phi_0$};
+\end{axis}
+\end{tikzpicture}
+\caption{The steepest-descent direction depends on the unit ball. Left: at $\theta_0$, a Euclidean disc (grey)
+and an $H$-ellipse (green), scaled to touch the same level line of $dL_{\theta_0}$ (dashed, parallel to the
+contour). The contact points give the directions of $-\nabla L(\theta_0)$ (black) and of
+$-\nabla_HL(\theta_0) = -\theta_0$ (green), which points at the minimum. Right: in the coordinates $\phi = H^{1/2}\theta$ the contours are circles; the preconditioned step
+(green, $\eta = 0.25$) is radial, while the Euclidean step of $\theta$ (black, $\eta = 0.1$) is not.}
+\label{gradient-tangent-space:fig:balls}
+\end{figure}
 
 \section{Gradients on manifolds}\label{gradient-tangent-space:sec:manifolds}
 
@@ -270,7 +588,7 @@ a smoothed version of the power method.
   \draw[gray] ($(T)+(-1.2,0.9)$) -- ($(T)+(1.2,-0.9)$) node[right, black] {$T_\theta S^1$};
   \fill (T) circle (1.3pt) node[above left] {$\theta$};
   \draw[->, thick] (T) -- ($(T)+(1.0,0.5)$) node[right] {$\nabla F(\theta)$};
-  \draw[->, very thick, bookexample] (T) -- ($(T)+(0.4,-0.3)$) node[below right] {$\operatorname{grad}f(\theta)$};
+  \draw[->, very thick, bookdef] (T) -- ($(T)+(0.4,-0.3)$) node[below right] {$\operatorname{grad}f(\theta)$};
   \draw[dashed] ($(T)+(1.0,0.5)$) -- ($(T)+(0.4,-0.3)$);
   \fill (0,0) circle (1pt);
 \end{tikzpicture}
@@ -287,6 +605,9 @@ $\theta$ off the circle) and a tangent part, the Riemannian gradient.}
         orthogonal to the level sets.
   \item The gradient lives in parameter space, not on the graph of the loss; the downhill arrow on
         the surface only projects onto a multiple of $-\nabla L$.
+  \item The update adds a displacement to a point: it needs an affine structure (for $\theta + v$ and
+        velocities), nothing more for the differential, and an inner product for the gradient. It
+        never uses the origin, whereas weight decay does: it is a prior centred at the zero weights.
   \item Preconditioning, Newton's method and the natural gradient are gradient descent in other
         metrics.
   \item On a manifold, the Riemannian gradient lies in the tangent space; for an embedded surface it
@@ -315,5 +636,35 @@ descent depends on the parametrization.
 For $S = \diag(3, 1)$ and $\theta = (\cos\alpha, \sin\alpha)$ on the unit circle, compute $\operatorname{grad}f(\theta)$ for
 $f(\theta) = \theta^\top S\theta$, and check that it vanishes exactly at the four points $(\pm1,0)$, $(0,\pm1)$.
 \solutionlink{gradient-tangent-space:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{gradient-tangent-space:exr:4}
+Adam updates $m\leftarrow\beta_1m + (1 - \beta_1)g$, $s\leftarrow\beta_2s + (1 - \beta_2)\,g\odot g$ from the gradient $g = \nabla L(\theta)$ and steps
+$\theta\leftarrow\theta - \eta\,\hat m\oslash(\sqrt{\hat s} + \varepsilon)$, coordinate-wise, with the bias-corrected $\hat m$, $\hat s$.
+\begin{enumerate}[nosep]
+  \item Show that Adam passes the origin test of \cref{gradient-tangent-space:prop:origin}.
+  \item Show that its first step (from $m = s = 0$) is $-\eta\,\mathrm{sign}(g)$ coordinate-wise when $\varepsilon = 0$
+        (with $\mathrm{sign}(0) = 0$).
+  \item In $\R^2$ let $g = (2, 1)$. Compute the first step in the standard basis, then in the orthonormal
+        basis rotated by $45^\circ$, and express the second back in the standard basis. Are the two steps
+        the same? Parallel?
+\end{enumerate}
+\solutionlink{gradient-tangent-space:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{gradient-tangent-space:exr:5}
+Run weight decay, $x\leftarrow(1 - \eta\lambda)x - \eta\nabla L(x)$, in the coordinates $x$ and in the coordinates $x' = x - w$
+of a shifted origin, i.e.\ $x'\leftarrow(1 - \eta\lambda)x' - \eta\nabla L'(x')$ with $L'(x') = L(x' + w)$. Starting from the same
+point, by how much do the two new points differ after one step? For $L\equiv0$, where do the two
+sequences converge?
+\solutionlink{gradient-tangent-space:exr:5}
+\end{exercise}
+
+\begin{exercise}\label{gradient-tangent-space:exr:6}
+On the circle $\mathcal C = \R/\Z$, whose points are the classes $[x] = x + \Z$, let $v\in\R$ act by $[x] + v = [x + v]$.
+Show that this is well defined and satisfies axioms 1 and 2 of
+\cref{gradient-tangent-space:def:affine}, but not axiom 3. Is $\theta - \eta\nabla f(\theta)$ still meaningful for a
+differentiable $f$ on $\mathcal C$?
+\solutionlink{gradient-tangent-space:exr:6}
 \end{exercise}
 \end{notechapter}
