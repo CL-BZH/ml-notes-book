@@ -1,0 +1,260 @@
+\begin{notechapter}
+\chapter{Dropout}\label{ch:dropout}
+\chaptersubtitle{Random masks at training time, and what to do with them at test time}
+
+\begin{chapterintro}
+Dropout sets a random subset of the units of a layer to zero at each training step. It is
+one of the most effective regularizers for large networks, and also one whose test-time
+behaviour is easy to get wrong. This chapter defines it precisely (with one convention for
+the probability), explains why the network used at test time is an approximation, and
+when that approximation is exact. You will learn
+\begin{itemize}[nosep]
+  \item standard and inverted dropout, and their means and variances;
+  \item the ensemble interpretation, the weight-scaling rule, when it is exact (linear
+        layers, and a softmax output in the sense of a geometric mean) and when it is not;
+  \item that dropout on the inputs of a linear regression is, in expectation, a ridge penalty;
+  \item Monte Carlo dropout and the variational interpretation;
+  \item practical values, variants for convolutional layers, and how to implement all of this
+        in PyTorch without the usual mistakes.
+\end{itemize}
+\prerequisites{\cref{ch:feedforward-networks}; ridge regression and bias--variance
+(\cref{ch:erm}); Bayesian inference and the ELBO for the last section
+(\cref{ch:bayesian-reasoning,ch:em-algorithm}).}
+\end{chapterintro}
+
+\section{Definition}\label{dropout:sec:definition}
+
+\paragraph{Convention.} In this chapter $p$ is the \emph{drop} probability and $q = 1 - p$ the \emph{keep}
+probability. This is PyTorch's convention (\texttt{nn.Dropout(p)}); the original papers use $p$
+for the keep probability.
+
+\begin{definition}[Dropout]\label{dropout:def:dropout}
+Let $a\in\R^n$ be the activations of a layer. At each training step draw a mask $m\in\{0,1\}^n$ with
+independent coordinates $m_j\sim\mathrm{Bernoulli}(q)$, independently for each example, and output
+\[
+  \text{standard:}\quad\tilde a = m\odot a,\qquad\qquad\text{inverted:}\quad\tilde a = \frac1q\,m\odot a .
+\]
+At test time standard dropout outputs $qa$ and inverted dropout outputs $a$.
+\end{definition}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+& training & test \\
+\midrule
+standard dropout & $m\odot a$ & $q\,a$ \\
+inverted dropout & $m\odot a/q$ & $a$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{proposition}[Moments]\label{dropout:prop:moments}
+For fixed $a$, inverted dropout gives $\E[\tilde a_j] = a_j$ and $\Var(\tilde a_j) = \frac pqa_j^2$; standard dropout gives
+$\E[\tilde a_j] = qa_j$ and $\Var(\tilde a_j) = pq\,a_j^2$.
+\end{proposition}
+
+\begin{proof}
+$\E[m_j] = q$ and $\Var(m_j) = q(1 - q) = pq$; for inverted dropout divide the mean by $q$ and the variance by $q^2$.
+\end{proof}
+
+Both versions make the test-time output equal to the training-time \emph{mean} of each unit.
+They define the same model up to a rescaling of the next layer's weights by $q$; inverted
+dropout, which leaves the test-time network untouched, is what libraries implement. For
+$p = 0.5$ the training-time output of a kept unit is $2a_j$, and its standard deviation equals its
+mean: dropout is a strong multiplicative noise.
+
+\section{Why it regularizes}\label{dropout:sec:why}
+
+Srivastava, Hinton, Krizhevsky, Sutskever and Salakhutdinov (\emph{Dropout: A Simple Way to
+Prevent Neural Networks from Overfitting}, JMLR, 2014), following Hinton et al.\ (2012),
+give two intuitions.
+
+\paragraph{Co-adaptation.} A unit cannot rely on the presence of particular other units,
+which may be dropped. It is pushed to compute features that are useful in many contexts,
+rather than to correct the specific mistakes of other units on the training set.
+
+\paragraph{Ensembles.} Each mask selects a sub-network. With $n$ droppable units there are
+$2^n$ sub-networks, all sharing the same weights, and each training step trains one of them on
+one mini-batch. Dropout trains an exponentially large ensemble with parameter sharing; at
+test time one would like to average their predictions (\cref{ch:ensemble-methods}).
+
+\paragraph{An exact case: linear regression.} The regularizing effect can be computed when
+the model is linear.
+
+\begin{proposition}[Dropout on the inputs of a linear model]\label{dropout:prop:ridge}
+Let $\hat y = \sum_jw_j\tilde x_j$ with inverted dropout on the inputs, $\tilde x_j = m_jx_j/q$. Then
+\[
+  \E_m\bigl[(y - \hat y)^2\bigr] = (y - w^\top x)^2 + \frac pq\sum_jw_j^2x_j^2 .
+\]
+Over a data set with design matrix $X$, the expected dropout loss is
+$\norm{y - Xw}^2 + \frac pq\,w^\top\diag(X^\top X)\,w$: ridge regression with a penalty on each $w_j$ proportional to
+$\sum_ix_{ij}^2$.
+\end{proposition}
+
+\begin{proof}
+$\E[\hat y] = w^\top x$, and $\E[(y - \hat y)^2] = (y - \E\hat y)^2 + \Var(\hat y)$. The terms $w_j\tilde x_j$ are independent with variances
+$w_j^2x_j^2\,p/q$ by \cref{dropout:prop:moments}. Summing over examples gives the matrix form.
+\end{proof}
+
+This is Section 9.1 of Srivastava et al.\ (2014); Wager, Wang and Liang (\emph{Dropout Training
+as Adaptive Regularization}, NeurIPS, 2013) extend it, to second order, to generalized
+linear models, where the penalty also depends on the predicted variances. The penalty grows
+with $p/q$: from $0$ for $p = 0$ to $1$ for $p = \frac12$ and $\infty$ as $p\to1$. Unlike plain ridge, it is scaled per feature
+by the feature's magnitude, which makes it invariant to rescaling the inputs.
+
+\section{Inference}\label{dropout:sec:inference}
+
+The ideal prediction averages over masks, $\E_m[f(x; m)]$, which has $2^n$ terms per dropout layer.
+The \emph{weight-scaling rule} replaces each mask by its expectation, that is, uses the
+deterministic network (inverted dropout) or the network with activations multiplied by $q$
+(standard dropout). With several dropout layers, each mask is replaced independently.
+
+\paragraph{Exact for linear maps.} If the network is linear in the dropped activations,
+expectation and network commute and the rule is exact. This covers the last layer before
+the output (the logits are linear in the last hidden activations).
+
+\paragraph{Exact as a geometric mean for a softmax output.}
+
+\begin{proposition}\label{dropout:prop:geometric}
+Let $P_m(y\mid x) = \softmax\bigl(W(m\odot x)\bigr)_y$ with standard dropout on $x$. The weighted geometric mean of
+these distributions over masks, renormalized,
+\[
+  \tilde P(y\mid x)\ \propto\ \prod_mP_m(y\mid x)^{\Prob(m)},
+\]
+equals $\softmax\bigl(W(qx)\bigr)_y$, the prediction of the weight-scaled network.
+\end{proposition}
+
+\begin{proof}
+$\log P_m(y\mid x) = w_y^\top(m\odot x) - \log Z_m$, where $Z_m$ does not depend on $y$. Taking the expectation over $m$,
+$\sum_m\Prob(m)\log P_m(y\mid x) = w_y^\top(qx) - c$ with $c$ independent of $y$. Exponentiating and normalizing
+over $y$ gives $\softmax(W(qx))$.
+\end{proof}
+
+Hinton et al.\ (\emph{Improving Neural Networks by Preventing Co-adaptation of Feature
+Detectors}, 2012) note this for one hidden layer with $p = \frac12$. It is the \emph{geometric}, not the
+arithmetic, mean of the ensemble; and with hidden nonlinearities between dropout and
+output, it no longer holds.
+
+\begin{example}[The rule can fail]\label{dropout:ex:counter}
+A ReLU unit receives two inputs $x = (1,1)$ with weights $w = (1,-1)$, with inverted dropout, $p = \frac12$:
+$h = \mathrm{ReLU}(2m_1 - 2m_2)$. The four masks, each of probability $\frac14$, give $h = 0, 2, 0, 0$ for
+$(m_1,m_2) = (1,1), (1,0), (0,1), (0,0)$, so $\E[h] = 0.5$. The deterministic network gives $\mathrm{ReLU}(1 - 1) = 0$. In
+general $\E[\phi(Z)]\neq\phi(\E Z)$, and the rule only approximates the average over masks; in practice the
+approximation is good enough that it is almost always used.
+\end{example}
+
+\paragraph{Monte Carlo dropout.} Keeping dropout active at test time and averaging $K$
+stochastic forward passes,
+\[
+  \hat f(x) = \frac1K\sum_{k=1}^Kf(x; m^{(k)}),
+\]
+estimates $\E_m[f(x; m)]$ without bias, with a standard error decreasing like $1/\sqrt K$. The spread of the
+$K$ outputs measures how much the prediction depends on the mask. Gal and Ghahramani
+(\emph{Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep
+Learning}, ICML, 2016) showed that training with dropout and weight decay can be read as
+approximate variational inference (maximization of an ELBO, \cref{ch:em-algorithm}) in a
+Bayesian network,
+with an approximate posterior over weights given by the random masks. Under this reading, Monte
+Carlo dropout approximates the posterior predictive distribution, and its spread is an
+estimate of model uncertainty. The variational family is very restricted, so this
+uncertainty is a rough approximation of the Bayesian one, not a sample from the true
+posterior.
+
+\section{In practice}\label{dropout:sec:practice}
+
+\paragraph{Values.} $p = 0.5$ for large fully connected hidden layers and $p\approx0.2$ for inputs were the
+original recommendations (Srivastava et al.\ 2014); transformers use $p = 0.1$ (Vaswani et al.,
+\emph{Attention Is All You Need}, NeurIPS, 2017). Dropout is usually not applied to the
+output layer. Since it slows convergence (noisier gradients), networks with dropout need
+more epochs.
+
+\paragraph{Variants.} In convolutional layers, neighbouring activations are strongly
+correlated, so dropping single entries removes little information. \emph{Spatial dropout}
+drops whole channels (Tompson, Goroshin, Jain, LeCun and Bregler, CVPR, 2015);
+\emph{Cutout} masks a square patch of the input image (DeVries and Taylor, 2017);
+\emph{DropConnect} drops individual weights instead of activations (Wan, Zeiler, Zhang, LeCun
+and Fergus, ICML, 2013). Combined with batch normalization, dropout should come after the
+normalization layers (\cref{ch:normalization}).
+
+\paragraph{In PyTorch.} \texttt{nn.Dropout(p)} implements inverted dropout: in training mode
+it multiplies by $m/(1 - p)$, in evaluation mode it is the identity.
+\begin{lstlisting}[language=Python]
+import torch
+from torch import nn
+
+model = nn.Sequential(nn.Linear(10, 20), nn.ReLU(),
+                      nn.Dropout(p=0.5),        # drop probability 0.5
+                      nn.Linear(20, 1))
+x = torch.randn(16, 10)
+
+model.train(); y1 = model(x)                    # random: masks are drawn
+model.eval();  y2 = model(x)                    # deterministic: identity
+
+def mc_dropout(model, x, K=50):                 # Monte Carlo dropout
+    model.eval()                                # batch norm etc. in eval mode
+    for mod in model.modules():
+        if isinstance(mod, nn.Dropout):
+            mod.train()                         # only dropout stays random
+    with torch.no_grad():
+        ys = torch.stack([model(x) for _ in range(K)])
+    model.eval()
+    return ys.mean(0), ys.std(0)
+\end{lstlisting}
+
+\begin{pitfall}[Monte Carlo dropout with \texttt{model.train()}]
+Calling \texttt{model.train()} to keep dropout active at test time also puts batch
+normalization layers in training mode: they then normalize with the statistics of the test
+batch and update their running averages with test data. Activate the dropout modules only,
+as in \texttt{mc\_dropout} above.
+\end{pitfall}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Dropout multiplies activations by independent $\mathrm{Bernoulli}(q)$ masks, $q = 1 - p$. Inverted dropout divides by
+        $q$ during training, so that the test-time network is unchanged; the noise has variance $\frac pqa^2$.
+  \item It trains $2^n$ weight-sharing sub-networks and discourages co-adaptation. For linear
+        regression it is, in expectation, a ridge penalty $\frac pq\sum_jw_j^2\sum_ix_{ij}^2$.
+  \item The weight-scaling rule is exact for linear maps, and for a softmax output in the sense
+        of the normalized geometric mean; with hidden nonlinearities it is an approximation.
+  \item Monte Carlo dropout averages stochastic passes; it estimates the mean over masks and,
+        under the variational interpretation, a crude model uncertainty. Enable only the dropout
+        modules when doing it.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{dropout:exr:1}
+With inverted dropout and $p = 0.2$, compute the mean and standard deviation of $\tilde a_j$ for $a_j = 1$. For
+which $p$ does the standard deviation equal the mean?
+\solutionlink{dropout:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{dropout:exr:2}
+Two features $x_1, x_2$ with $\sum_ix_{i1}^2 = 100$ and $\sum_ix_{i2}^2 = 1$. With $p = 0.5$ on the inputs, write the expected
+dropout objective of \cref{dropout:prop:ridge}. If the second feature is multiplied by $10$ and $w_2$ divided
+by $10$, does the penalty change? Compare with ordinary ridge.
+\solutionlink{dropout:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{dropout:exr:3}
+In \cref{dropout:prop:geometric}, take two classes, $x = (2,1)$, $W = \begin{bmatrix}1&0\\0&1\end{bmatrix}$, $q = \frac12$. Compute the four
+distributions $P_m$, their arithmetic mean, their normalized geometric mean, and
+$\softmax(W(qx))$.
+\solutionlink{dropout:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{dropout:exr:4}
+In \cref{dropout:ex:counter}, compute the variance of $h$ over the masks, and the number $K$ of Monte
+Carlo passes needed for a standard error below $0.05$.
+\solutionlink{dropout:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{dropout:exr:5}
+Show that standard dropout followed at test time by multiplication by $q$ and inverted
+dropout define the same family of predictors, by relating the weights of the next layer
+in the two versions.
+\solutionlink{dropout:exr:5}
+\end{exercise}
+\end{notechapter}

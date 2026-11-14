@@ -1,0 +1,413 @@
+\begin{notechapter}
+\chapter{Computational Graphs}\label{ch:computational-graphs}
+\chaptersubtitle{Backpropagation as dynamic programming, and reverse-mode differentiation}
+
+\begin{chapterintro}
+\Cref{ch:backpropagation} derived backpropagation for a chain of layers. Real models are not
+chains: a value can feed several later computations (a skip connection, a shared
+embedding, an attention score), and the loss can combine many terms. The general
+algorithm works on any \emph{computational graph}, and is what automatic differentiation
+software implements. Seen this way, it is a dynamic programme that sums the contributions
+of exponentially many paths in time linear in the number of edges. You will learn
+\begin{itemize}[nosep]
+  \item computational graphs, and the derivative of one node with respect to another as a
+        sum over paths;
+  \item reverse accumulation: the dynamic programme that computes all these sums at once,
+        traced step by step on examples;
+  \item how parameters fit in, and the gradient of a loss with respect to all weights;
+  \item why reverse mode beats forward mode for a scalar loss, what it costs in time and in
+        memory;
+  \item a complete reverse-mode differentiator in fifty lines of Python.
+\end{itemize}
+\prerequisites{\cref{ch:backpropagation} (the chain rule and the MLP case).}
+\end{chapterintro}
+
+\section{Computational graphs}\label{computational-graphs:sec:graphs}
+
+\begin{definition}[Computational graph]\label{computational-graphs:def:graph}
+A computational graph is a directed acyclic graph whose nodes $1,\dots,N$ carry values $y_i$. Each
+node without incoming edges is an \emph{input}; each other node $j$ computes
+$y_j = f_j\bigl(y_{i_1},\dots,y_{i_k}\bigr)$ from its \emph{parents} $i_1,\dots,i_k$, with a differentiable $f_j$. An edge $(i,j)$ carries the
+\emph{local derivative}
+\[
+  z_{ij} = \frac{\partial f_j}{\partial y_i},
+\]
+evaluated at the current values. $\mathcal A(i)$ denotes the set of \emph{children} of $i$, the nodes that use $y_i$.
+\end{definition}
+
+Because the graph is acyclic, its nodes can be numbered in a \emph{topological order}, where
+every edge goes from a smaller to a larger number. The forward pass evaluates the nodes in
+this order.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth, x=2.2cm, y=1.1cm,
+  nd/.style={circle, draw=bookaccent, thick, fill=bookaccent!10, minimum size=7mm, inner sep=0pt}]
+  \node[nd] (1) at (0,1) {1};
+  \node[nd] (2) at (0,-1) {2};
+  \node[nd] (3) at (1,2) {3};
+  \node[nd] (4) at (1,0) {4};
+  \node[nd] (5) at (1,-2) {5};
+  \node[nd] (6) at (2,0) {6};
+  \foreach \a/\b in {1/3,1/4,2/4,2/5,3/6,4/6,5/6} \draw[->, thick, gray] (\a) -- (\b);
+  \node[font=\scriptsize, left] at (1.west) {$\mathcal A(1) = \{3,4\}$};
+  \node[font=\scriptsize, left] at (2.west) {$\mathcal A(2) = \{4,5\}$};
+  \node[font=\scriptsize, right] at (6.east) {output};
+\end{tikzpicture}
+\caption{A computational graph with inputs $1,2$ and output $6$. The numbering is a
+topological order.}
+\label{computational-graphs:fig:six}
+\end{figure}
+
+\section{Derivatives as sums over paths}\label{computational-graphs:sec:paths}
+
+For two nodes $s$ and $t$, let $S(s,t) = \partial y_t/\partial y_s$ be the derivative of $y_t$ with respect to $y_s$, all
+other inputs fixed (and $S(t,t) = 1$).
+
+\begin{lemma}[Path sum]\label{computational-graphs:lem:paths}
+\[
+  S(s,t) = \sum_{P\in\mathcal P(s,t)}\ \prod_{(i,j)\in P}z_{ij},
+\]
+where $\mathcal P(s,t)$ is the set of directed paths from $s$ to $t$ (the empty sum is $0$; for $s = t$ the only path
+is empty, with product $1$).
+\end{lemma}
+
+\begin{proof}
+By induction on the position of $s$ in the reverse topological order. If $s = t$ the claim
+holds. Otherwise $y_t$ depends on $y_s$ only through the children of $s$: as a function of $y_s$,
+$y_t = F\bigl((y_j)_{j\in\mathcal A(s)}\bigr)$, each $y_j$ depending on $y_s$ through $f_j$ (no other route exists, because every
+path out of $s$ starts with an edge to a child). The chain rule
+(\cref{backpropagation:thm:chain}) gives
+\[
+  S(s,t) = \sum_{j\in\mathcal A(s)}S(j,t)\,z_{sj} .
+\]
+The children come after $s$ in topological order, so by induction $S(j,t)$ is the sum over paths
+from $j$ to $t$. A path from $s$ to $t$ is exactly an edge $(s,j)$ followed by a path from $j$ to $t$, so the
+right-hand side is the sum over paths from $s$ to $t$.
+\end{proof}
+
+The proof gives more than the lemma: the recursion
+\[
+  \boxed{S(i,t) = \sum_{j\in\mathcal A(i)}z_{ij}\,S(j,t)}
+\]
+computes $S(i,t)$ for \emph{all} nodes $i$ from the values of their children. On
+\cref{computational-graphs:fig:six}, the paths from $1$ to $6$ are $1\to3\to6$ and $1\to4\to6$, so
+$S(1,6) = z_{13}z_{36} + z_{14}z_{46}$.
+
+\section{Reverse accumulation}\label{computational-graphs:sec:reverse}
+
+\begin{algorithm}[ht]
+\caption{Reverse accumulation of $\partial y_t/\partial y_i$ for all nodes $i$}\label{computational-graphs:alg:reverse}
+\begin{algorithmic}[1]
+\State forward pass: evaluate all $y_j$ in topological order, and the local derivatives $z_{ij}$
+\State $S(t)\gets1$;\quad $S(i)\gets0$ for $i\neq t$
+\For{$j = t, t - 1,\dots,1$} \Comment{reverse topological order}
+  \For{each parent $i$ of $j$}
+    \State $S(i)\gets S(i) + z_{ij}\,S(j)$ \Comment{$S(j)$ is final: all children of $j$ come later}
+  \EndFor
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+When node $j$ is processed, all its children have been processed, so $S(j)$ has received all its
+terms and is final; it is then pushed to the parents of $j$. Each edge is used once. This is
+dynamic programming: $S(j)$, shared by all paths through $j$, is computed once and reused.
+
+\paragraph{A trace.} On \cref{computational-graphs:fig:six}, with target $t = 6$:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+node & children (all final) & value \\
+\midrule
+6 & --- & $S(6) = 1$ \\
+5 & 6 & $S(5) = z_{56}$ \\
+4 & 6 & $S(4) = z_{46}$ \\
+3 & 6 & $S(3) = z_{36}$ \\
+2 & 4, 5 & $S(2) = z_{24}z_{46} + z_{25}z_{56}$ \\
+1 & 3, 4 & $S(1) = z_{13}z_{36} + z_{14}z_{46}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Another valid order is to keep a queue and process a node as soon as all its children are
+done; any order in which children precede parents gives the same result.
+
+\paragraph{Several outputs.} The algorithm computes the derivatives of \emph{one} target with
+respect to all nodes. For several outputs $t_1,\dots,t_p$ it is run $p$ times, or with $p$ accumulators per
+node. In training, the target is the scalar loss, and one pass suffices.
+
+\section{Three examples}\label{computational-graphs:sec:examples}
+
+\begin{example}[A single path]\label{computational-graphs:ex:path}
+$o = \cos(x^2)$: the graph is $x\to y = x^2\to o = \cos y$. At $x = 2$: $y = 4$, $o = \cos4\approx-0.6536$. Backward:
+$S(o) = 1$, $S(y) = z_{yo} = -\sin4\approx0.7568$, $S(x) = z_{xy}S(y) = 2x\cdot0.7568 = 3.0272$, the derivative $-2x\sin(x^2)$ of
+calculus.
+\end{example}
+
+\begin{example}[Two paths]\label{computational-graphs:ex:diamond}
+$o = \sin(x^2) + \cos(x^3)$, with $y_1 = x^2$, $y_2 = x^3$, $o = \sin y_1 + \cos y_2$. At $x = 1$: $S(y_1) = \cos1 = 0.5403$,
+$S(y_2) = -\sin1 = -0.8415$, and
+\[
+  S(x) = \underbrace{z_{xy_1}S(y_1)}_{\text{path through }y_1} + \underbrace{z_{xy_2}S(y_2)}_{\text{path through }y_2}
+  = 2\cdot0.5403 + 3\cdot(-0.8415) = -1.4439 .
+\]
+\end{example}
+
+\begin{example}[Crossing paths]\label{computational-graphs:ex:deep}
+Consider the graph of \cref{computational-graphs:fig:deep}:
+\begin{gather*}
+  y_{11} = x^2,\quad y_{12} = x;\qquad y_{21} = y_{11} - y_{12}^3,\quad y_{22} = y_{11} + y_{12}^2;\\
+  y_{31} = y_{21}^2 - y_{22},\quad y_{32} = y_{21}^2 + y_{22};\qquad o = y_{31}y_{32} .
+\end{gather*}
+At $x = 2$ the forward pass gives $y_{11} = 4$, $y_{12} = 2$, $y_{21} = -4$, $y_{22} = 8$, $y_{31} = 8$, $y_{32} = 24$, $o = 192$. Backward,
+layer by layer:
+\begin{align*}
+  S(y_{31}) &= y_{32} = 24, \qquad S(y_{32}) = y_{31} = 8,\\
+  S(y_{21}) &= 2y_{21}\bigl(S(y_{31}) + S(y_{32})\bigr) = -8\cdot32 = -256,\\
+  S(y_{22}) &= -S(y_{31}) + S(y_{32}) = -16,\\
+  S(y_{11}) &= S(y_{21}) + S(y_{22}) = -272,\\
+  S(y_{12}) &= -3y_{12}^2S(y_{21}) + 2y_{12}S(y_{22}) = 3072 - 64 = 3008,\\
+  S(x) &= 2x\,S(y_{11}) + S(y_{12}) = -1088 + 3008 = 1920 .
+\end{align*}
+Check: $o = y_{21}^4 - y_{22}^2 = (x^2 - x^3)^4 - 4x^4$, whose derivative $4(x^2 - x^3)^3(2x - 3x^2) - 16x^3$ is
+$4\cdot(-64)\cdot(-8) - 128 = 1920$ at $x = 2$. There are $2\cdot2\cdot2 = 8$ paths from $x$ to $o$; the dynamic programme
+never enumerates them.
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth, x=2.55cm, y=1.25cm,
+  nd/.style={circle, draw=bookaccent, thick, fill=bookaccent!10, minimum size=8mm, inner sep=0pt},
+  g/.style={->, thick, bookpitfall, dashed}, lab/.style={font=\scriptsize, fill=white, inner sep=1pt}]
+  \node[nd] (x) at (0,0) {$x$};
+  \node[nd] (a) at (1,1) {$y_{11}$};
+  \node[nd] (b) at (1,-1) {$y_{12}$};
+  \node[nd] (c) at (2,1) {$y_{21}$};
+  \node[nd] (d) at (2,-1) {$y_{22}$};
+  \node[nd] (e) at (3,1) {$y_{31}$};
+  \node[nd] (f) at (3,-1) {$y_{32}$};
+  \node[nd] (o) at (4,0) {$o$};
+  \draw[g] (o) -- (e) node[lab, pos=0.5] {24};
+  \draw[g] (o) -- (f) node[lab, pos=0.5] {8};
+  \draw[g] (e) -- (c) node[lab, pos=0.5] {$-192$};
+  \draw[g] (f) -- (c) node[lab, pos=0.3] {$-64$};
+  \draw[g] (e) -- (d) node[lab, pos=0.3] {$-24$};
+  \draw[g] (f) -- (d) node[lab, pos=0.5] {8};
+  \draw[g] (c) -- (a) node[lab, pos=0.5] {$-256$};
+  \draw[g] (c) -- (b) node[lab, pos=0.3] {3072};
+  \draw[g] (d) -- (a) node[lab, pos=0.3] {$-16$};
+  \draw[g] (d) -- (b) node[lab, pos=0.5] {$-64$};
+  \draw[g] (a) -- (x) node[lab, pos=0.5] {$-1088$};
+  \draw[g] (b) -- (x) node[lab, pos=0.5] {3008};
+  \node[font=\scriptsize, align=center, below=1mm of b] {$y_{12} = 2$\\[-2pt]$S = 3008$};
+  \node[font=\scriptsize, align=center, above=1mm of a] {$y_{11} = 4$\\[-2pt]$S = -272$};
+  \node[font=\scriptsize, align=center, above=1mm of c] {$y_{21} = -4$\\[-2pt]$S = -256$};
+  \node[font=\scriptsize, align=center, below=1mm of d] {$y_{22} = 8$\\[-2pt]$S = -16$};
+  \node[font=\scriptsize, align=center, above=1mm of e] {$y_{31} = 8$\\[-2pt]$S = 24$};
+  \node[font=\scriptsize, align=center, below=1mm of f] {$y_{32} = 24$\\[-2pt]$S = 8$};
+  \node[font=\scriptsize, align=center, below=1mm of x] {$x = 2$\\[-2pt]$S = 1920$};
+  \node[font=\scriptsize, align=center, right=1mm of o] {$o = 192$\\[-2pt]$S = 1$};
+\end{tikzpicture}
+\caption{The graph of \cref{computational-graphs:ex:deep}, traversed backwards. Each dashed
+arrow carries the message $z_{ij}S(j)$ from a child $j$ to a parent $i$; each node adds the
+messages it receives. The forward edges go the other way and are not drawn.}
+\label{computational-graphs:fig:deep}
+\end{figure}
+
+\section{Parameters and losses}\label{computational-graphs:sec:params}
+
+Parameters are input nodes like the others. To train, take the loss as the target node,
+$t = \ell$, and write $\Delta(i) = \partial\ell/\partial y_i$ for $S(i,\ell)$. One run of
+\cref{computational-graphs:alg:reverse} gives $\Delta$ at every node, in particular at every
+parameter. If a parameter $w$ is used by a single node $j$, as is usual, $\partial\ell/\partial w = \Delta(j)\,\partial f_j/\partial w$: the
+gradient at the node that uses $w$, times the local derivative. If $w$ is used by several nodes
+(shared weights, as in convolutional and recurrent networks), the contributions are added.
+
+\begin{example}[Gradients with respect to four weights]\label{computational-graphs:ex:weights}
+Let $y_1 = w_1x$, $y_2 = w_2x$, $o = w_3y_1 + w_4y_2$ and $\ell = \frac12(o - y)^2$, with $x = 2$, $w = (0.5, -0.3, 1.2, 0.8)$ and target $y = 1$.
+
+\emph{Forward:} $y_1 = 1$, $y_2 = -0.6$, $o = 1.2 - 0.48 = 0.72$, $\ell = \frac12(0.28)^2 = 0.0392$.
+
+\emph{Backward:} $\Delta(o) = o - y = -0.28$; $\Delta(y_1) = w_3\Delta(o) = -0.336$; $\Delta(y_2) = w_4\Delta(o) = -0.224$;
+$\Delta(x) = w_1\Delta(y_1) + w_2\Delta(y_2) = -0.168 + 0.0672 = -0.1008$ (not needed for training, but it is the
+sensitivity of the loss to the input).
+
+\emph{Weights:}
+\begin{align*}
+  \frac{\partial\ell}{\partial w_1} &= \Delta(y_1)\,x = -0.672, & \frac{\partial\ell}{\partial w_2} &= \Delta(y_2)\,x = -0.448,\\
+  \frac{\partial\ell}{\partial w_3} &= \Delta(o)\,y_1 = -0.28, & \frac{\partial\ell}{\partial w_4} &= \Delta(o)\,y_2 = 0.168 .
+\end{align*}
+A step with $\eta = 0.1$ gives $w = (0.5672, -0.2552, 1.228, 0.7832)$. The output $0.72$ was too small: the weights
+$w_1, w_2, w_3$ increase, and $w_4$ decreases because it multiplies the negative value $y_2$. The new output is
+$0.9933$ and the loss $2.2\times10^{-5}$.
+\end{example}
+
+\begin{example}[A nonlinear node]\label{computational-graphs:ex:tanh}
+A node $y = \tanh(wx + b)$ with $x = 1.5$, $w = 2$, $b = -1$, and an incoming $\Delta(y) = 0.4$. Then $u = wx + b = 2$,
+$y = \tanh2 = 0.9640$, $\partial y/\partial u = 1 - y^2 = 0.0707$, and
+\[
+  \frac{\partial\ell}{\partial w} = \Delta(y)\,(1 - y^2)\,x = 0.0424,\qquad\frac{\partial\ell}{\partial b} = \Delta(y)\,(1 - y^2) = 0.0283 .
+\]
+The node is nearly saturated ($u = 2$), and passes back only $7\%$ of its gradient
+(\cref{activation-functions:sec:vanishing}).
+\end{example}
+
+\paragraph{Vector nodes.} Nothing requires the values to be scalars. If $y_j = f_j(y_i,\dots)$ with vector
+values, $z_{ij}$ is the Jacobian $J_{f_j}(y_i)$ and the update of \cref{computational-graphs:alg:reverse}
+becomes $\Delta(i)\gets\Delta(i) + z_{ij}^\top\Delta(j)$: a vector--Jacobian product. The MLP of \cref{ch:backpropagation} is
+the chain $a^{(0)}\to z^{(1)}\to a^{(1)}\to\dots\to\ell$ with vector nodes, and \cref{backpropagation:thm:backprop} is
+\cref{computational-graphs:alg:reverse} with the Jacobians $W^{(l)}$ and $\diag(\phi'(z^{(l)}))$. Software never forms these
+Jacobians: each operation provides a function computing $z^\top\Delta$ directly ($W^\top\Delta$, or $\Delta\odot\phi'(z)$).
+
+\section{Cost}\label{computational-graphs:sec:cost}
+
+\paragraph{Paths against edges.} In a layered graph with one input, $D$ hidden layers of
+width $w$ fully connected to each other, and one output, there are $w^D$ paths from input to
+output, and $2w + (D - 1)w^2$ edges. Enumerating paths costs $D$ multiplications per path; the
+dynamic programme costs one multiply-add per edge. For $w = 2$, $D = 4$: $16$ paths ($64$
+multiplications) against $16$ edges. For $w = 1000$, $D = 100$: $10^{300}$ paths against about $10^8$
+edges.
+
+\paragraph{Forward mode.} The chain rule can also be accumulated forwards. Fix an input
+direction $v$, set $\dot y_i = v_i$ at the inputs, and propagate $\dot y_j = \sum_{i\text{ parent of }j}z_{ij}\dot y_i$ in topological
+order. At the end $\dot y_t$ is the directional derivative $J_t v$; a single pass computes a
+Jacobian--vector product, alongside the forward evaluation (dual numbers do exactly this,
+\cref{computational-graphs:exr:2}). For $F:\R^n\to\R^m$:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+& one pass computes & full Jacobian \\
+\midrule
+forward mode & $J v$ (one column combination) & $n$ passes \\
+reverse mode & $u^\top J$ (one row combination) & $m$ passes \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A loss has $m = 1$ and $n$ in the millions or billions: one reverse pass gives the whole gradient,
+where forward mode would need $n$ passes. The cost of a reverse pass is a constant multiple of
+the cost of evaluating the function, independent of the number of inputs: Baur and Strassen
+(\emph{The Complexity of Partial Derivatives}, Theoretical Computer Science, 1983) proved it
+for arithmetic circuits, and Griewank and Walther (\emph{Evaluating Derivatives}, SIAM,
+2nd ed.\ 2008) give the corresponding bounds for programs. This ``cheap gradient
+principle'' is what makes training large networks possible.
+
+\paragraph{Memory.} Reverse mode needs the values of the forward pass, so memory grows
+with the number of nodes; for a network it is proportional to depth times batch size times
+width, and is often the limiting resource. \emph{Checkpointing} stores only some layers and
+recomputes the others during the backward pass; storing every $\sqrt D$-th layer of a chain of $D$
+layers costs $O(\sqrt D)$ memory for about one extra forward pass (Chen, Xu, Zhang and Guestrin,
+\emph{Training Deep Nets with Sublinear Memory Cost}, 2016).
+
+\section{A reverse-mode differentiator}\label{computational-graphs:sec:code}
+
+The whole algorithm fits in a small class. Each operation creates a node that records its
+parents and the local derivatives; \texttt{backward} sorts the graph topologically by a
+depth-first search and runs \cref{computational-graphs:alg:reverse}.
+
+\begin{lstlisting}[language=Python]
+import math
+
+class Var:
+    def __init__(self, value, parents=()):
+        self.value = value        # forward value
+        self.parents = parents    # pairs (parent, local derivative)
+        self.grad = 0.0           # will hold d(output)/d(self)
+
+    def __add__(self, o):
+        o = o if isinstance(o, Var) else Var(o)
+        return Var(self.value + o.value, ((self, 1.0), (o, 1.0)))
+
+    def __sub__(self, o):
+        o = o if isinstance(o, Var) else Var(o)
+        return Var(self.value - o.value, ((self, 1.0), (o, -1.0)))
+
+    def __mul__(self, o):
+        o = o if isinstance(o, Var) else Var(o)
+        return Var(self.value * o.value, ((self, o.value), (o, self.value)))
+
+    def __pow__(self, k):         # k a constant
+        return Var(self.value ** k, ((self, k * self.value ** (k - 1)),))
+
+    def backward(self):
+        order, seen = [], set()   # topological order by depth-first search
+        def visit(v):
+            if id(v) not in seen:
+                seen.add(id(v))
+                for p, _ in v.parents:
+                    visit(p)
+                order.append(v)
+        visit(self)
+        self.grad = 1.0
+        for v in reversed(order): # reverse topological order
+            for p, d in v.parents:
+                p.grad += v.grad * d
+
+def sin(v):
+    return Var(math.sin(v.value), ((v, math.cos(v.value)),))
+
+x = Var(2.0)
+y11, y12 = x ** 2, x * 1.0
+y21, y22 = y11 - y12 ** 3, y11 + y12 ** 2
+y31, y32 = y21 ** 2 - y22, y21 ** 2 + y22
+o = y31 * y32
+o.backward()
+print(o.value, x.grad)            # 192.0 1920.0
+\end{lstlisting}
+
+The run reproduces \cref{computational-graphs:ex:deep}. PyTorch works the same way at the
+level of tensors: each operation records a node with a backward function, and
+\texttt{loss.backward()} traverses the recorded graph in reverse. The recursive search is
+fine for small graphs; deep graphs need an iterative version.
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item A computational graph is a DAG of differentiable operations; $\partial y_t/\partial y_s$ is the sum over paths
+        from $s$ to $t$ of the products of local derivatives.
+  \item Reverse accumulation computes $S(i) = \sum_{j\in\mathcal A(i)}z_{ij}S(j)$ for all nodes in reverse topological order,
+        one multiply-add per edge, instead of enumerating exponentially many paths.
+  \item With the loss as target, it gives the gradient at every parameter; shared parameters
+        add their contributions. With vector nodes, each edge applies a transposed Jacobian.
+  \item Forward mode computes $Jv$, reverse mode $u^\top J$: for a scalar loss, reverse mode gives the full
+        gradient for a constant multiple of the cost of the function, at the price of storing the
+        forward values.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{computational-graphs:exr:1}
+In \cref{computational-graphs:fig:six}, let $y_3 = y_1^2$, $y_4 = y_1y_2$, $y_5 = e^{y_2}$, $y_6 = y_3 + y_4 + y_5$. Compute $\partial y_6/\partial y_1$ and
+$\partial y_6/\partial y_2$ at $(y_1,y_2) = (1,0)$ by the path sum, and check by differentiating $y_6$ directly.
+\solutionlink{computational-graphs:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{computational-graphs:exr:2}
+A \emph{dual number} is $a + b\varepsilon$ with $\varepsilon^2 = 0$. Show that for a polynomial $p$, $p(a + \varepsilon) = p(a) + p'(a)\varepsilon$, and
+that defining $f(a + b\varepsilon) = f(a) + f'(a)b\varepsilon$ for $\sin$, $\cos$ and $\exp$ makes this hold for their compositions.
+Evaluate $o = \sin(x^2) + \cos(x^3)$ at $1 + \varepsilon$ and compare with \cref{computational-graphs:ex:diamond}.
+\solutionlink{computational-graphs:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{computational-graphs:exr:3}
+Count the paths and the edges from input to output in an MLP with $d = 784$ inputs, two hidden
+layers of $1000$ units and $10$ outputs, counting paths from one input to one output.
+\solutionlink{computational-graphs:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{computational-graphs:exr:4}
+Add an \texttt{exp} function to the differentiator of \cref{computational-graphs:sec:code}, and use
+it to compute the gradient of $\ell = \log(1 + e^{-w x})$ with respect to $w$ at $w = 0.5$, $x = 2$ (write $\log$
+as well). Compare with $-x\,\sigma(-wx)$.
+\solutionlink{computational-graphs:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{computational-graphs:exr:5}
+For $F:\R^n\to\R^m$ with $n = 10$ and $m = 1000$, which mode would you use to compute the full Jacobian, and
+how many passes does it take? And for the gradient of $\norm{F(x)}^2$?
+\solutionlink{computational-graphs:exr:5}
+\end{exercise}
+\end{notechapter}

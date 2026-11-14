@@ -1,0 +1,329 @@
+\begin{notechapter}
+\chapter{Feedforward Neural Networks}\label{ch:feedforward-networks}
+\chaptersubtitle{Composing affine maps and nonlinearities, and fitting them by gradient descent}
+
+\begin{chapterintro}
+A feedforward neural network is a composition of simple maps: an affine map, a fixed
+nonlinearity applied coordinate by coordinate, another affine map, and so on. This chapter
+sets up the model and the notation used in the whole part, and the training problem that the
+next chapters solve: computing gradients (\cref{ch:backpropagation,ch:computational-graphs}),
+following them (\cref{ch:optimizers}), and keeping the process stable
+(\cref{ch:activation-functions,ch:normalization,ch:dropout}). You will learn
+\begin{itemize}[nosep]
+  \item why stacking linear layers gains nothing, and why one nonlinearity changes everything,
+        with the example of XOR;
+  \item the multilayer perceptron, its parameters, and the column and row conventions;
+  \item what the universal approximation theorem says, and what it does not;
+  \item the training problem: empirical risk, gradient descent, stochastic and mini-batch
+        gradients, epochs.
+\end{itemize}
+\prerequisites{empirical risk minimization (\cref{ch:erm}); losses as negative
+log-likelihoods (\cref{ch:output-distributions}); the perceptron (\cref{ch:perceptron}).}
+\end{chapterintro}
+
+\section{From linear models to networks}\label{feedforward-networks:sec:linear}
+
+A linear model predicts with an affine function of the input, $f(x) = w^\top x + b$ for a scalar
+output, or $f(x) = Wx + b$ for a vector output. Composing such maps does not enlarge the model:
+\[
+  W_2(W_1x + b_1) + b_2 = (W_2W_1)x + (W_2b_1 + b_2)
+\]
+is again affine. A stack of linear layers is a linear model with a factorized matrix (and,
+if a middle layer is narrow, a matrix of lower rank: \cref{feedforward-networks:exr:5}).
+
+\paragraph{XOR.} The four points $(0,0)$ and $(1,1)$ with label $0$, $(0,1)$ and $(1,0)$ with
+label $1$, cannot be separated by a line. Suppose $w^\top x + b$ were positive on the second pair
+and negative on the first. Adding the two inequalities of each pair,
+\[
+  (w_1 + b) + (w_2 + b) > 0\qquad\text{and}\qquad b + (w_1 + w_2 + b) < 0,
+\]
+and the two left-hand sides are both equal to $w_1 + w_2 + 2b$: a contradiction. No linear
+classifier, and in particular no perceptron (\cref{ch:perceptron}), solves XOR.
+
+\paragraph{One nonlinearity is enough.} Insert a coordinatewise nonlinearity
+$\phi$ between two affine maps:
+\[
+  f(x) = w^\top\phi(Wx + c) + b .
+\]
+With $\phi = \mathrm{ReLU}$, $\mathrm{ReLU}(t) = \max(0, t)$, the choice (Goodfellow, Bengio and Courville,
+\emph{Deep Learning}, MIT Press, 2016, §6.1)
+\[
+  W = \begin{bmatrix}1&1\\1&1\end{bmatrix},\qquad c = \begin{bmatrix}0\\-1\end{bmatrix},\qquad
+  w = \begin{bmatrix}1\\-2\end{bmatrix},\qquad b = 0
+\]
+computes XOR exactly:
+
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+$x$ & $Wx + c$ & $h = \mathrm{ReLU}(Wx + c)$ & $f(x) = h_1 - 2h_2$ \\
+\midrule
+$(0,0)$ & $(0,-1)$ & $(0,0)$ & $0$ \\
+$(0,1)$ & $(1,0)$ & $(1,0)$ & $1$ \\
+$(1,0)$ & $(1,0)$ & $(1,0)$ & $1$ \\
+$(1,1)$ & $(2,1)$ & $(2,1)$ & $0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The hidden layer has moved the points: $(0,1)$ and $(1,0)$ land on the same point $(1,0)$, and
+the three points $(0,0)$, $(1,0)$, $(2,1)$ of the hidden space can be separated by a line
+(\cref{feedforward-networks:fig:xor}). The network has \emph{learned a representation} in
+which the problem is linear. In this example the representation was designed by hand;
+training finds such representations from data.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[name=left, width=5.6cm, height=5.6cm, xmin=-0.4, xmax=1.4, ymin=-0.4, ymax=1.4,
+  xlabel={$x_1$}, ylabel={$x_2$}, title={input space}, xtick={0,1}, ytick={0,1}, axis on top]
+  \addplot[only marks, mark=*, mark size=3pt, bookaccent] coordinates {(0,0) (1,1)};
+  \addplot[only marks, mark=square*, mark size=3pt, bookexample] coordinates {(0,1) (1,0)};
+\end{axis}
+\begin{axis}[at={(left.east)}, anchor=west, xshift=1.6cm, width=5.6cm, height=5.6cm,
+  xmin=-0.4, xmax=2.4, ymin=-0.4, ymax=1.4, xlabel={$h_1$}, ylabel={$h_2$},
+  title={hidden space}, xtick={0,1,2}, ytick={0,1}, axis on top]
+  \addplot[very thick, bookdef, dashed, domain=-0.4:2.4] {(x-0.5)/2};
+  \addplot[only marks, mark=*, mark size=3pt, bookaccent] coordinates {(0,0) (2,1)};
+  \addplot[only marks, mark=square*, mark size=3pt, bookexample] coordinates {(1,0)};
+  \node[font=\scriptsize, anchor=north] at (axis cs:1,-0.05) {$\times2$};
+  \node[font=\scriptsize, bookdef, anchor=west] at (axis cs:-0.3,1.2) {line $h_1 - 2h_2 = \frac12$};
+\end{axis}
+\end{tikzpicture}
+\caption{XOR before and after the hidden layer. Circles have label $0$, squares label $1$.
+The two squares are sent to the same hidden point $(1,0)$; in the hidden space the
+line $h_1 - 2h_2 = \frac12$ separates the classes.}
+\label{feedforward-networks:fig:xor}
+\end{figure}
+
+\section{The multilayer perceptron}\label{feedforward-networks:sec:mlp}
+
+\begin{definition}[Multilayer perceptron]\label{feedforward-networks:def:mlp}
+Let $n_0 = d$ be the input dimension, $n_1,\dots,n_L$ the layer widths, and $\phi$ a function
+$\R\to\R$ (the \emph{activation}), applied coordinatewise to vectors. A multilayer perceptron
+(MLP) with $L$ layers computes, from $a^{(0)} = x\in\R^d$,
+\[
+  z^{(l)} = W^{(l)}a^{(l-1)} + b^{(l)},\qquad a^{(l)} = \phi\bigl(z^{(l)}\bigr),\qquad l = 1,\dots,L,
+\]
+with $W^{(l)}\in\R^{n_l\times n_{l-1}}$ and $b^{(l)}\in\R^{n_l}$. The output is $\hat y = a^{(L)}$, where the last
+activation is usually replaced by the identity or by an output unit chosen with the loss
+(sigmoid, softmax: \cref{ch:sigmoid-softmax}). $z^{(l)}$ is the \emph{pre-activation} and $a^{(l)}$ the
+\emph{activation} of layer $l$; layers $1,\dots,L - 1$ are \emph{hidden}.
+\end{definition}
+
+The parameters are $\theta = (W^{(1)}, b^{(1)},\dots,W^{(L)}, b^{(L)})$, and their number is
+$\sum_{l=1}^L(n_{l-1} + 1)n_l$. A network $784\to128\to64\to10$ for $28\times28$ images has
+$100\,480 + 8\,256 + 650 = 109\,386$ parameters. The names \emph{fully connected network} and,
+when $L$ is large, \emph{deep network} are also used. Each coordinate $a^{(l)}_j = \phi(w_j^\top a^{(l-1)} + b_j)$,
+with $w_j^\top$ the $j$-th row of $W^{(l)}$, is a \emph{unit} or \emph{neuron}: a linear model followed by
+$\phi$. With $\phi = \sign$ it is the perceptron of \cref{ch:perceptron}, which gave the model its
+name.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=3.6cm, y=1.1cm, >=Stealth,
+  unit/.style={circle, draw, thick, minimum size=7mm, inner sep=0pt, fill=white},
+  uin/.style={unit, fill=gray!10}, uhid/.style={unit, fill=bookaccent!12}, uout/.style={unit, fill=bookexample!15}]
+  \node[uin] (x1) at (0,0.5) {$x_1$};
+  \node[uin] (x2) at (0,-0.5) {$x_2$};
+  \foreach \i/\y in {1/1,2/0,3/-1} \node[uhid] (h\i) at (1,\y) {$a^{(1)}_{\i}$};
+  \node[uout] (o) at (2,0) {$\hat y$};
+  \foreach \i in {1,2} \foreach \j in {1,2,3} \draw[->, gray] (x\i) -- (h\j);
+  \foreach \j in {1,2,3} \draw[->, gray] (h\j) -- (o);
+  \draw[->, thick, bookaccent] (x2) -- (h1) node[pos=0.3, above left, font=\scriptsize, bookaccent] {$W^{(1)}_{12}$};
+  \node[font=\small] at (0,-1.8) {input $x$};
+  \node[font=\small] at (1,-1.8) {hidden layer $a^{(1)}$};
+  \node[font=\small] at (2,-1.8) {output $\hat y$};
+\end{tikzpicture}
+\caption{An MLP $2\to3\to1$, computing $a^{(1)} = \phi(W^{(1)}x + b^{(1)})$ and $\hat y = \sigma(W^{(2)}a^{(1)} + b^{(2)})$: the network of
+the worked example of \cref{ch:backpropagation}.
+The weight $W^{(1)}_{jk}$ connects input $k$ to hidden unit $j$: row $j$ of $W^{(1)}$ holds the
+incoming weights of unit $j$.}
+\label{feedforward-networks:fig:mlp}
+\end{figure}
+
+\begin{remark}[Column and row conventions]\label{feedforward-networks:rem:rows}
+This part writes vectors as columns and a layer as $z = Wa + b$, so that $W_{jk}$ is the weight
+from unit $k$ to unit $j$. Software processes a mini-batch of $B$ examples stored as the rows of
+a matrix $A\in\R^{B\times n_{l-1}}$ and computes $Z = AW^\top + \mathbf 1b^\top$, whose row $i$ is $(Wa_i + b)^\top$.
+PyTorch's \texttt{nn.Linear(n\_in, n\_out)} stores \texttt{weight} with shape
+$(n_{\mathrm{out}}, n_{\mathrm{in}})$, the same $W$ as here, and computes
+\texttt{x @ weight.T + bias}. The two conventions describe the same map;
+\cref{backpropagation:sec:batch} gives the gradients in the row form.
+\end{remark}
+
+\section{What networks can represent}\label{feedforward-networks:sec:uat}
+
+\begin{theorem}[Universal approximation]\label{feedforward-networks:thm:uat}
+Let $\phi:\R\to\R$ be continuous. The functions $x\mapsto\sum_{j=1}^Nv_j\phi(w_j^\top x + c_j)$, for all $N$ and
+all $v_j, c_j\in\R$, $w_j\in\R^d$, are dense in $C(K)$ for the uniform norm, for every compact $K\subset\R^d$, if and
+only if $\phi$ is not a polynomial.
+\end{theorem}
+
+This form is due to Leshno, Lin, Pinkus and Schocken (\emph{Multilayer Feedforward Networks
+with a Nonpolynomial Activation Function Can Approximate Any Function}, Neural Networks,
+1993); earlier versions are Cybenko (\emph{Approximation by Superpositions of a Sigmoidal
+Function}, Mathematics of Control, Signals and Systems, 1989) for sigmoidal $\phi$ and Hornik
+(\emph{Approximation Capabilities of Multilayer Feedforward Networks}, Neural Networks,
+1991). The ``only if'' is easy: if $\phi$ is a polynomial of degree $k$, every such sum is a
+polynomial of degree at most $k$, a closed proper subspace of $C(K)$.
+
+\begin{pitfall}[What the theorem does not say]
+It is an existence result for one hidden layer. It gives no bound on the width $N$ needed
+(which can grow exponentially with $d$ for some functions), no algorithm to find the
+weights, and no statement about generalization from finitely many examples. Its value is
+negative: the choice of a (non-polynomial) activation does not limit what can be
+represented, so the questions worth asking are about efficiency, optimization and
+generalization.
+\end{pitfall}
+
+\paragraph{Depth.} Depth can be exponentially more efficient than width. The tent map
+\[
+  t(x) = 2\,\mathrm{ReLU}(x) - 4\,\mathrm{ReLU}\bigl(x - \tfrac12\bigr)
+\]
+maps $[0,1]$ onto itself, rising then falling. Composing
+it $k$ times gives a sawtooth with $2^{k-1}$ teeth, that is $2^k$ linear pieces
+(\cref{feedforward-networks:exr:3}), with a network of depth $k$ and width $2$. A network
+with one hidden layer of $N$ ReLU units is piecewise linear in one variable with at most
+$N + 1$ pieces, so it needs $N\geq2^k - 1$ units for the same function. Telgarsky
+(\emph{Benefits of Depth in Neural Networks}, COLT, 2016) turned this into a
+separation theorem.
+
+\begin{remark}
+Kolmogorov's superposition theorem (1957) states that every continuous function on $[0,1]^d$ can
+be written exactly with sums and continuous functions of one variable, with a fixed number
+$2d + 1$ of outer terms. It is sometimes quoted as an early ``representation theorem'' for
+networks, but its inner functions are highly irregular and are not of the form
+$\phi(w^\top x + c)$ with a fixed $\phi$.
+\end{remark}
+
+\section{Training}\label{feedforward-networks:sec:training}
+
+\paragraph{The objective.} With a loss $\ell(\hat y, y)$ and training data $(x_1,y_1),\dots,(x_n,y_n)$, training
+minimizes the empirical risk (\cref{ch:erm})
+\[
+  \ERisk(\theta) = \frac1n\sum_{i=1}^n\ell\bigl(f_\theta(x_i), y_i\bigr),
+\]
+a surrogate for the population risk $\Risk(\theta) = \E[\ell(f_\theta(X), Y)]$. The loss is chosen as the
+negative log-likelihood of an output distribution (\cref{ch:output-distributions}): the
+squared error $\frac12\norm{\hat y - y}^2$ for a Gaussian output, the cross-entropy $-\sum_ky_k\log\hat y_k$ with a
+softmax output for classification (\cref{ch:sigmoid-softmax}). Because of the
+nonlinearities, $\ERisk$ is not convex in $\theta$; it is minimized by gradient methods, which only
+need $\nabla\ERisk(\theta)$, computed by backpropagation (\cref{ch:backpropagation}).
+
+\paragraph{Gradient descent.} Full-batch gradient descent iterates
+\[
+  \theta_{t+1} = \theta_t - \eta\,\nabla\ERisk(\theta_t),
+\]
+with a \emph{learning rate} $\eta>0$. Each step costs a pass over the $n$ examples.
+
+\paragraph{Stochastic and mini-batch gradients.} Since $\nabla\ERisk = \frac1n\sum_i\nabla\ell_i$ is an average, it can be
+estimated from a sample. Draw a \emph{mini-batch} $\mathcal B$ of $B$ indices uniformly and use
+\[
+  g_{\mathcal B}(\theta) = \frac1B\sum_{i\in\mathcal B}\nabla_\theta\ell\bigl(f_\theta(x_i), y_i\bigr),\qquad
+  \theta_{t+1} = \theta_t - \eta\,g_{\mathcal B_t}(\theta_t) .
+\]
+$B = 1$ is \emph{stochastic gradient descent} (SGD) in the strict sense, $B = n$ is gradient
+descent, and the intermediate case, mini-batch SGD, is what is used in practice and is
+also simply called SGD.
+
+\begin{proposition}[Mini-batch gradients are unbiased]\label{feedforward-networks:prop:minibatch}
+If the $B$ indices are drawn independently and uniformly from $\{1,\dots,n\}$, then
+$\E[g_{\mathcal B}] = \nabla\ERisk$ and $\operatorname{Cov}(g_{\mathcal B}) = \frac1B\Sigma$, where
+$\Sigma = \frac1n\sum_i(\nabla\ell_i - \nabla\ERisk)(\nabla\ell_i - \nabla\ERisk)^\top$ is the covariance of the per-example gradients.
+Without replacement, the covariance is multiplied by $\frac{n - B}{n - 1}$.
+\end{proposition}
+
+\begin{proof}
+Each term $\nabla\ell_{I}$ with $I$ uniform has mean $\frac1n\sum_i\nabla\ell_i = \nabla\ERisk$ and covariance $\Sigma$; the average of $B$
+independent copies has the same mean and covariance $\Sigma/B$. The finite-population factor for
+sampling without replacement is the classical one of survey sampling
+(\cref{feedforward-networks:exr:4}).
+\end{proof}
+
+The noise of the estimate decreases like $1/\sqrt B$ while the cost of a step grows like $B$:
+small batches give many cheap, noisy steps. The noise is not only a nuisance; it is thought
+to help escape poor regions of the loss surface, and it interacts with the learning rate
+(the ratio $\eta/B$ matters in many analyses).
+
+\paragraph{Epochs, validation, schedules.} One \emph{epoch} is a pass over the training set,
+usually by shuffling the indices once and cutting them into consecutive batches (sampling
+without replacement). The learning rate, the batch size and the number of epochs are
+hyperparameters chosen on a validation set (\cref{ch:measuring-performance}); the learning
+rate is often varied during training by a \emph{schedule} (\cref{optimizers:sec:schedules}).
+
+\paragraph{In code.} In PyTorch the gradient is computed by automatic differentiation
+(\cref{ch:computational-graphs}) and the update by an optimizer object:
+\begin{lstlisting}[language=Python]
+import torch
+from torch import nn
+
+model = nn.Sequential(nn.Linear(784, 128), nn.ReLU(),
+                      nn.Linear(128, 64), nn.ReLU(),
+                      nn.Linear(64, 10))          # logits; softmax is in the loss
+loss_fn = nn.CrossEntropyLoss()
+opt = torch.optim.SGD(model.parameters(), lr=0.1)
+
+for epoch in range(10):
+    model.train()
+    for xb, yb in train_loader:                   # shuffled mini-batches
+        opt.zero_grad()                           # gradients accumulate otherwise
+        loss = loss_fn(model(xb.flatten(1)), yb)  # forward pass
+        loss.backward()                           # backpropagation
+        opt.step()                                # theta <- theta - lr * g
+\end{lstlisting}
+\texttt{train\_loader} is a \texttt{DataLoader} over the training set with
+\texttt{shuffle=True}. \texttt{model.train()} matters for layers that behave differently at
+training and test time, dropout and batch normalization (\cref{ch:dropout,ch:normalization});
+\texttt{model.eval()} switches them to inference mode.
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Compositions of affine maps are affine; XOR is not linearly separable. One hidden layer
+        with a nonlinearity solves it, by mapping the inputs to a representation where the
+        classes are separable.
+  \item An MLP alternates $z^{(l)} = W^{(l)}a^{(l-1)} + b^{(l)}$ and $a^{(l)} = \phi(z^{(l)})$; it has $\sum_l(n_{l-1} + 1)n_l$ parameters.
+        Software uses rows: $Z = AW^\top + \mathbf 1b^\top$.
+  \item One hidden layer with a continuous non-polynomial activation can approximate any
+        continuous function on a compact set, with no bound on the width; depth can be
+        exponentially more economical.
+  \item Training minimizes the empirical risk by (mini-batch) stochastic gradient descent; mini-batch
+        gradients are unbiased with covariance $\Sigma/B$.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{feedforward-networks:exr:1}
+Count the parameters of an MLP $3\to5\to5\to2$. How many does a linear model $3\to2$ have,
+and which linear models can the MLP represent if $\phi$ is the identity?
+\solutionlink{feedforward-networks:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{feedforward-networks:exr:2}
+Find a network $w^\top\mathrm{ReLU}(Wx + c) + b$ with two hidden units that computes the ``equivalence''
+function, $1$ on $(0,0)$ and $(1,1)$ and $0$ on $(0,1)$ and $(1,0)$.
+\solutionlink{feedforward-networks:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{feedforward-networks:exr:3}
+Let $t(x) = 2\,\mathrm{ReLU}(x) - 4\,\mathrm{ReLU}(x - \frac12)$. Show that $t(x) = 2x$ on $[0,\frac12]$ and $t(x) = 2 - 2x$ on $[\frac12,1]$, and
+that $t^{\circ k} = t\circ\dots\circ t$ ($k$ times) is piecewise linear on $[0,1]$ with $2^k$ pieces.
+\solutionlink{feedforward-networks:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{feedforward-networks:exr:4}
+Let $u_1,\dots,u_n\in\R$ with mean $\bar u$ and $s^2 = \frac1n\sum_i(u_i - \bar u)^2$. Show that the mean of a sample of $B$
+values drawn without replacement has variance $\frac{s^2}B\frac{n - B}{n - 1}$. What happens for $B = n$?
+\solutionlink{feedforward-networks:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{feedforward-networks:exr:5}
+An MLP $d\to k\to m$ with identity activation computes $x\mapsto W_2W_1x + c$. Show that the set of
+matrices $W_2W_1$ is exactly the set of $m\times d$ matrices of rank at most $\min(k, d, m)$. Which known
+method does least-squares training of this network with $k<\min(d,m)$ and $m = d$, $y = x$
+correspond to?
+\solutionlink{feedforward-networks:exr:5}
+\end{exercise}
+\end{notechapter}

@@ -1,0 +1,361 @@
+\begin{notechapter}
+\chapter{Optimization Algorithms for Training}\label{ch:optimizers}
+\chaptersubtitle{Gradient descent, momentum, adaptive methods and learning-rate schedules}
+
+\begin{chapterintro}
+Backpropagation gives the gradient; an optimizer decides what to do with it. Plain gradient
+descent is slow when the curvature of the loss differs a lot between directions, and noisy
+when the gradient is estimated from mini-batches. Momentum accelerates it, adaptive methods
+rescale each coordinate, and schedules vary the step size over time. This chapter analyses
+them on the quadratic model, where everything can be computed, and compares them on one
+example. You will learn
+\begin{itemize}[nosep]
+  \item how the condition number limits gradient descent, and what the Hessian says (and
+        does not say) about a critical point;
+  \item heavy-ball and Nesterov momentum, and why momentum improves the rate from
+        $\frac{\kappa - 1}{\kappa + 1}$ to $\frac{\sqrt\kappa - 1}{\sqrt\kappa + 1}$;
+  \item AdaGrad, RMSProp and Adam, the bias correction of Adam, and AdamW;
+  \item learning-rate schedules: step, exponential, cosine, warm-up, one-cycle;
+  \item quasi-Newton methods (BFGS, L-BFGS) and when they are used.
+\end{itemize}
+\prerequisites{\cref{ch:feedforward-networks}; eigenvalues of symmetric matrices; the
+geometry of the gradient and the zig-zag example (\cref{ch:gradient-tangent-space}).}
+\end{chapterintro}
+
+\section{Gradient descent and curvature}\label{optimizers:sec:gd}
+
+\paragraph{The Hessian.} Near a point $\theta$, a twice differentiable loss is approximated by its
+second-order Taylor expansion
+\[
+  \ell(\theta + v) = \ell(\theta) + \nabla\ell(\theta)^\top v + \tfrac12v^\top H(\theta)\,v + o(\norm v^2),\qquad H_{jk} = \frac{\partial^2\ell}{\partial\theta_j\partial\theta_k} .
+\]
+$H$ is symmetric; its eigenvalues are the curvatures along its eigenvectors. At a
+\emph{critical point} ($\nabla\ell(\theta) = 0$): if $H$ is positive definite, $\theta$ is a strict local minimum; if
+negative definite, a strict local maximum; if $H$ has eigenvalues of both signs, a saddle
+point; if $H$ is only semidefinite, the second order does not decide. Away from a critical
+point the Hessian says nothing of this kind: the gradient term dominates. In large
+networks, critical points with many negative eigenvalues (saddles) are far more common than
+local maxima, and the Hessian at the end of training typically has a few large
+eigenvalues and a bulk near zero.
+
+\paragraph{The quadratic model.} Take $\ell(\theta) = \frac12(\theta - \theta^*)^\top H(\theta - \theta^*)$ with $H$ symmetric, eigenvalues
+$0<\mu = \lambda_{\min}\leq\dots\leq\lambda_{\max} = L$, and \emph{condition number} $\kappa = L/\mu$. Gradient descent
+$\theta_{k+1} = \theta_k - \eta H(\theta_k - \theta^*)$ gives, for the error $e_k = \theta_k - \theta^*$,
+\[
+  e_{k+1} = (I - \eta H)\,e_k,\qquad e_k = (I - \eta H)^ke_0 .
+\]
+In the eigenbasis of $H$, each coordinate is multiplied by $1 - \eta\lambda_i$ at every step.
+
+\begin{theorem}[Gradient descent on a quadratic]\label{optimizers:thm:gd}
+Gradient descent converges for every $e_0$ if and only if $0<\eta<2/L$, and
+$\norm{e_k}\leq\rho(\eta)^k\norm{e_0}$ with $\rho(\eta) = \max_i\abs{1 - \eta\lambda_i}$. The rate is best for $\eta = 2/(L + \mu)$, where
+\[
+  \rho = \frac{L - \mu}{L + \mu} = \frac{\kappa - 1}{\kappa + 1} .
+\]
+\end{theorem}
+
+\begin{proof}
+$I - \eta H$ is symmetric with eigenvalues $1 - \eta\lambda_i$, so its norm is $\rho(\eta)$, and $e_k\to0$ for all $e_0$ iff
+all $\abs{1 - \eta\lambda_i}<1$, i.e.\ $0<\eta\lambda_i<2$ for all $i$. The function $\eta\mapsto\max(\abs{1 - \eta\mu},\abs{1 - \eta L})$ is minimal where the two
+terms are equal with opposite signs, $1 - \eta\mu = \eta L - 1$, i.e.\ $\eta = 2/(L + \mu)$, where it equals $(L - \mu)/(L + \mu)$.
+\end{proof}
+
+The step size is limited by the \emph{largest} curvature (beyond $2/L$ the steep direction
+diverges), and the speed by the \emph{smallest}: along the flat direction the error is
+multiplied by $1 - \eta\mu\approx1 - 2/\kappa$ per step, so about $\kappa/2$ steps divide it by $e$. When $\kappa$ is large the
+iterates oscillate across the steep direction while crawling along the flat one: the
+zig-zag of \cref{gradient-tangent-space:sec:zigzag}. Newton's method replaces $\eta$ by $H^{-1}$ and
+converges in one step on a quadratic; it is gradient descent for the metric defined by $H$
+(\cref{gradient-tangent-space:sec:metric}).
+
+\begin{example}[A running example]\label{optimizers:ex:quadratic}
+$\ell(\theta) = \frac12(\theta_1^2 + 25\theta_2^2)$, so $\mu = 1$, $L = 25$, $\kappa = 25$, from $\theta_0 = (10, 1)$, stopping when the loss is below $10^{-6}$
+times its initial value $62.5$. With $\eta = 1/L$, $\theta_2$ is zeroed in one step, but $\theta_1$ shrinks by $0.96$ per
+step: $167$ steps. With the optimal $\eta = 2/26$, the rate is $\frac{24}{26} = 0.923$ and $87$ steps are needed; the
+second coordinate changes sign at every step (\cref{optimizers:fig:paths}).
+\end{example}
+
+\paragraph{Stochastic gradients.} With a mini-batch gradient $g = \nabla\ell + \xi$, where $\xi$ has mean $0$ and
+covariance $\Sigma/B$ (\cref{feedforward-networks:prop:minibatch}), the iterates do not converge to $\theta^*$ with a
+constant step: they fluctuate in a region whose size grows with $\eta$ and with the noise. Robbins
+and Monro (\emph{A Stochastic Approximation Method}, Annals of Mathematical Statistics,
+1951) showed that steps with $\sum_k\eta_k = \infty$ and $\sum_k\eta_k^2<\infty$, such as $\eta_k\propto1/k$, give convergence under suitable
+assumptions; in practice, schedules decrease $\eta$ in stages (\cref{optimizers:sec:schedules}).
+
+\section{Momentum}\label{optimizers:sec:momentum}
+
+\paragraph{Heavy ball.} Polyak's method (\emph{Some Methods of Speeding up the Convergence of
+Iteration Methods}, USSR Computational Mathematics and Mathematical Physics, 1964) adds a
+fraction of the previous displacement:
+\[
+  \theta_{k+1} = \theta_k - \eta\nabla\ell(\theta_k) + \beta(\theta_k - \theta_{k-1}),\qquad0\leq\beta<1 .
+\]
+With a velocity $v$, two equivalent forms are common:
+\begin{align*}
+  &\text{(PyTorch)} & v_{k+1} &= \beta v_k + \nabla\ell(\theta_k), & \theta_{k+1} &= \theta_k - \eta v_{k+1};\\
+  &\text{(classical)} & v_{k+1} &= \beta v_k - \eta\nabla\ell(\theta_k), & \theta_{k+1} &= \theta_k + v_{k+1} .
+\end{align*}
+They give the same iterates for a constant $\eta$, and differ when $\eta$ changes over time. The
+velocity is an exponentially weighted sum of past gradients, $v_{k+1} = \sum_{i\leq k}\beta^{k-i}\nabla\ell(\theta_i)$: components
+that keep their sign (the flat direction) accumulate up to a factor $1/(1 - \beta)$, while components
+that alternate (the oscillation across a valley) cancel.
+
+\begin{theorem}[Heavy ball on a quadratic]\label{optimizers:thm:hb}
+On the quadratic model, with
+\[
+  \eta = \frac4{(\sqrt L + \sqrt\mu)^2},\qquad\beta = \Bigl(\frac{\sqrt\kappa - 1}{\sqrt\kappa + 1}\Bigr)^2,
+\]
+the error of the heavy-ball method decreases like $k\,r^k$ with $r = \sqrt\beta = \dfrac{\sqrt\kappa - 1}{\sqrt\kappa + 1}$.
+\end{theorem}
+
+\begin{proof}
+In the eigenbasis, each coordinate follows $x_{k+1} = (1 + \beta - \eta\lambda)x_k - \beta x_{k-1}$, a linear recurrence with
+characteristic polynomial $r^2 - (1 + \beta - \eta\lambda)r + \beta$. The product of its roots is $\beta$. If the discriminant is
+$\leq0$, the roots are complex conjugate (or double), both of modulus $\sqrt\beta$, and $\abs{x_k}$ is at most a
+constant times $k\beta^{k/2}$. The discriminant $(1 + \beta - \eta\lambda)^2 - 4\beta$ is $\leq0$ iff $(1 - \sqrt\beta)^2\leq\eta\lambda\leq(1 + \sqrt\beta)^2$. Requiring
+this for all $\lambda\in[\mu,L]$ with the smallest $\beta$ gives $\eta\mu = (1 - \sqrt\beta)^2$ and $\eta L = (1 + \sqrt\beta)^2$. Dividing,
+$\sqrt\kappa = (1 + \sqrt\beta)/(1 - \sqrt\beta)$, so $\sqrt\beta = (\sqrt\kappa - 1)/(\sqrt\kappa + 1)$; adding the square roots, $\sqrt\eta(\sqrt L + \sqrt\mu) = 2$.
+\end{proof}
+
+The number of steps to divide the error by $e$ goes from about $\kappa/2$ to about $\sqrt\kappa/2$: for $\kappa = 10^4$,
+from $5000$ to $50$. In \cref{optimizers:ex:quadratic}, $r = \frac46 = 0.667$, and $25$ steps suffice
+(the factor $k$ in $kr^k$ explains why it is more than the $17$ that $r^k$ alone would suggest). The
+guarantee is specific to quadratics: on general smooth strongly convex functions the
+heavy-ball method with these parameters can fail to converge (Lessard, Recht and Packard,
+\emph{Analysis and Design of Optimization Algorithms via Integral Quadratic Constraints},
+SIAM Journal on Optimization, 2016).
+
+\paragraph{Nesterov momentum.} Nesterov (1983) evaluates the gradient at the point the
+momentum is about to reach:
+\[
+  v_{k+1} = \beta v_k + \nabla\ell(\theta_k - \eta\beta v_k),\qquad\theta_{k+1} = \theta_k - \eta v_{k+1} .
+\]
+With $\eta = 1/L$ and $\beta = (\sqrt\kappa - 1)/(\sqrt\kappa + 1)$, the loss gap decreases like $(1 - 1/\sqrt\kappa)^k$ for every $L$-smooth,
+$\mu$-strongly convex function, not only quadratics (Nesterov, \emph{Introductory Lectures on
+Convex Optimization}, 2004, §2.2). On the running example it needs $41$ steps. In deep
+learning both forms are used with $\beta\approx0.9$; their benefit there, with noisy gradients and a
+non-convex loss, is empirical (Sutskever, Martens, Dahl and Hinton, \emph{On the Importance of
+Initialization and Momentum in Deep Learning}, ICML, 2013). PyTorch implements
+\texttt{SGD(..., momentum=0.9, nesterov=True)} in an equivalent form that evaluates
+gradients at the current iterate.
+
+\section{Adaptive learning rates}\label{optimizers:sec:adaptive}
+
+Adaptive methods give each coordinate its own step size, based on the magnitudes of its
+past gradients. Below, operations on vectors are coordinatewise, $g_k = \nabla\ell(\theta_k)$ (or its
+mini-batch estimate), and $\epsilon\approx10^{-8}$ prevents division by zero.
+
+\paragraph{AdaGrad} (Duchi, Hazan and Singer, JMLR, 2011) divides by the root of the
+accumulated squares:
+\[
+  G_k = G_{k-1} + g_k^2,\qquad\theta_{k+1} = \theta_k - \frac\eta{\sqrt{G_k} + \epsilon}\,g_k .
+\]
+Coordinates with rare or small gradients get large steps, which suits sparse features. But
+$G_k$ only grows, so the steps eventually become too small for non-convex training.
+
+\paragraph{RMSProp} (Tieleman and Hinton, lecture 6.5 of the Coursera course \emph{Neural
+Networks for Machine Learning}, 2012) replaces the sum by an exponential moving average,
+$G_k = \gamma G_{k-1} + (1 - \gamma)g_k^2$ with $\gamma\approx0.9$, so the scale adapts to recent gradients only.
+
+\paragraph{Adam} (Kingma and Ba, \emph{Adam: A Method for Stochastic Optimization}, ICLR,
+2015) combines a moving average of gradients (momentum) with RMSProp's scaling:
+\begin{align*}
+  m_k &= \beta_1m_{k-1} + (1 - \beta_1)g_k, & v_k &= \beta_2v_{k-1} + (1 - \beta_2)g_k^2, & m_0 = v_0 = 0,\\
+  \hat m_k &= \frac{m_k}{1 - \beta_1^k}, & \hat v_k &= \frac{v_k}{1 - \beta_2^k}, & \theta_{k+1} = \theta_k - \eta\frac{\hat m_k}{\sqrt{\hat v_k} + \epsilon},
+\end{align*}
+with defaults $\beta_1 = 0.9$, $\beta_2 = 0.999$, $\eta = 10^{-3}$.
+
+\begin{proposition}[Bias correction]\label{optimizers:prop:bias}
+If the $g_k$ have a common mean $\bar g$, then $\E[m_k] = (1 - \beta_1^k)\bar g$, so $\E[\hat m_k] = \bar g$; the same holds for $v_k$
+and the second moment.
+\end{proposition}
+
+\begin{proof}
+Unrolling, $m_k = (1 - \beta_1)\sum_{i=1}^k\beta_1^{k-i}g_i$, and $(1 - \beta_1)\sum_{i=1}^k\beta_1^{k-i} = 1 - \beta_1^k$.
+\end{proof}
+
+Without the correction, the averages started at $0$ are biased towards $0$ during the first
+$1/(1 - \beta)$ steps, which for $\beta_2 = 0.999$ is a thousand steps.
+
+\paragraph{What Adam does.} At the first step $\hat m_1 = g_1$ and $\hat v_1 = g_1^2$, so the update is $-\eta g_1/(\abs{g_1} + \epsilon)\approx-\eta\sign(g_1)$:
+every coordinate moves by $\eta$, whatever the size of its gradient. Later, the ratio $\hat m/\sqrt{\hat v}$ is
+close to $\pm1$ when a coordinate's gradient is consistent and small when it fluctuates. The
+update is invariant to multiplying the gradient by a fixed positive diagonal matrix, so
+badly scaled coordinates are not a problem in themselves. On the running example with
+$\eta = 0.3$, Adam moves $\theta_1$ by about $0.3$ per step at first, regardless of curvature, and needs $122$
+steps; its step size, not the curvature, sets its speed (\cref{optimizers:fig:paths}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=14cm, height=6cm, xmin=-1.5, xmax=10.8, ymin=-2.1, ymax=2.1,
+  xlabel={$\theta_1$}, ylabel={$\theta_2$}, axis on top,
+  legend style={font=\small, draw=none, at={(0.5,1.03)}, anchor=south},
+  legend cell align=left, legend columns=3]
+  \foreach \c in {0.5,2,8,25,62.5}{
+    \addplot[gray!40, domain=0:360, samples=90, forget plot]
+      ({sqrt(2*\c)*cos(x)}, {sqrt(2*\c/25)*sin(x)});
+  }
+  \addplot[bookaccent, thick, mark=*, mark size=1pt] coordinates {(10.000,1.000) (9.231,-0.923) (8.521,0.852) (7.865,-0.787) (7.260,0.726) (6.702,-0.670) (6.186,0.619) (5.710,-0.571) (5.271,0.527) (4.866,-0.487) (4.491,0.449) (4.146,-0.415) (3.827,0.383) (3.533,-0.353) (3.261,0.326) (3.010,-0.301) (2.778,0.278) (2.565,-0.256) (2.367,0.237) (2.185,-0.219) (2.017,0.202) (1.862,-0.186) (1.719,0.172) (1.587,-0.159) (1.465,0.146) (1.352,-0.135)};
+  \addlegendentry{gradient descent}
+  \addplot[bookpitfall, thick, mark=square*, mark size=1pt] coordinates {(10.000,1.000) (8.889,-1.778) (7.407,1.926) (5.926,-1.778) (4.609,1.514) (3.512,-1.229) (2.634,0.966) (1.951,-0.741) (1.431,0.559) (1.040,-0.416) (0.751,0.306) (0.540,-0.224) (0.385,0.162) (0.274,-0.116) (0.194,0.083) (0.137,-0.059) (0.096,0.042) (0.068,-0.030) (0.047,0.021) (0.033,-0.015) (0.023,0.010) (0.016,-0.007) (0.011,0.005) (0.008,-0.004) (0.005,0.002) (0.004,-0.002)};
+  \addlegendentry{heavy ball}
+  \addplot[bookdef, thick, mark=triangle*, mark size=1.2pt] coordinates {(10.000,1.000) (9.700,0.700) (9.400,0.407) (9.101,0.132) (8.802,-0.110) (8.505,-0.300) (8.208,-0.424) (7.913,-0.481) (7.619,-0.481) (7.327,-0.434) (7.037,-0.355) (6.750,-0.255) (6.465,-0.144) (6.182,-0.032) (5.903,0.073) (5.627,0.161) (5.355,0.226) (5.087,0.265) (4.823,0.277) (4.563,0.263) (4.309,0.228) (4.059,0.177) (3.814,0.115) (3.575,0.049) (3.342,-0.016) (3.114,-0.074)};
+  \addlegendentry{Adam}
+\end{axis}
+\end{tikzpicture}
+\caption{The first $25$ steps on $\ell = \frac12(\theta_1^2 + 25\theta_2^2)$ from $(10,1)$, with level sets of $\ell$. Gradient
+descent ($\eta = 2/26$) zig-zags across the narrow direction and advances slowly; the heavy ball
+($\eta = 4/36$, $\beta = 4/9$) overshoots but covers the flat direction fast; Adam ($\eta = 0.3$) moves at a nearly
+constant speed of about $\eta$ per coordinate.}
+\label{optimizers:fig:paths}
+\end{figure}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+method & parameters & steps to $10^{-6}$ \\
+\midrule
+gradient descent & $\eta = 1/L$ & $167$ \\
+gradient descent & $\eta = 2/(L + \mu)$ & $87$ \\
+heavy ball & \cref{optimizers:thm:hb} & $25$ \\
+Nesterov & $\eta = 1/L$, $\beta = (\sqrt\kappa - 1)/(\sqrt\kappa + 1)$ & $41$ \\
+Adam & $\eta = 0.1$, $0.3$, $1$ & $266$, $122$, $111$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+On this deterministic, well-understood problem, tuned momentum wins. Adam's strength is
+elsewhere: robustness to badly scaled parameters and to the choice of $\eta$ on large noisy
+problems, which is why it is the default for transformers.
+
+\paragraph{Caveats and AdamW.} Adam can fail to converge even on simple convex problems,
+because $\hat v$ can decrease and enlarge steps (Reddi, Kale and Kumar, \emph{On the Convergence of
+Adam and Beyond}, ICLR, 2018, who propose AMSGrad with a non-decreasing $v$). Adding an $L^2$
+penalty $\frac\lambda2\norm\theta^2$ to the loss puts $\lambda\theta$ inside the gradient, where it is divided by $\sqrt{\hat v}$: coordinates with
+large gradients are barely regularized. AdamW (Loshchilov and Hutter, \emph{Decoupled Weight
+Decay Regularization}, ICLR, 2019) applies the decay outside the adaptive step,
+\[
+  \theta_{k+1} = \theta_k - \eta\Bigl(\frac{\hat m_k}{\sqrt{\hat v_k} + \epsilon} + \lambda\theta_k\Bigr),
+\]
+and generalizes better in practice. For plain SGD the two forms coincide. Weight decay
+shrinks towards the origin of parameter space, a choice discussed in
+\cref{gradient-tangent-space:ex:decay}.
+
+\section{Learning-rate schedules}\label{optimizers:sec:schedules}
+
+A schedule $\eta_t$, with $t$ the step or the epoch, combines a large rate early (fast progress,
+and noise that explores) with a small rate late (to settle below the noise floor). Common
+choices, with initial rate $\eta_0$ and $T$ total steps:
+\begin{itemize}[nosep]
+  \item \textbf{step decay} $\eta_t = \eta_0\gamma^{\lfloor t/s\rfloor}$, e.g.\ divide by $10$ every $s$ epochs;
+  \item \textbf{exponential decay} $\eta_t = \eta_0\gamma^t$;
+  \item \textbf{cosine} $\eta_t = \eta_{\min} + \frac12(\eta_0 - \eta_{\min})\bigl(1 + \cos(\pi t/T)\bigr)$, from $\eta_0$ to $\eta_{\min}$ (Loshchilov and Hutter,
+        \emph{SGDR: Stochastic Gradient Descent with Warm Restarts}, ICLR, 2017, who also restart
+        it periodically);
+  \item \textbf{linear warm-up} $\eta_t = \eta_0t/T_w$ for $t\leq T_w$, then another schedule: large rates are unstable in the
+        first steps, when the weights and Adam's statistics are far from typical values (Goyal
+        et al., \emph{Accurate, Large Minibatch SGD: Training ImageNet in 1 Hour}, 2017);
+  \item \textbf{one-cycle}: increase from a small rate to a large one, then decrease below the
+        start, over a single cycle (Smith and Topin, \emph{Super-Convergence}, 2019).
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=10cm, height=5cm, xmin=0, xmax=100, ymin=0, ymax=1.1, xlabel={step $t$ (\% of training)},
+  ylabel={$\eta_t/\eta_0$}, legend style={font=\small, draw=none, at={(1.02,0.5)}, anchor=west}, legend cell align=left]
+  \addplot[very thick, bookaccent, const plot] coordinates {(0,1) (30,0.1) (60,0.01) (90,0.001) (100,0.001)};
+  \addlegendentry{step ($\gamma = 0.1$, $s = 30$)}
+  \addplot[very thick, bookexample, dashed, domain=0:100, samples=101] {0.5*(1+cos(180*x/100))};
+  \addlegendentry{cosine}
+  \addplot[very thick, bookdef, domain=0:100, samples=201] {x<10 ? x/10 : 0.5*(1+cos(180*(x-10)/90))};
+  \addlegendentry{warm-up + cosine}
+\end{axis}
+\end{tikzpicture}
+\caption{Three schedules over a training run.}
+\label{optimizers:fig:schedules}
+\end{figure}
+
+In PyTorch a scheduler wraps the optimizer and is stepped after each epoch or batch:
+\begin{lstlisting}[language=Python]
+opt = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=0.01)
+sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=num_steps)
+for xb, yb in batches:          # num_steps iterations
+    opt.zero_grad()
+    loss_fn(model(xb), yb).backward()
+    opt.step()
+    sched.step()                # update the learning rate
+\end{lstlisting}
+
+\section{Second-order and quasi-Newton methods}\label{optimizers:sec:quasi-newton}
+
+Newton's step $\theta - H^{-1}\nabla\ell$ needs the Hessian, which has $p^2$ entries for $p$ parameters: impossible
+to store for a network, and not positive definite away from a minimum. \emph{Quasi-Newton}
+methods build an approximation $B_k\approx H$ from gradients alone. With $s_k = \theta_{k+1} - \theta_k$ and
+$y_k = \nabla\ell(\theta_{k+1}) - \nabla\ell(\theta_k)$, they impose the \emph{secant equation} $B_{k+1}s_k = y_k$, which a quadratic's Hessian
+satisfies exactly. The BFGS update (Broyden, Fletcher, Goldfarb and Shanno, 1970) is
+\[
+  B_{k+1} = B_k + \frac{y_ky_k^\top}{y_k^\top s_k} - \frac{B_ks_ks_k^\top B_k}{s_k^\top B_ks_k},
+\]
+and the step is $-\alpha_kB_k^{-1}\nabla\ell(\theta_k)$ with a line search. $B_{k+1}$ stays positive definite as long as the
+\emph{curvature condition} $y_k^\top s_k>0$ holds, which a line search satisfying the Wolfe conditions
+guarantees (Nocedal and Wright, \emph{Numerical Optimization}, 2nd ed., 2006, ch.~6). In
+practice one updates the inverse $B_k^{-1}$ directly. L-BFGS (Liu and Nocedal, Mathematical
+Programming, 1989) keeps only the last $m\approx10$ pairs $(s_k, y_k)$ and applies $B_k^{-1}$ implicitly in $O(mp)$
+operations. These methods converge superlinearly near a well-conditioned minimum with
+exact gradients; with mini-batch noise the secant pairs become unreliable, which is why
+they are used for full-batch problems of moderate size (\texttt{torch.optim.LBFGS},
+\texttt{scipy.optimize.minimize(method="L-BFGS-B")}) rather than for training large
+networks.
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item On a quadratic, gradient descent needs $\eta<2/L$ and converges at rate $\frac{\kappa - 1}{\kappa + 1}$ at best: about $\kappa/2$
+        steps per factor $e$. At a critical point a definite Hessian decides min or max; mixed
+        signs give a saddle.
+  \item Heavy-ball momentum, tuned, achieves $\frac{\sqrt\kappa - 1}{\sqrt\kappa + 1}$ on quadratics; Nesterov's method achieves
+        $1 - 1/\sqrt\kappa$ for all smooth strongly convex functions.
+  \item AdaGrad, RMSProp and Adam scale each coordinate by the root of an average of squared
+        gradients; Adam adds momentum and a bias correction $1/(1 - \beta^k)$; its first step is $-\eta\sign(g)$.
+        AdamW decouples weight decay from the scaling.
+  \item Schedules decrease $\eta$ (step, exponential, cosine), often after a warm-up.
+  \item BFGS and L-BFGS approximate Newton's method from gradient differences; they need
+        $y^\top s>0$ and accurate gradients.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{optimizers:exr:1}
+For $\ell = \frac12(\theta_1^2 + 25\theta_2^2)$, find the largest learning rate for which gradient descent converges, and
+describe the iterates for $\eta = 0.08$ and for $\eta = 1/25$.
+\solutionlink{optimizers:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{optimizers:exr:2}
+Show that the PyTorch and classical forms of heavy-ball momentum produce the same iterates
+when $\eta$ is constant, and both equal Polyak's form. What changes if $\eta$ is divided by $10$ at some
+step?
+\solutionlink{optimizers:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{optimizers:exr:3}
+Show that the first Adam step is $-\eta g_1/(\abs{g_1} + \epsilon)$, and that Adam's update is unchanged (for $\epsilon = 0$) if
+every gradient is replaced by $Dg_k$ for a fixed diagonal $D$ with positive entries.
+\solutionlink{optimizers:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{optimizers:exr:4}
+With $\beta_2 = 0.999$, what is $\E[v_1]$ in terms of $\E[g^2]$ without bias correction? After how many steps is the
+bias factor $1 - \beta_2^k$ above $0.5$? Above $0.99$?
+\solutionlink{optimizers:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{optimizers:exr:5}
+Check that the BFGS matrix $B_{k+1}$ satisfies the secant equation $B_{k+1}s_k = y_k$, and that
+$v^\top B_{k+1}v>0$ for $v = s_k$ when $B_k$ is positive definite and $y_k^\top s_k>0$.
+\solutionlink{optimizers:exr:5}
+\end{exercise}
+\end{notechapter}

@@ -1,0 +1,366 @@
+\begin{notechapter}
+\chapter{Backpropagation in Multilayer Perceptrons}\label{ch:backpropagation}
+\chaptersubtitle{The chain rule, organized layer by layer}
+
+\begin{chapterintro}
+Training an MLP by gradient descent needs the gradient of the loss with respect to every
+weight. Backpropagation computes all of them in one backward pass through the network, at
+a cost comparable to the forward pass. This chapter derives it for the MLP of
+\cref{ch:feedforward-networks}, with one consistent convention, and works through every
+matrix product in small cases; \cref{ch:computational-graphs} gives the general form on
+arbitrary computational graphs. You will learn
+\begin{itemize}[nosep]
+  \item the Jacobian, the chain rule in matrix form, and how a scalar loss turns Jacobian
+        products into transposed products;
+  \item the three local rules: through an affine map (where the outer product
+        $\delta a^\top$ comes from), through a coordinatewise activation (where the Hadamard product
+        comes from), and at the output;
+  \item the backpropagation algorithm for an $L$-layer MLP and its proof;
+  \item a complete numerical example, checked by finite differences;
+  \item the same formulas for mini-batches stored as rows, as in software.
+\end{itemize}
+\prerequisites{\cref{ch:feedforward-networks}; multivariable calculus; the differential
+and the gradient (\cref{gradient-tangent-space:sec:differential}); the sigmoid and softmax
+output units (\cref{ch:sigmoid-softmax}).}
+\end{chapterintro}
+
+\section{Jacobians and the chain rule}\label{backpropagation:sec:chain}
+
+\paragraph{Convention.} Vectors are columns. For $f:\R^n\to\R^m$, the \emph{Jacobian} at $x$ is the
+$m\times n$ matrix
+\[
+  J_f(x) = \frac{\partial f}{\partial x} = \begin{bmatrix}
+    \frac{\partial f_1}{\partial x_1} & \cdots & \frac{\partial f_1}{\partial x_n}\\
+    \vdots & & \vdots\\
+    \frac{\partial f_m}{\partial x_1} & \cdots & \frac{\partial f_m}{\partial x_n}
+  \end{bmatrix},
+\]
+one row per output, one column per input. It is the matrix of the differential:
+$f(x + v) = f(x) + J_f(x)v + o(\norm v)$. For a scalar function $\ell:\R^n\to\R$, the Jacobian is a $1\times n$
+row (the differential, a linear form) and the gradient is its transpose, the column
+$\nabla\ell(x) = J_\ell(x)^\top$ (\cref{gradient-tangent-space:sec:differential}).
+
+\begin{theorem}[Chain rule]\label{backpropagation:thm:chain}
+If $f:\R^n\to\R^m$ is differentiable at $x$ and $g:\R^m\to\R^p$ at $f(x)$, then
+\[
+  J_{g\circ f}(x) = J_g\bigl(f(x)\bigr)\,J_f(x),\qquad\text{that is}\qquad
+  \frac{\partial(g\circ f)_i}{\partial x_k} = \sum_{j=1}^m\frac{\partial g_i}{\partial y_j}\,\frac{\partial f_j}{\partial x_k} .
+\]
+For a scalar $g = \ell$, transposing gives $\nabla(\ell\circ f)(x) = J_f(x)^\top\,\nabla\ell\bigl(f(x)\bigr)$.
+\end{theorem}
+
+The second form is the one backpropagation uses: the gradient with respect to the inputs of
+a map is obtained by multiplying the gradient with respect to its outputs by the
+\emph{transposed} Jacobian. The sum over $j$ is a sum over the intermediate variables
+through which $x_k$ influences the result.
+
+\begin{example}[Developed and matrix forms]\label{backpropagation:ex:chain}
+Let $f(x,y,z) = (x^2 + yz,\ \sin x + e^{yz})$ and $g(u,v) = uv$, and $h = g\circ f$. The developed chain rule reads
+\[
+  \frac{\partial h}{\partial x} = \frac{\partial g}{\partial u}\frac{\partial f_1}{\partial x} + \frac{\partial g}{\partial v}\frac{\partial f_2}{\partial x},\qquad
+  \frac{\partial h}{\partial y} = \frac{\partial g}{\partial u}\frac{\partial f_1}{\partial y} + \frac{\partial g}{\partial v}\frac{\partial f_2}{\partial y},\qquad
+  \frac{\partial h}{\partial z} = \frac{\partial g}{\partial u}\frac{\partial f_1}{\partial z} + \frac{\partial g}{\partial v}\frac{\partial f_2}{\partial z} .
+\]
+In matrix form, with $J_g = \begin{bmatrix}v & u\end{bmatrix} = \begin{bmatrix}f_2 & f_1\end{bmatrix}$,
+\[
+  J_h = J_gJ_f = \begin{bmatrix} f_2 & f_1\end{bmatrix}
+  \begin{bmatrix} 2x & z & y\\ \cos x & ze^{yz} & ye^{yz}\end{bmatrix}
+  = \begin{bmatrix} 2xf_2 + f_1\cos x & zf_2 + zf_1e^{yz} & yf_2 + yf_1e^{yz}\end{bmatrix} .
+\]
+Each entry of the product is one line of the developed form: matrix multiplication \emph{is}
+the sum over intermediate variables. The gradient is $\nabla h = J_f^\top\begin{bmatrix}f_2\\f_1\end{bmatrix}$, the
+transpose.
+\end{example}
+
+\section{Three local rules}\label{backpropagation:sec:local}
+
+Write $\bar u = \nabla_u\ell$ for the gradient of the (scalar) loss with respect to an intermediate quantity
+$u$, with the shape of $u$. Backpropagation is built from three rules.
+
+\subsection{Through an affine map}\label{backpropagation:sec:affine}
+
+Let $y = Wh + b$ with $W\in\R^{m\times n}$, and suppose $\bar y\in\R^m$ is known.
+
+\paragraph{With respect to $h$ and $b$.} $J_y(h) = W$ and $J_y(b) = I$, so by \cref{backpropagation:thm:chain}
+\[
+  \bar h = W^\top\bar y,\qquad\bar b = \bar y .
+\]
+Explicitly, $\bar h_k = \sum_{i=1}^m\bar y_iW_{ik}$: unit $k$ receives the gradients of all the units it feeds,
+weighted by the connecting weights, as in
+\[
+  \bar h^\top = \bar y^\top W = \begin{bmatrix}\bar y_1 & \cdots & \bar y_m\end{bmatrix}
+  \begin{bmatrix} W_{11} & \cdots & W_{1n}\\ \vdots & & \vdots\\ W_{m1} & \cdots & W_{mn}\end{bmatrix}
+  = \begin{bmatrix}\sum_i\bar y_iW_{i1} & \cdots & \sum_i\bar y_iW_{in}\end{bmatrix} .
+\]
+
+\paragraph{With respect to $W$.} The input is now a matrix, and $y$ depends on it through
+$y_i = \sum_kW_{ik}h_k + b_i$. The derivative $\partial y/\partial W$ is a three-index array, $\partial y_i/\partial W_{jk}$, with one $m\times n$ slice
+per output $y_i$. Take $m = 2$, $n = 3$:
+\[
+  y_1 = W_{11}h_1 + W_{12}h_2 + W_{13}h_3 + b_1,\qquad y_2 = W_{21}h_1 + W_{22}h_2 + W_{23}h_3 + b_2 .
+\]
+$y_1$ depends only on the first row of $W$, $y_2$ only on the second:
+\[
+  \frac{\partial y_1}{\partial W} = \begin{bmatrix}
+    \frac{\partial y_1}{\partial W_{11}} & \frac{\partial y_1}{\partial W_{12}} & \frac{\partial y_1}{\partial W_{13}}\\[2pt]
+    \frac{\partial y_1}{\partial W_{21}} & \frac{\partial y_1}{\partial W_{22}} & \frac{\partial y_1}{\partial W_{23}}\end{bmatrix}
+  = \begin{bmatrix} h_1 & h_2 & h_3\\ 0 & 0 & 0\end{bmatrix},\qquad
+  \frac{\partial y_2}{\partial W} = \begin{bmatrix} 0 & 0 & 0\\ h_1 & h_2 & h_3\end{bmatrix} .
+\]
+The chain rule sums over the intermediate variables $y_1, y_2$:
+\begin{align*}
+  \bar W &= \bar y_1\frac{\partial y_1}{\partial W} + \bar y_2\frac{\partial y_2}{\partial W}
+  = \bar y_1\begin{bmatrix} h_1 & h_2 & h_3\\ 0 & 0 & 0\end{bmatrix}
+  + \bar y_2\begin{bmatrix} 0 & 0 & 0\\ h_1 & h_2 & h_3\end{bmatrix}\\
+  &= \begin{bmatrix}\bar y_1h_1 & \bar y_1h_2 & \bar y_1h_3\\ \bar y_2h_1 & \bar y_2h_2 & \bar y_2h_3\end{bmatrix}
+  = \begin{bmatrix}\bar y_1\\ \bar y_2\end{bmatrix}\begin{bmatrix}h_1 & h_2 & h_3\end{bmatrix} .
+\end{align*}
+In general $\bar W_{jk} = \sum_i\bar y_i\,\partial y_i/\partial W_{jk} = \bar y_jh_k$, since only $y_j$ depends on $W_{jk}$, so
+\[
+  \boxed{\bar W = \bar y\,h^\top,\qquad\bar h = W^\top\bar y,\qquad\bar b = \bar y .}
+\]
+The gradient for $W$ is an \emph{outer product}, of the same shape as $W$: the entry for the weight
+from unit $k$ to unit $j$ is (gradient at the head) $\times$ (activation at the tail). The
+three-index array never needs to be stored; it is sparse, and its contraction with $\bar y$ is
+the outer product.
+
+\begin{remark}[Flattening]
+Equivalently, flatten $W$ row by row into $\operatorname{vec}(W)\in\R^{mn}$. Then $y = (I_m\otimes h^\top)\operatorname{vec}(W) + b$, the
+Jacobian $\partial y/\partial\operatorname{vec}(W) = I_m\otimes h^\top$ is an ordinary $m\times mn$ matrix, and
+$(I_m\otimes h^\top)^\top\bar y = \bar y\otimes h = \operatorname{vec}(\bar yh^\top)$. Both views give the same numbers.
+\end{remark}
+
+\subsection{Through a coordinatewise activation}\label{backpropagation:sec:activation}
+
+Let $a = \phi(z)$ coordinatewise, $z\in\R^n$. Since $a_i$ depends on $z_i$ only, $\partial a_i/\partial z_j = 0$ for $i\neq j$, and
+the Jacobian is diagonal:
+\[
+  J_a(z) = \begin{bmatrix}\phi'(z_1) & 0 & 0\\ 0 & \phi'(z_2) & 0\\ 0 & 0 & \phi'(z_3)\end{bmatrix} = \diag\bigl(\phi'(z)\bigr)\qquad(n = 3).
+\]
+Multiplying a vector by a diagonal matrix multiplies coordinates:
+\[
+  \bar z = \diag(\phi'(z))\,\bar a = \begin{bmatrix}\phi'(z_1)\bar a_1\\ \phi'(z_2)\bar a_2\\ \phi'(z_3)\bar a_3\end{bmatrix}
+  = \bar a\odot\phi'(z) .
+\]
+This is where the Hadamard product $\odot$ comes from: it is a product by a diagonal Jacobian,
+stored as a vector. For ReLU, $\bar z = \bar a\odot\bbone[z>0]$ lets the gradient through the active units and
+blocks it at the others; for the sigmoid, $\phi'(z) = a\odot(1 - a)$ is computed from the stored output.
+
+\subsection{At the output}\label{backpropagation:sec:output}
+
+The backward pass starts from the gradient of the loss with respect to the output
+pre-activation, $\delta^{(L)} = \nabla_{z^{(L)}}\ell$. For the output units and losses of \cref{ch:output-distributions}
+it takes the same form, prediction minus target:
+\begin{itemize}
+  \item \textbf{identity output, squared error} $\ell = \frac12\norm{\hat y - y}^2$, $\hat y = z^{(L)}$: $\delta^{(L)} = \hat y - y$;
+  \item \textbf{sigmoid output, binary cross-entropy} $\ell = -y\log\hat y - (1 - y)\log(1 - \hat y)$, $\hat y = \sigma(z)$:
+        \[
+          \frac{\partial\ell}{\partial z} = \Bigl(-\frac y{\hat y} + \frac{1 - y}{1 - \hat y}\Bigr)\hat y(1 - \hat y) = -y(1 - \hat y) + (1 - y)\hat y = \hat y - y ;
+        \]
+  \item \textbf{softmax output, cross-entropy} $\ell = -\sum_ky_k\log\hat y_k$, $\hat y = \softmax(z)$, $y$ one-hot or a
+        probability vector: $\delta^{(L)} = \hat y - y$ (\cref{ch:sigmoid-softmax}).
+\end{itemize}
+The factor $\hat y(1 - \hat y)$ of the sigmoid cancels against the derivative of the log: the gradient does
+not vanish when the output saturates on the wrong side, which is the reason for pairing
+these output units with these losses (\cref{sigmoid-softmax:sec:mse}).
+
+\section{The algorithm}\label{backpropagation:sec:algorithm}
+
+Use the notation of \cref{feedforward-networks:def:mlp}: $a^{(0)} = x$, $z^{(l)} = W^{(l)}a^{(l-1)} + b^{(l)}$, $a^{(l)} = \phi(z^{(l)})$ for $l<L$,
+$\hat y = a^{(L)} = \psi(z^{(L)})$ with an output unit $\psi$, and a loss $\ell(\hat y, y)$. Define the \emph{error signals}
+\[
+  \delta^{(l)} = \nabla_{z^{(l)}}\ell\in\R^{n_l},\qquad l = 1,\dots,L .
+\]
+
+\begin{theorem}[Backpropagation]\label{backpropagation:thm:backprop}
+For $l = L - 1,\dots,1$,
+\[
+  \delta^{(l)} = \bigl(W^{(l+1)\top}\delta^{(l+1)}\bigr)\odot\phi'\bigl(z^{(l)}\bigr),
+\]
+and for $l = 1,\dots,L$,
+\[
+  \nabla_{W^{(l)}}\ell = \delta^{(l)}a^{(l-1)\top},\qquad\nabla_{b^{(l)}}\ell = \delta^{(l)} .
+\]
+\end{theorem}
+
+\begin{proof}
+The loss depends on $z^{(l)}$ only through $a^{(l)} = \phi(z^{(l)})$, and on $a^{(l)}$ only through
+$z^{(l+1)} = W^{(l+1)}a^{(l)} + b^{(l+1)}$. By \cref{backpropagation:sec:affine}, $\nabla_{a^{(l)}}\ell = W^{(l+1)\top}\delta^{(l+1)}$; by
+\cref{backpropagation:sec:activation}, $\delta^{(l)} = \nabla_{a^{(l)}}\ell\odot\phi'(z^{(l)})$. The parameters $W^{(l)}, b^{(l)}$ influence the loss
+only through $z^{(l)} = W^{(l)}a^{(l-1)} + b^{(l)}$, with $a^{(l-1)}$ fixed; \cref{backpropagation:sec:affine} gives the last two
+formulas.
+\end{proof}
+
+The proof uses only the fact that each quantity influences the loss through a single next
+quantity; \cref{ch:computational-graphs} treats graphs where a value feeds several others.
+
+\begin{algorithm}[ht]
+\caption{Backpropagation for one example}\label{backpropagation:alg:backprop}
+\begin{algorithmic}[1]
+\State $a^{(0)}\gets x$
+\For{$l = 1,\dots,L$} \Comment{forward pass: store all $z^{(l)}$ and $a^{(l)}$}
+  \State $z^{(l)}\gets W^{(l)}a^{(l-1)} + b^{(l)}$;\quad $a^{(l)}\gets\phi(z^{(l)})$ \quad($\psi$ for $l = L$)
+\EndFor
+\State $\delta^{(L)}\gets\nabla_{z^{(L)}}\ell$ \Comment{e.g.\ $\hat y - y$}
+\For{$l = L,\dots,1$} \Comment{backward pass}
+  \State $\nabla_{W^{(l)}}\ell\gets\delta^{(l)}a^{(l-1)\top}$;\quad $\nabla_{b^{(l)}}\ell\gets\delta^{(l)}$
+  \If{$l>1$} $\delta^{(l-1)}\gets\bigl(W^{(l)\top}\delta^{(l)}\bigr)\odot\phi'(z^{(l-1)})$ \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Cost.} The forward pass multiplies by each $W^{(l)}$ once, $\sum_ln_ln_{l-1}$ multiply-adds. The backward
+pass multiplies by each $W^{(l)\top}$ once and forms each outer product once: about twice the
+forward cost. Computing the same gradient by finite differences would need one forward
+pass per parameter. The price is memory: all the $z^{(l)}$ and $a^{(l)}$ of the forward pass are
+stored for the backward pass.
+
+\section{A worked example}\label{backpropagation:sec:example}
+
+Take the network $2\to3\to1$ of \cref{feedforward-networks:fig:mlp}, with ReLU hidden units, a sigmoid
+output and the binary cross-entropy, on the example $x = (1,2)$, $y = 1$, with
+\[
+  W^{(1)} = \begin{bmatrix} 1 & -1\\ 0.5 & 0.5\\ -1 & 0.5\end{bmatrix},\quad
+  b^{(1)} = \begin{bmatrix} 0\\ -0.5\\ 0.5\end{bmatrix},\quad
+  W^{(2)} = \begin{bmatrix} 1 & -2 & 0.5\end{bmatrix},\quad b^{(2)} = 0.5 .
+\]
+
+\paragraph{Forward pass.}
+\[
+  z^{(1)} = \begin{bmatrix} 1 & -1\\ 0.5 & 0.5\\ -1 & 0.5\end{bmatrix}\begin{bmatrix}1\\2\end{bmatrix} + \begin{bmatrix} 0\\ -0.5\\ 0.5\end{bmatrix}
+  = \begin{bmatrix} -1\\ 1\\ 0.5\end{bmatrix},\qquad
+  a^{(1)} = \mathrm{ReLU}(z^{(1)}) = \begin{bmatrix} 0\\ 1\\ 0.5\end{bmatrix},
+\]
+\[
+  z^{(2)} = 1\cdot0 - 2\cdot1 + 0.5\cdot0.5 + 0.5 = -1.25,\qquad\hat y = \sigma(-1.25) = 0.2227,\qquad
+  \ell = -\log\hat y = 1.5019 .
+\]
+The first hidden unit is off for this input.
+
+\paragraph{Backward pass.} Output: $\delta^{(2)} = \hat y - y = -0.7773$, so
+\[
+  \nabla_{W^{(2)}}\ell = \delta^{(2)}a^{(1)\top} = -0.7773\begin{bmatrix}0 & 1 & 0.5\end{bmatrix} = \begin{bmatrix}0 & -0.7773 & -0.3886\end{bmatrix},\qquad
+  \nabla_{b^{(2)}}\ell = -0.7773 .
+\]
+Hidden layer:
+\[
+  W^{(2)\top}\delta^{(2)} = \begin{bmatrix}1\\-2\\0.5\end{bmatrix}(-0.7773) = \begin{bmatrix}-0.7773\\ 1.5546\\ -0.3886\end{bmatrix},\qquad
+  \delta^{(1)} = \begin{bmatrix}-0.7773\\ 1.5546\\ -0.3886\end{bmatrix}\odot\begin{bmatrix}0\\1\\1\end{bmatrix} = \begin{bmatrix}0\\ 1.5546\\ -0.3886\end{bmatrix},
+\]
+\[
+  \nabla_{W^{(1)}}\ell = \delta^{(1)}x^\top = \begin{bmatrix}0\\ 1.5546\\ -0.3886\end{bmatrix}\begin{bmatrix}1 & 2\end{bmatrix}
+  = \begin{bmatrix}0 & 0\\ 1.5546 & 3.1092\\ -0.3886 & -0.7773\end{bmatrix},\qquad\nabla_{b^{(1)}}\ell = \delta^{(1)} .
+\]
+
+\paragraph{Reading the result.} The prediction $0.22$ is too low for the target $1$. The gradient
+for $W^{(2)}$ says: increase the weights from the active hidden units ($-\eta$ times a negative
+number), and leave the weight from the inactive unit alone. Unit $2$ has a negative outgoing
+weight, so the loss decreases if its activation decreases: its error signal is positive, and
+the step decreases its incoming weights. The inactive unit $1$ receives no gradient at all.
+
+\paragraph{Check and step.} Central finite differences
+$(\ell(\theta + h e_k) - \ell(\theta - he_k))/(2h)$ with $h = 10^{-6}$ reproduce every entry to $10^{-9}$. One gradient step with
+$\eta = 0.5$ gives $\hat y = 0.8855$ and $\ell = 0.1216$.
+
+\section{Mini-batches and the row convention}\label{backpropagation:sec:batch}
+
+For a mini-batch of $B$ examples, software stores activations as rows,
+$A^{(l)}\in\R^{B\times n_l}$, and computes $Z^{(l)} = A^{(l-1)}W^{(l)\top} + \mathbf 1b^{(l)\top}$ (\cref{feedforward-networks:rem:rows}). The
+loss is the mean $\ell = \frac1B\sum_i\ell_i$. Let $\Delta^{(l)} = \partial\ell/\partial Z^{(l)}\in\R^{B\times n_l}$; its row $i$ is $\frac1B\delta^{(l)\top}_i$, the
+error signal of example $i$ scaled by $\frac1B$. Summing the single-example formulas over the
+batch:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+& one example (columns) & batch (rows) \\
+\midrule
+forward & $z = Wa + b$ & $Z = AW^\top + \mathbf 1b^\top$ \\
+input gradient & $\bar a = W^\top\delta$ & $\bar A = \Delta W$ \\
+weight gradient & $\bar W = \delta a^\top$ & $\bar W = \Delta^\top A = \sum_i\Delta_{i:}^\top A_{i:}$ \\
+bias gradient & $\bar b = \delta$ & $\bar b = \Delta^\top\mathbf 1$ \\
+activation & $\delta = \bar a\odot\phi'(z)$ & $\Delta = \bar A\odot\phi'(Z)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Shapes check every formula: $\Delta^\top A$ is $n_l\times n_{l-1}$, the shape of $W$. The batch gradient
+$\Delta^\top A$ is a sum of $B$ outer products, computed as one matrix product, which is what makes
+mini-batches efficient on parallel hardware.
+
+\section{Checking gradients and common mistakes}\label{backpropagation:sec:pitfalls}
+
+\paragraph{Gradient checking.} Compare each computed partial derivative with
+$(\ell(\theta + he_k) - \ell(\theta - he_k))/(2h)$. By Taylor expansion the central difference has error $O(h^2)$, against
+$O(h)$ for the one-sided difference. Report the relative error
+$\abs{g - g_{\mathrm{num}}}/\max(\abs g, \abs{g_{\mathrm{num}}})$; in double precision, with $h\approx10^{-5}$, values above $10^{-6}$ usually signal a
+bug. The test is unreliable when an input of a ReLU is within $h$ of $0$, and in single
+precision.
+
+\begin{pitfall}[A ReLU on the output]
+Take $x = (1,2,3)$, $W^{(1)} = \begin{bmatrix}1&0&-1\\0&1&1\end{bmatrix}$, $W^{(2)} = \begin{bmatrix}2 & -1\end{bmatrix}$, no biases, ReLU on both
+layers, squared error with target $5$. Then $z^{(1)} = (-2, 5)$, $a^{(1)} = (0,5)$, $z^{(2)} = -5$ and $\hat y = 0$. Since
+the output ReLU is off, $\delta^{(2)} = (\hat y - y)\cdot\bbone[z^{(2)}>0] = 0$, and \emph{all} gradients vanish, including the one
+for $W^{(2)}$: $\nabla_{W^{(2)}}\ell = \delta^{(2)}a^{(1)\top} = 0$. A frequent mistake is to use $\nabla_{\hat y}\ell = -5$ in place of $\delta^{(2)}$ in the
+weight gradient, which gives the wrong value $(0,-25)$. The formula needs the gradient with
+respect to the \emph{pre}-activation. Nothing here can be learned from this example; a ReLU
+(or any activation that can be flat) on a regression output is a poor choice
+(\cref{backpropagation:exr:4} redoes the example with a linear output).
+\end{pitfall}
+
+\begin{itemize}
+  \item \textbf{Shapes.} An outer product $\delta a^\top$ written as $a\delta^\top$ has the transposed shape; in the
+        row convention, $A^\top\Delta$ instead of $\Delta^\top A$.
+  \item \textbf{Mean or sum.} With a mean loss every gradient carries $\frac1B$; mixing sum and mean
+        changes the effective learning rate by a factor $B$.
+  \item \textbf{Accumulation.} Frameworks add new gradients to the stored ones; they must be
+        reset at every step (\texttt{opt.zero\_grad()}).
+\end{itemize}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item The Jacobian has one row per output; $J_{g\circ f} = J_gJ_f$; for a scalar loss, gradients pull back by
+        transposed Jacobians, $\nabla(\ell\circ f) = J_f^\top\nabla\ell$.
+  \item Affine map $y = Wh + b$: $\bar h = W^\top\bar y$, $\bar W = \bar yh^\top$, $\bar b = \bar y$. Coordinatewise $a = \phi(z)$: $\bar z = \bar a\odot\phi'(z)$
+        (a diagonal Jacobian). Matched output and loss: $\delta^{(L)} = \hat y - y$.
+  \item Backpropagation: $\delta^{(l)} = (W^{(l+1)\top}\delta^{(l+1)})\odot\phi'(z^{(l)})$, $\nabla_{W^{(l)}}\ell = \delta^{(l)}a^{(l-1)\top}$, $\nabla_{b^{(l)}}\ell = \delta^{(l)}$; it costs about two
+        forward passes and stores the activations.
+  \item In rows: $Z = AW^\top + \mathbf 1b^\top$, $\bar A = \Delta W$, $\bar W = \Delta^\top A$, $\bar b = \Delta^\top\mathbf 1$.
+  \item Check with central differences (error $O(h^2)$); the weight gradient uses $\partial\ell/\partial z$, not $\partial\ell/\partial a$.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{backpropagation:exr:1}
+In \cref{backpropagation:ex:chain}, compute $\nabla h$ at $(x,y,z) = (0,1,1)$ with the matrix form, and check it by
+differentiating $h(x,y,z) = (x^2 + yz)(\sin x + e^{yz})$ directly.
+\solutionlink{backpropagation:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{backpropagation:exr:2}
+Let $\ell(W) = \frac12\norm{Wh - t}^2$ with $W\in\R^{m\times n}$. Compute $\nabla_W\ell$ by expanding
+$\ell(W + E) - \ell(W)$ to first order in $E$ and writing the linear term as $\tr(G^\top E) = \sum_{jk}G_{jk}E_{jk}$.
+\solutionlink{backpropagation:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{backpropagation:exr:3}
+Redo the backward pass of \cref{backpropagation:sec:example} with tanh hidden units instead of ReLU
+(same weights). Which hidden unit now receives the largest error signal?
+\solutionlink{backpropagation:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{backpropagation:exr:4}
+Redo the example of the pitfall of \cref{backpropagation:sec:pitfalls} with an identity output: compute $\hat y$,
+$\ell = \frac12(\hat y - 5)^2$ and all the gradients.
+\solutionlink{backpropagation:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{backpropagation:exr:5}
+For an MLP with widths $n_0,\dots,n_L$, count the multiplications of the forward pass, and of the
+backward pass of \cref{backpropagation:alg:backprop} (ignore the activation functions). What
+is the ratio when all widths are equal?
+\solutionlink{backpropagation:exr:5}
+\end{exercise}
+\end{notechapter}
