@@ -231,7 +231,7 @@ nodes ($v_1$: Red, $v_2$: Green):
       text=white},
     unlabeled/.style={circle, draw, thick, minimum size=0.8cm, font=\small,
       fill=unlabeledblue}]
-    
+
     % Nodes
     \node[labeled, fill=labeledred] (1) at (0, 1.5) {$v_1$};
     \node[labeled, fill=labeledgreen] (2) at (2.5, 1.5) {$v_2$};
@@ -239,7 +239,7 @@ nodes ($v_1$: Red, $v_2$: Green):
     \node[unlabeled] (4) at (1.25, 0) {$v_4$};
     \node[unlabeled] (5) at (3, 0) {$v_5$};
     \node[unlabeled] (6) at (1.25, -1.2) {$v_6$};
-    
+
     % Edges
     \draw[thick] (1) -- (3);
     \draw[thick] (1) -- (4);
@@ -249,7 +249,7 @@ nodes ($v_1$: Red, $v_2$: Green):
     \draw[thick] (3) -- (6);
     \draw[thick] (4) -- (6);
     \draw[thick] (5) -- (6);
-    
+
     % Legend
     \node[draw=none, font=\footnotesize] at (-0.4, 2.1) {Red};
     \node[draw=none, font=\footnotesize] at (2.9, 2.1) {Green};
@@ -566,14 +566,14 @@ every condition by hand.
     \node[fill=labeledred, text=white, font=\small\bfseries] (A) at (0,0) {$a$};
     \node[fill=labeledgreen, text=white, font=\small\bfseries] (B) at (4,0) {$b$};
     \node[fill=unlabeledblue] (U) at (2,1.5) {$u$};
-    
+
     \draw[thick] (A) -- node[below, draw=none, minimum size=0pt,
       font=\footnotesize] {weight 1} (B);
     \draw[thick] (A) -- node[above left, draw=none, minimum size=0pt,
       font=\footnotesize] {weight 1} (U);
     \draw[thick] (B) -- node[above right, draw=none, minimum size=0pt,
       font=\footnotesize] {weight 2} (U);
-    
+
     \node[below=0.3cm, draw=none, font=\footnotesize] at (A)
       {$y_a = [1,0]$};
     \node[below=0.3cm, draw=none, font=\footnotesize] at (B)
@@ -777,10 +777,10 @@ hence $e^{(t)} \to 0$ and $Y^{(t)} \to Y^*$.
 Label spreading minimizes a well-defined energy function that balances two
 competing objectives:
 \begin{equation}
-\mathcal{E}(F) = 
+\mathcal{E}(F) =
 \underbrace{\sum_{\{i,j\}\in E} A_{ij}\left(\frac{F_i}{\sqrt{d_i}} -
 \frac{F_j}{\sqrt{d_j}}\right)^2}_{\mathclap{\substack{
-    \text{normalized smoothness:}\\ 
+    \text{normalized smoothness:}\\
     \text{``nearby nodes should agree''}}}} \; + \; \frac{1-\alpha}{\alpha}\,
 \underbrace{\sum_{i=1}^n \|F_i - Y_i^{(0)}\|^2}_{\mathclap{\substack{
     \text{label fitting:}\\
@@ -981,20 +981,20 @@ independent regularized least-squares problems with a shared graph prior.
 \centering
 \begin{tikzpicture}[scale=1.2,
     node/.style={circle, draw, thick, minimum size=0.8cm, font=\small}]
-    
+
     % Graph structure
     \node[node, fill=labeledred!50] (1) at (0,2) {$v_1$};
     \node[node, fill=labeledgreen!50] (2) at (2,2) {$v_2$};
     \node[node, fill=unlabeledblue] (3) at (0,0) {$v_3$};
     \node[node, fill=unlabeledblue] (4) at (2,0) {$v_4$};
     \node[node, fill=unlabeledblue] (5) at (4,1) {$v_5$};
-    
+
     \draw[thick] (1) -- (3);
     \draw[thick] (1) -- (4);
     \draw[thick] (2) -- (4);
     \draw[thick] (2) -- (5);
     \draw[thick] (3) -- (4);
-    
+
     % Labels and predictions
     \node[draw=none, font=\footnotesize] at (0,3.3) {$y=[1,0]$};
     \node[draw=none, font=\footnotesize] at (0,2.9) {$\hat{y}=[.70,.30]$};
@@ -1003,11 +1003,11 @@ independent regularized least-squares problems with a shared graph prior.
     \node[draw=none, font=\footnotesize] at (0,-0.5) {$\hat{y}=[.60,.40]$};
     \node[draw=none, font=\footnotesize] at (2,-0.5) {$\hat{y}=[.55,.45]$};
     \node[draw=none, font=\footnotesize] at (4,0.5) {$\hat{y}=[.45,.55]$};
-    
+
     % Errors
     \node[draw=none, font=\footnotesize, text=red] at (0,2.5) {$E=[+.3,-.3]$};
     \node[draw=none, font=\footnotesize, text=red] at (2,2.5) {$E=[-.4,+.4]$};
-    
+
     % Legend
     \node[draw=none, font=\footnotesize] at (6.2,2) {Labeled: known error};
     \node[draw=none, font=\footnotesize] at (6.5,1) {Unlabeled: need correction};
@@ -1156,12 +1156,12 @@ For a parametric model $f_\theta: \R^d \to \R^C$ mapping node features to
 class scores:
 \begin{equation}
 \label{semi-supervised-graphs:eq:graph_reg}
-\mathcal{L}(\theta) = 
+\mathcal{L}(\theta) =
 \underbrace{
     \sum_{i \in \mathcal{V}_L}\ell(f_\theta(x_i), y_i)}_{
         \mathclap{\substack{\text{supervised loss} \\
         \text{(labeled nodes only)}}}} \; + \;
-\lambda\underbrace{\frac{1}{2}\sum_{i,j}A_{ij}\|f_\theta(x_i) - 
+\lambda\underbrace{\frac{1}{2}\sum_{i,j}A_{ij}\|f_\theta(x_i) -
 f_\theta(x_j)\|^2}_{\mathclap{\substack{\text{graph smoothness} \\
 \text{(all nodes, labeled and unlabeled)}}}}
 \end{equation}
@@ -1409,9 +1409,9 @@ training time and participate in every forward pass.
 
 \textbf{Training phase:}
 \begin{itemize}
-    \item Loss computed ONLY on labeled nodes: 
+    \item Loss computed ONLY on labeled nodes:
           $\mathcal{L} = -\sum_{i \in \mathcal{V}_L}\sum_c Y_{ic}\log Z_{ic}$
-    \item Unlabeled nodes appear in the \textbf{forward pass} because 
+    \item Unlabeled nodes appear in the \textbf{forward pass} because
           $\hat{A}H^{(k)}$ aggregates each node's features with its neighbors'.
     \item When computing $Z_i$ for a \textbf{labeled} node $i$, we aggregate
           features from its \textbf{unlabeled} neighbors.

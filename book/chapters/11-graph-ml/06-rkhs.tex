@@ -1254,10 +1254,10 @@ ways to read equation~\eqref{rkhs:eq:reproducing}:
       ($(proj) + (0.14, 0.04)$);
 
     % Inner product annotation
-  \draw[insightorange, thick, decorate, 
-    decoration={brace, amplitude=4pt, mirror, raise=2pt}] 
+  \draw[insightorange, thick, decorate,
+    decoration={brace, amplitude=4pt, mirror, raise=2pt}]
     (0,0) -- (proj)
-    node[midway, sloped, below=6pt, insightorange, font=\normalsize] 
+    node[midway, sloped, below=6pt, insightorange, font=\normalsize]
     {$\langle f, \phi_x \rangle_{\mathcal{H}_K} = f(x)$};
 
   \end{scope}
@@ -1848,22 +1848,22 @@ Kernelized problem & $\min_{\vect{\alpha}}
 \label{rkhs:sec:applications}
 % ══════════════════════════════════════════════════════════════
 
-The RKHS framework becomes particularly powerful in 
+The RKHS framework becomes particularly powerful in
 \textbf{semi-supervised learning}, where we have few labeled
 examples but many unlabeled ones. This is the rule, not the
 exception, in real-world applications: labeling requires human
 effort, but unlabeled data is abundant.
 
 \begin{intuition}[The Fundamental Challenge]
-How can unlabeled data possibly help? If we only have inputs 
-$x_1,\ldots,x_n$ without labels, what additional information do 
+How can unlabeled data possibly help? If we only have inputs
+$x_1,\ldots,x_n$ without labels, what additional information do
 they provide about the function $f$ we want to learn?
 
-\textbf{Key idea:} The unlabeled data reveal the \emph{geometry} 
-of the data distribution. If two points $x_i$ and $x_j$ are 
-connected by a high-density path in input space (high-weight edges), 
-their predictions $f(x_i)$ and $f(x_j)$ should be similar. This is the 
-\textbf{manifold assumption}: data lie near a low-dimensional 
+\textbf{Key idea:} The unlabeled data reveal the \emph{geometry}
+of the data distribution. If two points $x_i$ and $x_j$ are
+connected by a high-density path in input space (high-weight edges),
+their predictions $f(x_i)$ and $f(x_j)$ should be similar. This is the
+\textbf{manifold assumption}: data lie near a low-dimensional
 manifold, and the target function varies smoothly along it.
 \end{intuition}
 
@@ -1876,128 +1876,128 @@ manifold, and the target function varies smoothly along it.
 \begin{tikzpicture}[scale=1.0]
 % Left: Swiss roll with labeled points only
 \begin{scope}[xshift=-4cm]
-  \draw[thick, gray!50, fill=blue!5] 
-    plot[domain=0:4.5, smooth] 
-    ({cos(deg(2*pi*\x/8))*(0.8+0.2*\x)}, 
+  \draw[thick, gray!50, fill=blue!5]
+    plot[domain=0:4.5, smooth]
+    ({cos(deg(2*pi*\x/8))*(0.8+0.2*\x)},
      {sin(deg(2*pi*\x/8))*(0.8+0.2*\x)});
-  \draw[thick, gray!50, fill=blue!5] 
-    plot[domain=0:4.5, smooth] 
-    ({cos(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)}, 
+  \draw[thick, gray!50, fill=blue!5]
+    plot[domain=0:4.5, smooth]
+    ({cos(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)},
      {sin(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)});
-  
+
   % Labeled points (few)
-  \fill[thmred] 
-    ({cos(deg(2*pi*1/8))*(0.8+0.2*1)}, 
-     {sin(deg(2*pi*1/8))*(0.8+0.2*1)}) 
+  \fill[thmred]
+    ({cos(deg(2*pi*1/8))*(0.8+0.2*1)},
+     {sin(deg(2*pi*1/8))*(0.8+0.2*1)})
     circle (3pt) node[above left, black] {$+1$};
-  \fill[defblue] 
-    ({cos(deg(2*pi*3/8))*(0.8+0.2*3)}, 
-     {sin(deg(2*pi*3/8))*(0.8+0.2*3)}) 
+  \fill[defblue]
+    ({cos(deg(2*pi*3/8))*(0.8+0.2*3)},
+     {sin(deg(2*pi*3/8))*(0.8+0.2*3)})
     circle (3pt) node[below right, black] {$-1$};
-  \fill[thmred] 
-    ({cos(deg(2*pi*5/8))*(0.8+0.2*5)}, 
-     {sin(deg(2*pi*5/8))*(0.8+0.2*5)}) 
+  \fill[thmred]
+    ({cos(deg(2*pi*5/8))*(0.8+0.2*5)},
+     {sin(deg(2*pi*5/8))*(0.8+0.2*5)})
     circle (3pt) node[above right, black] {$+1$};
-  \fill[defblue] 
-    ({cos(deg(2*pi*7/8))*(0.8+0.2*7)}, 
-     {sin(deg(2*pi*7/8))*(0.8+0.2*7)}) 
+  \fill[defblue]
+    ({cos(deg(2*pi*7/8))*(0.8+0.2*7)},
+     {sin(deg(2*pi*7/8))*(0.8+0.2*7)})
     circle (3pt) node[below left, black] {$-1$};
-  
+
   % Unlabeled points (many, gray)
   \foreach \t in {0.2,0.6,1.4,1.8,2.2,2.6,3.4,3.8,4.2,4.4} {
-    \fill[gray!70] 
-      ({cos(deg(2*pi*\t/8))*(0.8+0.2*\t)}, 
-       {sin(deg(2*pi*\t/8))*(0.8+0.2*\t)}) 
+    \fill[gray!70]
+      ({cos(deg(2*pi*\t/8))*(0.8+0.2*\t)},
+       {sin(deg(2*pi*\t/8))*(0.8+0.2*\t)})
       circle (1.5pt);
   }
-  
+
   \node[font=\small] at (0, -2.5) {Only labeled points};
   \node[font=\small] at (0, -3.1) {Decision boundary?};
 \end{scope}
 
 % Middle: Pure supervised decision boundary
 \begin{scope}[xshift=1.5cm]
-  \draw[thick, gray!50, fill=blue!5] 
-    plot[domain=0:4.5, smooth] 
-    ({cos(deg(2*pi*\x/8))*(0.8+0.2*\x)}, 
+  \draw[thick, gray!50, fill=blue!5]
+    plot[domain=0:4.5, smooth]
+    ({cos(deg(2*pi*\x/8))*(0.8+0.2*\x)},
      {sin(deg(2*pi*\x/8))*(0.8+0.2*\x)});
-  \draw[thick, gray!50, fill=blue!5] 
-    plot[domain=0:4.5, smooth] 
-    ({cos(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)}, 
+  \draw[thick, gray!50, fill=blue!5]
+    plot[domain=0:4.5, smooth]
+    ({cos(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)},
      {sin(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)});
-  
+
   % Same labeled points
-  \fill[thmred] 
-    ({cos(deg(2*pi*1/8))*(0.8+0.2*1)}, 
+  \fill[thmred]
+    ({cos(deg(2*pi*1/8))*(0.8+0.2*1)},
      {sin(deg(2*pi*1/8))*(0.8+0.2*1)}) circle (3pt);
-  \fill[defblue] 
-    ({cos(deg(2*pi*3/8))*(0.8+0.2*3)}, 
+  \fill[defblue]
+    ({cos(deg(2*pi*3/8))*(0.8+0.2*3)},
      {sin(deg(2*pi*3/8))*(0.8+0.2*3)}) circle (3pt);
-  \fill[thmred] 
-    ({cos(deg(2*pi*5/8))*(0.8+0.2*5)}, 
+  \fill[thmred]
+    ({cos(deg(2*pi*5/8))*(0.8+0.2*5)},
      {sin(deg(2*pi*5/8))*(0.8+0.2*5)}) circle (3pt);
-  \fill[defblue] 
-    ({cos(deg(2*pi*7/8))*(0.8+0.2*7)}, 
+  \fill[defblue]
+    ({cos(deg(2*pi*7/8))*(0.8+0.2*7)},
      {sin(deg(2*pi*7/8))*(0.8+0.2*7)}) circle (3pt);
-  
+
   % Supervised decision boundary (wiggly, overfitted)
-  \draw[thmred, thick, dashed] 
-    plot[domain=0.2:4.3, smooth] 
-    ({cos(deg(2*pi*\x/8+0.2))*(0.8+0.2*\x+0.1*sin(deg(10*\x)))}, 
+  \draw[thmred, thick, dashed]
+    plot[domain=0.2:4.3, smooth]
+    ({cos(deg(2*pi*\x/8+0.2))*(0.8+0.2*\x+0.1*sin(deg(10*\x)))},
      {sin(deg(2*pi*\x/8+0.2))*(0.8+0.2*\x+0.1*sin(deg(10*\x)))});
   \node[font=\small, thmred] at (0.5, 0.8) {Overfitted};
-  
+
   \node[font=\small] at (0, -2.5) {Supervised learning only};
 \end{scope}
 
 % Right: Manifold regularization
 \begin{scope}[xshift=7cm]
-  \draw[thick, gray!50, fill=blue!5] 
-    plot[domain=0:4.5, smooth] 
-    ({cos(deg(2*pi*\x/8))*(0.8+0.2*\x)}, 
+  \draw[thick, gray!50, fill=blue!5]
+    plot[domain=0:4.5, smooth]
+    ({cos(deg(2*pi*\x/8))*(0.8+0.2*\x)},
      {sin(deg(2*pi*\x/8))*(0.8+0.2*\x)});
-  \draw[thick, gray!50, fill=blue!5] 
-    plot[domain=0:4.5, smooth] 
-    ({cos(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)}, 
+  \draw[thick, gray!50, fill=blue!5]
+    plot[domain=0:4.5, smooth]
+    ({cos(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)},
      {sin(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)});
-  
+
   % Same labeled points
-  \fill[thmred] 
-    ({cos(deg(2*pi*1/8))*(0.8+0.2*1)}, 
+  \fill[thmred]
+    ({cos(deg(2*pi*1/8))*(0.8+0.2*1)},
      {sin(deg(2*pi*1/8))*(0.8+0.2*1)}) circle (3pt);
-  \fill[defblue] 
-    ({cos(deg(2*pi*3/8))*(0.8+0.2*3)}, 
+  \fill[defblue]
+    ({cos(deg(2*pi*3/8))*(0.8+0.2*3)},
      {sin(deg(2*pi*3/8))*(0.8+0.2*3)}) circle (3pt);
-  \fill[thmred] 
-    ({cos(deg(2*pi*5/8))*(0.8+0.2*5)}, 
+  \fill[thmred]
+    ({cos(deg(2*pi*5/8))*(0.8+0.2*5)},
      {sin(deg(2*pi*5/8))*(0.8+0.2*5)}) circle (3pt);
-  \fill[defblue] 
-    ({cos(deg(2*pi*7/8))*(0.8+0.2*7)}, 
+  \fill[defblue]
+    ({cos(deg(2*pi*7/8))*(0.8+0.2*7)},
      {sin(deg(2*pi*7/8))*(0.8+0.2*7)}) circle (3pt);
-  
+
   % Graph edges connecting nearby points along the manifold
   \foreach \t in {0.2,0.6,1.0,1.4,1.8,2.2,2.6,3.0,3.4,3.8,4.2} {
     \pgfmathsetmacro{\next}{\t+0.4}
-    \draw[gray!40, thin] 
-      ({cos(deg(2*pi*\t/8))*(0.8+0.2*\t)}, 
+    \draw[gray!40, thin]
+      ({cos(deg(2*pi*\t/8))*(0.8+0.2*\t)},
        {sin(deg(2*pi*\t/8))*(0.8+0.2*\t)}) --
-      ({cos(deg(2*pi*\next/8))*(0.8+0.2*\next)}, 
+      ({cos(deg(2*pi*\next/8))*(0.8+0.2*\next)},
        {sin(deg(2*pi*\next/8))*(0.8+0.2*\next)});
   }
-  
+
   % Manifold-aware decision boundary
-  \draw[exgreen, thick] 
-    plot[domain=0.2:4.3, smooth] 
-    ({cos(deg(2*pi*\x/8+0.3))*(0.8+0.2*\x)}, 
+  \draw[exgreen, thick]
+    plot[domain=0.2:4.3, smooth]
+    ({cos(deg(2*pi*\x/8+0.3))*(0.8+0.2*\x)},
      {sin(deg(2*pi*\x/8+0.3))*(0.8+0.2*\x)});
   \node[font=\small, exgreen] at (1.2, -0.3) {Smooth along manifold};
-  
+
   \node[font=\small] at (0.8, -2.5) {With manifold regularization};
 \end{scope}
 \end{tikzpicture}
-\caption{Why unlabeled data matter. \textbf{Left:} Only four labeled 
-points on a Swiss roll manifold. \textbf{Middle:} A pure supervised 
-method overfits. \textbf{Right:} Manifold regularization uses graph 
+\caption{Why unlabeled data matter. \textbf{Left:} Only four labeled
+points on a Swiss roll manifold. \textbf{Middle:} A pure supervised
+method overfits. \textbf{Right:} Manifold regularization uses graph
 connections (gray edges) to enforce smoothness along the manifold.}
 \label{rkhs:fig:manifold_motivation}
 \end{figure}
@@ -2020,29 +2020,29 @@ We now combine two sources of information:
 
 \begin{enumerate}[label=\textbf{(\roman*)}]
   \item \textbf{Labeled data:} Supervised loss $\sum_{i=1}^l \ell(f(x_i), y_i)$.
-  \item \textbf{Unlabeled data geometry:} Graph smoothness penalty 
+  \item \textbf{Unlabeled data geometry:} Graph smoothness penalty
     $\mat{f}^\top \mat{L} \mat{f}$.
 \end{enumerate}
 
 \begin{theorem}[Manifold Regularization]
 \label{rkhs:thm:manifold_reg}
-Let $\hk$ be an RKHS with kernel $K$, and let $x_1,\ldots,x_n \in \X$ 
-be all available data points, of which the first $l$ are labeled with 
-targets $y_1,\ldots,y_l \in \R$. Construct a graph over all $n$ points 
+Let $\hk$ be an RKHS with kernel $K$, and let $x_1,\ldots,x_n \in \X$
+be all available data points, of which the first $l$ are labeled with
+targets $y_1,\ldots,y_l \in \R$. Construct a graph over all $n$ points
 with Laplacian $\mat{L}$. Consider:
 \begin{equation}
 \label{rkhs:eq:manifold_reg}
-\min_{f \in \hk}\; \frac{1}{l}\sum_{i=1}^{l} \ell(f(x_i), y_i) 
-+ \gamma_A \norm{f}_{\hk}^2 
+\min_{f \in \hk}\; \frac{1}{l}\sum_{i=1}^{l} \ell(f(x_i), y_i)
++ \gamma_A \norm{f}_{\hk}^2
 + \frac{\gamma_I}{n^2}\,\mat{f}^\top \mat{L}\, \mat{f}
 \end{equation}
-where $\mat{f} = (f(x_1), \ldots, f(x_n))^\top$ and 
+where $\mat{f} = (f(x_1), \ldots, f(x_n))^\top$ and
 $\gamma_A, \gamma_I > 0$ are regularization parameters.
 
 Then the minimizer admits the following representation:
 \begin{equation}
 \label{rkhs:eq:manifold_solution}
-\boxed{f^*(x) = \sum_{i=1}^n \alpha_i^* K(x, x_i) 
+\boxed{f^*(x) = \sum_{i=1}^n \alpha_i^* K(x, x_i)
 \quad \text{for some } \vect{\alpha}^* \in \R^n}
 \end{equation}
 \end{theorem}
@@ -2052,17 +2052,17 @@ The two penalty terms encode complementary inductive biases:
 
 \begin{itemize}
   \item \textbf{Ambient regularizer} ($\gamma_A\norm{f}_{\hk}^2$): \\
-  Forces $f$ to be smooth in the \emph{ambient space} $\R^d$. This is 
+  Forces $f$ to be smooth in the \emph{ambient space} $\R^d$. This is
   the standard RKHS penalty from Section~\ref{rkhs:sec:representer}.
 
   \item \textbf{Intrinsic regularizer} ($\gamma_I \mat{f}^\top \mat{L} \mat{f}$): \\
-  Forces $f$ to be smooth along the \emph{data manifold}. Two points 
-  connected by a high-weight edge are encouraged to have similar 
+  Forces $f$ to be smooth along the \emph{data manifold}. Two points
+  connected by a high-weight edge are encouraged to have similar
   predictions, regardless of their Euclidean distance.
 \end{itemize}
 
-The ratio $\gamma_I / \gamma_A$ controls how much we trust the 
-unlabeled data geometry versus the supervised signal. When 
+The ratio $\gamma_I / \gamma_A$ controls how much we trust the
+unlabeled data geometry versus the supervised signal. When
 $\gamma_I = 0$, we recover standard supervised kernel methods.
 \end{intuition}
 
@@ -2070,41 +2070,41 @@ $\gamma_I = 0$, we recover standard supervised kernel methods.
 \subsection{Proof of the Extended Representer Theorem}
 \label{rkhs:subsec:manifold_representer_proof}
 
-Why does the solution still have the form $\sum_{i=1}^n \alpha_i 
-K(\cdot, x_i)$, now using \textbf{all} $n$ points? The proof is an 
+Why does the solution still have the form $\sum_{i=1}^n \alpha_i
+K(\cdot, x_i)$, now using \textbf{all} $n$ points? The proof is an
 elegant extension of the classical Representer Theorem.
 
 \begin{proof}[Proof Sketch]
-Let $M = \spn\{K(\cdot, x_1), \ldots, K(\cdot, x_n)\} \subseteq \hk$. 
-Any $f \in \hk$ decomposes as $f = f_\parallel + f_\perp$ with 
+Let $M = \spn\{K(\cdot, x_1), \ldots, K(\cdot, x_n)\} \subseteq \hk$.
+Any $f \in \hk$ decomposes as $f = f_\parallel + f_\perp$ with
 $f_\parallel \in M$ and $f_\perp \in M^\perp$.
 
 \smallskip
 \textbf{Step 1: The loss and intrinsic regularizer see only $f_\parallel$.}
 \begin{itemize}
-  \item By the reproducing property, $f(x_i) = \inner{f}{K(\cdot, x_i)} 
-    = f_\parallel(x_i)$ for each $i = 1,\ldots,n$. Hence the supervised 
+  \item By the reproducing property, $f(x_i) = \inner{f}{K(\cdot, x_i)}
+    = f_\parallel(x_i)$ for each $i = 1,\ldots,n$. Hence the supervised
     loss depends only on $f_\parallel$.
-  \item The vector $\mat{f} = (f(x_1),\ldots,f(x_n))^\top$ is determined 
-    entirely by $f_\parallel$, so $\mat{f}^\top \mat{L} \mat{f}$ also 
+  \item The vector $\mat{f} = (f(x_1),\ldots,f(x_n))^\top$ is determined
+    entirely by $f_\parallel$, so $\mat{f}^\top \mat{L} \mat{f}$ also
     depends only on $f_\parallel$.
 \end{itemize}
 
-\textbf{Step 2: The ambient regularizer penalizes $f_\perp$ without 
+\textbf{Step 2: The ambient regularizer penalizes $f_\perp$ without
 contributing to the other terms.}
-By orthogonality, $\norm{f}_{\hk}^2 = \norm{f_\parallel}_{\hk}^2 
+By orthogonality, $\norm{f}_{\hk}^2 = \norm{f_\parallel}_{\hk}^2
 + \norm{f_\perp}_{\hk}^2 \geq \norm{f_\parallel}_{\hk}^2$.
 
 \textbf{Step 3: Conclude.}
-For any $f$, the objective $J(f) \geq J(f_\parallel)$ with equality 
-iff $f_\perp = 0$. Therefore the minimizer must lie in $M$, i.e., 
+For any $f$, the objective $J(f) \geq J(f_\parallel)$ with equality
+iff $f_\perp = 0$. Therefore the minimizer must lie in $M$, i.e.,
 $f^* = \sum_{i=1}^n \alpha_i K(\cdot, x_i)$.
 \end{proof}
 
 \begin{remark}
-The crucial difference from the classical Representer Theorem: the 
-intrinsic regularizer involves \emph{evaluations} $f(x_i)$ at 
-\textbf{all} $n$ points, not just the labeled ones. This is why the 
+The crucial difference from the classical Representer Theorem: the
+intrinsic regularizer involves \emph{evaluations} $f(x_i)$ at
+\textbf{all} $n$ points, not just the labeled ones. This is why the
 expansion now includes \emph{every} data point.
 \end{remark}
 
@@ -2112,14 +2112,14 @@ expansion now includes \emph{every} data point.
 \subsection{Kernelization: The Manifold Regularization Algorithm}
 \label{rkhs:subsec:manifold_kernelization}
 
-As in Section~\ref{rkhs:sec:representer}, substitute 
+As in Section~\ref{rkhs:sec:representer}, substitute
 $f(x) = \sum_{j=1}^n \alpha_j K(x, x_j)$ into the objective.
 
 \begin{align*}
 \text{Prediction vector:} &\quad \mat{f} = \mat{K} \vect{\alpha}, \\
-\text{Ambient regularizer:} &\quad \norm{f}_{\hk}^2 
+\text{Ambient regularizer:} &\quad \norm{f}_{\hk}^2
   = \vect{\alpha}^\top \mat{K} \vect{\alpha}, \\
-\text{Intrinsic regularizer:} &\quad \mat{f}^\top \mat{L} \mat{f} 
+\text{Intrinsic regularizer:} &\quad \mat{f}^\top \mat{L} \mat{f}
   = \vect{\alpha}^\top \mat{K} \mat{L} \mat{K} \vect{\alpha}.
 \end{align*}
 
@@ -2128,12 +2128,12 @@ $f(x) = \sum_{j=1}^n \alpha_j K(x, x_j)$ into the objective.
 The manifold regularization problem~\eqref{rkhs:eq:manifold_reg} reduces to:
 \begin{equation}
 \label{rkhs:eq:manifold_kernelized}
-\boxed{\min_{\vect{\alpha} \in \R^n}\; 
-\frac{1}{l}\sum_{i=1}^{l} \ell\bigl((\mat{K}\vect{\alpha})_i,\; y_i\bigr) 
-+ \gamma_A\,\vect{\alpha}^\top\mat{K}\vect{\alpha} 
+\boxed{\min_{\vect{\alpha} \in \R^n}\;
+\frac{1}{l}\sum_{i=1}^{l} \ell\bigl((\mat{K}\vect{\alpha})_i,\; y_i\bigr)
++ \gamma_A\,\vect{\alpha}^\top\mat{K}\vect{\alpha}
 + \frac{\gamma_I}{n^2}\,\vect{\alpha}^\top \mat{K}\mat{L}\mat{K}\vect{\alpha}}
 \end{equation}
-This is convex for convex loss functions $\ell$ (e.g., squared loss, 
+This is convex for convex loss functions $\ell$ (e.g., squared loss,
 hinge loss, logistic loss).
 \end{theorem}
 
@@ -2200,29 +2200,29 @@ With $\gamma_I = 0$ the problem is kernel ridge regression on four points: the d
 \label{rkhs:subsec:manifold_practical}
 
 \begin{enumerate}[label=\textbf{\arabic*.}]
-  \item \textbf{Choosing the graph.} 
+  \item \textbf{Choosing the graph.}
   \begin{itemize}
-    \item $k$-NN graph: common choices $k = 5$--$20$. 
+    \item $k$-NN graph: common choices $k = 5$--$20$.
     \item $\varepsilon$-ball graph: connect points within distance $\varepsilon$.
     \item Edge weights: binary, Gaussian, or cosine similarity.
   \end{itemize}
-  
-  \item \textbf{Normalization.} The factor $1/n^2$ ensures consistent 
-    scaling as $n$ grows. Often $\mat{L}$ is replaced by the normalized 
+
+  \item \textbf{Normalization.} The factor $1/n^2$ ensures consistent
+    scaling as $n$ grows. Often $\mat{L}$ is replaced by the normalized
     Laplacian $\mat{L}_{\text{norm}} = \mat{I} - \mat{D}^{-1/2}\mat{W}
     \mat{D}^{-1/2}$.
-  
-  \item \textbf{Computational cost.} 
+
+  \item \textbf{Computational cost.}
   \begin{itemize}
-    \item Computing $\mat{K}$ is $O(n^2 d)$, constructing $k$-NN graph 
+    \item Computing $\mat{K}$ is $O(n^2 d)$, constructing $k$-NN graph
       is $O(n^2 d)$.
     \item Solving the linear system is $O(n^3)$ — the main bottleneck.
     \item For large $n$, use Nystr\"om approximation or iterative solvers.
   \end{itemize}
-  
+
   \item \textbf{Relation to other methods.}
   \begin{itemize}
-    \item \textbf{Laplacian SVM/Laplacian Ridge Regression:} manifold 
+    \item \textbf{Laplacian SVM/Laplacian Ridge Regression:} manifold
       regularization applied to SVMs and kernel ridge regression.
     \item \textbf{Graph neural networks:} modern deep learning analogue.
   \end{itemize}
@@ -2235,10 +2235,10 @@ With $\gamma_I = 0$ the problem is kernel ridge regression on four points: the d
 The two regularizers can be understood through Mercer's theorem:
 
 \begin{itemize}
-  \item The \textbf{ambient regularizer} $\gamma_A \norm{f}_{\hk}^2 
-    = \gamma_A \sum_k a_k^2/\lambda_k$ penalizes high-frequency 
+  \item The \textbf{ambient regularizer} $\gamma_A \norm{f}_{\hk}^2
+    = \gamma_A \sum_k a_k^2/\lambda_k$ penalizes high-frequency
     components in the eigenbasis of $K$.
-  \item The \textbf{intrinsic regularizer} $\gamma_I \mat{f}^\top 
+  \item The \textbf{intrinsic regularizer} $\gamma_I \mat{f}^\top
     \mat{L} \mat{f}$ penalizes variations along the data manifold.
 \end{itemize}
 
@@ -2251,9 +2251,9 @@ The two penalties are measured in different spectral bases: that of the integral
 \begin{keyidea}[The manifold regularization recipe]
 \begin{enumerate}
   \item \textbf{Start with a kernel} $K$ that encodes ambient smoothness.
-  \item \textbf{Build a graph} from \emph{all} data points to capture 
+  \item \textbf{Build a graph} from \emph{all} data points to capture
     manifold geometry.
-  \item \textbf{Add the graph Laplacian penalty} $\mat{f}^\top \mat{L} 
+  \item \textbf{Add the graph Laplacian penalty} $\mat{f}^\top \mat{L}
     \mat{f}$ to enforce smoothness along the manifold.
   \item \textbf{Solve} the kernelized problem ($\vect{\alpha} \in \R^n$).
   \item \textbf{Predict} using $f(x) = \sum_{i=1}^n \alpha_i K(x, x_i)$.
@@ -2261,9 +2261,9 @@ The two penalties are measured in different spectral bases: that of the integral
 
 The magic: unlabeled data enter through:
 \begin{enumerate}[label=(\alph*)]
-  \item The representation $f(x) = \sum_{i=1}^n \alpha_i K(x, x_i)$ 
+  \item The representation $f(x) = \sum_{i=1}^n \alpha_i K(x, x_i)$
     includes \textbf{all} points.
-  \item The graph Laplacian $\mat{L}$ is constructed from \textbf{all} 
+  \item The graph Laplacian $\mat{L}$ is constructed from \textbf{all}
     points.
 \end{enumerate}
 \end{keyidea}

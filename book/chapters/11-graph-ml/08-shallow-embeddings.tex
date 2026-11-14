@@ -73,7 +73,7 @@ Throughout this chapter we use the following small graph to illustrate every con
     \node[main, fill=node2color!30, right of=3] (4) {4};
     \node[main, fill=node2color!30, right of=2] (5) {5};
     \node[main, fill=node2color!30, right of=4] (6) {6};
-    
+
     % Edges
     \draw (1) -- (2);
     \draw (1) -- (3);
@@ -82,13 +82,13 @@ Throughout this chapter we use the following small graph to illustrate every con
     \draw (4) -- (5);
     \draw (4) -- (6);
     \draw (5) -- (6);
-    
+
     % Labels
     \node[below of=3, yshift=0.5cm, xshift=-0.3cm] {\small Community A};
     \node[below of=6, yshift=0.5cm, xshift=0.3cm] {\small Community B};
-    
+
     % Bridge annotation
-    \draw[decorate, decoration={brace, amplitude=5pt, raise=2pt}, thick, red!70!black] 
+    \draw[decorate, decoration={brace, amplitude=5pt, raise=2pt}, thick, red!70!black]
         (2.south east) -- (4.north east) node[midway, right, xshift=5pt, yshift=0pt, font=\small] {bridge edge};
 \end{tikzpicture}
 \caption{Our running example: a 6-node graph with two communities connected by a bridge edge (2--4). Nodes 1, 2, 3 form Community A; nodes 4, 5, 6 form Community B.}
@@ -182,7 +182,7 @@ Now consider nodes 1 and 6:
         \draw[very thick, green!60!black] (a) -- (b);
         \node[below of=a, yshift=0.7cm, xshift=0.75cm] {\small High 1st-order};
     \end{scope}
-    
+
     % Second-order example
     \begin{scope}[xshift=5cm]
         \node[main, fill=node1color!50] (c) {1};
@@ -244,13 +244,13 @@ Connected nodes ($A_{ij} = 1$) should have $\vect{y}_i^\top \vect{y}_j \approx 1
 \end{keyidea}
 
 \begin{pitfall}[The diagonal problem]
-There's an issue with the naive interpretation ``$\adj \approx \embed\embed^\top$''! 
+There's an issue with the naive interpretation ``$\adj \approx \embed\embed^\top$''!
 
 The diagonal entries of $\embed \embed^\top$ are:
 \[
 (\embed \embed^\top)_{ii} = \vect{y}_i^\top \vect{y}_i = \|\vect{y}_i\|^2
 \]
-But for graphs without self-loops, the diagonal of the adjacency matrix is zero: $A_{ii} = 0$. 
+But for graphs without self-loops, the diagonal of the adjacency matrix is zero: $A_{ii} = 0$.
 
 So a true factorization $\adj = \embed\embed^\top$ would require $\|\vect{y}_i\|^2 = 0$ for all nodes---meaning all embeddings are the zero vector! That's clearly useless.
 
@@ -262,7 +262,7 @@ So a true factorization $\adj = \embed\embed^\top$ would require $\|\vect{y}_i\|
 \begin{tikzpicture}
     % Matrix visualization with highlighted diagonal
     \node at (0, 0) {
-        $\underbrace{\begin{pmatrix} 
+        $\underbrace{\begin{pmatrix}
         \textcolor{red}{0} & 1 & 1 & 0 & 0 & 0 \\
         1 & \textcolor{red}{0} & 1 & 1 & 0 & 0 \\
         1 & 1 & \textcolor{red}{0} & 0 & 0 & 0 \\
@@ -271,9 +271,9 @@ So a true factorization $\adj = \embed\embed^\top$ would require $\|\vect{y}_i\|
         0 & 0 & 0 & 1 & 1 & \textcolor{red}{0}
         \end{pmatrix}}_{\adj \in \R^{6 \times 6}}$
     };
-    
+
     \node at (2.5, 0) {$\approx$};
-    
+
     \node at (4.5, 0) {
         $\underbrace{\begin{pmatrix}
         \leftarrow & \vect{y}_1^\top & \rightarrow \\
@@ -282,11 +282,11 @@ So a true factorization $\adj = \embed\embed^\top$ would require $\|\vect{y}_i\|
         \leftarrow & \vect{y}_6^\top & \rightarrow
         \end{pmatrix}}_{\embed \in \R^{6 \times d}}$
     };
-    
+
     \node at (6.5, 0) {$\times$};
-    
+
     \node at (7.5, 0) {$\embed^\top$};
-    
+
     % Annotation about diagonal
     \node[below, text width=8cm, align=center, font=\small] at (3.5, -2.2) {
         The \textcolor{red}{diagonal} of $\adj$ is zero, but $(\embed\embed^\top)_{ii} = \|\vect{y}_i\|^2$.\\
@@ -527,27 +527,27 @@ Then each node's final embedding has dimension $K \times d = 4 \times 64 = 256$.
 ]
     % Node label
     \node at (-1.5, 0) {$\vect{y}_i =$};
-    
+
     % Embedding boxes
     \node[box, fill=blue!30] (e1) at (0.5, 0) {$\vect{y}_i^{(1)}$};
     \node[box, fill=green!30] (e2) at (2.2, 0) {$\vect{y}_i^{(2)}$};
     \node[box, fill=orange!30] (e3) at (3.9, 0) {$\vect{y}_i^{(3)}$};
     \node[box, fill=red!30] (e4) at (5.6, 0) {$\vect{y}_i^{(4)}$};
-    
+
     % Dimension labels
     \node[below of=e1, yshift=0.3cm, font=\scriptsize] {$d$ dims};
     \node[below of=e2, yshift=0.3cm, font=\scriptsize] {$d$ dims};
     \node[below of=e3, yshift=0.3cm, font=\scriptsize] {$d$ dims};
     \node[below of=e4, yshift=0.3cm, font=\scriptsize] {$d$ dims};
-    
+
     % Scale labels
     \node[above of=e1, yshift=-0.3cm, font=\scriptsize] {1-hop};
     \node[above of=e2, yshift=-0.3cm, font=\scriptsize] {2-hop};
     \node[above of=e3, yshift=-0.3cm, font=\scriptsize] {3-hop};
     \node[above of=e4, yshift=-0.3cm, font=\scriptsize] {4-hop};
-    
+
     % Brace
-    \draw[decorate, decoration={brace, amplitude=5pt, raise=12pt}] 
+    \draw[decorate, decoration={brace, amplitude=5pt, raise=12pt}]
         (e4.south east) -- (e1.south west) node[midway, above, yshift=-28pt] {Total: $Kd$ dimensions};
 \end{tikzpicture}
 \caption{GraRep concatenates embeddings from each scale $k$. With $K=4$ scales and $d=64$ dimensions each, the final embedding has $256$ dimensions.}
@@ -662,7 +662,7 @@ In a graph, nodes visited consecutively during a random walk are related: if a r
     \node[main, fill=node2color!30, right of=3] (4) {4};
     \node[main, fill=node2color!30, right of=2] (5) {5};
     \node[main, fill=node2color!30, right of=4] (6) {6};
-    
+
     \draw (1) -- (2);
     \draw (1) -- (3);
     \draw (2) -- (3);
@@ -670,13 +670,13 @@ In a graph, nodes visited consecutively during a random walk are related: if a r
     \draw (4) -- (5);
     \draw (4) -- (6);
     \draw (5) -- (6);
-    
+
     % Random walk path
     \draw[walk] (3) to[bend left=15] (1);
     \draw[walk] (1) to[bend left=15] (2);
     \draw[walk] (2) to[bend left=15] (4);
     \draw[walk] (4) to[bend left=15] (6);
-    
+
     % Sequence representation
     \node[below of=4, yshift=-0.8cm] (seq) {
         \fbox{Random walk ``sentence'': \textcolor{red!70!black}{\textbf{3 → 1 → 2 → 4 → 6}}}
@@ -851,7 +851,7 @@ After many iterations, nodes that frequently co-occur in walks will have similar
 At first glance, DeepWalk (random walks + skip-gram) seems completely different from the matrix factorization methods we saw earlier (GF, HOPE, GraRep). One uses neural network training with stochastic gradient descent; the other uses linear algebra (SVD).
 
 \begin{intuition}[Motivation]
-But here's a remarkable fact: \textbf{they're secretly doing the same thing!} 
+But here's a remarkable fact: \textbf{they're secretly doing the same thing!}
 
 A beautiful theoretical result shows that skip-gram with negative sampling implicitly factorizes a specific matrix. This explains why DeepWalk works so well---it's not just a heuristic, it has solid mathematical foundations.
 \end{intuition}
@@ -931,32 +931,32 @@ P(v \to x \mid t \to v) = \frac{\alpha_{pq}(t,x)}{\sum_{x' \in \mathcal{N}(v)} \
     % Nodes
     \node[main, fill=gray!20, label=below:previous] (t) {$t$};
     \node[main, fill=yellow!30, right=of t, label=below:current] (v) {$v$};
-    
+
     % Neighbors
     \node[main, fill=blue!10, above right=1.1cm and 2cm of v] (x1) {$x_1$};
     \node[main, fill=green!10, right=2.5cm of v] (x2) {$x_2$};
     \node[main, fill=red!10, below right=1.1cm and 2cm of v] (x3) {$x_3$};
-    
+
     % Structural Undirected Edges
     \draw[thick, gray] (t) -- (v);
     \draw[thick, gray] (v) -- (x1);
     \draw[thick, gray] (v) -- (x2);
     \draw[thick, gray] (v) -- (x3);
     \draw[thick, gray] (t) to[bend left=40] (x1); % Neighbor connection
-    
+
     % Transition Probabilities (Directed)
     \begin{scope}[every node/.style={prob}]
         % Return to t
         \draw[arrow, blue] (v) to[bend left] node {$1/p$} (t);
-        
+
         % Move to neighbor of t
         \draw[arrow, green!60!black] (v) to[bend left=15] node {$1$} (x1);
-        
+
         % Move away from t
         \draw[arrow, red] (v) to[bend right=-15] node[above] {$1/q$} (x2);
         \draw[arrow, red] (v) to[bend right=-15] node[above] {$1/q$} (x3);
     \end{scope}
-    
+
     % Legend (Boxed for clarity)
     \node[draw, rounded corners, right=1cm of x2, font=\small, inner sep=6pt] (legend) {
         \begin{tabular}{ll}
@@ -1008,7 +1008,7 @@ The second setting pushes the walk deeper into community B (away from where it c
     \item \textbf{High $q$}: Stay close to starting region → BFS-like, captures structural equivalence
 \end{itemize}
 
-\textbf{Rule of thumb}: 
+\textbf{Rule of thumb}:
 \begin{itemize}
     \item For community detection: use low $q$ (explore communities deeply)
     \item For role detection (hubs, bridges): use high $q$ (stay local, see structure)
@@ -1028,7 +1028,7 @@ The second setting pushes the walk deeper into community B (away from where it c
         }
         \node[below of=c, yshift=-0.3cm, font=\small] {Explores neighborhood};
     \end{scope}
-    
+
     % DFS-like
     \begin{scope}[xshift=5cm]
         \node[font=\bfseries] at (1.5, 2.5) {Low $q$ (DFS-like)};
@@ -1093,13 +1093,13 @@ We can think of a multi-relational graph as having $R$ different ``layers,'' one
     \node[entity, fill=node3color!30, right=3.5cm of einstein] (germany) {Germany};
     \node[entity, fill=node2color!30, below=2cm of einstein] (nobel) {Nobel};
     \node[entity, fill=node4color!30, below=2cm of germany] (physics) {Physics};
-    
+
     % Relations with different colors for different types
     \draw[-{Stealth}, thick, blue!70] (einstein) -- node[rel, above] {\textsc{BornIn}} (germany);
     \draw[-{Stealth}, thick, red!70] (einstein) -- node[rel, left] {\textsc{Won}} (nobel);
     \draw[-{Stealth}, thick, green!60!black] (einstein) -- node[rel, above, sloped] {\textsc{FieldOf}} (physics);
     \draw[-{Stealth}, thick, orange!80] (nobel) -- node[rel, below] {\textsc{Category}} (physics);
-    
+
     % Legend
     \node[draw, rounded corners, right=0.5cm of germany, yshift=-2cm, font=\small] {
         \begin{tabular}{l}
@@ -1224,7 +1224,7 @@ For each true triple $(h, \tau, t) \in E$:
 
 The loss function is:
 \begin{align}
-\mathcal{L}_{\text{CE}} = \sum_{(h,\tau,t) \in E} \Bigl[ 
+\mathcal{L}_{\text{CE}} = \sum_{(h,\tau,t) \in E} \Bigl[
 &-\log \sigma\bigl(\text{dec}(\vect{z}_h, \tau, \vect{z}_t)\bigr) \nonumber \\
 &- \frac{1}{K}\sum_{k=1}^{K} \log \sigma\bigl(-\text{dec}(\vect{z}_{h_k'}, \tau, \vect{z}_t)\bigr) \nonumber \\
 &- \frac{1}{K}\sum_{k=1}^{K} \log \sigma\bigl(-\text{dec}(\vect{z}_h, \tau, \vect{z}_{t_k'})\bigr)
@@ -1327,7 +1327,7 @@ and relation matrix for \textsc{BornIn}:
 
 Then:
 \begin{align*}
-f(\text{Einstein}, \textsc{BornIn}, \text{Germany}) &= \begin{pmatrix} 0.8 & 0.3 \end{pmatrix} 
+f(\text{Einstein}, \textsc{BornIn}, \text{Germany}) &= \begin{pmatrix} 0.8 & 0.3 \end{pmatrix}
 \begin{pmatrix} 0.5 & 0.1 \\ -0.2 & 0.8 \end{pmatrix}
 \begin{pmatrix} 0.2 \\ 0.9 \end{pmatrix} \\
 &= \begin{pmatrix} 0.8 & 0.3 \end{pmatrix} \begin{pmatrix} 0.19 \\ 0.68 \end{pmatrix} \\
@@ -1429,27 +1429,27 @@ where $\|\cdot\|_p$ is typically the $L_1$ or $L_2$ norm.
     % Embedding space
     \draw[->] (-0.5, 0) -- (5, 0) node[right] {$d_1$};
     \draw[->] (0, -0.5) -- (0, 4) node[above] {$d_2$};
-    
+
     % Entities
     \node[circle, fill=node1color!50, minimum size=0.5cm, inner sep=0] (h) at (1, 1) {};
     \node[below left of=h, xshift=0.3cm, yshift=0.3cm] {$\vect{z}_h$};
-    
+
     \node[circle, fill=node2color!50, minimum size=0.5cm, inner sep=0] (t) at (3.5, 2.5) {};
     \node[above right of=t, xshift=-0.3cm, yshift=-0.3cm] {$\vect{z}_t$};
-    
+
     % Translation vector
     \draw[-{Stealth}, very thick, purple!70] (h) -- node[above, sloped] {$\vect{r}_\tau$} (t);
-    
+
     % Predicted position
     \node[circle, draw, dashed, minimum size=0.5cm, inner sep=0, purple!70] (pred) at (3.5, 2.5) {};
     \node[below right of=pred, xshift=0.3cm, yshift=0.65cm, purple!70] {$\vect{z}_h + \vect{r}_\tau$};
-    
+
     % Another example with different relation
     \node[circle, fill=node3color!50, minimum size=0.5cm, inner sep=0] (t2) at (1.5, 3) {};
     \node[left of=t2, xshift=0.3cm] {$\vect{z}_{t'}$};
-    
+
     \draw[-{Stealth}, thick, orange!80, dashed] (h) -- node[above, sloped, xshift=+3pt] {$\vect{r}_{\tau'}$} (t2);
-    
+
     % Annotation
     \node[draw, rounded corners, fill=white, font=\small] at (4, 0.8) {
         \begin{tabular}{c}
@@ -1542,9 +1542,9 @@ Several methods extend TransE to address its limitations:
 \begin{equation}
 f_{\text{TransH}}(h, \tau, t) = - \|
 \underbrace{( \vect{z}_h - \underbrace{\vect{w}_\tau^\top \vect{z}_h \cdot
-\vect{w}_\tau}_{\text{projection onto } \vect{w}_\tau})}_{\text{projection of } \vect{z}_h \text{ on hyperplane}} 
+\vect{w}_\tau}_{\text{projection onto } \vect{w}_\tau})}_{\text{projection of } \vect{z}_h \text{ on hyperplane}}
 + \vect{r}_\tau
-- (\vect{z}_t - \vect{w}_\tau^\top \vect{z}_t \cdot \vect{w}_\tau) 
+- (\vect{z}_t - \vect{w}_\tau^\top \vect{z}_t \cdot \vect{w}_\tau)
 \|
 \end{equation}
 where $\vect{w}_\tau$ is the normal vector to the hyperplane.
@@ -1570,7 +1570,7 @@ where $\vect{M}_\tau \in \R^{k \times d}$ projects from entity space ($d$-dimens
         \draw[->, thick, purple] (h1) -- (2.9, 1.9);
         \node[font=\scriptsize] at (2, -0.5) {$t_1 \approx t_2$ (collapse!)};
     \end{scope}
-    
+
     % TransH
     \begin{scope}[xshift=5.5cm]
         \node[font=\bfseries] at (2, 3.5) {TransH};
@@ -1686,22 +1686,22 @@ where $\circ$ denotes element-wise (Hadamard) product.
     % Complex plane
     \draw[->] (-2, 0) -- (2.5, 0) node[right] {Re};
     \draw[->] (0, -2) -- (0, 2.5) node[above] {Im};
-    
+
     % Head embedding (one dimension)
     \draw[->, thick, blue!70] (0,0) -- (1.5, 0.8) node[below right] {$z_h$};
-    
+
     % Rotation
     \draw[->, thick, orange!70, dashed] (1.5, 0.8) arc[start angle=32, end angle=75, radius=1.75];
     \node[orange!70] at (1.9, 1.4) {rotate by $\theta_\tau$};
-    
+
     % Rotated = tail (approximately)
     \draw[->, thick, green!60!black] (0,0) -- (0.5, 1.6);
     \node[left, green!60!black] at (0.5, 1.6) {$z_h \cdot r_\tau \approx z_t$};
-    
+
     % Tail embedding
     \node[circle, fill=red!50, inner sep=2pt] at (0.53, 1.7) {};
     \node[above, red!70] at (0.63, 1.65) {$z_t$};
-    
+
     % Unit circle for r_tau
     \draw[gray, dashed] (0,0) circle[radius=1];
     \draw[->, thick, orange] (0,0) -- (0.64, 0.77);
@@ -1779,7 +1779,7 @@ Consider the knowledge graph:
     \node[entity, fill=blue!20] (A) at (0, 0) {A};
     \node[entity, fill=green!20] (B) at (3, 0) {B};
     \node[entity, fill=red!20] (C) at (1.5, -2) {C};
-    
+
     \draw[->, thick, blue!70] (A) -- node[above] {$\tau_1$} (B);
     \draw[->, thick, green!60!black] (B) -- node[right] {$\tau_2$} (C);
     \draw[->, thick, orange!80] (A) -- node[left] {$\tau_3$} (C);
@@ -1935,13 +1935,13 @@ Idea: Treat a graph as a ``document'' and its subgraph patterns as ``words.''
     \node[main] (b) at (0.5, 0.5) {2};
     \node[main] (c) at (0, -0.5) {3};
     \draw (a) -- (b) -- (c) -- (a);
-    
+
     % Arrow
     \draw[-{Stealth}, thick] (1.2, 0) -- (2.3, 0) node[midway, above, font=\small] {WL};
-    
+
     % Subgraphs
     \node[font=\bfseries] at (4.5, 2) {Subgraph ``words''};
-    
+
     \begin{scope}[xshift=3.5cm, yshift=0.3cm, scale=0.6]
         \node[main, fill=yellow!50] (s1) at (0,0) {};
         \node[main] (s2) at (0.7, 0) {};
@@ -1950,7 +1950,7 @@ Idea: Treat a graph as a ``document'' and its subgraph patterns as ``words.''
         \draw (s1) -- (s3);
         \node[below of=s3, yshift=0.7cm, font=\tiny] {$h_1$: degree-2};
     \end{scope}
-    
+
     \begin{scope}[xshift=5.5cm, yshift=0.3cm, scale=0.6]
         \node[main, fill=yellow!50] (t1) at (0,0) {};
         \node[main] (t2) at (0.7, 0) {};
@@ -1958,12 +1958,12 @@ Idea: Treat a graph as a ``document'' and its subgraph patterns as ``words.''
         \draw (t1) -- (t2) -- (t3) -- (t1);
         \node[below of=t3, yshift=0.7cm, font=\tiny] {$h_2$: triangle};
     \end{scope}
-    
+
     % Doc representation
     \draw[-{Stealth}, thick] (6.5, 0) -- (7.5, 0);
     \node[font=\small] at (9, 0) {$G \to \{h_1, h_1, h_1, h_2, \ldots\}$};
     \node[font=\small] at (9, -0.5) {(``document'')};
-    
+
 \end{tikzpicture}
 \caption{Graph2Vec: extract subgraph patterns as ``words,'' represent graph as document, learn embedding.}
 \label{shallow-embeddings:fig:graph2vec}
@@ -2018,7 +2018,7 @@ RotatE & Rotation & General KG completion & Yes \\
     \node[decision, below right=1.5cm and 0.5cm of scale] (control) {Need walk control?};
     \node[block, below left=1.2cm and 0.3cm of control] (n2v) {Node2Vec};
     \node[block, below right=1.2cm and 0.3cm of control] (dw) {DeepWalk};
-    
+
     \draw[arrow] (dir) -- node[left, font=\small] {Yes} (hope);
     \draw[arrow] (dir) -- node[right, font=\small] {No} (scale);
     \draw[arrow] (scale) -- node[left, font=\small] {Yes} (grarep);
