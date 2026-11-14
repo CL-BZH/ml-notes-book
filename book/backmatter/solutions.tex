@@ -1549,3 +1549,209 @@ $p_\theta(z_t\mid z_{t-1}, x_{0:t-1})$. Inference
 networks: the AR DKF has the backward LSTM \texttt{q\_b\_rnn} on $x_{1:T}$, whose state at $t$ summarizes $x_{t:T}$; the
 FAR DKF has the same backward LSTM and a forward LSTM \texttt{q\_f\_rnn} on $x_{1:T}$, whose state at $t$ summarizes
 $x_{1:t}$; the BAR DKF has one bidirectional LSTM on $x_{1:T}$, whose combined state at $t$ summarizes $x_{1:T}$.
+
+\section{\nameref*{ch:bigram-models}}
+
+\solution{bigram-models:exr:1}
+$p(\text{the cat ran}) = \hat p(\text{the}\mid\langle s\rangle)\,\hat p(\text{cat}\mid\text{the})\,\hat p(\text{ran}\mid\text{cat})\,\hat p(\langle/s\rangle\mid\text{ran}) = \frac34\cdot\frac23\cdot\frac13\cdot1 = \frac16$. Over the $16$ training bigrams, the
+negative log-probabilities are $\log\frac43$ three times, $\log4$ once, $\log\frac32$ four times (the$\to$cat and cat$\to$sat, twice
+each), $\log3$ twice, and $0$ for the six bigrams of probability $1$. The sum is $0.8630 + 1.3863 + 1.6219 + 2.1972 = 6.0684$, the
+average $0.3793$, and the perplexity $e^{0.3793} = 1.461$.
+
+\solution{bigram-models:exr:2}
+$(W + \mathbf 1c^\top)^\top e_i + b - c = W^\top e_i + c + b - c = W^\top e_i + b$, since $\mathbf 1^\top e_i = 1$. Adding $\gamma$ to every entry of row $i$ adds $\gamma$ to every logit of context
+$i$, which the softmax ignores. The bigram model has $V - 1$ free probabilities per context, $V(V - 1)$ in all.
+The $V^2 + V$ parameters have $2V$ redundant directions (one constant per row, and the vector $c$), leaving
+$V^2 - V$, which matches.
+
+\solution{bigram-models:exr:3}
+$\nabla_z\ell = p - e_2 = (0.1, -0.3, 0.2)$, $\nabla_b\ell = (0.1, -0.3, 0.2)$, and $\nabla_W\ell = e_1(0.1, -0.3, 0.2)$, whose first row is $(0.1, -0.3, 0.2)$ and other
+rows are zero. A gradient step changes only the first row of $W$ (and $b$); the logit of word $2$ in that row
+increases, the two others decrease.
+
+\solution{bigram-models:exr:4}
+$\nabla_z\ell = p - y$ still holds for any target distribution $y$, since $\ell = -\sum_ky_kz_k + \log\sum_ke^{z_k}$ when $\sum_ky_k = 1$. For a context always
+followed by $j$, the averaged target is $y$ itself, and the loss is minimized at $p = y$: the logits are
+$\log y$ up to a constant, so $z_j - z_k = \log\frac{1 - \varepsilon + \varepsilon/V}{\varepsilon/V} = \log\bigl(1 + V(1 - \varepsilon)/\varepsilon\bigr)$ for $k\neq j$, a finite gap. Without smoothing the gap
+would grow without bound.
+
+\solution{bigram-models:exr:5}
+A uniform model gives $-\log p = \log V$ to every word, so the average is $\log V$ and the perplexity $V$. For any model
+$p\leq1$, so $-\log p\geq0$, the average is $\geq0$ and the perplexity $\geq1$, with equality iff every term is $0$, that is every
+observed word has probability $1$.
+
+\section{\nameref*{ch:bigram-neural}}
+
+\solution{bigram-neural:exr:1}
+$\nabla_{W_2}\ell = h\bar z^\top$ is $D\times V = 2\times3$ like $W_2$; $\nabla_{b_2}\ell$ has $V = 3$ entries like $b_2$; $\nabla_{W_1}\ell = x\bar a^\top$ is $V\times D = 3\times2$ like $W_1$; $\nabla_{b_1}\ell$
+has $D = 2$ entries. Entry $(2, 3)$ of $\nabla_{W_2}\ell$ is $h_2\bar z_3 = 0.3799\times0.3871 = 0.1471$.
+
+\solution{bigram-neural:exr:2}
+\texttt{dh} is already $\bar a = \bar h\odot(1 - h^2)$, so the code returns $x\,(\bar a\odot(1 - h^2))^\top$: the derivative of $\tanh$ applied twice. Its
+non-zero row is $(0.0101\times0.9610,\ 0.0090\times0.8556) = (0.0097,\ 0.0077)$ instead of $(0.0101,\ 0.0090)$. Gradient descent with this
+vector still decreases the loss for small steps here (all factors are positive), which is why such
+bugs survive; a gradient check against automatic differentiation exposes them.
+
+\solution{bigram-neural:exr:3}
+$HW_2$ is a product through a $D$-dimensional space, so its rank is at most $D$; $\mathbf 1b_2^\top$ has rank at most $1$, and the
+rank of a sum is at most the sum of the ranks. With $D = 1$ and no biases, $Z = hw^\top$ with $h\in(-1, 1)^V$, $w\in\R^V$: the
+row of word $i$ is $h_iw$. A uniform row for word $3$ needs $h_3w$ constant, so $h_3 = 0$ (a constant $w$ would make every row
+uniform). Word $1$ followed by $2$ needs $h_1w$ maximal at coordinate $2$, word $2$ followed by $1$ needs $h_2w$ maximal at
+coordinate $1$: take $h_1 > 0$, $h_2 < 0$, and $w$ with $w_2$ largest and $w_1$ smallest. Probabilities exactly $1$ are not reachable, but
+scaling $w$ up makes $p(2\mid1)$ and $p(1\mid2)$ as close to $1$ as desired: the table is a limit of representable
+ones.
+
+\solution{bigram-neural:exr:4}
+$2VD + D + V = 30\,000\,000 + 300 + 50\,000 = 30\,050\,300$ parameters. The lookup copies $300$ numbers (no multiplication),
+then $300$ evaluations of $\tanh$; the output layer costs $DV = 15\,000\,000$ multiply-adds, plus $50\,000$ exponentials for the
+softmax.
+
+\section{\nameref*{ch:word-embeddings}}
+
+\solution{word-embeddings:exr:1}
+With $m = 1$: (the, cat), (cat, the), (cat, sat), (sat, cat), (sat, on), (on, sat), (on, the), (the, on), (the, mat), (mat, the),
+that is $2(T - 1) = 10$ pairs for $T = 6$ words. With $m = 2$, the six positions have $2, 3, 4, 4, 3, 2$ neighbours within
+distance $2$, so $18$ pairs.
+
+\solution{word-embeddings:exr:2}
+$V_{\mathrm{in}}^\top\bar x_t = \frac1{2m}\sum_kV_{\mathrm{in}}^\top e_{w_{t+k}} = \frac1{2m}\sum_kv_{w_{t+k}} = \bar v_t$ by linearity, since $V_{\mathrm{in}}^\top e_w = v_w$. A word that appears twice in the window
+contributes its vector twice, with weight $2/(2m)$: the input is the average of the context word
+vectors counted with multiplicity.
+
+\solution{word-embeddings:exr:3}
+$f(1) = 0.01^{3/4} = 0.0316$, $f(10) = 0.1^{3/4} = 0.178$, $f(100) = f(1000) = 1$. For $X_{ij} = 0$, $\log X_{ij}$ is undefined. Replacing it by
+$\log(X_{ij} + 1) = 0$ with weight $1$ would add a term $(w_i^\top\tilde w_j + b_i + \tilde b_j)^2$ for every pair that never co-occurs, which is the
+vast majority of the $|\mathcal V|^2$ pairs: these terms would dominate the objective, push all scores towards $0$ and
+make each pass cost $O(|\mathcal V|^2)$.
+
+\solution{word-embeddings:exr:4}
+\texttt{<where>} has the trigrams \texttt{<wh}, \texttt{whe}, \texttt{her}, \texttt{ere}, \texttt{re>} and the 4-grams \texttt{<whe},
+\texttt{wher}, \texttt{here}, \texttt{ere>}. \texttt{<her>} has the trigrams \texttt{<he}, \texttt{her}, \texttt{er>} and the 4-grams \texttt{<her},
+\texttt{her>}. The only shared $n$-gram is the trigram \texttt{her}; the boundary symbols keep \texttt{<her} and
+\texttt{her>} distinct from anything inside ``where''.
+
+\solution{word-embeddings:exr:5}
+The cosine is continuous in its arguments away from the zero vector. At $\delta = 0$, $\cos(v_b, v_b) = 1$ while $\cos(v_b, v_x) < 1$
+for every $x\neq b$, since no other vector has the direction of $v_b$; the vocabulary being finite, the gap
+$1 - \max_{x\neq b}\cos(v_b, v_x)$ is positive. By continuity, for $\norm\delta$ small enough $\cos(v_b + \delta, v_b) > \cos(v_b + \delta, v_x)$ for all $x\neq b$. When the
+offset between the two pairs of the analogy is small, the unrestricted search therefore
+returns $b$, whatever the analogy: excluding the query words is what makes the question
+informative.
+
+\section{\nameref*{ch:hierarchical-softmax}}
+
+\solution{hierarchical-softmax:exr:1}
+``apple'' is reached by going right at $R$ ($t = 0$) and left at $B$ ($t = 1$); $\ell = -\log0.1230 = 2.0956$. Then
+$\partial\ell/\partial s_R = 0.5744$ and $\partial\ell/\partial s_B = 0.2891 - 1 = -0.7109$, so $\nabla_{u_R}\ell = 0.5744\,h = (0.5744,\ -0.2872)$,
+$\nabla_{u_B}\ell = -0.7109\,h = (-0.7109,\ 0.3555)$ and $\nabla_h\ell = 0.5744\,u_R - 0.7109\,u_B = (0.5852,\ -0.4538)$. The node $A$ is not on the path, so
+$\nabla_{u_A}\ell = 0$.
+
+\solution{hierarchical-softmax:exr:2}
+Let $I$ be the number of internal nodes. The tree has $V + I$ nodes and, being a tree, $V + I - 1$ edges. Each
+internal node has two children and each node except the root has one parent, so the number of
+edges is also $2I$. Hence $V + I - 1 = 2I$, $I = V - 1$.
+
+\solution{hierarchical-softmax:exr:3}
+Merges: $f + e = 14$, $c + b = 25$, $14 + d = 30$, $25 + 30 = 55$, $a + 55 = 100$. Depths: $a$ $1$; $b$, $c$, $d$ $3$; $e$, $f$ $4$. Then
+$\bar L = (45 + 3(13 + 12 + 16) + 4(9 + 5))/100 = 2.24$, against $H = 2.22$ bits and $3$ for a tree with all six words at depth $3$.
+The very frequent $a$ is answered by a single binary decision.
+
+\solution{hierarchical-softmax:exr:4}
+At each stage the two smallest weights are equal: $1 + 1 = 2$, which joins the word of count $2$ to make $4$, which
+joins the word of count $4$, and so on. Each merge adds one word next to the tree built so far,
+so the tree is a caterpillar: the word of count $2^{V-1-k}$ has depth $k$ for $k = 1,\dots,V - 1$, and the extra word of
+count $1$ also has depth $V - 1$. The total count is $2^{V-1}$, so $f_w = 2^{-L(w)}$ for every word, and
+$\bar L = \sum_wf_wL(w) = -\sum_wf_w\log_2f_w = H$. Summing, $\bar L = \sum_{k=1}^{V-1}k2^{-k} + (V - 1)2^{1-V} = 2 - 2^{2-V}$: the Huffman tree attains the entropy
+bound exactly, although its two rarest words are at depth $V - 1$.
+
+\section{\nameref*{ch:nce-negative-sampling}}
+
+\solution{nce-negative-sampling:exr:1}
+$g(x) = a\log x + b\log(1 - x)$ has $g'(x) = a/x - b/(1 - x)$, which vanishes only at $x = a/(a + b)$, and $g''(x) = -a/x^2 - b/(1 - x)^2 < 0$: $g$ is
+strictly concave, so this critical point is the unique maximum.
+
+\solution{nce-negative-sampling:exr:2}
+NCE: $s(c) = \log0.02 = -3.912$, the log-probability itself. Negative sampling: $s(c) = \log\frac{0.02}{5\times0.001} = \log4 = 1.386$, the PMI
+$\log(0.02/0.001) = 2.996$ minus $\log5 = 1.609$. Only NCE estimates $\log p(c\mid w)$.
+
+\solution{nce-negative-sampling:exr:3}
+The new vectors are $v_w = (0.6990,\ -0.1950,\ -0.1319)$, $u_c = (0.6238,\ 0.0105,\ 0.3448)$, $u_{c_1} = (-0.5189,\ 0.6876,\ 0.1562)$,
+$u_{c_2} = (-0.0786,\ -0.2886,\ 0.4443)$. The scores become $0.3885$ (up from $0.21$), $-0.5174$ (down from $-0.25$) and $-0.0573$
+(down from $0.23$), and the loss drops from $1.9843$ to $1.6501$.
+
+\solution{nce-negative-sampling:exr:4}
+With $P_n(c) = 1/V$ and $k = V$, $kP_n(c) = 1$, so the optimum $\log\frac{P_d(c\mid w)}{kP_n(c)}$ of \cref{nce-negative-sampling:prop:ns} is $\log P_d(c\mid w)$, as for NCE.
+Each pair then costs $V + 1$ logistic terms, as much as the softmax.
+
+\solution{nce-negative-sampling:exr:5}
+$\alpha = 1$: $(0.9901, 0.0099)$; $\alpha = 3/4$: $100^{3/4} = 31.62$, so $(0.9693, 0.0307)$; $\alpha = 1/2$: $(10/11, 1/11) = (0.9091, 0.0909)$; $\alpha = 0$: $(0.5, 0.5)$. Only
+$\alpha = 0$ (uniform noise) draws both words equally often; decreasing $\alpha$ moves continuously from the
+unigram distribution to the uniform one.
+
+\section{\nameref*{ch:hmm-viterbi}}
+
+\solution{hmm-viterbi:exr:1}
+Viterbi does about $TK^2 = 20\times2025 = 40\,500$ products $\delta_{t-1}(j)A_{jk}$, plus $TK = 900$ emission products. Enumeration
+evaluates $K^T = 45^{20}\approx1.2\times10^{33}$ sequences of $2T - 1 = 39$ factors each, about $4.5\times10^{34}$ products.
+
+\solution{hmm-viterbi:exr:2}
+$\alpha_1 = (0.28, 0, 0, 0)$, $\alpha_2 = (0, 0.0224, 0, 0.0014)$ (one predecessor each, as for $\delta$). Then
+$\alpha_3(\mathrm P) = (0.0224\times0.4 + 0.0014\times0.1)\times0.3 = 0.00273$, $\alpha_3(\mathrm D) = (0.0224\times0.35 + 0.0014\times0.1)\times0.25 = 0.001995$,
+$\alpha_4(\mathrm V) = (0.00273\times0.8 + 0.001995\times0)\times0.03 = 6.552\times10^{-5}$, $\alpha_4(\mathrm N) = (0.00273\times0.1 + 0.001995\times1)\times0.04 = 9.072\times10^{-5}$, and
+$p(x_{1:4}) = 1.5624\times10^{-4}$. The posterior probability of the Viterbi sequence is $7.84\times10^{-5}/1.5624\times10^{-4} = 0.502$.
+
+\solution{hmm-viterbi:exr:3}
+$\hat\pi(\mathrm D) = 2/3$, $\hat\pi(\mathrm N) = 1/3$. Transitions: D is followed by N twice, so $\hat A_{\mathrm{DN}} = 1$; N is followed by V three times,
+$\hat A_{\mathrm{NV}} = 1$; V is never followed by a tag in these sentences (with an end symbol, $\hat A_{\mathrm V\langle/s\rangle} = 1$).
+Emissions of N: dog once, dogs twice, so $\hat B_{\mathrm N}(\text{dog}) = 1/3$, $\hat B_{\mathrm N}(\text{dogs}) = 2/3$. Every other word has
+$\hat B_{\mathrm N} = 0$, which smoothing would correct.
+
+\solution{hmm-viterbi:exr:4}
+With two tags, posterior decoding picks at each step a tag of marginal probability at least $\frac12$. If the
+chosen pair $(k, l)$ had probability $0$, then $p(y_1 = k) + p(y_2 = l) = p(y_1 = k, y_2\neq l) + p(y_1\neq k, y_2 = l)\leq1$, so both marginals would equal $\frac12$, contradicting the uniqueness of the maxima. With three tags $a, b, c$, uninformative emissions (the same
+for all tags), $\pi = (0.4, 0.3, 0.3)$ and transitions $a\to(0, \frac12, \frac12)$, $b\to(\frac23, \frac13, 0)$, $c\to(\frac23, 0, \frac13)$, the sequences
+$(a, b), (a, c), (b, a), (c, a)$ have probability $0.2$ each and $(b, b), (c, c)$ $0.1$ each. Both marginals are $(0.4, 0.3, 0.3)$, so posterior
+decoding chooses $(a, a)$, which has probability $0$; Viterbi chooses one of the four sequences of
+probability $0.2$.
+
+\solution{hmm-viterbi:exr:5}
+The logarithm is increasing, so $\log\max_ja_j = \max_j\log a_j$ and the maximizers are the same; and $\log(ab) = \log a + \log b$. Taking
+the logarithm of the recursion gives the log-space recursion with the same back-pointers. A
+decreasing function $g$ turns maxima into minima, $g(\max_ja_j) = \min_jg(a_j)$, so the recursion would have to
+minimize; using $\max$ with it would select the least probable predecessors. (The negative
+logarithm is used this way: Viterbi then computes a shortest path.)
+
+\section{\nameref*{ch:crf}}
+
+\solution{crf:exr:1}
+$S(\mathrm{DDD}) = 1.5 - 1 + 0 - 1 + 0.5 = 0$, $S(\mathrm{DDN}) = 1.5 - 1 + 0 + 2 + 0.5 = 3$, $S(\mathrm{DND}) = 5.5$, $S(\mathrm{DNN}) = 1.5 + 2 + 1 + 0 + 0.5 = 5$, $S(\mathrm{NDD}) = 0 + 0.5 + 0 - 1 + 0.5 = 0$,
+$S(\mathrm{NDN}) = 0 + 0.5 + 0 + 2 + 0.5 = 3$, $S(\mathrm{NND}) = 0 + 0 + 1 + 0.5 + 0.5 = 2$, $S(\mathrm{NNN}) = 0 + 0 + 1 + 0 + 0.5 = 1.5$. Then
+$\sum e^S = 1 + 20.086 + 244.692 + 148.413 + 1 + 20.086 + 7.389 + 4.482 = 447.15$.
+
+\solution{crf:exr:2}
+Every sequence of length $T$ uses exactly $T - 1$ transitions, so its score increases by $(T - 1)c$; numerator and $Z(x)$
+are both multiplied by $e^{(T-1)c}$, and $p(y\mid x)$ does not change. Hence the loss is constant along the direction
+$\mathbf 1\mathbf 1^\top$ of $A$, and its gradient is orthogonal to it: the entries of $\nabla_A$ sum to $0$. In the example,
+$0.0516 - 0.0310 + 0.6109 - 0.6315 = 0$; indeed expected and observed transition counts both sum
+to $T - 1 = 2$.
+
+\solution{crf:exr:3}
+For $T = 1$, $S(x, y) = \psi_1(y_0, y_1; x)$ and $Z(x) = \sum_ke^{\psi_1(y_0,k;x)}$, so
+$p(y_1 = k\mid x) = \softmax(\psi_1(y_0,\cdot\,;x))_k$: multinomial logistic regression
+with logits $z_k = \psi_1(y_0, k; x)$. Taking as features the indicators $f_k = [y_1 = k]$, with weights
+$z_k$, \cref{crf:prop:gradient}
+gives $\partial\log p(y\mid x)/\partial z_k = [y = k] - p(k\mid x)$, so the gradient of the loss is $p - e_y$.
+
+\solution{crf:exr:4}
+The sequences with $y_{t-1} = j$ and $y_t = k$ are formed by a prefix $y_{1:t-1}$ ending in $j$ and a suffix $y_{t+1:T}$, chosen
+independently. Their score splits as $S_{1:t-1}(\text{prefix}) + \psi_t(j, k; x) + S_{t+1:T}(\text{suffix})$, where the suffix part depends on the
+prefix only through $y_t = k$. Summing the exponential over prefixes and suffixes factorizes:
+$\sum\exp S = e^{a_{t-1}(j)}\,e^{\psi_t(j,k;x)}\,e^{b_t(k)}$, by the definitions of $a_{t-1}(j)$ (sum over prefixes ending in $j$) and $b_t(k)$ (sum over suffixes
+following $k$). Dividing by $Z(x)$ gives the pairwise marginal.
+
+\solution{crf:exr:5}
+The bidirectional LSTM makes each $U_t(x)$ depend on the whole sentence, but independent softmaxes still
+predict each tag without looking at the other predicted tags. The output can be inconsistent:
+in BIO named-entity tagging, an \texttt{I-PER} directly after \texttt{O} is impossible, yet independent
+decisions can produce it. The CRF adds scores for pairs of neighbouring \emph{tags}, learns which
+transitions are likely or impossible, and decodes the whole sequence jointly with Viterbi.

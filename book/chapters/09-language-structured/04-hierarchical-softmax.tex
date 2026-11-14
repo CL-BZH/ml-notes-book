@@ -1,0 +1,222 @@
+\begin{notechapter}
+\chapter{Hierarchical Softmax and Huffman Trees}\label{ch:hierarchical-softmax}
+\chaptersubtitle{A normalized distribution over $V$ words from $\log V$ binary decisions}
+
+\begin{chapterintro}
+The softmax over a vocabulary of $V$ words costs $O(dV)$ per prediction, because its
+normalization sums over every word. Hierarchical softmax replaces the single choice among
+$V$ words by a sequence of binary choices along a path in a binary tree whose leaves are
+the words. Each binary choice is a logistic regression, the product of their probabilities
+is automatically normalized, and only the nodes on one path are evaluated. With a Huffman
+tree, frequent words get short paths and the average cost is about the entropy of the
+word distribution, in bits. This chapter proves the normalization, derives the gradient,
+builds a Huffman tree, and corrects several claims about how word2vec uses it. You will
+learn
+\begin{itemize}[nosep]
+  \item the hierarchical softmax model and why it sums to $1$;
+  \item its gradient: one logistic-regression gradient per node of the path;
+  \item Huffman's algorithm, its optimality and the entropy bounds on its average path length;
+  \item what word2vec actually does: a fixed tree built from counts, node vectors in place of
+        output vectors.
+\end{itemize}
+\prerequisites{\cref{ch:word-embeddings}; the logistic sigmoid and binary cross-entropy
+(\cref{ch:sigmoid-softmax}); entropy (\cref{ch:cross-entropy}).}
+\end{chapterintro}
+
+\section{The model}\label{hierarchical-softmax:sec:model}
+
+Arrange the $V$ words as the leaves of a binary tree with $V - 1$ internal nodes; each internal node $n$
+carries a vector $u_n\in\R^d$. For a word $w$, let $n_1(w),\dots,n_{L(w)}(w)$ be the internal nodes on the path from the root
+to the leaf $w$, and let $d_k(w) = +1$ if the path goes to the left child at $n_k(w)$, $-1$ if it goes to the right. Given
+a context vector $h$ (the centre-word vector $v_w$ in skip-gram, the averaged context in CBOW),
+\[
+  p(w\mid h) = \prod_{k=1}^{L(w)}\sigma\bigl(d_k(w)\,u_{n_k(w)}^\top h\bigr),
+\]
+where $\sigma$ is the logistic sigmoid. At each node, $\sigma(u_n^\top h)$ is the probability of going left and
+$\sigma(-u_n^\top h) = 1 - \sigma(u_n^\top h)$ that of going right (Morin and Bengio, \emph{Hierarchical Probabilistic Neural
+Network Language Model}, 2005).
+
+\begin{proposition}[Normalization]\label{hierarchical-softmax:prop:normalized}
+For every $h$ and every choice of node vectors, $\sum_{w}p(w\mid h) = 1$.
+\end{proposition}
+
+\begin{proof}
+For a node $n$, let $m(n)$ be the sum of $p(w\mid h)$ over the leaves $w$ of the subtree rooted at $n$, each leaf's
+product being restricted to the nodes from $n$ down. We show $m(n) = 1$ by induction from the
+leaves up. For a leaf the product is empty, so $m = 1$. For an internal node with children $\ell$ and $r$,
+every leaf below $\ell$ starts its product with $\sigma(u_n^\top h)$ and every leaf below $r$ with $\sigma(-u_n^\top h)$, so
+$m(n) = \sigma(u_n^\top h)\,m(\ell) + \sigma(-u_n^\top h)\,m(r) = \sigma(u_n^\top h) + \sigma(-u_n^\top h) = 1$. At the root, $m$ is the required sum.
+\end{proof}
+
+No normalization over the vocabulary is ever computed: the normalization is built into the
+tree. Computing $p(w\mid h)$ costs $L(w)$ dot products instead of $V$.
+
+\section{The gradient}\label{hierarchical-softmax:sec:gradient}
+
+The loss of one prediction is $\ell = -\log p(w\mid h) = -\sum_k\log\sigma(d_ks_k)$, with $s_k = u_{n_k}^\top h$. Write $t_k = (1 + d_k)/2$, which
+is $1$ if the path goes left at $n_k$ and $0$ if it goes right. Each term is the binary cross-entropy of a logistic
+regression with label $t_k$, so (\cref{backpropagation:sec:output})
+\[
+  \frac{\partial\ell}{\partial s_k} = \sigma(s_k) - t_k,\qquad
+  \nabla_{u_{n_k}}\ell = \bigl(\sigma(s_k) - t_k\bigr)h,\qquad
+  \nabla_h\ell = \sum_{k=1}^{L(w)}\bigl(\sigma(s_k) - t_k\bigr)u_{n_k} .
+\]
+Only the $L(w)$ node vectors of the path receive a gradient, and the context vector receives the
+sum of their contributions.
+
+\begin{example}[Four words]\label{hierarchical-softmax:ex:four}
+Take the tree with root $R$, whose left child $A$ has the leaves cat (left) and dog (right), and whose right
+child $B$ has the leaves apple (left) and banana (right). With $h = (1, -0.5)$, $u_R = (0.4, 0.2)$, $u_A = (1, 1)$, $u_B = (-0.5, 0.8)$,
+the scores are $s_R = 0.3$, $s_A = 0.5$, $s_B = -0.9$, and $\sigma(s_R) = 0.5744$, $\sigma(s_A) = 0.6225$, $\sigma(s_B) = 0.2891$. Then
+\begin{align*}
+  p(\text{cat}) &= 0.5744\times0.6225 = 0.3576, & p(\text{dog}) &= 0.5744\times0.3775 = 0.2169,\\
+  p(\text{apple}) &= 0.4256\times0.2891 = 0.1230, & p(\text{banana}) &= 0.4256\times0.7109 = 0.3025,
+\end{align*}
+which sum to $1$. For the target ``dog'' (left at $R$, right at $A$), $\ell = -\log0.2169 = 1.5284$, and
+$\partial\ell/\partial s_R = 0.5744 - 1 = -0.4256$, $\partial\ell/\partial s_A = 0.6225 - 0 = 0.6225$, so
+\begin{gather*}
+  \nabla_{u_R}\ell = (-0.4256,\ 0.2128),\qquad\nabla_{u_A}\ell = (0.6225,\ -0.3112),\qquad\nabla_{u_B}\ell = 0,\\
+  \nabla_h\ell = -0.4256\,u_R + 0.6225\,u_A = (0.4522,\ 0.5373) .
+\end{gather*}
+A gradient step increases $s_R$ (more mass to the left subtree) and decreases $s_A$ (more mass to dog
+within it), and leaves $u_B$ unchanged.
+\end{example}
+
+\section{Huffman trees}\label{hierarchical-softmax:sec:huffman}
+
+Any binary tree gives a valid model, and the cost of a prediction is the depth of the target
+word. Training visits each word in proportion to its frequency $f_w$, so the expected cost per
+example is the average depth $\bar L = \sum_wf_wL(w)$. The tree that minimizes it is the Huffman tree, built
+for optimal prefix codes (Huffman, \emph{A Method for the Construction of Minimum-Redundancy
+Codes}, 1952):
+\begin{enumerate}[nosep]
+  \item create one leaf per word, with weight its count;
+  \item repeatedly remove the two trees of smallest weights and join them under a new
+        internal node whose weight is the sum of theirs;
+  \item stop when one tree is left.
+\end{enumerate}
+Ties can be broken arbitrarily: different choices give different trees with the same $\bar L$.
+
+\begin{theorem}[Huffman]\label{hierarchical-softmax:thm:huffman}
+Among all binary trees with the words as leaves, the Huffman tree minimizes $\bar L = \sum_wf_wL(w)$, and
+\[
+  H(f)\leq\bar L < H(f) + 1,\qquad H(f) = -\sum_wf_w\log_2f_w .
+\]
+\end{theorem}
+
+Optimality is proved by an exchange argument, and the bounds by Kraft's inequality; see Cover
+and Thomas, \emph{Elements of Information Theory}, 2006, Chapter~5. A balanced tree has depth
+$\lceil\log_2V\rceil$ for every word, and $H(f)\leq\log_2V$: for the skewed frequencies of natural language, the
+Huffman tree is shorter on average. The worst case, however, can be much longer than $\log_2V$
+(up to $V - 1$ for a word of very low frequency), so the claim that hierarchical softmax costs
+$O(\log V)$ is a statement about the average cost.
+
+\begin{figure}[ht]
+\centering
+\begin{forest}
+for tree={circle, draw=bookaccent, thick, fill=bookaccent!8, font=\scriptsize, minimum size=3.2em, inner sep=1pt,
+  s sep=12pt, l sep=6pt, align=center},
+where n children=0{fill=bookexample!20, draw=bookexample!80!black}{}
+[39
+  [17
+    [dog\\8]
+    [9
+      [banana\\5]
+      [elephant\\4]
+    ]
+  ]
+  [22
+    [cat\\10]
+    [12
+      [apple\\6]
+      [6
+        [zebra\\3]
+        [3
+          [giraffe\\2]
+          [lion\\1]
+        ]
+      ]
+    ]
+  ]
+]
+\end{forest}
+\caption{A Huffman tree for the counts cat $10$, dog $8$, apple $6$, banana $5$, elephant $4$, zebra $3$, giraffe $2$, lion $1$. The
+merges are $1 + 2$, $3 + 3$, $4 + 5$, $6 + 6$, $8 + 9$, $10 + 12$, $17 + 22$; internal nodes show their weights.}
+\label{hierarchical-softmax:fig:huffman}
+\end{figure}
+
+\begin{example}[Average path length]\label{hierarchical-softmax:ex:huffman}
+In \cref{hierarchical-softmax:fig:huffman}, the depths are $2$ for cat and dog, $3$ for apple, banana and elephant, $4$ for zebra and
+$5$ for giraffe and lion. With $f_w = \text{count}/39$, $\bar L = (2\cdot18 + 3\cdot15 + 4\cdot3 + 5\cdot3)/39 = 108/39 = 2.769$, against $3$ for the
+balanced tree with $8$ leaves, and the entropy is $H = 2.745$ bits: $H\leq\bar L < H + 1$, and here $\bar L$ is within $0.03$ bit
+of the bound. The rarest words pay with a depth of $5$.
+\end{example}
+
+\section{Hierarchical softmax in word2vec}\label{hierarchical-softmax:sec:word2vec}
+
+In word2vec with hierarchical softmax (Mikolov et al., 2013), the probability of a context word
+$c$ given the centre word $w$ is $p(c\mid v_w)$ computed by the tree, with $h = v_w$. Three points are often stated
+incorrectly.
+\begin{itemize}
+  \item \textbf{The tree is fixed.} It is built once, by Huffman's algorithm on the word counts of the
+        training corpus, before training starts, and it never changes. Only the vectors are
+        learned. Methods that learn the tree exist, but as a separate step: Mnih and Hinton
+        (\emph{A Scalable Hierarchical Distributed Language Model}, 2009) build it by clustering
+        word vectors learned beforehand.
+  \item \textbf{The node vectors replace the output vectors.} There are $V - 1$ node vectors $u_n$ and no output
+        vector per word; the logistic classifier at a node \emph{is} its vector (word2vec uses no
+        bias), so ``updating the node vectors and the binary classifiers'' describes one
+        update, not two. The input vectors $v_w$ are the embeddings.
+  \item \textbf{GloVe does not use it.} GloVe has no softmax to approximate
+        (\cref{word-embeddings:sec:glove}). FastText does offer hierarchical softmax, mainly for
+        its supervised text classifier with many labels.
+\end{itemize}
+
+\begin{pitfall}[What the Huffman tree optimizes]
+The Huffman tree minimizes the \emph{expected cost per training example}, because training
+visits frequent words more often. It does not make the model more accurate, and it does not
+group similar words: the leaves are placed by frequency alone, so ``cat'' and ``dog'' may be
+far apart while ``cat'' and ``of'' share a long prefix. Each internal node then has to
+separate two arbitrary groups of words with one linear classifier, which is a real
+constraint on the model; trees built from word similarity (as in Mnih and Hinton) make these
+binary decisions easier.
+\end{pitfall}
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item Hierarchical softmax writes $p(w\mid h) = \prod_k\sigma(d_ku_{n_k}^\top h)$ along the path from the root to the leaf $w$; it is
+        normalized for any parameters because $\sigma(s) + \sigma(-s) = 1$ at every node.
+  \item Each node is a logistic regression: $\nabla_{u_{n_k}}\ell = (\sigma(s_k) - t_k)h$, and only the path is updated.
+  \item The Huffman tree minimizes the average depth $\bar L$, with $H\leq\bar L < H + 1$; rare words can be deep.
+  \item In word2vec the Huffman tree is built once from counts and fixed; its $V - 1$ node vectors replace
+        the output vectors; GloVe does not use hierarchical softmax.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{hierarchical-softmax:exr:1}
+In \cref{hierarchical-softmax:ex:four}, compute the gradients for the target ``apple'', and check that
+$\nabla_{u_A}\ell = 0$.
+\solutionlink{hierarchical-softmax:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{hierarchical-softmax:exr:2}
+Show that a binary tree with $V$ leaves in which every internal node has two children has exactly $V - 1$
+internal nodes.
+\solutionlink{hierarchical-softmax:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{hierarchical-softmax:exr:3}
+Build the Huffman tree for the counts $a: 45$, $b: 13$, $c: 12$, $d: 16$, $e: 9$, $f: 5$, give the depth of each word and $\bar L$, and
+compare with $H$ and with a balanced tree.
+\solutionlink{hierarchical-softmax:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{hierarchical-softmax:exr:4}
+For $V$ words with counts $2^{V-2}, 2^{V-3},\dots,2, 1, 1$, show that the Huffman tree is a ``caterpillar'' in which the two
+rarest words have depth $V - 1$, and compute $\bar L$ and $H$.
+\solutionlink{hierarchical-softmax:exr:4}
+\end{exercise}
+\end{notechapter}

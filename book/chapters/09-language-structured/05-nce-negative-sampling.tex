@@ -1,0 +1,218 @@
+\begin{notechapter}
+\chapter{Noise-Contrastive Estimation and Negative Sampling}\label{ch:nce-negative-sampling}
+\chaptersubtitle{Replacing the softmax normalization by a classification against noise}
+
+\begin{chapterintro}
+The softmax $p(c\mid w) = \exp(u_c^\top v_w)/\sum_{c'}\exp(u_{c'}^\top v_w)$ needs a sum over the whole vocabulary for every training
+pair. Noise-contrastive estimation (NCE) avoids it by turning density estimation into
+classification: tell the observed context word apart from $k$ words drawn from a known noise
+distribution. Negative sampling, the variant used by word2vec, simplifies NCE further, and
+in doing so changes what is learned: not the conditional probabilities, but a shifted
+pointwise mutual information. This chapter derives both optima, gives the gradients with
+their correct signs, and explains the choice of the noise distribution. You will learn
+\begin{itemize}[nosep]
+  \item the NCE objective, and why its optimum is the normalized log-probability, without any
+        normalization being computed;
+  \item the negative-sampling objective, and why its optimum is $\operatorname{PMI} - \log k$ rather than a probability;
+  \item the gradients of negative sampling and the update they produce;
+  \item the role of the noise distribution and of the exponent $3/4$.
+\end{itemize}
+\prerequisites{\cref{ch:word-embeddings}; logistic regression and the binary cross-entropy
+(\cref{ch:sigmoid-softmax}).}
+\end{chapterintro}
+
+\section{The problem}\label{nce-negative-sampling:sec:problem}
+
+In skip-gram (\cref{word-embeddings:sec:word2vec}), the score of a context word $c$ for the centre word $w$ is
+$s(c) = u_c^\top v_w$, and the model is $p(c\mid w) = e^{s(c)}/Z(w)$ with $Z(w) = \sum_{c'}e^{s(c')}$. The score costs $O(d)$, the normalizer
+$O(dV)$. Hierarchical softmax (\cref{ch:hierarchical-softmax}) restructures the model so that no
+normalizer is needed. NCE keeps the scores and changes the \emph{estimation method}.
+
+Fix a centre word $w$ and drop it from the notation. Write $P_d(c)$ for the true distribution of its
+context words, and let $P_n$ be a \emph{noise distribution} that we can sample from and evaluate, for
+instance the unigram distribution of words.
+
+\section{Noise-contrastive estimation}\label{nce-negative-sampling:sec:nce}
+
+Generate labelled data: each observed context word is a positive example ($D = 1$), and with it $k$
+words drawn from $P_n$ are negative examples ($D = 0$). In this mixture, a word $c$ comes from the data with
+probability
+\[
+  \Prob(D = 1\mid c) = \frac{P_d(c)}{P_d(c) + kP_n(c)} = \sigma\Bigl(\log\frac{P_d(c)}{kP_n(c)}\Bigr),
+\]
+by Bayes' rule with prior odds $1 : k$. NCE (Gutmann and Hyvärinen, \emph{Noise-Contrastive
+Estimation: A New Estimation Principle for Unnormalized Statistical Models}, 2010) fits a
+logistic regression of the same form, with the model's score in place of $\log P_d$:
+\[
+  \Prob_\theta(D = 1\mid c) = \sigma\bigl(\Delta(c)\bigr),\qquad\Delta(c) = s(c) - \log\bigl(kP_n(c)\bigr),
+\]
+and maximizes the expected log-likelihood of the labels,
+\[
+  J_{\mathrm{NCE}}(s) = \E_{c\sim P_d}\bigl[\log\sigma(\Delta(c))\bigr] + k\,\E_{c\sim P_n}\bigl[\log\sigma(-\Delta(c))\bigr] .
+\]
+In training, the first expectation is estimated by the observed pair and the second by the
+average over the $k$ sampled words, so each pair costs $O(kd)$.
+
+\begin{proposition}[What NCE learns]\label{nce-negative-sampling:prop:nce}
+Suppose the score $s(c)$ can be chosen freely for each word $c$ with $P_n(c) > 0$. Then $J_{\mathrm{NCE}}$ is maximized
+exactly when $s(c) = \log P_d(c)$ for every such $c$: the exponentiated scores are the normalized
+probabilities, although no normalizer was computed.
+\end{proposition}
+
+\begin{proof}
+Write the expectations as sums: $J_{\mathrm{NCE}} = \sum_c\bigl[P_d(c)\log\sigma(\Delta(c)) + kP_n(c)\log(1 - \sigma(\Delta(c)))\bigr]$, using $\sigma(-\Delta) = 1 - \sigma(\Delta)$.
+Each term depends on its own $\Delta(c)$ only, and $a\log x + b\log(1 - x)$ ($a, b > 0$) is maximized over $x\in(0,1)$ at
+$x = a/(a + b)$. So the optimum is $\sigma(\Delta(c)) = P_d(c)/(P_d(c) + kP_n(c))$, that is $e^{\Delta(c)} = P_d(c)/(kP_n(c))$; substituting
+$\Delta(c) = s(c) - \log(kP_n(c))$ gives $e^{s(c)} = P_d(c)$. (Words with $P_d(c) = 0$ push $s(c)\to-\infty$, as in
+\cref{bigram-models:prop:same}.)
+\end{proof}
+
+The subtraction of $\log(kP_n(c))$ is what makes this work: the classifier only has to learn how much
+more likely $c$ is under the data than under the noise, and the noise term supplies the rest.
+With finite data and a parametric model, Gutmann and Hyvärinen prove that the estimator is
+consistent, the normalizer being treated as an extra parameter; for language models,
+Mnih and Teh (\emph{A Fast and Simple Algorithm for Training Neural Probabilistic Language
+Models}, 2012) found that fixing it to $1$ works, the model becoming self-normalized.
+
+\section{Negative sampling}\label{nce-negative-sampling:sec:ns}
+
+Word2vec (Mikolov, Sutskever, Chen, Corrado and Dean, 2013) uses a simplified objective,
+\emph{negative sampling}: the correction $\log(kP_n(c))$ is dropped, $\Delta(c) = s(c) = u_c^\top v_w$. For one observed pair $(w, c)$ and $k$
+negatives $c_1,\dots,c_k\sim P_n$, the objective to maximize is
+\[
+  J_{\mathrm{NS}} = \log\sigma(u_c^\top v_w) + \sum_{i=1}^k\log\sigma(-u_{c_i}^\top v_w) .
+\]
+It is the log-likelihood of a logistic regression that labels the observed pair $1$ and the
+sampled pairs $0$, with the dot product as logit.
+
+\begin{proposition}[What negative sampling learns]\label{nce-negative-sampling:prop:ns}
+With freely chosen scores, the expected negative-sampling objective is maximized when
+\[
+  u_c^\top v_w = \log\frac{P_d(c\mid w)}{kP_n(c)} .
+\]
+If $P_n$ is the unigram distribution of context words, $P_n(c) = P(c)$, this is $\operatorname{PMI}(w, c) - \log k$, where
+$\operatorname{PMI}(w, c) = \log\frac{P(w, c)}{P(w)P(c)}$ is the pointwise mutual information.
+\end{proposition}
+
+\begin{proof}
+The proof of \cref{nce-negative-sampling:prop:nce} with $\Delta = s$ gives $e^{s(c)} = P_d(c\mid w)/(kP_n(c))$. With $P_n(c) = P(c)$,
+$P_d(c\mid w)/P(c) = P(w, c)/(P(w)P(c))$.
+\end{proof}
+
+This is the result of Levy and Goldberg (\emph{Neural Word Embedding as Implicit Matrix
+Factorization}, 2014): skip-gram with negative sampling factorizes, through the dot products
+$u_c^\top v_w$, the matrix of shifted PMI values, to the extent that the dimension $d$ allows. Two
+consequences follow.
+\begin{itemize}
+  \item Negative sampling does not learn conditional probabilities: $\exp(u_c^\top v_w)$ is not $p(c\mid w)$, and it is
+        not normalized. NCE and negative sampling coincide only when $kP_n(c) = 1$ for every word, that is
+        for the uniform noise with $k = V$, which removes the computational advantage.
+  \item Increasing $k$ makes the sample average of the negative terms a better estimate of
+        $k\,\E_{P_n}[\cdot]$, but it does not turn negative sampling into maximum likelihood: the optimum stays
+        a shifted PMI, and the shift grows with $k$.
+\end{itemize}
+For embeddings this does not matter: PMI is a sensible measure of association, and words with
+similar PMI profiles get similar vectors. For a language model, which needs probabilities,
+NCE (or the full softmax) is the right choice.
+
+\section{Gradients and updates}\label{nce-negative-sampling:sec:gradients}
+
+Minimize the loss $\ell = -J_{\mathrm{NS}}$. With $s_+ = u_c^\top v_w$, $s_i = u_{c_i}^\top v_w$, and $\frac{d}{ds}\bigl(-\log\sigma(s)\bigr) = \sigma(s) - 1$,
+$\frac{d}{ds}\bigl(-\log\sigma(-s)\bigr) = \sigma(s)$:
+\begin{align*}
+  \nabla_{v_w}\ell &= \bigl(\sigma(s_+) - 1\bigr)u_c + \sum_{i=1}^k\sigma(s_i)\,u_{c_i},\\
+  \nabla_{u_c}\ell &= \bigl(\sigma(s_+) - 1\bigr)v_w,\qquad\nabla_{u_{c_i}}\ell = \sigma(s_i)\,v_w,
+\end{align*}
+and gradient descent sets $v\leftarrow v - \eta\nabla_v\ell$ for the $k + 2$ vectors involved; all the other vectors are
+untouched. Read as updates: $v_w$ moves towards $u_c$ by $\eta(1 - \sigma(s_+))$, a large step when the observed pair is
+judged unlikely, and away from each $u_{c_i}$ by $\eta\sigma(s_i)$, a large step when a noise word is judged likely
+(a ``false positive''). Each is the gradient $\hat y - y$ of a logistic regression, scaled by the other
+vector.
+
+\begin{pitfall}[Signs]
+The objective $J_{\mathrm{NS}}$ is maximized, the loss $-J_{\mathrm{NS}}$ minimized. Writing the gradient of $J_{\mathrm{NS}}$,
+$(1 - \sigma(s_+))u_c - \sum_i\sigma(s_i)u_{c_i}$, and then updating with $v\leftarrow v - \eta\nabla$, as the original version of this chapter did,
+moves every vector in the wrong direction. Gradient \emph{ascent} on $J_{\mathrm{NS}}$ and gradient \emph{descent} on $-J_{\mathrm{NS}}$
+are the same update; mixing the two is not.
+\end{pitfall}
+
+\begin{example}[One update]\label{nce-negative-sampling:ex:update}
+Let $v_w = (0.5, -0.2, 0.1)$, $u_c = (0.4, 0.1, 0.3)$, and two negatives $u_{c_1} = (-0.3, 0.6, 0.2)$, $u_{c_2} = (0.2, -0.4, 0.5)$. The scores are
+$s_+ = 0.21$, $s_1 = -0.25$, $s_2 = 0.23$, with $\sigma(s_+) = 0.5523$, $\sigma(s_1) = 0.4378$, $\sigma(s_2) = 0.5572$, and the loss is
+$-\log0.5523 - \log(1 - 0.4378) - \log(1 - 0.5572) = 1.9843$. The gradients are
+\[
+  \nabla_{v_w}\ell = -0.4477\,u_c + 0.4378\,u_{c_1} + 0.5572\,u_{c_2} = (-0.1990,\ -0.0050,\ 0.2319),
+\]
+$\nabla_{u_c}\ell = -0.4477\,v_w = (-0.2238,\ 0.0895,\ -0.0448)$, $\nabla_{u_{c_1}}\ell = (0.2189,\ -0.0876,\ 0.0438)$ and $\nabla_{u_{c_2}}\ell = (0.2786,\ -0.1114,\ 0.0557)$.
+The second negative, which scores higher than the observed context, receives the largest push.
+\end{example}
+
+\section{The noise distribution}\label{nce-negative-sampling:sec:noise}
+
+Word2vec draws the negatives from the unigram distribution raised to the power $3/4$ and
+renormalized,
+\[
+  P_n(c) = \frac{\operatorname{count}(c)^{3/4}}{\sum_{c'}\operatorname{count}(c')^{3/4}},
+\]
+a choice that Mikolov et al.\ report to work better than both the unigram ($\alpha = 1$) and the uniform
+($\alpha = 0$) distributions. The exponent flattens the distribution: a ratio of counts of $10^4$ between ``the'' and a
+rare word becomes $10^3$. For four words with counts $1000$, $100$, $10$, $1$, the unigram probabilities $(0.900,
+0.090, 0.009, 0.0009)$ become $(0.823, 0.146, 0.026, 0.0046)$: the rare words are drawn about five times more
+often, the most frequent one a little less. With $\alpha = 1$, almost all negatives would be function
+words, and the vectors of rare words would rarely be pushed away from anything. By
+\cref{nce-negative-sampling:prop:ns}, the choice of $P_n$ also changes what is learned: with $P_n\propto\operatorname{count}^{3/4}$
+the optimum is a PMI computed with a smoothed context distribution, which reduces the
+large PMI values of rare contexts (Levy, Goldberg and Dagan, 2015).
+
+\paragraph{The number of negatives.} Mikolov et al.\ recommend $k$ between $5$ and $20$ for small data sets
+and $2$ to $5$ for large ones. Each pair costs $O((k + 1)d)$, against $O(Vd)$ for the softmax.
+
+\begin{remark}[From words to contrastive learning]
+The negative-sampling loss is a logistic classification of one positive pair against $k$
+negatives. Replacing the $k + 1$ independent logistic terms by a single softmax over the positive
+and the negatives gives the InfoNCE loss of contrastive representation learning
+(\cref{part:contrastive}), where words are replaced by augmented views of images.
+\end{remark}
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item NCE classifies observed context words against $k$ noise words with the logit $s(c) - \log(kP_n(c))$; its
+        optimum is $s(c) = \log P_d(c)$, a normalized log-probability obtained without computing the normalizer.
+  \item Negative sampling drops the correction; its optimum is $u_c^\top v_w = \log\frac{P_d(c\mid w)}{kP_n(c)}$, which is $\operatorname{PMI}(w, c) - \log k$ for unigram noise. It
+        learns associations, not probabilities, whatever $k$.
+  \item Gradients of the loss: $(\sigma(s_+) - 1)$ for the positive and $\sigma(s_i)$ for each negative, times the other vector;
+        only $k + 2$ vectors are updated.
+  \item The noise distribution $\propto\operatorname{count}^{3/4}$ draws rare words more often than the unigram distribution.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{nce-negative-sampling:exr:1}
+Show that $a\log x + b\log(1 - x)$ with $a, b > 0$ has a unique maximum on $(0, 1)$, at $x = a/(a + b)$.
+\solutionlink{nce-negative-sampling:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{nce-negative-sampling:exr:2}
+A context word has $P_d(c\mid w) = 0.02$ and unigram probability $P(c) = 0.001$. Give the optimal score $s(c)$ for NCE and for
+negative sampling with $k = 5$ and unigram noise. Which one estimates $\log p(c\mid w)$?
+\solutionlink{nce-negative-sampling:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{nce-negative-sampling:exr:3}
+In \cref{nce-negative-sampling:ex:update}, perform the update with $\eta = 1$ and check that the loss decreases.
+\solutionlink{nce-negative-sampling:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{nce-negative-sampling:exr:4}
+Show that, with uniform noise $P_n(c) = 1/V$ and $k = V$, the negative-sampling optimum is $u_c^\top v_w = \log P_d(c\mid w)$.
+\solutionlink{nce-negative-sampling:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{nce-negative-sampling:exr:5}
+Compute the noise probabilities $P_n\propto\operatorname{count}^\alpha$ for the counts $100$ and $1$ with $\alpha = 1, 3/4, 1/2, 0$. Which value of $\alpha$
+draws both words equally often?
+\solutionlink{nce-negative-sampling:exr:5}
+\end{exercise}
+\end{notechapter}

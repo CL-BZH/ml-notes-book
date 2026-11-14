@@ -1,0 +1,294 @@
+\begin{notechapter}
+\chapter{Structured Prediction, Hidden Markov Models and the Viterbi Algorithm}\label{ch:hmm-viterbi}
+\chaptersubtitle{Choosing the best of exponentially many tag sequences in linear time}
+
+\begin{chapterintro}
+Part-of-speech tagging assigns a tag (noun, verb, determiner, \ldots) to every word of a
+sentence. The tags are not independent: a determiner is usually followed by a noun, and the
+tag of ``duck'' depends on whether ``her'' is a pronoun or a possessive. Predicting the whole
+sequence at once is an instance of \emph{structured prediction}, where the output is a
+combinatorial object and the number of candidates grows exponentially with its size. For
+chain-structured models, dynamic programming finds the best candidate exactly. This
+chapter introduces structured prediction, the hidden Markov model (HMM) for tagging, and
+the Viterbi and forward algorithms, with a proof, an example in which tagging word by word
+fails, and verified code. You will learn
+\begin{itemize}[nosep]
+  \item what makes a prediction problem structured, and the two problems it raises: scoring
+        and searching;
+  \item the HMM, and its supervised estimation by counting;
+  \item the Viterbi recursion, why it is exact, and its backtracking;
+  \item the forward algorithm, which sums where Viterbi maximizes, and posterior marginals;
+  \item why everything is done in log space.
+\end{itemize}
+\prerequisites{the bigram model and estimation by counting (\cref{ch:bigram-models}); Bayesian
+networks (\cref{dkf:sec:dseparation}).}
+\end{chapterintro}
+
+\section{Structured prediction}\label{hmm-viterbi:sec:structured}
+
+In classification the output is one label among $K$. In \emph{structured prediction} it is an object
+with parts that constrain each other: a sequence of tags, a parse tree, a segmentation of an
+image into regions, a translation. A tag sequence for a sentence of $T$ words, with $K$ possible tags,
+has $K^T$ candidates: $45^{20}\approx10^{33}$ for a 20-word sentence and the 45 tags of the Penn Treebank. A
+structured predictor needs
+\begin{itemize}[nosep]
+  \item a \emph{score} for every candidate $y$ given the input $x$, typically a probability $p(y\mid x)$ or $p(x, y)$, that
+        decomposes over small parts of $y$ (pairs of neighbouring tags, for instance);
+  \item a \emph{search} (inference, decoding) procedure that finds $\arg\max_yp(y\mid x)$ without enumerating the
+        candidates, made possible by the decomposition;
+  \item a \emph{learning} procedure, which usually needs sums over all candidates as well.
+\end{itemize}
+For chains, the decomposition is into neighbouring pairs, and search and summation are
+done by dynamic programming. Hidden Markov models (this chapter) are the generative
+model of this kind, conditional random fields (\cref{ch:crf}) the discriminative one. Other
+structures use other algorithms (CKY for parse trees, graph cuts for some image models),
+and when no exact algorithm is available, approximate search such as beam search, which
+autoregressive sequence generators also use.
+
+\section{Hidden Markov models}\label{hmm-viterbi:sec:hmm}
+
+\begin{definition}[Hidden Markov model]\label{hmm-viterbi:def:hmm}
+A hidden Markov model with states (tags) $\{1,\dots,K\}$ and observations (words) in a vocabulary defines the
+joint distribution of a tag sequence $y_{1:T}$ and a word sequence $x_{1:T}$
+\[
+  p(x_{1:T}, y_{1:T}) = \pi_{y_1}B_{y_1}(x_1)\prod_{t=2}^TA_{y_{t-1}y_t}B_{y_t}(x_t),
+\]
+with initial probabilities $\pi_k$, transition probabilities $A_{kl} = p(y_t = l\mid y_{t-1} = k)$ and emission probabilities
+$B_k(x) = p(x_t = x\mid y_t = k)$; each of $\pi$, each row of $A$ and each $B_k$ is a probability distribution.
+\end{definition}
+
+It is the Bayesian network of \cref{hmm-viterbi:fig:hmm}, the discrete-state counterpart of the
+state-space model of \cref{ch:deep-kalman-filters}: the tags form a Markov chain (a bigram model of
+tags), and each word depends only on its own tag. It is a \emph{generative} model: it describes how
+the words are produced, and tagging uses Bayes' rule, $p(y\mid x) = p(x, y)/p(x)$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  v/.style={draw, circle, minimum size=8mm, inner sep=0pt, font=\small},
+  ob/.style={v, fill=gray!30},
+  ar/.style={-{Stealth[length=1.8mm]}, thick}]
+  \foreach \t/\w in {1/I,2/saw,3/her,4/duck} {
+    \node[v] (y\t) at (2.2*\t,0) {$y_{\t}$};
+    \node[ob] (x\t) at (2.2*\t,-1.4) {$x_{\t}$};
+    \node[font=\scriptsize] at (2.2*\t,-2.1) {``\w''};
+    \draw[ar] (y\t) -- node[right, font=\scriptsize]{$B$} (x\t);
+  }
+  \foreach \t/\u in {1/2,2/3,3/4} \draw[ar] (y\t) -- node[above, font=\scriptsize]{$A$} (y\u);
+  \node[font=\scriptsize] (pi) at (0.6,0) {$\pi$};
+  \draw[ar] (pi) -- (y1);
+\end{tikzpicture}
+\caption{An HMM as a Bayesian network. The tags $y_t$ are hidden at test time, the words $x_t$ observed.}
+\label{hmm-viterbi:fig:hmm}
+\end{figure}
+
+\paragraph{Supervised estimation.} With a tagged corpus, both tags and words are observed, the
+log-likelihood is a sum of $\log\pi$, $\log A$ and $\log B$ terms, and by the argument of
+\cref{bigram-models:prop:counts} its maximum is given by counts:
+\[
+  \hat A_{kl} = \frac{\#(k\to l)}{\#(k\to\cdot)},\qquad\hat B_k(x) = \frac{\#(k\text{ emits }x)}{\#(k)},\qquad\hat\pi_k = \frac{\#(\text{sentences starting with }k)}{\#(\text{sentences})},
+\]
+with smoothing for unseen events. The Baum--Welch algorithm, an instance of EM
+(\cref{ch:em-algorithm}), is needed only when the tags are \emph{not} observed in the training data.
+
+\section{The Viterbi algorithm}\label{hmm-viterbi:sec:viterbi}
+
+Given words $x_{1:T}$, the most probable tag sequence maximizes $p(y_{1:T}\mid x_{1:T})$, equivalently $p(x_{1:T}, y_{1:T})$, since $p(x_{1:T})$ does
+not depend on $y$. Define, for each time $t$ and tag $k$,
+\[
+  \delta_t(k) = \max_{y_{1:t-1}}p(x_{1:t},\ y_{1:t-1},\ y_t = k),
+\]
+the probability of the best tag sequence for the first $t$ words that ends with tag $k$ (jointly with
+those words, not conditionally on them).
+
+\begin{theorem}[Viterbi recursion]\label{hmm-viterbi:thm:viterbi}
+$\delta_1(k) = \pi_kB_k(x_1)$, and for $t\geq2$
+\[
+  \delta_t(k) = \Bigl(\max_j\delta_{t-1}(j)\,A_{jk}\Bigr)B_k(x_t),\qquad\psi_t(k) = \arg\max_j\delta_{t-1}(j)\,A_{jk} .
+\]
+Then $\max_yp(x_{1:T}, y) = \max_k\delta_T(k)$, and a maximizing sequence is obtained by backtracking:
+$y_T^* = \arg\max_k\delta_T(k)$ and $y_{t-1}^* = \psi_t(y_t^*)$ for $t = T,\dots,2$.
+\end{theorem}
+
+\begin{proof}
+By the factorization, $p(x_{1:t}, y_{1:t}) = p(x_{1:t-1}, y_{1:t-1})\,A_{y_{t-1}y_t}B_{y_t}(x_t)$. Fix $y_t = k$ and split the maximum over $y_{1:t-1}$ into a
+maximum over $y_{t-1} = j$ and over $y_{1:t-2}$. The factor $A_{jk}B_k(x_t)$ does not depend on $y_{1:t-2}$ and is nonnegative,
+so it can be taken out of the inner maximum:
+\[
+  \delta_t(k) = \max_j\Bigl(\max_{y_{1:t-2}}p(x_{1:t-1}, y_{1:t-2}, y_{t-1} = j)\Bigr)A_{jk}B_k(x_t) = \max_j\delta_{t-1}(j)A_{jk}B_k(x_t) .
+\]
+For backtracking, let $y^*$ be the sequence it produces. By induction on $t$, the prefix $y_{1:t}^*$ attains $\delta_t(y_t^*)$:
+it holds at $t = 1$, and $y_{t-1}^* = \psi_t(y_t^*)$ is the predecessor that attains the maximum in the recursion. At $t = T$,
+$p(x, y^*) = \delta_T(y_T^*) = \max_k\delta_T(k) = \max_yp(x, y)$.
+\end{proof}
+
+This is the \emph{optimal substructure} of dynamic programming: the best path to $(t, k)$ extends one of the
+best paths to $(t - 1, j)$, and only the $K$ values $\delta_{t-1}(\cdot)$ need to be kept, not the $K^{t-1}$ paths. The cost is
+$O(TK^2)$ time and $O(TK)$ memory for the back-pointers, instead of $O(TK^T)$ for enumeration (Viterbi, \emph{Error
+Bounds for Convolutional Codes and an Asymptotically Optimum Decoding Algorithm}, 1967).
+
+\begin{example}[I saw her duck]\label{hmm-viterbi:ex:duck}
+Tags P (pronoun), V (verb), D (determiner), N (noun). The initial probabilities are $\pi = (0.7, 0.05, 0.15, 0.1)$, the
+transitions (row: from, column: to, in the order P, V, D, N)
+\[
+  A = \begin{bmatrix}0.05 & 0.8 & 0.05 & 0.1\\ 0.4 & 0.05 & 0.35 & 0.2\\ 0 & 0 & 0 & 1\\ 0.1 & 0.6 & 0.1 & 0.2\end{bmatrix},
+\]
+and the emissions of the four words (all others zero; each $B_k$ also gives probability to words
+not in this sentence):
+\begin{gather*}
+  B_{\mathrm P}(\text{I}) = 0.4,\qquad B_{\mathrm V}(\text{saw}) = 0.1,\quad B_{\mathrm N}(\text{saw}) = 0.05,\\
+  B_{\mathrm P}(\text{her}) = 0.3,\quad B_{\mathrm D}(\text{her}) = 0.25,\qquad B_{\mathrm V}(\text{duck}) = 0.03,\quad B_{\mathrm N}(\text{duck}) = 0.04 .
+\end{gather*}
+\emph{Recursion} (zeros omitted):
+\begin{align*}
+  \delta_1(\mathrm P) &= 0.7\cdot0.4 = 0.28,\\
+  \delta_2(\mathrm V) &= 0.28\cdot0.8\cdot0.1 = 0.0224,\qquad \delta_2(\mathrm N) = 0.28\cdot0.1\cdot0.05 = 0.0014,\\
+  \delta_3(\mathrm P) &= \max(0.0224\cdot0.4,\ 0.0014\cdot0.1)\cdot0.3 = 0.002688 &&(\psi_3(\mathrm P) = \mathrm V),\\
+  \delta_3(\mathrm D) &= \max(0.0224\cdot0.35,\ 0.0014\cdot0.1)\cdot0.25 = 0.00196 &&(\psi_3(\mathrm D) = \mathrm V),\\
+  \delta_4(\mathrm V) &= \max(0.002688\cdot0.8,\ 0.00196\cdot0)\cdot0.03 = 6.45\cdot10^{-5} &&(\psi_4(\mathrm V) = \mathrm P),\\
+  \delta_4(\mathrm N) &= \max(0.002688\cdot0.1,\ 0.00196\cdot1)\cdot0.04 = 7.84\cdot10^{-5} &&(\psi_4(\mathrm N) = \mathrm D).
+\end{align*}
+\emph{Backtracking}: $y_4^* = \mathrm N$, $y_3^* = \psi_4(\mathrm N) = \mathrm D$, $y_2^* = \psi_3(\mathrm D) = \mathrm V$, $y_1^* = \mathrm P$: \emph{I/P saw/V her/D duck/N}, with
+$p(x, y^*) = 7.84\times10^{-5}$.
+
+\emph{Greedy tagging fails.} Choosing each tag in turn as the best continuation of the previous
+choice picks P for ``her'' ($0.4\times0.3 = 0.12 > 0.35\times0.25 = 0.0875$) and then V for ``duck'', the reading \emph{I saw her
+duck (dodge)}, with probability $6.45\times10^{-5}$. At $t = 3$ the pronoun is ahead, $\delta_3(\mathrm P) > \delta_3(\mathrm D)$, but the determiner
+leads to a better completion. Viterbi keeps the best path to \emph{every} tag, so it does not have to
+commit early.
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  c/.style={draw, rounded corners=2pt, minimum width=17mm, minimum height=7mm, font=\scriptsize, align=center},
+  zc/.style={c, draw=gray!40, text=gray!60},
+  ar/.style={-{Stealth[length=1.6mm]}, gray!60},
+  best/.style={-{Stealth[length=2mm]}, very thick, bookpitfall}]
+  \foreach \w [count=\t] in {I,saw,her,duck} \node[font=\small] at (2.7*\t,0.8) {``\w''};
+  \foreach \k [count=\r] in {P,V,D,N} \node[font=\small] at (1.0,-1.0*\r) {\k};
+  \node[c, fill=bookaccent!12] (P1) at (2.7,-1) {$0.28$};
+  \node[zc] (V1) at (2.7,-2) {$0$}; \node[zc] (D1) at (2.7,-3) {$0$}; \node[zc] (N1) at (2.7,-4) {$0$};
+  \node[zc] (P2) at (5.4,-1) {$0$}; \node[c, fill=bookaccent!12] (V2) at (5.4,-2) {$0.0224$};
+  \node[zc] (D2) at (5.4,-3) {$0$}; \node[c, fill=bookaccent!12] (N2) at (5.4,-4) {$0.0014$};
+  \node[c, fill=bookaccent!12] (P3) at (8.1,-1) {$0.002688$}; \node[zc] (V3) at (8.1,-2) {$0$};
+  \node[c, fill=bookaccent!12] (D3) at (8.1,-3) {$0.00196$}; \node[zc] (N3) at (8.1,-4) {$0$};
+  \node[zc] (P4) at (10.8,-1) {$0$}; \node[c, fill=bookaccent!12] (V4) at (10.8,-2) {$6.45\cdot10^{-5}$};
+  \node[zc] (D4) at (10.8,-3) {$0$}; \node[c, fill=bookexample!25] (N4) at (10.8,-4) {$7.84\cdot10^{-5}$};
+  \draw[ar] (P1) -- (N2); \draw[ar] (V2) -- (P3); \draw[ar] (P3) -- (V4);
+  \draw[best] (P1) -- (V2); \draw[best] (V2) -- (D3); \draw[best] (D3) -- (N4);
+\end{tikzpicture}
+\caption{The trellis of \cref{hmm-viterbi:ex:duck}: $\delta_t(k)$ in each cell, the back-pointers $\psi$ of the non-zero cells as
+arrows. The best path (red) goes through $\delta_3(\mathrm D)$, which is smaller than $\delta_3(\mathrm P)$ at time $3$.}
+\label{hmm-viterbi:fig:trellis}
+\end{figure}
+
+\section{The forward algorithm and posterior marginals}\label{hmm-viterbi:sec:forward}
+
+Replacing the maximum by a sum gives the probability of the words, summed over all tag
+sequences. With $\alpha_t(k) = p(x_{1:t}, y_t = k)$,
+\[
+  \alpha_1(k) = \pi_kB_k(x_1),\qquad\alpha_t(k) = \Bigl(\sum_j\alpha_{t-1}(j)A_{jk}\Bigr)B_k(x_t),\qquad p(x_{1:T}) = \sum_k\alpha_T(k),
+\]
+by the same argument as \cref{hmm-viterbi:thm:viterbi}, with the distributivity of the product over
+the sum in place of its distributivity over the maximum. A backward recursion,
+$\beta_T(k) = 1$, $\beta_t(k) = \sum_lA_{kl}B_l(x_{t+1})\beta_{t+1}(l) = p(x_{t+1:T}\mid y_t = k)$, then gives the \emph{posterior marginals}
+\[
+  p(y_t = k\mid x_{1:T}) = \frac{\alpha_t(k)\,\beta_t(k)}{p(x_{1:T})} .
+\]
+In the example, $p(x_{1:4}) = 1.5624\times10^{-4}$, so the Viterbi sequence has posterior probability $7.84/15.624 = 0.502$:
+half of the probability mass is spread over other taggings. The posterior marginal of D at $t = 3$
+is $0.511$ and that of N at $t = 4$ is $0.581$. Choosing the most probable tag at each position separately
+(\emph{posterior decoding}) maximizes the expected number of correct tags; Viterbi maximizes the
+probability that the whole sequence is correct. The two can disagree, and posterior decoding
+can even produce a sequence of probability $0$ (\cref{hmm-viterbi:exr:4}). The forward--backward
+recursions are also what the E-step of Baum--Welch and the training of CRFs
+(\cref{ch:crf}) need.
+
+\section{Log space and implementation}\label{hmm-viterbi:sec:code}
+
+The probabilities $\delta_t(k)$ shrink geometrically with $t$ (here to $10^{-5}$ after four words) and underflow
+in floating point for sentences of a few hundred words. Since the logarithm is increasing, the
+Viterbi recursion can be run on $\log\delta$, with products replaced by sums and the same maximizers:
+\[
+  \log\delta_t(k) = \max_j\bigl(\log\delta_{t-1}(j) + \log A_{jk}\bigr) + \log B_k(x_t) .
+\]
+For the forward algorithm, the logarithm of a sum is computed with the log-sum-exp function,
+$\log\sum_je^{a_j} = m + \log\sum_je^{a_j - m}$, $m = \max_ja_j$.
+\begin{lstlisting}[language=Python]
+import numpy as np
+from scipy.special import logsumexp   # handles -inf entries correctly
+
+def viterbi(log_pi, log_A, log_B):        # log_B[t, k] = log B_k(x_t)
+    T, K = log_B.shape
+    delta = log_pi + log_B[0]
+    psi = np.zeros((T, K), dtype=int)
+    for t in range(1, T):
+        scores = delta[:, None] + log_A      # scores[j, k] = delta_{t-1}(j) + log A_jk
+        psi[t] = scores.argmax(axis=0)
+        delta = scores.max(axis=0) + log_B[t]
+    path = [int(delta.argmax())]
+    for t in range(T - 1, 0, -1):            # backtracking
+        path.append(int(psi[t, path[-1]]))
+    return path[::-1], delta.max()
+
+def log_forward(log_pi, log_A, log_B):
+    a = log_pi + log_B[0]                    # log alpha_1
+    for t in range(1, log_B.shape[0]):
+        a = logsumexp(a[:, None] + log_A, axis=0) + log_B[t]
+    return logsumexp(a)                      # log p(x_1:T)
+\end{lstlisting}
+On the example, with \texttt{np.log} turning the zero probabilities into $-\infty$, the functions return
+the path P, V, D, N and $\log p(x) = \log(1.5624\times10^{-4})$, which a brute-force enumeration of the $4^4 = 256$ tag
+sequences confirms. A hand-written log-sum-exp must treat the case where all the terms are
+$-\infty$ (the shift $m$ is then $-\infty$ and $a_j - m$ is undefined); \texttt{scipy.special.logsumexp} does.
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item Structured prediction chooses among exponentially many outputs; it needs a score that
+        decomposes over small parts and an algorithm that exploits the decomposition.
+  \item An HMM is a Markov chain of tags emitting one word each; with tagged data, its parameters
+        are conditional frequencies (Baum--Welch is for untagged data).
+  \item Viterbi: $\delta_t(k) = \max_j\delta_{t-1}(j)A_{jk}B_k(x_t)$ with back-pointers gives the most probable tag sequence exactly, in
+        $O(TK^2)$; greedy tagging can fail because it commits early.
+  \item The forward algorithm replaces the max by a sum and gives $p(x)$; with the backward recursion it
+        gives posterior marginals.
+  \item Implementations work with logarithms (and log-sum-exp) to avoid underflow.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{hmm-viterbi:exr:1}
+Count the multiplications of Viterbi and of brute-force enumeration for $T = 20$ and $K = 45$.
+\solutionlink{hmm-viterbi:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{hmm-viterbi:exr:2}
+In \cref{hmm-viterbi:ex:duck}, compute $\alpha_3$, $\alpha_4$ and $p(x_{1:4})$, and check the posterior probability $0.502$ of the Viterbi
+sequence.
+\solutionlink{hmm-viterbi:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{hmm-viterbi:exr:3}
+Estimate $\pi$, $A$ and $B_{\mathrm N}$ by counting from the tagged sentences \emph{the/D dog/N runs/V}, \emph{the/D dogs/N
+run/V}, \emph{dogs/N run/V}.
+\solutionlink{hmm-viterbi:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{hmm-viterbi:exr:4}
+Show that with two tags and two time steps, if each posterior marginal has a unique maximum,
+the tags chosen separately by posterior decoding form a sequence of positive probability. Then construct an HMM with three tags and two
+time steps in which they form a sequence of probability $0$.
+\hint{Use a transition probability equal to $0$, and uninformative emissions.}
+\solutionlink{hmm-viterbi:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{hmm-viterbi:exr:5}
+Show that the Viterbi recursion remains correct when $\max$ and products are replaced by $\max$ and
+sums of logarithms, and explain why it would not remain correct if the logarithm were replaced
+by a decreasing function.
+\solutionlink{hmm-viterbi:exr:5}
+\end{exercise}
+\end{notechapter}

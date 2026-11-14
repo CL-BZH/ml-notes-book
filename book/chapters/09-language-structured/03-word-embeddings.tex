@@ -1,0 +1,264 @@
+\begin{notechapter}
+\chapter{Word Embeddings}\label{ch:word-embeddings}
+\chaptersubtitle{Word2vec, GloVe and fastText: vectors learned from the company words keep}
+
+\begin{chapterintro}
+In the neural bigram model, each word received a vector, and words with similar
+continuations received similar vectors (\cref{ch:bigram-neural}). Word embeddings make this
+the goal: a prediction task over a large corpus is set up only to learn one vector per word,
+and the vectors are then used as features by other models. This chapter states the
+models precisely, with their two sets of vectors, their objectives and their gradients,
+and is careful about two claims that are often made loosely: what the vector arithmetic of
+analogies shows, and which tools actually provide static word vectors. You will learn
+\begin{itemize}[nosep]
+  \item the distributional hypothesis and the skip-gram and CBOW models of word2vec, with
+        their input and output vectors and the cost of their softmax;
+  \item the GloVe objective, a weighted least-squares fit of log co-occurrence counts;
+  \item fastText's character $n$-grams and how they handle unseen words;
+  \item how analogies are evaluated, and why the query words must be excluded;
+  \item static versus contextual embeddings, and how embeddings are stored and loaded.
+\end{itemize}
+\prerequisites{\cref{ch:bigram-neural}; the gradient of the softmax cross-entropy
+(\cref{bigram-models:sec:gradient}).}
+\end{chapterintro}
+
+\section{The distributional hypothesis}\label{word-embeddings:sec:distributional}
+
+``You shall know a word by the company it keeps'' (Firth, 1957). The \emph{distributional
+hypothesis} (Harris, 1954) states that words occurring in similar contexts tend to have
+similar meanings: ``coffee'' and ``tea'' both appear near ``cup'', ``drink'' and ``hot''. A word
+embedding is a map $w\mapsto v_w\in\R^d$, with $d$ of a few hundred, learned so that words with similar
+contexts get nearby vectors. Similarity is measured by the cosine,
+$\cos(v_a, v_b) = v_a^\top v_b/(\norm{v_a}\,\norm{v_b})$.
+
+The models below learn the vectors through a \emph{pretext task}: predicting words from their
+neighbours. The predictions themselves are discarded after training; only the vectors are
+kept. This is the idea of self-supervised learning (\cref{part:contrastive}): the
+supervision comes from the data itself, here from the order of words in raw text.
+
+\section{Word2vec}\label{word-embeddings:sec:word2vec}
+
+Word2vec (Mikolov, Chen, Corrado and Dean, \emph{Efficient Estimation of Word Representations
+in Vector Space}, 2013) has two architectures, both with two matrices: input vectors $v_w$ (rows
+of $V_{\mathrm{in}}\in\R^{|\mathcal V|\times d}$) and output vectors $u_w$ (rows of $U\in\R^{|\mathcal V|\times d}$), where $\mathcal V$ is the vocabulary. A text $w_1,\dots,w_N$ and a window
+size $m$ define the training pairs: each \emph{centre} word $w_t$ with each \emph{context} word $w_{t+k}$, $1\leq\abs k\leq m$.
+
+\paragraph{Skip-gram} predicts each context word from the centre word:
+\[
+  p(c\mid w) = \frac{\exp(u_c^\top v_w)}{\sum_{c'\in\mathcal V}\exp(u_{c'}^\top v_w)},\qquad
+  \mathcal L = -\sum_{t=1}^N\sum_{1\leq\abs k\leq m}\log p(w_{t+k}\mid w_t) .
+\]
+This is the neural bigram model of \cref{ch:bigram-neural} without the hidden nonlinearity and
+without biases, with the next word replaced by any word of the window: the logits are the
+dot products $z = Uv_w$, and the model is \emph{log-bilinear}. For one pair $(w, c)$, the gradients follow from
+$\nabla_z\ell = p - e_c$ (\cref{bigram-models:sec:gradient}):
+\[
+  \nabla_{v_w}\ell = U^\top(p - e_c) = \sum_{c'}p(c'\mid w)\,u_{c'} - u_c,\qquad
+  \nabla_{u_{c'}}\ell = \bigl(p(c'\mid w) - [c' = c]\bigr)v_w .
+\]
+The centre vector moves towards the output vector of the observed context and away from
+the model's average output vector; the observed context's output vector moves towards
+$v_w$, and every other output vector moves away from it.
+
+\paragraph{CBOW} (continuous bag of words) predicts the centre word from the average of the
+input vectors of its context, $\bar v_t = \frac1{2m}\sum_{1\leq\abs k\leq m}v_{w_{t+k}}$:
+$p(w_t\mid\text{context}) = \softmax(U\bar v_t)_{w_t}$. Averaging the vectors is the same as multiplying $V_{\mathrm{in}}^\top$ by the average of the
+one-hot codes, since the lookup is linear; the order of the context words is lost, hence ``bag
+of words''.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=2pt, minimum height=8mm, inner sep=3pt, font=\small, align=center},
+  ar/.style={-{Stealth[length=1.8mm]}, thick},
+  lab/.style={font=\scriptsize, inner sep=1pt}]
+  \node[box, fill=bookaccent!15] (w) at (0,0) {centre word $w$\\[-1pt]{\scriptsize index}};
+  \node[box, fill=bookexample!15] (v) at (3.7,0) {$v_w\in\R^d$\\[-1pt]{\scriptsize row of $V_{\mathrm{in}}$}};
+  \node[box, fill=bookkey!12] (z) at (7.5,0) {$z = Uv_w$\\[-1pt]{\scriptsize $|\mathcal V|$ dot products}};
+  \node[box, fill=gray!10] (p) at (11.2,0) {$p(\cdot\mid w) = \softmax(z)$};
+  \draw[ar] (w) -- node[lab, above]{lookup} (v);
+  \draw[ar] (v) -- node[lab, above]{$U$} (z);
+  \draw[ar] (z) -- (p);
+  \node[box, fill=bookexample!15, dashed] (c) at (11.2,-1.4) {target: each context word $w_{t+k}$};
+  \draw[ar, dashed, gray] (c) -- (p);
+\end{tikzpicture}
+\caption{Skip-gram. The input vectors are the embeddings that are usually kept; the softmax over the
+whole vocabulary is the expensive part.}
+\label{word-embeddings:fig:skipgram}
+\end{figure}
+
+\paragraph{The cost of the softmax.} Each pair costs $O(d)$ for the lookup and $O(d\,|\mathcal V|)$ for the logits and the
+normalization, with $|\mathcal V|$ in the hundreds of thousands. Word2vec never computes the full softmax.
+It replaces it either by a hierarchical softmax (\cref{ch:hierarchical-softmax}) or by negative
+sampling (\cref{ch:nce-negative-sampling}), both $O(d\log|\mathcal V|)$ or $O(dk)$ per pair. Two further details of the
+implementation matter in practice: frequent words are randomly discarded (subsampling,
+each occurrence of $w$ dropped with probability $1 - \sqrt{s/f(w)}$, with $f(w)$ the frequency of $w$ and $s$ a threshold
+around $10^{-5}$), and the window size is drawn at random between $1$ and $m$ for each centre word, which
+gives nearby words more weight (Mikolov, Sutskever, Chen, Corrado and Dean,
+\emph{Distributed Representations of Words and Phrases and their Compositionality}, 2013).
+
+\paragraph{Which vectors?} The model has two vectors per word, and they play different roles:
+$v_w$ describes $w$ as a centre, $u_w$ as a context. The input vectors are the ones usually published and
+used; some methods use $v_w + u_w$. The two are not interchangeable: words that are \emph{similar} have
+similar input vectors, while a large $u_c^\top v_w$ means that $c$ is likely \emph{near} $w$, which holds for
+``coffee'' and ``cup'' as much as for ``coffee'' and ``tea''.
+
+\section{GloVe}\label{word-embeddings:sec:glove}
+
+GloVe (Pennington, Socher and Manning, \emph{GloVe: Global Vectors for Word Representation},
+2014) starts from the co-occurrence counts. Let $X_{ij}$ be the number of times word $j$ occurs in the
+window of word $i$ over the whole corpus (each occurrence weighted by $1/\text{distance}$). GloVe
+minimizes
+\[
+  J = \sum_{i,j:\,X_{ij}>0}f(X_{ij})\,\bigl(w_i^\top\tilde w_j + b_i + \tilde b_j - \log X_{ij}\bigr)^2,\qquad
+  f(x) = \begin{cases}(x/x_{\max})^{3/4} & x < x_{\max},\\ 1 & x\geq x_{\max},\end{cases}
+\]
+with $x_{\max} = 100$ in the paper. It is a weighted least-squares fit of the log-counts by a
+low-rank matrix plus biases. The sum runs over the non-zero counts only, since $\log0$ is undefined,
+which also makes each pass cost the number of distinct co-occurring pairs rather than
+$|\mathcal V|^2$. The weight $f$ does two things: it gives little weight to rare, noisy co-occurrences, and it
+caps the weight of very frequent pairs (``of the'') at $1$, so that they do not dominate. The
+published vectors are $w_i + \tilde w_i$. Unlike word2vec, GloVe has no softmax, so neither hierarchical
+softmax nor negative sampling plays any role in it.
+
+\section{fastText: subword vectors}\label{word-embeddings:sec:fasttext}
+
+Word2vec and GloVe learn one vector per vocabulary entry; a word absent from the training
+corpus has none, and rare words have poor ones. FastText (Bojanowski, Grave, Joulin and
+Mikolov, \emph{Enriching Word Vectors with Subword Information}, 2017) represents a word by
+its character $n$-grams. The word is wrapped in boundary symbols, \texttt{<apple>}, and all its $n$-grams
+with $3\leq n\leq6$ are extracted, plus the whole word itself as a special sequence: for $n = 3$,
+\texttt{<ap}, \texttt{app}, \texttt{ppl}, \texttt{ple}, \texttt{le>}. The vector of the word is the sum of the
+vectors of its $n$-grams, and these are trained with the skip-gram objective and negative
+sampling. The boundary symbols distinguish the trigram \texttt{her} inside ``where'' from the
+word \texttt{<her>}. An unseen word still has $n$-grams, hence a vector; words sharing a stem or a
+suffix share parameters, which helps for rare words and morphologically rich languages.
+To bound memory, the $n$-grams are hashed into a fixed number of buckets (two million by
+default), so that two $n$-grams may share a vector.
+
+\section{Analogies and similarity}\label{word-embeddings:sec:analogies}
+
+Word2vec's vectors became famous for analogies: the vector $v_{\text{king}} - v_{\text{man}} + v_{\text{woman}}$ is close to $v_{\text{queen}}$,
+and $v_{\text{Paris}} - v_{\text{France}} + v_{\text{Italy}}$ to $v_{\text{Rome}}$. The standard evaluation answers ``$a$ is to $b$ as $c$ is to ?'' by
+\[
+  \hat d = \operatorname*{arg\,max}_{x\in\mathcal V\setminus\{a,b,c\}}\cos\bigl(v_x,\ v_b - v_a + v_c\bigr),
+\]
+and the set $\mathcal V\setminus\{a,b,c\}$ matters.
+
+\begin{pitfall}[The query words are excluded]
+The offset $v_b - v_a$ between ``man'' and ``king'' is often small compared with the vectors
+themselves, so the nearest neighbour of $v_{\text{king}} - v_{\text{man}} + v_{\text{woman}}$ is very often ``king'' itself, or
+``woman''. The evaluation of Mikolov et al.\ excludes the three query words, and the
+reported accuracies depend on it (Nissim, van Noord and van der Goot, \emph{Fair is Better
+than Sensational: Man is to Doctor as Woman is to Doctor}, 2020). An analogy shows that the
+expected answer is the nearest \emph{other} word, which is weaker than ``the vector arithmetic
+produces queen''.
+\end{pitfall}
+
+\begin{example}[Excluding the query words]\label{word-embeddings:ex:analogy}
+Take the three-dimensional vectors man $= (1, 0.3, 0.2)$, woman $= (1, -0.3, 0.2)$, king $= (3, 0.4, 1)$,
+queen $= (2.6, -0.3, 1.6)$ and prince $= (2.8, 0.5, 0.6)$. Then $q = v_{\text{king}} - v_{\text{man}} + v_{\text{woman}} = (3, -0.2, 1)$, and the cosines
+with $q$ are $0.9822$ for king, $0.9733$ for queen, $0.9679$ for woman, $0.9663$ for prince and $0.9322$ for man. Over
+the whole vocabulary the answer is ``king''; with the query words excluded it is ``queen''.
+\end{example}
+
+\section{Static and contextual embeddings}\label{word-embeddings:sec:contextual}
+
+Word2vec, GloVe and fastText are \emph{static}: one vector per word type, whatever the sentence.
+``Bank'' gets a single vector, an average of its financial and riverside uses. \emph{Contextual}
+embeddings are computed for each occurrence by a deep network that reads the whole
+sentence. ELMo (Peters et al., \emph{Deep Contextualized Word Representations}, 2018) combines
+the hidden states of a two-layer bidirectional LSTM language model (\cref{sequence-models:sec:bidirectional})
+with learned task-specific weights. BERT (Devlin et al., 2019) uses the hidden states of a
+transformer encoder trained to predict masked words, over subword units rather than words.
+The static models are shallow: their vectors are rows of a parameter matrix, not activations
+of a deep network; the contextual ones are activations, and depend on the sentence.
+
+\section{Storing and loading embeddings}\label{word-embeddings:sec:implementation}
+
+An embedding is stored as two objects: a mapping from words to indices, and a matrix with
+one row per index.
+\begin{lstlisting}[language=Python]
+index_mapping = {"king": 0, "queen": 1, "man": 2, "woman": 3}
+embedding_matrix = np.array([[0.7, 0.8, 0.9],    # row 0: "king"
+                             [0.6, 0.7, 0.8],    # row 1: "queen"
+                             [0.5, 0.6, 0.7],    # row 2: "man"
+                             [0.4, 0.5, 0.6]])   # row 3: "woman"
+vector = embedding_matrix[index_mapping["king"]] # array([0.7, 0.8, 0.9])
+\end{lstlisting}
+Storing the vectors in one matrix rather than in a dictionary of separate arrays keeps them
+contiguous in memory, lets a whole batch be looked up with one indexing operation (an
+array of indices in place of one index), and makes the table a single trainable parameter.
+In PyTorch it is \texttt{nn.Embedding(num\_words, d)}: the backward pass of a lookup adds the
+gradient of each looked-up vector to its row and leaves the other rows untouched, so the
+gradient is sparse, as in \cref{bigram-models:sec:gradient}. Pretrained vectors initialize it with
+\texttt{nn.Embedding.from\_pretrained(tensor, freeze=True)}.
+
+With \texttt{gensim}, pretrained word2vec or fastText vectors are loaded as \texttt{KeyedVectors},
+which implement the analogy query with the exclusion of the query words:
+\begin{lstlisting}[language=Python]
+from gensim.models import KeyedVectors
+kv = KeyedVectors.load_word2vec_format("GoogleNews-vectors-negative300.bin", binary=True)
+kv["king"].shape                                   # (300,)
+kv.most_similar(positive=["king", "woman"], negative=["man"], topn=3)
+\end{lstlisting}
+
+\begin{pitfall}[spaCy's small models have no word vectors]
+In spaCy, \texttt{nlp(word).vector} returns a vector for any model, but the small English
+pipeline \texttt{en\_core\_web\_sm} ships without static word vectors: the vectors it returns
+are context-sensitive features of its tagger, not word embeddings, and similarities computed
+from them are unreliable. Static vectors come with the medium and large pipelines
+(\texttt{en\_core\_web\_md}, \texttt{en\_core\_web\_lg}); \texttt{token.has\_vector} tells which case applies.
+\end{pitfall}
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item Embeddings map words to vectors so that words with similar contexts are close; they
+        are learned through a pretext task on raw text.
+  \item Skip-gram predicts context words from the centre word with $p(c\mid w)\propto\exp(u_c^\top v_w)$; CBOW predicts the
+        centre from the average context vector. Each word has an input and an output vector;
+        the full softmax costs $O(d|\mathcal V|)$ per pair and is replaced in practice.
+  \item GloVe fits $w_i^\top\tilde w_j + b_i + \tilde b_j\approx\log X_{ij}$ by weighted least squares over the non-zero co-occurrence counts.
+  \item FastText sums the vectors of character $n$-grams ($3\leq n\leq6$, with boundary symbols), which gives
+        vectors to unseen words.
+  \item Analogy accuracy is measured with the query words excluded; without the exclusion the
+        answer is often a query word.
+  \item Static embeddings give one vector per word; contextual ones (ELMo, BERT) one per
+        occurrence.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{word-embeddings:exr:1}
+List the skip-gram training pairs of the sentence \emph{the cat sat on the mat} with $m = 1$. How many
+are there with $m = 2$?
+\solutionlink{word-embeddings:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{word-embeddings:exr:2}
+Show that the CBOW input $\bar v_t$ equals $V_{\mathrm{in}}^\top\bar x_t$, where $\bar x_t$ is the average of the one-hot codes of the context
+words. What happens if a context word appears twice in the window?
+\solutionlink{word-embeddings:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{word-embeddings:exr:3}
+Compute the GloVe weights $f(X_{ij})$ for $X_{ij} = 1, 10, 100, 1000$. Why is the pair with $X_{ij} = 0$ not in the sum,
+and why would it be a problem to include it with $\log(X_{ij} + 1)$ and weight $1$?
+\solutionlink{word-embeddings:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{word-embeddings:exr:4}
+List the fastText $n$-grams of the word \emph{where} for $n = 3$ and $n = 4$. Which of them does it share with the word
+\emph{her}?
+\solutionlink{word-embeddings:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{word-embeddings:exr:5}
+Let $\delta = v_c - v_a$, and assume that no other word has a vector with the direction of $v_b$. Show that, as
+$\norm\delta\to0$, the word whose vector has the largest cosine with $v_b + \delta$ is eventually $b$. Why does this justify
+excluding $b$ from the search?
+\solutionlink{word-embeddings:exr:5}
+\end{exercise}
+\end{notechapter}
