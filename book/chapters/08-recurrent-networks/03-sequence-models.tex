@@ -1,0 +1,364 @@
+\begin{notechapter}
+\chapter{Bidirectional RNNs and Autoregressive Sequence Models}\label{ch:sequence-models}
+\chaptersubtitle{What a recurrent state summarizes, and how to choose the direction}
+
+\begin{chapterintro}
+The state of a forward RNN at time $t$ is a function of $x_{1:t}$: it summarizes the past. Many
+problems need something else. To tag a word, the words that follow it matter as much as
+those before it. To infer the hidden state of a dynamical system from a whole recording, the
+future observations matter. To define a probability distribution over sequences, the
+model must predict each element from the previous ones only, and never see the element it
+predicts. This chapter shows how the same recurrent cell, run in different directions on
+differently shifted inputs, produces each of these summaries. You will learn
+\begin{itemize}[nosep]
+  \item that a forward state summarizes the prefix $x_{1:t}$ and a backward state the suffix $x_{t:T}$;
+  \item how a backward RNN is implemented by flipping the sequence, and why this needs care
+        with padded batches;
+  \item bidirectional RNNs and the ways of combining their two directions;
+  \item autoregressive models: how an RNN on the \emph{shifted} sequence defines a normalized
+        probability distribution over sequences, how it is trained and how it generates;
+  \item why a model that sees the element it predicts is not a probability model.
+\end{itemize}
+\prerequisites{\cref{ch:rnn-bptt,ch:gated-rnn}; the chain rule of probability and maximum
+likelihood (\cref{ch:cross-entropy}).}
+\end{chapterintro}
+
+\section{What a recurrent state summarizes}\label{sequence-models:sec:summaries}
+
+Write the recurrence of any of the previous chapters abstractly as $h_t = F(h_{t-1}, x_t)$, with
+$h_0$ fixed and $F$ the cell (simple, LSTM or GRU; for the LSTM the state is the pair $(h_t, c_t)$).
+
+\begin{proposition}[Forward and backward summaries]\label{sequence-models:prop:summaries}
+\begin{enumerate}[nosep]
+  \item The forward state $h_t = F(h_{t-1}, x_t)$, $h_0$ fixed, is a function of $x_{1:t}$ only.
+  \item The backward state $b_t = F(b_{t+1}, x_t)$, computed for $t = T,\dots,1$ from a fixed $b_{T+1}$, is a function of
+        $x_{t:T}$ only.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(1) By induction: $h_0$ is a constant, and if $h_{t-1}$ is a function of $x_{1:t-1}$, then $F(h_{t-1}, x_t)$ is a function of
+$x_{1:t}$. (2) The same induction, downward from $b_{T+1}$.
+\end{proof}
+
+The proposition says what each state \emph{can} depend on. Which information it actually
+keeps from its prefix or suffix is learned, within the limits discussed in
+\cref{rnn-bptt:sec:vanishing}. At $t = T$ the backward state has seen only $x_T$; at $t = 1$ it has seen the
+whole sequence. The forward state is the opposite.
+
+\section{The backward RNN by flipping}\label{sequence-models:sec:flip}
+
+Libraries implement recurrences that run forward in time. A backward RNN is obtained from
+a forward one in three steps:
+\begin{enumerate}[nosep]
+  \item flip the sequence along the time axis: $(x_T, x_{T-1},\dots,x_1)$;
+  \item run a forward RNN on it: its $k$-th output $h'_k$, $k = 1,\dots,T$, has seen the first $k$ elements of the flipped
+        sequence, $x_T,\dots,x_{T-k+1}$;
+  \item flip the outputs back: the output now stored at position $t = T - k + 1$ has seen $x_{T-k+1},\dots,x_T$, that is $x_{t:T}$.
+\end{enumerate}
+The output at position $t$ after the second flip is therefore $b_t$, and the recursion is the one of
+\cref{sequence-models:prop:summaries} (2), since $h'_k = F(h'_{k-1}, x_{T-k+1})$ reads $b_t = F(b_{t+1}, x_t)$ with $t = T - k + 1$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  cell/.style={draw, minimum width=9mm, minimum height=7mm, inner sep=1pt, font=\small},
+  ar/.style={-{Stealth[length=1.8mm]}, thick},
+  lab/.style={font=\scriptsize, inner sep=1pt}]
+  \def\cA{bookaccent!30}\def\cB{bookexample!35}\def\cC{bookdef!35}\def\cD{bookpitfall!25}
+  % row 1
+  \node[lab, anchor=east] at (-0.2,0) {sequence};
+  \foreach \i/\c in {1/\cA,2/\cB,3/\cC,4/\cD} \node[cell, fill=\c] (a\i) at (0.4+1.4*\i,0) {$x_{\i}$};
+  % row 2
+  \node[lab, anchor=east] at (-0.2,-1.5) {flipped};
+  \foreach \k/\i/\c in {1/4/\cD,2/3/\cC,3/2/\cB,4/1/\cA} \node[cell, fill=\c] (b\k) at (0.4+1.4*\k,-1.5) {$x_{\i}$};
+  \draw[ar, gray] (3.9,-0.45) -- node[lab, right]{\texttt{torch.flip(x, [0])}} (3.9,-1.05);
+  % row 3: forward RNN
+  \node[lab, anchor=east] at (-0.2,-3.0) {forward RNN};
+  \foreach \k in {1,2,3,4} {
+    \node[cell, fill=gray!10] (c\k) at (0.4+1.4*\k,-3.0) {$h'_{\k}$};
+    \draw[ar] (b\k) -- (c\k);
+  }
+  \foreach \k/\j in {1/2,2/3,3/4} \draw[ar, bookaccent] (c\k) -- (c\j);
+  \node[lab, below=1pt of c1] {$x_{4}$};
+  \node[lab, below=1pt of c2] {$x_{3:4}$};
+  \node[lab, below=1pt of c3] {$x_{2:4}$};
+  \node[lab, below=1pt of c4] {$x_{1:4}$};
+  % row 4: flipped back
+  \node[lab, anchor=east] at (-0.2,-5.0) {flipped back};
+  \foreach \t/\k in {1/4,2/3,3/2,4/1} \node[cell, fill=bookkey!12] (d\t) at (0.4+1.4*\t,-5.0) {$b_{\t}$};
+  \draw[ar, gray] (3.9,-3.75) -- node[lab, right]{\texttt{torch.flip(h, [0])}} (3.9,-4.55);
+  \node[lab, below=1pt of d1] {$x_{1:4}$};
+  \node[lab, below=1pt of d2] {$x_{2:4}$};
+  \node[lab, below=1pt of d3] {$x_{3:4}$};
+  \node[lab, below=1pt of d4] {$x_{4}$};
+  % right annotations
+  \node[lab, align=left, anchor=west] at (6.6,-3.0) {$h'_k$ has seen the first $k$\\ elements of the flipped\\ sequence};
+  \node[lab, align=left, anchor=west] at (6.6,-5.0) {$b_t = h'_{T-t+1}$ summarizes\\ the suffix $x_{t:T}$};
+\end{tikzpicture}
+\caption{A backward RNN implemented with a forward one, for $T = 4$. Below each output: the inputs it
+has seen. After the second flip, position $t$ holds a summary of $x_{t:T}$.}
+\label{sequence-models:fig:flip}
+\end{figure}
+
+This is the module used by the inference network of the deep Kalman filter
+(\cref{ch:deep-kalman-filters}), from the repository \texttt{CL-BZH/Deep-Kalman-Filters}; tensors have shape
+$(T, \text{batch}, \text{features})$, so time is dimension $0$:
+\begin{lstlisting}[language=Python]
+class DKF_Backward_RNN(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers):
+        super().__init__()
+        self.bw_rnn = nn.LSTM(input_size, hidden_size, num_layers)
+
+    def forward(self, x):                      # x: (seq_len, batch, input_size)
+        x = torch.flip(x, [0])                 # (x_T, ..., x_1)
+        bw_rnn_out, _ = self.bw_rnn(x)         # position k: x_T..x_{T-k+1}
+        return torch.flip(bw_rnn_out, [0])     # position t: x_t..x_T
+\end{lstlisting}
+Two checks confirm the bookkeeping. First, PyTorch's \texttt{nn.LSTM(\ldots, bidirectional=True)} has
+a reverse direction; copying its reverse weights into the forward LSTM above gives exactly
+the second half of its output. Second, perturbing $x_1$ changes $b_1$ and leaves $b_2,\dots,b_T$ unchanged,
+as \cref{sequence-models:prop:summaries} requires.
+
+\begin{pitfall}[Flipping a padded batch]
+Sequences of different lengths are batched by padding them to a common length. Flipping a
+padded tensor puts the padding \emph{first}: a sequence of length $3$ padded to $5$ becomes
+$(0, 0, x_3, x_2, x_1)$, and its backward states are computed after reading two padding vectors, so
+they differ from those of the unpadded sequence. PyTorch's bidirectional modules handle this
+correctly when the batch is given as a \texttt{PackedSequence} (\texttt{pack\_padded\_sequence}), in
+which case the reverse direction starts at each sequence's own last element; on a padded
+tensor they do not. The DKF uses sequences of equal length, so the problem does not arise
+there.
+\end{pitfall}
+
+\section{Bidirectional RNNs}\label{sequence-models:sec:bidirectional}
+
+A \emph{bidirectional} RNN (Schuster and Paliwal, \emph{Bidirectional Recurrent
+Neural Networks}, 1997) runs a forward and a backward RNN, with their
+own weights, over the same sequence, and combines their states at each position:
+\[
+  \overrightarrow h_t = F_{\to}(\overrightarrow h_{t-1}, x_t),\qquad
+  \overleftarrow h_t = F_{\leftarrow}(\overleftarrow h_{t+1}, x_t),\qquad
+  s_t = \mathrm{combine}(\overrightarrow h_t, \overleftarrow h_t) .
+\]
+By \cref{sequence-models:prop:summaries}, $s_t$ is a function of the whole sequence $x_{1:T}$, with an emphasis on the
+neighbourhood of $t$. Common combinations are the concatenation $s_t = (\overrightarrow h_t, \overleftarrow h_t)\in\R^{2m}$ (the PyTorch
+default), the sum, a weighted sum $\alpha\overrightarrow h_t + (1 - \alpha)\overleftarrow h_t$, and a linear map of the concatenation;
+the \texttt{DKF\_Bidirectional\_RNN} module of the DKF repository offers these four options.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  st/.style={draw, circle, minimum size=7mm, inner sep=0pt, font=\scriptsize},
+  io/.style={draw, rectangle, rounded corners=2pt, minimum size=6.5mm, inner sep=1pt, font=\scriptsize},
+  ar/.style={-{Stealth[length=1.8mm]}, thick}]
+  \foreach \t in {1,2,3,4} {
+    \node[io, minimum width=11mm] (x\t) at (2*\t+0.2,0) {$x_{\t}$};
+    \node[st, fill=bookaccent!15] (f\t) at (2*\t,1.3) {$\overrightarrow{h}_{\t}$};
+    \node[st, fill=bookexample!20] (b\t) at (2*\t+0.7,2.5) {$\overleftarrow{h}_{\t}$};
+    \node[io, fill=bookkey!12] (s\t) at (2*\t+0.35,3.8) {$s_{\t}$};
+    \draw[ar] (x\t) -- (f\t);
+    \draw[ar] (2*\t+0.7,0.33) -- (b\t);
+    \draw[ar, gray] (f\t) -- (s\t);
+    \draw[ar, gray] (b\t) -- (s\t);
+  }
+  \foreach \t/\u in {1/2,2/3,3/4} {
+    \draw[ar, bookaccent] (f\t) -- (f\u);
+    \draw[ar, bookexample!80!black] (b\u) -- (b\t);
+  }
+\end{tikzpicture}
+\caption{A bidirectional RNN. The forward chain (blue) runs left to right, the backward chain
+(green) right to left, with separate weights; $s_t$ combines $\overrightarrow h_t$ (a summary of $x_{1:t}$) and $\overleftarrow h_t$ (a summary
+of $x_{t:T}$).}
+\label{sequence-models:fig:birnn}
+\end{figure}
+
+A bidirectional RNN is the right tool whenever the whole sequence is available before any
+output is needed: tagging the words of a sentence (\cref{ch:viterbi-pos,ch:crf} treat the
+same task with structured models), speech recognition on recorded audio, or inferring the
+hidden states of a recorded trajectory, as in \cref{ch:deep-kalman-filters}. It cannot be used to
+predict the future, nor, as the next section shows, to define a probability distribution
+over sequences.
+
+\section{Autoregressive sequence models}\label{sequence-models:sec:autoregressive}
+
+\paragraph{The chain rule of probability.} Any joint distribution of a sequence factorizes as
+\[
+  p(x_1,\dots,x_T) = p(x_1)\,p(x_2\mid x_1)\,p(x_3\mid x_1, x_2)\cdots p(x_T\mid x_{1:T-1}) = \prod_{t=1}^Tp(x_t\mid x_{<t}),
+\]
+with $x_{<t} = x_{1:t-1}$ ($x_{<1}$ is empty). A model of the sequence is therefore a model of each conditional: a
+\emph{density that depends on the past}. The difficulty is that the conditioning set grows
+with $t$. An RNN solves it: a forward state summarizes the past in a vector of fixed size.
+
+\paragraph{The shifted input.} To predict $x_t$, the state must have seen $x_{<t}$ and \emph{not} $x_t$. The
+forward state $h_t$ has seen $x_{1:t}$, one element too many. The model therefore runs the RNN on the
+sequence shifted by one step, $(x_0, x_1,\dots,x_{T-1})$, where $x_0$ is a fixed start symbol (a zero vector,
+a learned vector, or a special token in text):
+\[
+  h_0 = F(h_{\mathrm{init}}, x_0),\qquad h_t = F(h_{t-1}, x_t)\ (t\geq1),\qquad
+  p_\theta(x_t\mid x_{<t}) = \pi\bigl(x_t;\,G(h_{t-1})\bigr),
+\]
+where $G$ is an output layer and $\pi(\cdot;\,\eta)$ a distribution with parameters $\eta$: a softmax over a vocabulary for
+discrete symbols, a Gaussian with mean and log-variance $G(h_{t-1})$ for real vectors. By
+\cref{sequence-models:prop:summaries}, $h_{t-1}$ is a function of $x_{0:t-1}$, so the conditional of $x_t$ depends on the past only.
+
+\begin{proposition}[An autoregressive RNN is a normalized model]\label{sequence-models:prop:normalized}
+For discrete $x_t$ and any parameters $\theta$, $\sum_{x_{1:T}}\prod_{t=1}^Tp_\theta(x_t\mid x_{<t}) = 1$. For densities, the same holds with
+integrals.
+\end{proposition}
+
+\begin{proof}
+Sum over $x_T$ first: only the last factor depends on $x_T$, and it sums to $1$ because it is a
+distribution over $x_T$ for each fixed $x_{<T}$. What remains is the same expression with $T - 1$ in place
+of $T$; by induction the total is $1$. For densities the sums are integrals of nonnegative
+functions, which can be taken in this order (Tonelli's theorem).
+\end{proof}
+
+The proof uses one property of each factor: it is a distribution over $x_t$ \emph{that does not depend on
+$x_t$}. The shifted input is what guarantees it.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  st/.style={draw, circle, minimum size=7mm, inner sep=0pt, font=\scriptsize, fill=bookaccent!15},
+  io/.style={draw, rectangle, rounded corners=2pt, minimum height=6.5mm, minimum width=8mm, inner sep=1pt, font=\scriptsize},
+  ar/.style={-{Stealth[length=1.8mm]}, thick}]
+  \foreach \t/\prev in {1/0,2/1,3/2,4/3} {
+    \node[io] (x\t) at (2.7*\t,0) {$x_{\prev}$};
+    \node[st] (h\t) at (2.7*\t,1.3) {$h_{\prev}$};
+    \node[io, fill=bookkey!12] (p\t) at (2.7*\t,2.7) {$p_\theta(x_{\t}\mid x_{<\t})$};
+    \node[io, fill=bookexample!15] (y\t) at (2.7*\t,4.0) {$x_{\t}$};
+    \draw[ar] (x\t) -- (h\t); \draw[ar] (h\t) -- node[right, font=\scriptsize]{$G$} (p\t);
+    \draw[ar, gray, dashed] (y\t) -- node[right, font=\scriptsize]{target} (p\t);
+  }
+  \foreach \t/\u in {1/2,2/3,3/4} \draw[ar, bookaccent] (h\t) -- (h\u);
+  \foreach \t/\u in {1/2,2/3,3/4} \draw[ar, bookpitfall, densely dotted] (y\t.east) -- ++(0.95,0) |- (x\u.west);
+\end{tikzpicture}
+\caption{An autoregressive RNN for $T = 4$. The input is the sequence shifted by one step, with a start
+symbol $x_0$, so $h_{t-1}$ has seen $x_{0:t-1}$ and the output layer $G$ gives the conditional distribution of $x_t$. In
+training (teacher forcing) the inputs are the observed $x_t$; in generation (dotted) each sampled $x_t$
+becomes the next input.}
+\label{sequence-models:fig:autoregressive}
+\end{figure}
+
+\paragraph{Training.} The negative log-likelihood of an observed sequence is
+\[
+  -\log p_\theta(x_{1:T}) = -\sum_{t=1}^T\log p_\theta(x_t\mid x_{<t}),
+\]
+a sum of per-step losses: cross-entropies for a softmax output, Gaussian negative
+log-likelihoods for a Gaussian output (which reduce to squared errors, up to constants, when
+the variance is fixed). It is minimized by BPTT (\cref{ch:rnn-bptt}). During training the inputs are
+the \emph{observed} previous elements, all available at once, so the whole sequence is
+processed in one pass; this is called \emph{teacher forcing} (Williams and Zipser, \emph{A Learning
+Algorithm for Continually Running Fully Recurrent Neural Networks}, 1989).
+
+\paragraph{Generation and forecasting.} To sample a sequence, draw $x_1$ from $p_\theta(\cdot\mid x_0)$, feed it as
+the next input, draw $x_2$, and so on: ancestral sampling, one element at a time. To forecast
+the continuation of an observed sequence, run the RNN on the observed part, then continue
+in the same way. At generation time the model is conditioned on its own samples, which can
+drift away from the data it was trained on; the mismatch between training on observed
+prefixes and generating from sampled ones is called \emph{exposure bias}, and
+\emph{scheduled sampling} reduces it by progressively replacing observed inputs with the
+model's own predictions during training (Bengio et al., \emph{Scheduled Sampling for Sequence
+Prediction with Recurrent Neural Networks}, 2015).
+
+\begin{example}[A binary autoregressive RNN]\label{sequence-models:ex:binary}
+Let $x_t\in\{0, 1\}$, $T = 3$, start symbol $x_0 = 0$, a scalar state $h_t = \tanh(0.5\,h_{t-1} + 2x_t)$ with $h_{-1} = 0$ (so $h_0 = 0$), and
+$p(x_t = 1\mid x_{<t}) = \sigma(3h_{t-1} - 1)$. For $x = (1, 0, 1)$:
+\begin{center}
+\begin{tabular}{c|ccc}
+$t$ & $h_{t-1}$ & $p(x_t = 1\mid x_{<t})$ & factor\\\hline
+$1$ & $0$ & $\sigma(-1) = 0.2689$ & $0.2689$\\
+$2$ & $\tanh(2) = 0.9640$ & $\sigma(1.8921) = 0.8690$ & $1 - 0.8690 = 0.1310$\\
+$3$ & $\tanh(0.4820) = 0.4479$ & $\sigma(0.3438) = 0.5851$ & $0.5851$
+\end{tabular}
+\end{center}
+so $p(1, 0, 1) = 0.2689\times0.1310\times0.5851 = 0.0206$ and $-\log p = 3.8818$. The eight sequences have probabilities
+\[
+  \begin{array}{cccccccc}
+  000 & 001 & 010 & 011 & 100 & 101 & 110 & 111\\
+  0.3907 & 0.1437 & 0.0258 & 0.1709 & 0.0146 & 0.0206 & 0.0289 & 0.2048
+  \end{array}
+\]
+which sum to $1$, as \cref{sequence-models:prop:normalized} requires. The model has learned (or rather, its
+weights encode) that a $1$ makes another $1$ likely: $p(111)$ is ten times $p(101)$.
+\end{example}
+
+\begin{pitfall}[A model that sees what it predicts]
+Run the same RNN on the \emph{unshifted} sequence and use $\sigma(3h_t - 1)$, where $h_t$ has seen $x_t$, as
+``$p(x_t = 1\mid\cdot)$''. The product of these factors is no longer a probability distribution over
+sequences: in the example above the eight products sum to $3.18$. Such a model can make
+its training loss arbitrarily small by learning to copy its input, and it cannot generate,
+since it needs $x_t$ to predict $x_t$. The same holds for a bidirectional RNN, whose state at $t$ has seen
+the whole sequence. A sequence model is a probability model only if each conditional
+ignores the element it predicts and everything after it.
+\end{pitfall}
+
+\section{Which summary for which conditional}\label{sequence-models:sec:which}
+
+The same recurrent cell gives four different summaries, depending on the direction and
+the shift:
+\begin{center}\small
+\begin{tabular}{p{0.3\textwidth}p{0.27\textwidth}p{0.33\textwidth}}
+\textbf{RNN} & \textbf{state at $t$ summarizes} & \textbf{typical use}\\\hline
+forward, on $(x_0,\dots,x_{T-1})$ & $x_{0:t-1}$, the strict past & $p(x_t\mid x_{<t})$: generation, forecasting\\
+forward & $x_{1:t}$, the past and present & filtering, online tagging\\
+backward & $x_{t:T}$, the present and future & smoothing (with a past summary)\\
+bidirectional & $x_{1:T}$, everything & offline tagging and inference
+\end{tabular}
+\end{center}
+Choosing the summary is choosing what each conditional distribution may depend on, and
+that choice should follow the conditional independences of the model. The deep Kalman filter
+of the next chapter is a complete example: its generative model needs a summary of the
+strict past, and its inference model a summary of the future.
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item A forward recurrent state is a function of $x_{1:t}$, a backward one of $x_{t:T}$
+        (\cref{sequence-models:prop:summaries}).
+  \item A backward RNN is a forward RNN applied to the flipped sequence, with its outputs flipped
+        back; with padded batches, use packed sequences.
+  \item A bidirectional RNN combines both summaries; it suits offline tasks where the whole
+        sequence is known.
+  \item An autoregressive RNN runs on the sequence shifted by one step, so that $h_{t-1}$ summarizes $x_{<t}$
+        and parameterizes $p_\theta(x_t\mid x_{<t})$; the product of these conditionals is normalized for any
+        parameters. It is trained with teacher forcing and generates by feeding its samples
+        back.
+  \item A conditional that sees the element it predicts does not define a distribution over
+        sequences.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{sequence-models:exr:1}
+For $T = 5$, list for each position $k$ of the flipped sequence the inputs seen by $h'_k$, and the
+position $t$ at which $h'_k$ is stored after the second flip.
+\solutionlink{sequence-models:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{sequence-models:exr:2}
+For the LSTM, the recurrent state is the pair $(h_t, c_t)$. Check that \cref{sequence-models:prop:summaries} still
+applies, and conclude that the output $b_t$ of \texttt{DKF\_Backward\_RNN} depends on $x_{t:T}$ only.
+\solutionlink{sequence-models:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{sequence-models:exr:3}
+In \cref{sequence-models:ex:binary}, compute $p(1, 1, 1)$ and check the value $0.2048$.
+\solutionlink{sequence-models:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{sequence-models:exr:4}
+Take $T = 1$ and the ``leaky'' model $q(x_1 = 1\mid x_1) = \sigma(3\tanh(2x_1) - 1)$. Compute $q(0\mid 0) + q(1\mid 1)$. Why is this
+not $1$?
+\solutionlink{sequence-models:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{sequence-models:exr:5}
+A Gaussian autoregressive RNN outputs $p_\theta(x_t\mid x_{<t}) = \mathcal N(\mu_t, \sigma^2)$ with $\mu_t = G(h_{t-1})$ and a fixed $\sigma$.
+Show that maximizing the likelihood is equivalent to minimizing $\sum_t\norm{x_t - \mu_t}^2$. What changes if the
+network also outputs $\log\sigma_t^2$?
+\solutionlink{sequence-models:exr:5}
+\end{exercise}
+\end{notechapter}

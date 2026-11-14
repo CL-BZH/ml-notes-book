@@ -1,0 +1,573 @@
+\begin{notechapter}
+\chapter{Case Study: Deep Kalman Filters}\label{ch:deep-kalman-filters}
+\chaptersubtitle{Recurrent networks inside a latent-variable model: a backward RNN for inference, a forward RNN for the dynamics}
+
+\begin{chapterintro}
+A state-space model explains an observed sequence $x_{1:T}$ by a hidden sequence $z_{1:T}$ that evolves
+by itself and produces one observation per step. When the evolution and the observation are
+linear and Gaussian, the Kalman filter and smoother compute the posterior of the states
+exactly. The deep Kalman filter (DKF) replaces the linear maps by neural networks and loses
+this exactness: the posterior must be approximated by an \emph{inference network}, trained
+together with the model by maximizing the ELBO. This chapter builds that network from the
+conditional independences of the model, read off its graph by d-separation. The answer is
+precise: the posterior factor of $z_t$ needs $z_{t-1}$ and a summary of the \emph{future} observations, which
+is exactly what a backward RNN provides (\cref{ch:sequence-models}). Making the dynamics depend
+on the \emph{past} observations through a forward RNN changes the answer, and the inference
+network must change with it. The chapter follows the report and the code of the repository
+\texttt{CL-BZH/Deep-Kalman-Filters}. You will learn
+\begin{itemize}[nosep]
+  \item the linear-Gaussian state-space model and its deep version;
+  \item Bayesian networks and d-separation, enough to read conditional independences from a
+        graph;
+  \item the structure of the DKF posterior and the inference network that matches it:
+        backward LSTM, combiner, encoder;
+  \item the ELBO of the DKF and its one-trajectory estimator, with closed-form Gaussian KL
+        terms;
+  \item the autoregressive DKF, whose transition is a density depending on the past through a
+        forward RNN, and why its posterior then needs the past as well.
+\end{itemize}
+\prerequisites{\cref{ch:sequence-models,ch:gated-rnn}; the ELBO, its estimation along one
+ancestral trajectory and the reparametrization trick (\cref{em-algorithm:sec:mc-elbo});
+ancestral sampling (\cref{monte-carlo:def:ancestral}).}
+\end{chapterintro}
+
+\section{State-space models}\label{dkf:sec:ssm}
+
+A \emph{linear-Gaussian state-space model} with inputs $u_t$ is
+\[
+  z_t = Az_{t-1} + Bu_t + w_t,\quad w_t\sim\mathcal N(0, Q),\qquad
+  x_t = Cz_t + v_t,\quad v_t\sim\mathcal N(0, R),
+\]
+with independent noises. Every variable is a linear function of Gaussian variables, so every
+conditional distribution of states given observations is Gaussian, with mean and
+covariance given by recursions: the Kalman filter computes $p(z_t\mid x_{1:t})$ (Kalman, \emph{A New Approach
+to Linear Filtering and Prediction Problems}, 1960), and the Rauch--Tung--Striebel smoother
+computes $p(z_t\mid x_{1:T})$ with a backward pass (Rauch, Tung and Striebel, 1965).
+
+The \emph{deep Kalman filter} (Krishnan, Shalit and Sontag, \emph{Deep Kalman Filters}, 2015) keeps
+the structure and replaces the linear maps by neural networks:
+\[
+  z_t\sim\mathcal N\bigl(\mu^z_\theta(z_{t-1}, u_t),\ \diag\sigma^{z\,2}_\theta(z_{t-1}, u_t)\bigr),\qquad
+  x_t\sim\mathcal N\bigl(\mu^x_\theta(z_t),\ \diag\sigma^{x\,2}_\theta(z_t)\bigr),
+\]
+for $t = 1,\dots,T$, from an initial state $z_0$ (fixed at $0$ or learned); the observation distribution can be
+any distribution whose parameters a network outputs. Nonlinear networks destroy the
+Gaussianity of the posterior: $p_\theta(z_{1:T}\mid x_{1:T})$ has no closed form, and it is approximated by a
+distribution $q_\phi(z_{1:T}\mid x_{1:T})$ computed by an inference network, as in a variational autoencoder.
+The question of this chapter is which form $q_\phi$ should have.
+
+\section{Reading independences from a graph}\label{dkf:sec:dseparation}
+
+\begin{definition}[Bayesian network]\label{dkf:def:bn}
+A \emph{Bayesian network} is a directed acyclic graph whose nodes are random variables
+$v_1,\dots,v_n$, together with a joint distribution of the form
+\[
+  p(v_1,\dots,v_n) = \prod_{k=1}^np\bigl(v_k\mid\mathrm{pa}(v_k)\bigr),
+\]
+where $\mathrm{pa}(v_k)$ is the set of parents of $v_k$ in the graph.
+\end{definition}
+
+The graph says which variables each factor may depend on. It also implies conditional
+independences, which d-separation reads off the graph without any computation. A
+\emph{path} between two nodes is a sequence of adjacent nodes, \emph{regardless of the direction of the
+edges}: in $A\leftarrow B\to C$ there is a path from $A$ to $C$. Each intermediate node $B$ of a path is of one of three
+kinds, according to the two edges of the path that meet at it (\cref{dkf:fig:connections}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  v/.style={draw, circle, minimum size=7mm, inner sep=0pt, font=\small},
+  ob/.style={v, fill=gray!30},
+  ar/.style={-{Stealth[length=1.8mm]}, thick}]
+  \node[v] (a1) at (0,0) {$A$}; \node[v] (b1) at (1.3,0) {$B$}; \node[v] (c1) at (2.6,0) {$C$};
+  \draw[ar] (a1) -- (b1); \draw[ar] (b1) -- (c1);
+  \node[font=\small, align=center] at (1.3,-0.9) {chain\\[-1pt]{\scriptsize blocked if $B$ is observed}};
+  \node[v] (a2) at (4.2,0) {$A$}; \node[v] (b2) at (5.5,0.8) {$B$}; \node[v] (c2) at (6.8,0) {$C$};
+  \draw[ar] (b2) -- (a2); \draw[ar] (b2) -- (c2);
+  \node[font=\small, align=center] at (5.5,-0.9) {fork\\[-1pt]{\scriptsize blocked if $B$ is observed}};
+  \node[v] (a3) at (8.4,0.8) {$A$}; \node[v] (b3) at (9.7,0) {$B$}; \node[v] (c3) at (11.0,0.8) {$C$};
+  \draw[ar] (a3) -- (b3); \draw[ar] (c3) -- (b3);
+  \node[font=\small, align=center] at (9.7,-0.9) {collider\\[-1pt]{\scriptsize blocked unless $B$ or a}\\[-3pt]{\scriptsize descendant is observed}};
+\end{tikzpicture}
+\caption{The three kinds of intermediate node on a path.}
+\label{dkf:fig:connections}
+\end{figure}
+
+\begin{definition}[d-separation]\label{dkf:def:dsep}
+Let $\mathcal S$ be a set of observed nodes. A path is \emph{blocked} by $\mathcal S$ if it has an intermediate node $B$
+such that either $B$ is a chain or fork node and $B\in\mathcal S$, or $B$ is a collider and neither $B$ nor any of its
+descendants is in $\mathcal S$. Otherwise the path is \emph{active}. Two sets of nodes $\mathcal X$ and $\mathcal Y$ are \emph{d-separated}
+by $\mathcal S$ if every path between a node of $\mathcal X$ and a node of $\mathcal Y$ is blocked.
+\end{definition}
+
+\begin{theorem}[Soundness of d-separation]\label{dkf:thm:dsep}
+If $\mathcal X$ and $\mathcal Y$ are d-separated by $\mathcal S$, then $\mathcal X\indep\mathcal Y\mid\mathcal S$ in every distribution that factorizes as in
+\cref{dkf:def:bn}. Conversely, if they are not d-separated, there is a distribution that
+factorizes over the graph in which they are dependent given $\mathcal S$.
+\end{theorem}
+
+The theorem is due to Pearl and his collaborators (Pearl, \emph{Probabilistic Reasoning in
+Intelligent Systems}, 1988); a complete treatment is in Koller and Friedman, \emph{Probabilistic
+Graphical Models}, 2009, Chapter~3. We use it without proof. The second statement is why a
+missing d-separation is read as ``dependent in general'': the graph alone does not
+guarantee independence, and for generic parameters it does not hold.
+
+\paragraph{The two mechanisms.} \emph{Chains and forks: screening off.} Let $A$ = ``it rains'',
+$B$ = ``the grass is wet'', $C$ = ``someone slips'', $A\to B\to C$. Without information about the grass,
+rain makes slipping more likely; once the wetness is known, rain tells nothing more, since all
+its influence goes through the grass. In the fork ``fever $\leftarrow$ flu $\to$ cough'', fever and cough are
+correlated in the population but independent among patients known to have the flu.
+\emph{Colliders: explaining away.} Let $A$ = ``it rained'', $C$ = ``the sprinkler was on'', and $B$ = ``the
+grass is wet'', $A\to B\leftarrow C$. Rain and sprinkler are independent causes. Once the grass is known to be
+wet, learning that it rained makes the sprinkler \emph{less} likely, because the rain already
+explains the wet grass: observing a common effect makes its causes dependent. This
+phenomenon, and only this one, is called \emph{explaining away}.
+
+\begin{intuition}
+Information flows through a chain or a fork unless the middle node is known, and through
+a collider only if the collider, or something it causes, is known. Two variables are
+conditionally independent when every route between them is cut by one of these rules.
+\end{intuition}
+
+\section{The DKF as a Bayesian network}\label{dkf:sec:model}
+
+The DKF of \cref{dkf:sec:ssm} is the Bayesian network of \cref{dkf:fig:model}: each state $z_t$ has the
+parents $z_{t-1}$ and $u_t$, and each observation $x_t$ the single parent $z_t$. The inputs are known, not
+random: conditioning on them means that the model is a family of distributions indexed by
+$u_{1:T}$, and in the graph they are nodes that are always observed. By \cref{dkf:def:bn}, the
+generative model is
+\begin{equation}\label{dkf:eq:generative}
+  p_\theta(x_{1:T}, z_{1:T}\mid u_{1:T}) = \prod_{t=1}^Tp_\theta(z_t\mid z_{t-1}, u_t)\,p_\theta(x_t\mid z_t),
+\end{equation}
+where for $t = 1$ the factor $p_\theta(z_1\mid z_0, u_1)$ is the distribution of the first state given the initial value $z_0$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  v/.style={draw, circle, minimum size=8.5mm, inner sep=0pt, font=\small},
+  ob/.style={v, fill=gray!30},
+  ar/.style={-{Stealth[length=1.8mm]}, thick}]
+  \node[v, dashed] (z0) at (0,0) {$z_0$};
+  \foreach \t in {1,2,3} {
+    \node[ob] (u\t) at (2.2*\t-0.9,1.4) {$u_{\t}$};
+    \node[v] (z\t) at (2.2*\t,0) {$z_{\t}$};
+    \node[ob] (x\t) at (2.2*\t,-1.5) {$x_{\t}$};
+    \draw[ar] (u\t) -- (z\t); \draw[ar] (z\t) -- (x\t);
+  }
+  \node (zd) at (8.4,0) {$\cdots$};
+  \node[ob] (uT) at (9.7,1.4) {$u_T$};
+  \node[v] (zT) at (10.6,0) {$z_T$};
+  \node[ob] (xT) at (10.6,-1.5) {$x_T$};
+  \draw[ar] (uT) -- (zT); \draw[ar] (zT) -- (xT);
+  \draw[ar] (z0) -- (z1); \draw[ar] (z1) -- (z2); \draw[ar] (z2) -- (z3); \draw[ar] (z3) -- (zd); \draw[ar] (zd) -- (zT);
+\end{tikzpicture}
+\caption{The DKF as a Bayesian network. Shaded nodes are observed: the inputs always, the
+observations when the posterior is computed. The initial value $z_0$ is a constant.}
+\label{dkf:fig:model}
+\end{figure}
+
+\section{The structure of the posterior}\label{dkf:sec:posterior}
+
+By the product rule, \emph{any} posterior over a sequence can be written
+\[
+  p_\theta(z_{1:T}\mid x_{1:T}, u_{1:T}) = \prod_{t=1}^Tp_\theta(z_t\mid z_{1:t-1}, x_{1:T}, u_{1:T}) .
+\]
+The graph simplifies each factor.
+
+\begin{proposition}[Posterior of the DKF]\label{dkf:prop:posterior}
+\[
+  p_\theta(z_{1:T}\mid x_{1:T}, u_{1:T}) = \prod_{t=1}^Tp_\theta(z_t\mid z_{t-1},\ x_{t:T},\ u_{t:T}) .
+\]
+The past states $z_{1:t-2}$, the past observations $x_{1:t-1}$ and the past inputs $u_{1:t-1}$ drop out; the future
+observations and the future inputs do not.
+\end{proposition}
+
+\begin{proof}
+We show that $z_t$ is d-separated from $\mathcal P = \{z_{1:t-2}, x_{1:t-1}, u_{1:t-1}\}$ by $\mathcal S = \{z_{t-1}, x_{t:T}, u_{t:T}\}$; by
+\cref{dkf:thm:dsep}, the factor then does not depend on $\mathcal P$. Every $x_s$ and every $u_s$ has a single
+neighbour ($z_s$), so it cannot be an intermediate node of a path; every path from $\mathcal P$ to $z_t$
+therefore runs through the latent chain. In the graph, the only edge between $\{z_0,\dots,z_{t-1}\}$ and
+$\{z_t,\dots,z_T\}$ is $z_{t-1}\to z_t$, so the path reaches $z_t$ through $z_{t-1}$, as an intermediate node entered from $z_{t-2}$,
+$x_{t-1}$ or $u_{t-1}$:
+\[
+  z_{t-2}\to z_{t-1}\to z_t\ \ \text{(chain)},\qquad x_{t-1}\leftarrow z_{t-1}\to z_t\ \ \text{(fork)},\qquad u_{t-1}\to z_{t-1}\to z_t\ \ \text{(chain)}.
+\]
+(If $\mathcal P$ contains $x_{t-1}$ or $u_{t-1}$ itself, that node is the start of the path, and $z_{t-1}$ is still an
+intermediate chain or fork node.) Since $z_{t-1}\in\mathcal S$, every such path is blocked.
+
+The future does not drop out: $z_t\to x_t$ is an edge, which nothing can block, and
+$z_t\to z_{t+1}\to x_{t+1}$ is a chain whose middle node $z_{t+1}$ is not observed, hence active. For the inputs,
+$z_t\to z_{t+1}\leftarrow u_{t+1}$ has the collider $z_{t+1}$, whose descendant $x_{t+1}$ is observed: the path is active.
+\end{proof}
+
+\begin{intuition}
+Once the state at time $t-1$ is known, the past observations have nothing more to say about
+the state at time $t$: their information has been absorbed by $z_{t-1}$. The future observations still
+matter, because they were produced by states that $z_t$ influences. A future input matters by
+explaining away: if $x_{t+1}$ is surprising, knowing that $u_{t+1}$ pushed the system explains part of the
+surprise and changes what $z_t$ must have been.
+\end{intuition}
+
+\paragraph{The inference model.} It is natural to give $q_\phi$ the same structure,
+\begin{equation}\label{dkf:eq:q}
+  q_\phi(z_{1:T}\mid x_{1:T}) = \prod_{t=1}^Tq_\phi(z_t\mid z_{t-1}, x_{t:T}),
+\end{equation}
+where from now on there are no inputs, as in the data sets of the repository. Then the
+family of $q_\phi$ contains the true posterior when the networks are flexible enough, and the
+ELBO can be tight. The first DKF paper experimented with mean-field inference networks
+that ignore $z_{t-1}$, conditioning $z_t$ on $x_t$, on $x_{t-1:t+1}$, on $x_{1:t}$ or on $x_{1:T}$. They cannot represent the strong
+dependence between successive states of the posterior. The follow-up (Krishnan, Shalit and
+Sontag, \emph{Structured Inference Networks for Nonlinear State Space Models}, 2017) builds
+networks of the form \cref{dkf:eq:q}, called the deep Kalman smoother, from $z_{t-1}$ and an RNN summary of
+$x_{t:T}$; the repository follows this structure.
+
+\section{The inference network}\label{dkf:sec:inference}
+
+The conditional $q_\phi(z_t\mid z_{t-1}, x_{t:T})$ is a Gaussian $\mathcal N(\mu_t, \diag\sigma_t^2)$ whose parameters are computed in three
+stages (\cref{dkf:fig:network}).
+
+\paragraph{1. Summarize the future.} A backward LSTM (\cref{sequence-models:sec:flip}) computes, in one
+pass over the sequence, $b_1,\dots,b_T$ with $b_t$ a function of $x_{t:T}$. One pass gives every summary the factors
+need.
+
+\paragraph{2. Combine with the previous state.} A \emph{combiner} merges $z_{t-1}$ and $b_t$ into one vector.
+Krishnan et al.\ (2017) use
+\[
+  h^{\mathrm{comb}}_t = \tfrac12\bigl(\tanh(Wz_{t-1} + c) + b_t\bigr) .
+\]
+The repository's linear combiner generalizes the weights:
+$h^{\mathrm{comb}}_t = L\bigl(\alpha\tanh(Wz_{t-1} + c) + (1 - \alpha)b_t\bigr)$ with a linear output map $L$ and a weight $\alpha$ that can be learned.
+At $t = 1$ the ``previous state'' is the initial value $z_0$, which carries no information about the
+sequence; a separate weight $\alpha_{\mathrm{init}}$ (by default $0.1$) is used for that step, so that the first
+state is inferred mostly from the observations.
+
+\paragraph{3. Encode and sample.} An MLP maps $h^{\mathrm{comb}}_t$ to $(\mu_t, \log\sigma_t^2)$, and a sample is drawn with the
+reparametrization trick (\cref{em-algorithm:sec:mc-elbo}):
+$\dot z_t = \mu_t + \sigma_t\odot\varepsilon_t$, $\varepsilon_t\sim\mathcal N(0, I)$. The sample $\dot z_t$ is the ``previous state'' of step $t+1$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  cell/.style={draw, minimum width=6mm, minimum height=6mm, inner sep=0pt, font=\scriptsize},
+  box/.style={draw, rounded corners=2pt, minimum height=7mm, inner sep=2pt, font=\scriptsize, align=center},
+  mlp/.style={draw, trapezium, trapezium angle=70, shape border rotate=270, minimum width=10mm, minimum height=9mm, inner sep=1pt, font=\scriptsize, fill=gray!25},
+  par/.style={draw, rounded corners=4pt, minimum height=6mm, inner sep=2pt, font=\scriptsize},
+  ar/.style={-{Stealth[length=1.6mm]}, thick},
+  lab/.style={font=\scriptsize, inner sep=1pt}]
+  % observation tape
+  \foreach \i/\c in {1/bookaccent!30,2/bookexample!35,3/bookdef!35} \node[cell, fill=\c] (x\i) at (0.6*\i-0.6,0) {$x_{\i}$};
+  \node[cell] (xd) at (1.8,0) {$\cdots$}; \node[cell, fill=bookpitfall!25] (xT) at (2.4,0) {$x_T$};
+  % backward RNN
+  \node[box, fill=bookexample!20, minimum width=20mm] (brnn) at (1.2,1.5) {backward LSTM\\(flip, LSTM, flip)};
+  \draw[ar] (1.2,0.32) -- (brnn);
+  \node[box, fill=bookkey!12] (bt) at (1.2,3.0) {$b_t$ (summary of $x_{t:T}$)};
+  \draw[ar] (brnn) -- (bt);
+  % combiner
+  \node[box, fill=bookdef!25, minimum height=16mm, text width=12mm] (comb) at (4.3,3.5) {combiner};
+  \node[box, fill=white] (zprev) at (3.0,5.0) {$\dot z_{t-1}$};
+  \draw[ar] (bt.east) -- ([yshift=-4mm]comb.west);
+  \draw[ar] (zprev.south) |- ([yshift=4mm]comb.west);
+  % encoder
+  \node[mlp] (enc) at (6.0,3.5) {MLP};
+  \draw[ar] (comb) -- (enc);
+  \node[par, fill=bookaccent!15] (mu) at (7.5,4.1) {$\mu_t$};
+  \node[par, fill=bookaccent!15] (sg) at (7.5,2.9) {$\sigma_t$};
+  \draw[ar] (enc.north east) -- (mu); \draw[ar] (enc.south east) -- (sg);
+  \node[draw, circle, inner sep=0pt, minimum size=4.5mm, font=\scriptsize] (times) at (8.6,2.9) {$\odot$};
+  \node[draw, circle, inner sep=0pt, minimum size=4.5mm, font=\scriptsize] (plus) at (9.4,3.5) {$+$};
+  \node[par, fill=white] (eps) at (8.6,1.9) {$\varepsilon_t\sim\mathcal N(0, I)$};
+  \draw[ar] (sg) -- (times); \draw[ar] (eps) -- (times);
+  \draw[ar] (times) -- (plus); \draw[ar] (mu) -| (plus);
+  \node[box, fill=white] (zt) at (10.4,3.5) {$\dot z_t$};
+  \draw[ar] (plus) -- (zt);
+  \draw[ar, densely dotted, gray!80!black] (zt.north) .. controls +(0,1.6) and +(1.5,0.6) .. node[lab, above, pos=0.2, fill=white]{next step} (zprev.east);
+  % generative networks
+  \node[mlp, fill=bookpitfall!15] (dec) at (10.4,1.6) {MLP};
+  \draw[ar] (zt) -- (dec);
+  \node[par, fill=bookpitfall!10] (mux) at (10.4,0.3) {$\mu^x_\theta(\dot z_t),\ \sigma^x_\theta(\dot z_t)$};
+  \draw[ar] (dec) -- (mux);
+  \node[mlp, fill=bookpitfall!15] (tr) at (5.6,5.9) {MLP};
+  \draw[ar] (zprev.north) |- (tr.west);
+  \node[par, fill=bookpitfall!10, anchor=west] (muz) at (6.4,5.9) {$\mu^z_\theta(\dot z_{t-1}),\ \sigma^z_\theta(\dot z_{t-1})$};
+  \draw[ar] (tr) -- (muz);
+  \node[lab, text=bookexample!70!black] at (1.2,4.6) {inference network};
+  \node[lab, text=bookpitfall!80!black, anchor=west] at (6.4,6.55) {transition $p_\theta(z_t\mid z_{t-1})$};
+  \node[lab, text=bookpitfall!80!black, anchor=north] at (10.4,-0.05) {decoder $p_\theta(x_t\mid z_t)$};
+\end{tikzpicture}
+\caption{One time step of the DKF in training. Inference network: the backward LSTM summarizes the
+future, the combiner merges the summary with the previous sample, the encoder outputs the
+parameters of $q_\phi(z_t\mid z_{t-1}, x_{t:T})$, and $\dot z_t$ is drawn by reparametrization. Generative networks (red):
+the transition is evaluated at the sampled previous state, the decoder at the sampled current
+state. Redrawn after the report of \texttt{CL-BZH/Deep-Kalman-Filters}.}
+\label{dkf:fig:network}
+\end{figure}
+
+The forward pass of the repository's \texttt{DKF\_Base} makes the three stages explicit (abridged;
+tensors have shape $(T, \text{batch}, \cdot)$):
+\begin{lstlisting}[language=Python]
+q_b_rnn_out = self.q_b_rnn(x)                  # b_1..b_T, one backward pass
+z_t = z_0                                      # initial value, fixed or learned
+self.combiner.reset()                          # use alpha_init at t = 1
+for t in range(seq_len):
+    combined = self.combiner(z_t, [q_b_rnn_out[t]])
+    mu, logvar = self.encoder(combined)        # parameters of q(z_t | z_{t-1}, x_{t:T})
+    z_t = self.sampler(mu, logvar)             # mu + exp(logvar/2) * eps
+    self.z_mean[t], self.z_logvar[t], self.sampled_z[t] = mu, logvar, z_t
+# transition p(z_t | z_{t-1}) at the sampled previous states, decoder at the samples
+z_prev = torch.cat([z_0, self.sampled_z[:-1]], 0)
+self.z_transition_mean, self.z_transition_logvar = self.p_z(z_prev)
+self.x_hat, self.x_hat_logvar = self.decoder(self.sampled_z)
+\end{lstlisting}
+The loop over $t$ is unavoidable, because the combiner at step $t$ needs the sample of step $t-1$:
+the trajectory $\dot z_{1:T}$ is drawn by ancestral sampling of $q_\phi$. The transition and the decoder, which only
+read samples, are then applied to all time steps at once.
+
+\section{The ELBO and its estimator}\label{dkf:sec:elbo}
+
+The generative model \cref{dkf:eq:generative} and the inference model \cref{dkf:eq:q} are the two Markov
+chains of \cref{em-algorithm:sec:mc-elbo}, with $y_t = x_t$ and with conditionals of $q$ that depend on the
+observations. The derivation there gives
+\[
+  \mathrm{ELBO}(\theta, \phi) = \sum_{t=1}^T\E_{q_t}\bigl[\log p_\theta(x_t\mid z_t)\bigr]
+  - \sum_{t=1}^T\E_{z_{t-1}\sim q_{t-1}}\Bigl[\mathrm{KL}\bigl(q_\phi(\cdot\mid z_{t-1}, x_{t:T})\,\Vert\,p_\theta(\cdot\mid z_{t-1})\bigr)\Bigr]
+\]
+(\cref{em-algorithm:eq:seq-elbo}), where $q_t$ is the marginal of $z_t$ under $q_\phi$; the outer expectation is trivial
+for $t = 1$. The marginals have no closed form, but one ancestral trajectory $\dot z_{1:T}$, the one drawn
+by the forward pass above, gives the unbiased estimator
+\[
+  \widehat{\mathrm{ELBO}} = \sum_{t=1}^T\log p_\theta(x_t\mid\dot z_t)
+  - \sum_{t=1}^T\mathrm{KL}\bigl(q_\phi(\cdot\mid\dot z_{t-1}, x_{t:T})\,\Vert\,p_\theta(\cdot\mid\dot z_{t-1})\bigr)
+\]
+(\cref{em-algorithm:prop:unbiased}). Each KL term compares two Gaussians and has a closed form.
+
+\begin{proposition}[KL between diagonal Gaussians]\label{dkf:prop:kl}
+For $q = \mathcal N(\mu_q, \diag v_q)$ and $p = \mathcal N(\mu_p, \diag v_p)$ on $\R^d$,
+\[
+  \mathrm{KL}(q\,\Vert\,p) = \frac12\sum_{j=1}^d\Bigl(\log\frac{v_{p,j}}{v_{q,j}} + \frac{v_{q,j} + (\mu_{q,j} - \mu_{p,j})^2}{v_{p,j}} - 1\Bigr).
+\]
+\end{proposition}
+
+\begin{proof}
+Both densities are products over coordinates, so the KL is a sum over $j$, and it suffices to
+treat $d = 1$. With $z\sim q$, $\E_q[(z - \mu_q)^2] = v_q$ and $\E_q[(z - \mu_p)^2] = v_q + (\mu_q - \mu_p)^2$, so
+\[
+  \E_q[\log q(z)] = -\tfrac12\log(2\pi v_q) - \tfrac12,\qquad
+  \E_q[\log p(z)] = -\tfrac12\log(2\pi v_p) - \frac{v_q + (\mu_q - \mu_p)^2}{2v_p},
+\]
+and $\mathrm{KL}(q\Vert p) = \E_q[\log q(z)] - \E_q[\log p(z)]$ is the stated expression.
+\end{proof}
+
+\begin{example}[One KL term]\label{dkf:ex:kl}
+In one dimension, $q = \mathcal N(0.5, 0.25)$ (standard deviation $0.5$) and $p = \mathcal N(0, 1)$:
+$\mathrm{KL} = \frac12\bigl(\log4 + (0.25 + 0.25)/1 - 1\bigr) = \frac12(1.3863 - 0.5) = 0.4431$. The inference network pays this price for
+moving the state half a unit away from what the dynamics predict and for being four times
+more certain than they are.
+\end{example}
+
+The evaluation script of the repository implements the estimator with these two
+functions, the reconstruction term with a Gaussian log-density:
+\begin{lstlisting}[language=Python]
+def gaussian_log_density(v, mean, logvar):     # summed over the feature dimension
+    return -0.5 * (LOG_2PI + logvar + (v - mean) ** 2 / torch.exp(logvar)).sum(-1)
+
+def gaussian_kl(mu_q, logvar_q, mu_p, logvar_p):
+    return 0.5 * (logvar_p - logvar_q
+                  + (torch.exp(logvar_q) + (mu_q - mu_p) ** 2) / torch.exp(logvar_p)
+                  - 1.0).sum(-1)
+\end{lstlisting}
+One training step draws one trajectory per sequence of the mini-batch, evaluates
+$-\widehat{\mathrm{ELBO}}/T$, backpropagates through the whole computation, the sampling steps included
+thanks to the reparametrization, and updates $\theta$ and $\phi$ together. The backward LSTM is trained by
+BPTT through the inference loop, like any other recurrent module.
+
+\begin{remark}[The training loss of the repository]
+The training loss (\texttt{Utils/loss\_fcts.py}) drops the factors $\tfrac12$ and the additive constants of
+both terms: its reconstruction term is $\sum_{t,j}\bigl((x_{t,j} - \mu^x_j)^2/\sigma^{x\,2}_j + \log\sigma^{x\,2}_j\bigr)$ (or $\sum_t\norm{x_t - \mu^x}^2$ with the
+\texttt{mse} option, a unit variance), and its KL term is $2\,\mathrm{KL}$ plus a constant, weighted by $\beta$. Both terms are
+doubled, so for $\beta = 1$ the loss is $-2\,\widehat{\mathrm{ELBO}}/T$ up to an additive constant: the same minimizers, and
+gradients that differ by the factor $2/T$ only. A value $\beta\neq1$ weights the KL term as in the $\beta$-VAE.
+\end{remark}
+
+\paragraph{Forecasting.} To predict the continuation of an observed sequence, infer a trajectory
+$\dot z_{1:T}$ with the inference network, then run the transition forward from $\dot z_T$: draw $\dot z_{T+1}\sim p_\theta(\cdot\mid\dot z_T)$,
+decode $\hat x_{T+1} = \mu^x_\theta(\dot z_{T+1})$, and repeat. The forecast depends on the observations only through $\dot z_T$.
+
+\section{The autoregressive DKF: a transition that depends on the past}\label{dkf:sec:ar}
+
+On sine waves, the vanilla DKF reconstructs the observed part of a sequence well but
+forecasts it poorly: in the repository's experiments its prediction error is worse than that
+of the constant prediction $0$. Its forecasts rely entirely on the learned transition
+$p_\theta(z_t\mid z_{t-1})$, and nothing in training forces $z_t$ to carry the information needed to continue the
+signal far ahead. The \emph{autoregressive DKF} (AR DKF), designed in the repository, gives the
+dynamics direct access to the history: its transition is
+\[
+  p_\theta(z_t\mid z_{t-1}, x_{0:t-1}),
+\]
+a density for the next state that depends on the past observations, with a start value $x_0$
+(zero or learned) so that the transition into $z_1$ is defined. This is exactly the situation of
+\cref{sequence-models:sec:autoregressive}: a conditional distribution given a growing past, whose
+past is summarized by a forward RNN run on the \emph{shifted} sequence $(x_0, x_1,\dots,x_{T-1})$. Its output
+$h_{t-1}$ summarizes $x_{0:t-1}$, and an MLP maps $(z_{t-1}, h_{t-1})$ to the mean and log-variance of the transition:
+\begin{lstlisting}[language=Python]
+x_lagged = torch.cat((x_0, x[:-1]), 0)     # (x_0, x_1, ..., x_{T-1})
+h_x_lagged = self.pz_f_rnn(x_lagged)       # position t: summary of x_{0:t-1}
+z_lagged = torch.cat([z_0, self.sampled_z[:-1]], 0)
+mean, logvar = self.p_z(z_lagged, h_x_lagged)   # p(z_t | z_{t-1}, x_{0:t-1})
+\end{lstlisting}
+The joint distribution becomes
+\begin{equation}\label{dkf:eq:ar}
+  p_\theta(x_{1:T}, z_{1:T}) = \prod_{t=1}^Tp_\theta(z_t\mid z_{t-1}, x_{0:t-1})\,p_\theta(x_t\mid z_t) .
+\end{equation}
+It is still a causal generative model: in the order $z_1, x_1, z_2, x_2,\dots$ each variable depends only on
+variables generated before it, so ancestral sampling works and the product is normalized
+(the argument of \cref{sequence-models:prop:normalized}). In the graph, the new factor adds an edge from
+every past observation to $z_t$ (\cref{dkf:fig:ar}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  v/.style={draw, circle, minimum size=8.5mm, inner sep=0pt, font=\small},
+  ob/.style={v, fill=gray!30},
+  ar/.style={-{Stealth[length=1.8mm]}, thick},
+  nw/.style={-{Stealth[length=1.8mm]}, thick, bookaccent}]
+  \node[v, dashed] (z0) at (0,0) {$z_0$};
+  \node[ob, dashed] (x0) at (0,-1.5) {$x_0$};
+  \foreach \t in {1,2,3,4} {
+    \node[v] (z\t) at (2.4*\t,0) {$z_{\t}$};
+    \node[ob] (x\t) at (2.4*\t,-1.5) {$x_{\t}$};
+    \draw[ar] (z\t) -- (x\t);
+  }
+  \draw[ar] (z0) -- (z1); \draw[ar] (z1) -- (z2); \draw[ar] (z2) -- (z3); \draw[ar] (z3) -- (z4);
+  \draw[nw] (x0) -- (z1); \draw[nw] (x1) -- (z2); \draw[nw] (x2) -- (z3); \draw[nw] (x3) -- (z4);
+  \draw[nw, densely dashed, bookaccent!60] (x1) .. controls +(1.6,-0.9) and +(-0.3,-1.6) .. (z3);
+  \draw[nw, densely dashed, bookaccent!60] (x2) .. controls +(1.6,-0.9) and +(-0.3,-1.6) .. (z4);
+\end{tikzpicture}
+\caption{The AR DKF. The transition into $z_t$ depends on $x_{0:t-1}$ (blue): an edge goes from every past
+observation to $z_t$; the edges from $x_{t-1}$ are drawn solid, two of the longer ones dashed, the others
+omitted.}
+\label{dkf:fig:ar}
+\end{figure}
+
+\paragraph{What the new edges change for inference.} Changing the generative model changes
+its posterior, and therefore the inference network it needs.
+
+\begin{proposition}[Posterior of the AR DKF]\label{dkf:prop:ar-posterior}
+In the AR DKF,
+\[
+  p_\theta(z_{1:T}\mid x_{1:T}) = \prod_{t=1}^Tp_\theta(z_t\mid z_{t-1}, x_{1:T}),
+\]
+and the graph does not imply that $p_\theta(z_t\mid z_{t-1}, x_{1:T})$ is independent of the past observations $x_{1:t-1}$.
+\end{proposition}
+
+\begin{proof}
+\emph{Earlier states drop out.} Let $s\leq t-2$ and take a path from $z_s$ to $z_t$, with all observations and
+$z_{t-1}$ observed. If the path has an observation $x_r$ as an intermediate node, it is blocked there: $x_r$ has at
+most one parent ($z_r$, none for $x_0$), so at most one of the two path edges at $x_r$ points into it, and $x_r$ is a chain or
+fork node, which is observed. Otherwise the path uses latent nodes only, so it is the chain
+$z_s\to\cdots\to z_{t-1}\to z_t$, blocked at the observed chain node $z_{t-1}$.
+
+\emph{Past observations do not drop out.} For $t\geq2$, $x_{t-1}$ is a parent of $z_t$: the edge $x_{t-1}\to z_t$ is a path with no
+intermediate node, which no conditioning set can block. By the second part of
+\cref{dkf:thm:dsep}, the dependence holds for generic parameters.
+\end{proof}
+
+In the vanilla DKF the past observations influence $z_t$ only \emph{through} $z_{t-1}$, so knowing $z_{t-1}$ makes
+them redundant. In the AR DKF they influence $z_t$ \emph{directly}, and they can never become
+redundant: the inference network for $z_t$ must see the past as well as the future.
+
+\paragraph{Three inference networks.} The repository implements three variants with the
+generative model \cref{dkf:eq:ar}, which differ only in the inference network:
+\begin{center}\small
+\begin{tabular}{lp{0.5\textwidth}l}
+\textbf{model} & \textbf{inference network} & \textbf{matches the posterior?}\\\hline
+AR DKF & $q_\phi(z_t\mid z_{t-1}, x_{t:T})$: backward LSTM & no: ignores $x_{1:t-1}$\\
+FAR DKF & $q_\phi(z_t\mid z_{t-1}, x_{1:T})$: backward LSTM and a second forward LSTM & yes\\
+BAR DKF & $q_\phi(z_t\mid z_{t-1}, x_{1:T})$: one bidirectional LSTM & yes
+\end{tabular}
+\end{center}
+In the FAR DKF (``forward autoregressive'') the combiner receives two summaries, $b_t$ of $x_{t:T}$ and
+$\overrightarrow h_t$ of $x_{1:t}$, each with its own weight. In the BAR DKF (``bidirectional autoregressive'') the two
+directions are merged inside a bidirectional RNN (\cref{sequence-models:sec:bidirectional}) before the
+combiner. By \cref{dkf:prop:ar-posterior}, the AR DKF inference network cannot represent the
+posterior of its own generative model, even with unlimited capacity: unless the true
+posterior happens not to depend on the past observations, the gap
+$\mathrm{KL}\bigl(q_\phi\,\Vert\,p_\theta(\cdot\mid x)\bigr)$ between the ELBO and the log-likelihood (\cref{em-algorithm:prop:gap}) cannot be
+closed. The FAR and BAR variants remove this obstruction.
+
+\paragraph{Prediction.} Forecasting works as for the DKF, except that each transition step
+also needs the summary of the observations so far: after a forecast $\hat x_{T+s}$ is produced, it is
+appended to the sequence and fed to the forward RNN, so the next transition is conditioned
+on the model's own forecasts. The AR DKF is thus a genuinely autoregressive forecaster, with
+the exposure-bias caveat of \cref{sequence-models:sec:autoregressive}. In the repository's
+\texttt{predict}, the sequence fed to the forward RNN is a sliding window (each forecast is
+appended and the oldest element dropped, and the RNN is re-run from the start of the
+window), whereas in training the RNN always starts from $x_0$; the summaries seen at prediction
+time are therefore computed slightly differently from those seen in training.
+
+\paragraph{What the experiments show.} On the sine waves, the AR DKF forecasts far better
+than the DKF: the prediction mean squared error is $0.876$ for the DKF and $0.0052$ for the AR DKF at
+frequency $1$, and $0.571$ against $0.0094$ at frequency $2$ (always predicting $0$ gives $0.5$ for a unit
+sine). On windows of the Lorenz attractor, over four training runs per model, the AR, FAR
+and BAR DKF reconstruct equally well, none forecasts consistently better than the others,
+and their estimated ELBO gaps are the same. The advantage that \cref{dkf:prop:ar-posterior}
+suggests for the FAR and BAR DKF is not visible in these experiments: a structural argument
+says what an inference network \emph{cannot} do, not how much the restriction costs in practice.
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item The DKF is a state-space model with neural transition and observation distributions;
+        its posterior has no closed form and is approximated by an inference network.
+  \item d-separation reads conditional independences from a Bayesian network: chains and forks
+        block when their middle node is observed, colliders when neither they nor their
+        descendants are.
+  \item The DKF posterior factorizes as $\prod_tp(z_t\mid z_{t-1}, x_{t:T}, u_{t:T})$: the past is absorbed by $z_{t-1}$, the future
+        observations matter. A backward LSTM summarizes $x_{t:T}$, a combiner merges the summary with
+        $z_{t-1}$, and an encoder outputs a Gaussian sampled by reparametrization.
+  \item The ELBO is estimated along the one ancestral trajectory of the forward pass, with
+        closed-form Gaussian KL terms.
+  \item The AR DKF makes the transition a density depending on the past, $p(z_t\mid z_{t-1}, x_{0:t-1})$, computed by a
+        forward RNN on the shifted observations. Its posterior then depends on $x_{1:T}$, so the inference
+        network needs a summary of the past too (FAR and BAR DKF).
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{dkf:exr:1}
+In the DKF without inputs, decide with d-separation whether (a) $x_1\indep x_3\mid z_2$; (b) $x_1\indep x_3$;
+(c) $z_1\indep z_3\mid x_2$.
+\solutionlink{dkf:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{dkf:exr:2}
+Starting from the product rule
+$p(x_{1:T}, z_{1:T}) = \prod_tp(z_t\mid x_{1:t-1}, z_{1:t-1})\,p(x_t\mid x_{1:t-1}, z_{1:t})$, use d-separation to recover \cref{dkf:eq:generative}
+(without inputs).
+\solutionlink{dkf:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{dkf:exr:3}
+With inputs, could the inference factor for $z_t$ be $q_\phi(z_t\mid z_{t-1}, x_{t:T}, u_t)$, ignoring the future inputs?
+Answer with the graph, and give an everyday example of the mechanism.
+\solutionlink{dkf:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{dkf:exr:4}
+Compute $\mathrm{KL}(q\Vert p)$ and $\mathrm{KL}(p\Vert q)$ for $q = \mathcal N(0.5, 0.25)$ and $p = \mathcal N(0, 1)$, and show that
+$\mathrm{KL}(q\Vert p) = 0$ if and only if $q = p$ for two diagonal Gaussians.
+\solutionlink{dkf:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{dkf:exr:5}
+Is $z_t\indep x_{t-2}\mid z_{t-1}, x_{t-1}$ in the DKF? In the AR DKF?
+\solutionlink{dkf:exr:5}
+\end{exercise}
+
+\begin{exercise}\label{dkf:exr:6}
+List the recurrent networks of the AR, FAR and BAR DKF, with their direction, their input
+sequence, what their state at time $t$ summarizes, and whether they belong to the generative
+model or to the inference network.
+\solutionlink{dkf:exr:6}
+\end{exercise}
+\end{notechapter}
