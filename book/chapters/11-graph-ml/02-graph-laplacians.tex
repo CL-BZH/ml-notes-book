@@ -60,7 +60,7 @@ Throughout this chapter we use a small graph with two communities (\cref{graph-l
     \node[main, fill=red!30, right of=3] (4) {4};
     \node[main, fill=red!30, right of=2] (5) {5};
     \node[main, fill=red!30, right of=4] (6) {6};
-    
+
     \draw[thick] (1) -- (2);
     \draw[thick] (1) -- (3);
     \draw[thick] (2) -- (3);
@@ -68,7 +68,7 @@ Throughout this chapter we use a small graph with two communities (\cref{graph-l
     \draw[thick] (4) -- (5);
     \draw[thick] (4) -- (6);
     \draw[thick] (5) -- (6);
-    
+
     \node[below of=3, yshift=0.7cm, xshift=0.5cm, font=\small] {Community A};
     \node[below of=6, yshift=0.7cm, xshift=-0.5cm, font=\small] {Community B};
 \end{tikzpicture}
@@ -227,7 +227,7 @@ We expand $\bx^\top \bL \bx = \bx^\top (\bD - \bA) \bx = \bx^\top \bD \bx - \bx^
 \bx^\top \bD \bx = \sum_{i=1}^{n} d_i x_i^2
 \]
 
-\textbf{Second term}: 
+\textbf{Second term}:
 \[
 \bx^\top \bA \bx = \sum_{i=1}^{n} \sum_{j=1}^{n} \bA[i,j] x_i x_j = 2 \sum_{(i,j) \in E} x_i x_j
 \]
@@ -311,7 +311,7 @@ v_u = v_{z_0} = v_{z_1} = \cdots = v_{z_k} = v_w
 \]
 Thus the signal $\bv$ is constant across all nodes: $\bv = c \cdot \bone$ for some constant $c$. The only eigenvector (up to scaling) is $\bone$, so the eigenvalue $0$ has multiplicity $1$.
 
-\textbf{Case 2: $K$ connected components.} If the graph has $K$ connected components $C_1, \ldots, C_K$, then by the argument above, any eigenvector for eigenvalue $0$ must be constant within each component (but can have different constants in different components). 
+\textbf{Case 2: $K$ connected components.} If the graph has $K$ connected components $C_1, \ldots, C_K$, then by the argument above, any eigenvector for eigenvalue $0$ must be constant within each component (but can have different constants in different components).
 
 We can construct $K$ linearly independent such eigenvectors---the indicator signals for each component:
 \[
