@@ -1,0 +1,255 @@
+\begin{notechapter}
+\chapter{Object Detection and Instance Segmentation}\label{ch:detection-segmentation}
+\chaptersubtitle{Boxes, proposals, RoI features and masks: the R-CNN family and its successors}
+
+\begin{chapterintro}
+Classification says \emph{what} is in an image. Detection also says \emph{where}, with a box around
+each object; instance segmentation gives each object's exact pixels. These tasks need
+new ingredients on top of a CNN: a way to propose or enumerate candidate regions, to
+extract features for a region of any size, to score and refine boxes, and to remove
+duplicates. This chapter builds them up through the R-CNN family, which culminates in
+Mask R-CNN, and then describes one-stage alternatives. You will learn
+\begin{itemize}[nosep]
+  \item the vision tasks from classification to panoptic segmentation;
+  \item intersection over union, non-maximum suppression and the box-regression
+        parametrization, with worked numbers;
+  \item R-CNN, Fast R-CNN and Faster R-CNN: proposals, RoI pooling, anchors and the region
+        proposal network;
+  \item RoI Align and bilinear interpolation, and the mask branch of Mask R-CNN;
+  \item one-stage detectors (YOLO, SSD, RetinaNet), YOLACT and SOLO, and how detectors are
+        evaluated.
+\end{itemize}
+\prerequisites{\cref{ch:convolutional-layers,ch:cnn-architectures,ch:fully-convolutional};
+cross-entropy and the focal loss (\cref{surrogate-losses:sec:beyond}).}
+\end{chapterintro}
+
+\section{The tasks}\label{detection-segmentation:sec:tasks}
+
+\begin{itemize}
+  \item \textbf{Classification}: one label per image.
+  \item \textbf{Object detection}: for each object, a class and an axis-aligned \emph{bounding box}
+        $(x_1, y_1, x_2, y_2)$ (corners) or $(x, y, w, h)$ (centre and size), with a confidence score.
+  \item \textbf{Semantic segmentation}: a class per pixel, without separating objects: two adjacent
+        cars form one ``car'' region (\cref{fully-convolutional:sec:segmentation}).
+  \item \textbf{Instance segmentation}: a class and a pixel mask for each object: ``car 1'' and ``car 2'' have
+        separate masks, which may be adjacent.
+  \item \textbf{Panoptic segmentation} (Kirillov et al., CVPR, 2019): every pixel gets a class, and pixels of
+        countable objects (\emph{things}: cars, people) also get an instance identifier; amorphous
+        regions (\emph{stuff}: sky, road) do not.
+\end{itemize}
+The standard benchmark is COCO (Lin et al., \emph{Microsoft COCO: Common Objects in
+Context}, ECCV, 2014), with $80$ object classes and instance masks.
+
+\section{Geometry of boxes}\label{detection-segmentation:sec:boxes}
+
+\begin{definition}[Intersection over union]\label{detection-segmentation:def:iou}
+For two boxes (or masks) $A$ and $B$, $\mathrm{IoU}(A,B) = \abs{A\cap B}/\abs{A\cup B}\in[0,1]$, with $\abs{\cdot}$ the area.
+\end{definition}
+
+For boxes, the intersection is the box $[\max(x_1, x_1'), \min(x_2, x_2')]\times[\max(y_1, y_1'), \min(y_2, y_2')]$ when both
+intervals are non-empty, and $\abs{A\cup B} = \abs A + \abs B - \abs{A\cap B}$.
+
+\begin{example}[IoU]\label{detection-segmentation:ex:iou}
+$A = (0,0,4,4)$ and $B = (2,1,6,5)$ in corner form: the intersection is $[2,4]\times[1,4]$, of area $6$; the
+union has area $16 + 16 - 6 = 26$; $\mathrm{IoU} = 6/26 = 0.23$ (\cref{detection-segmentation:fig:iou}). Two boxes of the
+same size shifted by a quarter of their width already have $\mathrm{IoU} = 0.6$: the measure is strict.
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=0.55]
+  \draw[step=1, gray!20] (-0.5,-0.5) grid (6.5,5.5);
+  \fill[bookexample!30] (2,1) rectangle (4,4);
+  \draw[very thick, bookaccent] (0,0) rectangle (4,4) node[pos=0, below left, font=\small] {$A$};
+  \draw[very thick, bookpitfall] (2,1) rectangle (6,5) node[pos=1, above right, font=\small] {$B$};
+  \node[font=\small] at (3,2.5) {$6$};
+  \node[font=\small, align=left, anchor=west] at (7,2.5) {$\abs A = \abs B = 16$\\$\abs{A\cap B} = 6$\\$\mathrm{IoU} = \frac6{26} = 0.23$};
+\end{tikzpicture}
+\caption{Intersection over union of two boxes.}
+\label{detection-segmentation:fig:iou}
+\end{figure}
+
+\paragraph{Non-maximum suppression.} A detector typically fires several overlapping boxes
+on the same object. NMS keeps the best one: sort the boxes of a class by score; repeatedly keep
+the highest-scoring remaining box and discard the remaining boxes whose IoU with it exceeds
+a threshold $\tau$ (often $0.5$).
+
+\begin{example}[NMS]\label{detection-segmentation:ex:nms}
+Boxes $b_1 = (0,0,4,4)$, $b_2 = (1,0,5,4)$, $b_3 = (6,6,9,9)$, $b_4 = (0,1,4,5)$ with scores $0.9, 0.8, 0.7, 0.6$, $\tau = 0.5$.
+Keep $b_1$; $\mathrm{IoU}(b_1, b_2) = 12/20 = 0.6$ and $\mathrm{IoU}(b_1, b_4) = 0.6$, so $b_2$ and $b_4$ are removed; $b_3$ does not overlap and is
+kept. Result: $\{b_1, b_3\}$. NMS can wrongly remove a true object heavily overlapped by another one
+(a crowd); Soft-NMS lowers scores instead of removing boxes.
+\end{example}
+
+\paragraph{Box regression.} A detector refines a reference box $(x_a, y_a, w_a, h_a)$ (a proposal or an
+anchor) into a predicted box by predicting four numbers $t = (t_x, t_y, t_w, t_h)$, decoded as
+\[
+  x = x_a + w_at_x,\qquad y = y_a + h_at_y,\qquad w = w_ae^{t_w},\qquad h = h_ae^{t_h} .
+\]
+Offsets are relative to the reference size, so that small and large boxes are treated alike,
+and sizes are on a log scale, so that the predicted size is always positive (Girshick et al.,
+2014). The training targets are obtained by inverting these formulas for the ground-truth
+box, and the loss is a smooth $L^1$ (Huber) loss on $t$. For the anchor $(50, 50, 20, 40)$ and the
+ground truth $(54, 46, 30, 40)$, the targets are $t = (0.2, -0.1, \log1.5, 0) = (0.2, -0.1, 0.405, 0)$.
+
+\section{The R-CNN family}\label{detection-segmentation:sec:rcnn}
+
+\paragraph{R-CNN} (Girshick, Donahue, Darrell and Malik, \emph{Rich Feature Hierarchies for
+Accurate Object Detection and Semantic Segmentation}, CVPR, 2014) treats detection as
+classification of regions:
+\begin{enumerate}[nosep]
+  \item about $2000$ region proposals per image from Selective Search (Uijlings et al., IJCV, 2013),
+        a bottom-up grouping of superpixels;
+  \item each proposal warped to $227\times227$ and passed through a CNN pretrained on ImageNet and
+        fine-tuned (\cref{ch:transfer-learning}), giving a $4096$-dimensional feature vector;
+  \item one linear SVM per class on these features (\cref{ch:svm}), plus box regression;
+  \item NMS per class.
+\end{enumerate}
+It was a large jump in accuracy, but slow: $2000$ CNN passes per image.
+
+\paragraph{Fast R-CNN} (Girshick, ICCV, 2015) runs the CNN once on the whole image and
+extracts each proposal's features from the shared feature map by \emph{RoI pooling}: the
+proposal is projected onto the feature map (divided by the stride, e.g.\ $16$), rounded to
+integer cells, divided into a fixed grid of $7\times7$ bins (also rounded), and each bin is max-pooled.
+Every proposal thus yields a $C\times7\times7$ tensor, whatever its size, which feeds fully connected
+layers with two outputs: class scores (softmax over $K$ classes plus background) and
+class-specific box regressions. Training is end to end with the multi-task loss
+$\ell = \ell_{\mathrm{cls}} + \lambda\,\bbone[\text{not background}]\,\ell_{\mathrm{box}}$.
+
+\paragraph{Faster R-CNN} (Ren, He, Girshick and Sun, \emph{Faster R-CNN: Towards Real-Time
+Object Detection with Region Proposal Networks}, NeurIPS, 2015) replaces Selective
+Search by a \emph{region proposal network} (RPN) sharing the backbone. At every position of the
+feature map, $A$ \emph{anchors} (reference boxes of several scales and aspect ratios, e.g.\ $3\times3 = 9$) are
+placed; a small fully convolutional head predicts for each anchor an \emph{objectness} score (object
+or background, regardless of class) and a box regression $t$. Anchors with IoU above $0.7$ with a
+ground-truth box are positive, below $0.3$ negative. The top proposals after NMS go to the
+Fast R-CNN head. The whole detector is one network, two stages
+(\cref{detection-segmentation:fig:faster}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth, op/.style={draw, rounded corners=2pt, fill=#1!15, font=\small, minimum height=7mm, align=center}]
+  \node[op=gray] (img) at (0,0) {image};
+  \node[op=bookaccent] (bb) at (2.4,0) {backbone\\(CNN, FPN)};
+  \node[op=bookdef] (rpn) at (5.5,1.3) {RPN: objectness\\and boxes per anchor};
+  \node[op=bookpitfall] (roi) at (5.5,-1.0) {RoI Align\\$C\times7\times7$ per proposal};
+  \node[op=bookexample] (head) at (9.6,-0.2) {class scores\\box refinement};
+  \node[op=bookexample] (mask) at (9.6,-1.8) {mask $28\times28$\\(Mask R-CNN)};
+  \draw[->] (img) -- (bb);
+  \draw[->] (bb.east) -- (rpn.west);
+  \draw[->] (bb.east) -- (roi.west);
+  \draw[->] (rpn.south) -- (roi.north) node[midway, right, font=\scriptsize] {proposals};
+  \draw[->] (roi.east) -- (head.west);
+  \draw[->] (roi.east) -- (mask.west);
+\end{tikzpicture}
+\caption{Faster R-CNN, and Mask R-CNN with its extra branch. The backbone runs once per
+image; the heads run once per proposal on fixed-size RoI features.}
+\label{detection-segmentation:fig:faster}
+\end{figure}
+
+\paragraph{Feature pyramids.} Objects come in all sizes. A feature pyramid network (Lin et
+al., CVPR, 2017) adds a top-down path with lateral connections to the backbone, so that
+every scale has semantically strong features; small objects are handled on fine levels,
+large ones on coarse levels.
+
+\section{Mask R-CNN and RoI Align}\label{detection-segmentation:sec:mask}
+
+\paragraph{The quantization problem.} RoI pooling rounds the proposal and the bins to
+integer cells of the feature map. At stride $16$, an error of half a cell is $8$ pixels in the image:
+harmless for classification, damaging for pixel-accurate masks.
+
+\paragraph{RoI Align} (He, Gkioxari, Dollár and Girshick, \emph{Mask R-CNN}, ICCV, 2017)
+removes all rounding. The proposal is projected with real coordinates, divided into $7\times7$ bins
+of real size, and in each bin a few regularly spaced sample points (e.g.\ $2\times2$) are evaluated by
+\emph{bilinear interpolation} of the four surrounding feature cells, then averaged (or max-pooled).
+At a point $(x,y) = (x_0 + \alpha, y_0 + \beta)$ with $\alpha,\beta\in[0,1)$ between cells,
+\[
+  f(x,y) = (1 - \alpha)(1 - \beta)f_{00} + \alpha(1 - \beta)f_{10} + (1 - \alpha)\beta f_{01} + \alpha\beta f_{11},
+\]
+where $f_{ab}$ is the feature at $(x_0 + a, y_0 + b)$. For $f_{00} = 1$, $f_{10} = 3$, $f_{01} = 5$, $f_{11} = 7$ and $(\alpha,\beta) = (0.25, 0.5)$:
+$0.375 + 0.375 + 1.875 + 0.875 = 3.5$. Bilinear interpolation is differentiable in the features, so gradients flow
+back to the backbone.
+
+\paragraph{The mask branch.} Mask R-CNN adds to Faster R-CNN a small fully convolutional
+head on the RoI features (often $14\times14$), which outputs $K$ masks of $28\times28$, one per class. Only the mask of
+the ground-truth class is trained, with a per-pixel binary cross-entropy (sigmoid, not
+softmax): masks of different classes do not compete, and classification is left to the box
+head. At inference, the mask of the predicted class is resized to the box and thresholded at
+$0.5$. The loss is $\ell = \ell_{\mathrm{cls}} + \ell_{\mathrm{box}} + \ell_{\mathrm{mask}}$. RoI Align alone improved mask accuracy by several
+points of average precision.
+
+\section{One-stage detectors and instance segmentation}\label{detection-segmentation:sec:onestage}
+
+Two-stage detectors are accurate but run a head per proposal. One-stage detectors predict
+classes and boxes densely, directly from the feature maps:
+\begin{itemize}
+  \item \textbf{YOLO} (Redmon, Divvala, Girshick and Farhadi, \emph{You Only Look Once},
+        CVPR, 2016) divides the image into an $S\times S$ grid; each cell predicts a few boxes with
+        confidences and class probabilities, in one forward pass, in real time.
+  \item \textbf{SSD} (Liu et al., ECCV, 2016) predicts anchor-based boxes from several feature maps of
+        different resolutions.
+  \item \textbf{RetinaNet} (Lin, Goyal, Girshick, He and Dollár, ICCV, 2017) identified the main
+        problem of dense detectors: about $100\,000$ anchors per image, almost all easy background,
+        whose many small losses dominate the cross-entropy. The \emph{focal loss}
+        (\cref{surrogate-losses:sec:beyond}) down-weights well-classified examples, and brought
+        one-stage accuracy to the level of two-stage detectors.
+\end{itemize}
+Instance segmentation also has one-stage methods. \textbf{YOLACT} (Bolya, Zhou, Xiao and Lee,
+ICCV, 2019) predicts a set of $k$ prototype masks for the whole image and, for each detection, $k$
+coefficients; the instance mask is the sigmoid of the linear combination of the prototypes,
+cropped to the box. \textbf{SOLO} (Wang, Kong, Shen, Jiang and Li, \emph{SOLO: Segmenting
+Objects by Locations}, ECCV, 2020) avoids boxes: the image is divided into an $S\times S$ grid, and the
+grid cell containing an object's centre predicts its class and its full-image mask.
+
+\section{Evaluation}\label{detection-segmentation:sec:evaluation}
+
+A predicted box is a true positive if its IoU with a not-yet-matched ground-truth box of the
+same class is at least a threshold (predictions are matched greedily in order of decreasing
+score); otherwise it is a false positive. Unmatched ground-truth boxes are false negatives.
+Sweeping the score threshold traces a precision--recall curve (\cref{ch:measuring-performance});
+its area is the \emph{average precision} (AP) of the class, and mAP averages over classes. PASCAL VOC
+uses IoU $0.5$ (AP$_{50}$); COCO averages AP over IoU thresholds $0.5, 0.55,\dots,0.95$, which rewards precise
+localization. Masks are evaluated in the same way with mask IoU.
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Detection outputs classes and boxes; semantic segmentation a class per pixel; instance
+        segmentation a mask per object; panoptic segmentation both.
+  \item IoU measures overlap; NMS keeps the best of overlapping boxes; boxes are regressed as
+        relative offsets and log size ratios from a reference box.
+  \item R-CNN classified warped proposals; Fast R-CNN shared the CNN and pooled RoI features;
+        Faster R-CNN learned the proposals with anchors and an RPN.
+  \item RoI Align replaces rounding by bilinear interpolation; Mask R-CNN adds a per-class $28\times28$
+        sigmoid mask branch.
+  \item One-stage detectors (YOLO, SSD, RetinaNet with the focal loss) predict densely; YOLACT and
+        SOLO segment instances in one stage. Detectors are evaluated by AP over IoU thresholds.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{detection-segmentation:exr:1}
+Two boxes of size $w\times w$ are shifted horizontally by $\delta w$, $0\leq\delta\leq1$. Show that their IoU is $(1 - \delta)/(1 + \delta)$.
+For which shift is it $0.5$?
+\solutionlink{detection-segmentation:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{detection-segmentation:exr:2}
+Run NMS on the boxes of \cref{detection-segmentation:ex:nms} with $\tau = 0.7$, and with the scores of $b_1$ and $b_2$
+exchanged.
+\solutionlink{detection-segmentation:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{detection-segmentation:exr:3}
+Decode the box predicted from the anchor $(x_a, y_a, w_a, h_a) = (100, 80, 64, 32)$ with
+$t = (0.1, -0.25, \log2, 0)$. Why is $t_w = \log(w/w_a)$ a better regression target than $t_w = w - w_a$?
+\solutionlink{detection-segmentation:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{detection-segmentation:exr:4}
+Show that bilinear interpolation reproduces exactly any function of the form $f(x,y) = a + bx + cy + dxy$, and
+compute the derivative of the interpolated value with respect to $f_{11}$ and to $\alpha$.
+\solutionlink{detection-segmentation:exr:4}
+\end{exercise}
+\end{notechapter}

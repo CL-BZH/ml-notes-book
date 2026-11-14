@@ -1,5 +1,5 @@
 # Build the book:              make
-# Build a single chapter:      make chapter CH=chapters/07-cnn-vision/04-transpose-convolution
+# Build a single chapter:      make chapter CH=chapters/07-cnn-vision/04-fully-convolutional
 # Remove auxiliary files:      make clean
 MAIN = main
 

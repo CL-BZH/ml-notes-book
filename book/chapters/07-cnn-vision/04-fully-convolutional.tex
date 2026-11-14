@@ -1,0 +1,380 @@
+\begin{notechapter}
+\chapter{Fully Convolutional Networks and Upsampling}\label{ch:fully-convolutional}
+\chaptersubtitle{Networks for inputs of any size, dense predictions, and transposed convolutions}
+
+\begin{chapterintro}
+A convolutional layer does not care about the size of its input: the same kernels slide over
+a small or a large image. Only fully connected layers fix the input size. A network made of
+convolutions alone, a \emph{fully convolutional network}, accepts inputs of any size and can
+produce outputs of matching size: a prediction per pixel, or per cell of a grid. This
+chapter shows how to build such networks, how to enlarge the receptive field without
+losing resolution, and how to upsample with transposed convolutions. You will learn
+\begin{itemize}[nosep]
+  \item how global pooling and $1\times1$ convolutions make a classifier size-agnostic, in code;
+  \item dilated convolutions, whose receptive field grows exponentially with depth;
+  \item a complete example: the actor--critic network of a lawnmower coverage agent, which
+        runs on lawns of any size;
+  \item the transposed convolution as the transpose of a convolution's matrix, as a scatter
+        operation, and as zero insertion; its output size and its checkerboard artefacts;
+  \item encoder--decoder networks for semantic segmentation: FCN and U-Net.
+\end{itemize}
+\prerequisites{\cref{ch:convolutional-layers,ch:cnn-architectures}.}
+\end{chapterintro}
+
+\section{Removing the fixed input size}\label{fully-convolutional:sec:anysize}
+
+A fully connected layer has a weight matrix of fixed shape, so a network ending with
+\texttt{Flatten()} and \texttt{Linear(64*8*8, 128)} (\cref{convolutional-layers:sec:network}) only
+accepts $32\times32$ images. Two changes remove the restriction:
+\begin{itemize}
+  \item replace the fully connected classifier by a $1\times1$ convolution, which computes class scores
+        at every position of the last feature map;
+  \item reduce the score map to one vector by \emph{global average pooling} (or global max pooling),
+        whose output has one value per channel whatever the spatial size (Lin, Chen and Yan,
+        \emph{Network in Network}, ICLR, 2014).
+\end{itemize}
+By \cref{convolutional-layers:exr:5}, the $1\times1$ convolution followed by averaging equals averaging
+followed by a linear layer: the classifier is a linear model on the average feature vector.
+
+\begin{lstlisting}[language=Python]
+import torch
+from torch import nn
+
+class TinyFCN(nn.Module):
+    """Classifier that accepts images of any size >= 4x4."""
+    def __init__(self, n_classes=10):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 32, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(64, n_classes, 1))          # 1x1 conv: class scores per position
+    def forward(self, x):
+        scores = self.features(x)                 # (B, n_classes, H/4, W/4)
+        return scores.mean(dim=(2, 3))            # global average pooling -> (B, n_classes)
+
+net = TinyFCN()
+for h, w in [(32, 32), (57, 91), (224, 224)]:
+    x = torch.randn(1, 3, h, w)
+    print((h, w), tuple(net.features(x).shape), tuple(net(x).shape))
+# (32, 32) (1, 10, 8, 8) (1, 10)
+# (57, 91) (1, 10, 14, 22) (1, 10)
+# (224, 224) (1, 10, 56, 56) (1, 10)
+\end{lstlisting}
+
+The same weights produce a $10$-vector for every input size; the intermediate score map has
+the size of the input divided by $4$ (rounded down by the poolings). Each of its positions is
+the classifier applied to one receptive field ($10\times10$ pixels,
+\cref{convolutional-layers:sec:receptive}).
+
+\paragraph{Convolutionalization.} A trained classifier with fully connected layers can be
+converted. VGG's first fully connected layer acts on a $512\times7\times7$ map; it is exactly a $7\times7$
+convolution with $4096$ output channels and no padding, which produces $1\times1$ on a $224\times224$ input
+and a larger map on a larger input. The next fully connected layers become $1\times1$ convolutions.
+The converted network evaluates the classifier at all positions of a sliding window in
+one pass, sharing the computation of overlapping windows (Long, Shelhamer and Darrell,
+\emph{Fully Convolutional Networks for Semantic Segmentation}, CVPR, 2015).
+
+\section{Large receptive fields without downsampling: dilation}\label{fully-convolutional:sec:dilation}
+
+Poolings and strides enlarge the receptive field but discard resolution, which matters
+when the output must be precise at the pixel level. A \emph{dilated} (or atrous) convolution with
+dilation $d$ applies its $k\times k$ weights to pixels $d$ apart (\cref{convolutional-layers:def:conv}): a $3\times3$ kernel
+with $d = 2$ covers $5\times5$ pixels, with $9$ weights. By the recursion of
+\cref{convolutional-layers:sec:receptive} with stride $1$, each such layer adds $2d$ to the receptive
+field. With dilations $1, 2, 4,\dots,2^{L-1}$,
+\[
+  r_L = 1 + 2\sum_{l=0}^{L-1}2^l = 2^{L+1} - 1:
+\]
+the receptive field grows exponentially with depth, at full resolution and with a linear
+number of parameters (Yu and Koltun, \emph{Multi-Scale Context Aggregation by Dilated
+Convolutions}, ICLR, 2016). With padding $p = d$ the spatial size is unchanged. A stack of
+equal dilations only samples a sparse grid of the input (``gridding''); increasing dilations,
+or mixing in undilated layers, avoids it.
+
+\section{Case study: a coverage agent for lawns of any size}\label{fully-convolutional:sec:lawnmower}
+
+The \texttt{Lawnmower} project (\url{https://github.com/CL-BZH/lawnmower}) trains an
+actor--critic agent (trained by PPO) to steer a mower over a grid lawn until every cell is
+mowed. Lawns differ in size and shape, and a policy trained on small lawns should run on
+large ones. The network is therefore fully convolutional. Its observation has $4$ channels
+on an $H\times W$ grid (cells the mower cannot reach, mowed cells, the mower's position, and the cell
+ahead of it), and it outputs $8$ action logits (the moves to the neighbouring cells) and a value.
+
+\begin{lstlisting}[language=Python]
+class ResBlock(nn.Module):
+    def __init__(self, ch, dilation):
+        super().__init__()
+        self.conv1 = nn.Conv2d(ch, ch, 3, padding=dilation, dilation=dilation)
+        self.conv2 = nn.Conv2d(ch, ch, 3, padding=1)
+
+    def forward(self, x):
+        return x + self.conv2(F.relu(self.conv1(F.relu(x))))
+
+class CoverageNet(nn.Module):        # abridged from lawnmower/learn/net.py
+    def __init__(self, c_in=4, c=32, dilations=(1, 2, 4, 8, 16), hidden=128):
+        super().__init__()
+        self.stem = nn.Conv2d(c_in, c, 3, padding=1)
+        self.trunk = nn.Sequential(*(ResBlock(c, d) for d in dilations))
+        self.policy = nn.Sequential(nn.Linear(9 * c, hidden), nn.ReLU(),
+                                    nn.Linear(hidden, 8))
+        self.value = nn.Sequential(nn.Linear(3 * c + 1, hidden), nn.ReLU(),
+                                   nn.Linear(hidden, 1))
+
+    def forward(self, obs, mask=None):   # obs: (B, 4, H, W), any H, W
+        feat = F.relu(self.trunk(self.stem(obs)))   # (B, c, H, W)
+        # policy: features of the 3x3 cells around the mower -> 8 logits
+        # value: mower features, mean and max over the lawn, cells left
+        ...
+\end{lstlisting}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \def\nnbaseline{-1.2}
+  \nnbox{in}{0}{0.15}{2.0}{1.6}{gray}{observation\\$4\times H\times W$}
+  \nnbox{st}{1.9}{0.35}{2.0}{1.6}{bookaccent}{stem\\$32\times H\times W$}
+  \nnbox{r1}{3.5}{0.35}{2.0}{1.6}{bookaccent}{res.\\$d=1$}
+  \nnbox{r2}{4.9}{0.35}{2.0}{1.6}{bookaccent}{res.\\$d=2$}
+  \nnbox{r3}{6.3}{0.35}{2.0}{1.6}{bookaccent}{res.\\$d=4$}
+  \nnbox{r4}{7.7}{0.35}{2.0}{1.6}{bookaccent}{res.\\$d=8$}
+  \nnbox{r5}{9.1}{0.35}{2.0}{1.6}{bookaccent}{res.\\$d=16$}
+  \nnarrow{in}{st}\nnarrow{st}{r1}\nnarrow{r1}{r2}\nnarrow{r2}{r3}\nnarrow{r3}{r4}\nnarrow{r4}{r5}
+  % policy and value heads
+  \node[draw, rounded corners=2pt, fill=bookexample!20, font=\scriptsize, align=center] (pol) at (12.6,1.0)
+    {$3\times3$ patch at mower\\$9\cdot32\to128\to8$ logits};
+  \node[draw, rounded corners=2pt, fill=bookdef!20, font=\scriptsize, align=center] (val) at (12.6,-1.0)
+    {mower, mean, max, left\\$97\to128\to1$ value};
+  \draw[-{Stealth}, thick, gray!70!black] (r5-out) -- (pol.west);
+  \draw[-{Stealth}, thick, gray!70!black] (r5-out) -- (val.west);
+\end{tikzpicture}
+\caption{The lawnmower agent's network. The trunk keeps the full resolution (no pooling,
+no stride: the exact position of the mower and of each unmowed cell matters); dilations
+$1,2,\dots,16$ give each cell a receptive field of $75\times75$ cells. The heads read a fixed number of
+features, gathered at the mower's position or pooled over the lawn, so the whole network
+works for every lawn size.}
+\label{fully-convolutional:fig:lawnmower}
+\end{figure}
+
+Three ideas make it size-agnostic:
+\begin{itemize}
+  \item \textbf{A resolution-preserving trunk.} The stem and the five residual blocks use
+        padding equal to the dilation, so the feature map stays $H\times W$, one $32$-vector per cell.
+        The receptive field after the stem is $3$, and each block adds $2d$ (dilated layer) $+ 2$ (undilated
+        layer): $r = 3 + 2(1 + 2 + 4 + 8 + 16) + 5\cdot2 = 75$ cells, which the gradient of a central feature with
+        respect to the input confirms. Each cell's features summarize a $75\times75$ neighbourhood.
+  \item \textbf{A policy read at the mower.} The policy head takes the $9$ feature vectors of the mower's
+        cell and its eight neighbours (zero-padded at the border) and outputs one logit per
+        move; illegal moves are masked by setting their logits to $-10^9$. Its input size, $9\times32$, does not
+        depend on the lawn.
+  \item \textbf{A value from global pooling.} The value head takes the mower's features, the mean
+        and the maximum of the features over the lawn cells (masked pooling, ignoring
+        obstacles), and the number of cells left: $3\times32 + 1 = 97$ numbers, whatever the lawn.
+\end{itemize}
+The same $144\,361$ parameters run on a $10\times12$ and on a $40\times40$ lawn. On lawns wider than $75$ cells, a
+cell's features no longer see the whole lawn, but the pooled features of the value head
+still do.
+
+\section{Upsampling}\label{fully-convolutional:sec:upsampling}
+
+Dense prediction networks first reduce the resolution to gain context, then must
+return to the input resolution. Fixed upsampling (nearest neighbour, bilinear
+interpolation) has no parameters; the \emph{transposed convolution} is a learned upsampling.
+
+\paragraph{The transpose of a convolution.} A strided convolution is a linear map
+$y = Cx$ (\cref{convolution-filtering:sec:definitions}). In one dimension, with kernel $w = (w_0, w_1, w_2)$, stride $2$
+and no padding, from $\R^5$ to $\R^2$:
+\[
+  C = \begin{bmatrix} w_0 & w_1 & w_2 & 0 & 0\\ 0 & 0 & w_0 & w_1 & w_2\end{bmatrix},\qquad
+  C^\top\begin{bmatrix}y_0\\y_1\end{bmatrix} = \begin{bmatrix}w_0y_0\\ w_1y_0\\ w_2y_0 + w_0y_1\\ w_1y_1\\ w_2y_1\end{bmatrix} .
+\]
+
+\begin{definition}[Transposed convolution]\label{fully-convolutional:def:transposed}
+The transposed convolution with kernel $w$, stride $s$ and padding $p$ is the linear map $C^\top$, where $C$ is
+the matrix of the convolution with the same kernel, stride and padding. It maps the output
+space of $C$ back to its input space.
+\end{definition}
+
+So it is the transpose of the convolution, \emph{values included}, not its inverse: $C^\top C\neq I$ in
+general. It is also exactly the backward pass of the convolution with respect to its input
+(\cref{convolutional-layers:prop:backward}): frameworks implement both with the same
+routine. With $w = (1,2,3)$ and $y = (1,-1)$, $C^\top y = (1, 2, 2, -2, -3)$, which \texttt{conv\_transpose1d} returns.
+
+\paragraph{Scatter view.} Reading $C^\top y$ column by column: each input value $y_i$ is multiplied by the
+whole kernel, and the result is added into the output at position $si$; overlapping
+contributions add up. A convolution \emph{gathers} a window into one value; its transpose
+\emph{scatters} one value into a window. Padding $p$ in the corresponding convolution means that $p$
+values are cropped from each end of the scattered result. Hence the output size
+\[
+  n_{\mathrm{out}} = (n - 1)s - 2p + k\ (+\ \text{output\_padding}),
+\]
+the inverse of the convolution's size formula; since the convolution rounds down, several
+input sizes map to the same output size, and \texttt{output\_padding} selects one.
+
+\begin{example}[A $2\times2$ map upsampled to $3\times3$]\label{fully-convolutional:ex:transposed}
+Input $\begin{bmatrix}a&b\\c&d\end{bmatrix}$, kernel $W = (w_{uv})_{u,v=1}^3$, stride $2$, padding $1$
+(\texttt{ConvTranspose2d(1, 1, 3, stride=2, padding=1)}). Scattering the four scaled kernels at
+offsets $(0,0)$, $(0,2)$, $(2,0)$, $(2,2)$ gives a $5\times5$ map
+\[
+  \begin{bmatrix}
+    aw_{11} & aw_{12} & aw_{13} + bw_{11} & bw_{12} & bw_{13}\\
+    aw_{21} & aw_{22} & aw_{23} + bw_{21} & bw_{22} & bw_{23}\\
+    aw_{31} + cw_{11} & aw_{32} + cw_{12} & aw_{33} + bw_{31} + cw_{13} + dw_{11} & bw_{32} + dw_{12} & bw_{33} + dw_{13}\\
+    cw_{21} & cw_{22} & cw_{23} + dw_{21} & dw_{22} & dw_{23}\\
+    cw_{31} & cw_{32} & cw_{33} + dw_{31} & dw_{32} & dw_{33}
+  \end{bmatrix},
+\]
+and cropping one row and column on each side gives the $3\times3$ output
+\[
+  \begin{bmatrix}
+    w_{22}a & w_{23}a + w_{21}b & w_{22}b\\
+    w_{32}a + w_{12}c & w_{33}a + w_{31}b + w_{13}c + w_{11}d & w_{32}b + w_{12}d\\
+    w_{22}c & w_{23}c + w_{21}d & w_{22}d
+  \end{bmatrix}.
+\]
+With $w_{uv} = 3(u - 1) + v$ (the numbers $1$ to $9$ row by row) and $(a,b,c,d) = (2,3,5,7)$ this is
+$\begin{bmatrix}10&24&15\\26&61&38\\25&58&35\end{bmatrix}$, as PyTorch computes.
+\end{example}
+
+\paragraph{Zero insertion.} Equivalently: insert $s - 1$ zeros between neighbouring input values,
+pad with $k - 1 - p$ zeros on each side, and apply an ordinary stride-$1$ cross-correlation with the
+kernel rotated by $180^\circ$. The inserted zeros explain the name \emph{fractionally strided convolution}
+(Dumoulin and Visin, \emph{A Guide to Convolution Arithmetic for Deep Learning}, 2016).
+``Deconvolution'', also used, is a misnomer: nothing is inverted.
+
+\paragraph{Checkerboard artefacts.} When the stride does not divide the kernel size,
+output positions receive different numbers of contributions. With $k = 3$, $s = 2$, a constant
+input and a constant kernel, the interior output alternates between $1$, $2$ and $4$ contributions per
+pixel, a checkerboard pattern that training has to cancel and often does not (Odena,
+Dumoulin and Olah, \emph{Deconvolution and Checkerboard Artifacts}, Distill, 2016). Kernel
+sizes divisible by the stride ($k = s = 2$, as below) avoid the uneven overlap; the alternative is
+\emph{resize-convolution}: nearest or bilinear upsampling followed by an ordinary convolution.
+
+\section{Semantic segmentation}\label{fully-convolutional:sec:segmentation}
+
+Semantic segmentation assigns a class to every pixel. A fully convolutional network
+outputs a map of class scores $Z\in\R^{K\times H\times W}$, and the loss is the cross-entropy summed over pixels,
+$-\sum_{i,j}\log\softmax(Z[:,i,j])_{y_{ij}}$ (\cref{ch:sigmoid-softmax}).
+
+\paragraph{FCN.} Long et al.\ (2015) convolutionalized a classifier, upsampled its coarse
+score map (stride $32$) with transposed convolutions, and added the score maps predicted from
+earlier, finer layers (strides $16$ and $8$): \emph{skip connections} that recover the detail lost by
+pooling.
+
+\paragraph{U-Net} (Ronneberger, Fischer and Brox, \emph{U-Net: Convolutional Networks for
+Biomedical Image Segmentation}, MICCAI, 2015) makes the idea symmetric: a contracting
+encoder, an expanding decoder with transposed convolutions, and at each resolution the
+encoder's feature map \emph{concatenated} to the decoder's (\cref{fully-convolutional:fig:unet}). Encoder
+features say \emph{where}, decoder features say \emph{what}. U-Nets are the standard for
+segmentation with little data, and the backbone of diffusion models.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Stealth, x=1cm, y=1cm, lab/.style={font=\scriptsize}]
+  % encoder
+  \fill[bookaccent!35] (0,-1) rectangle (0.3,1);      \draw[bookaccent!70!black] (0,-1) rectangle (0.3,1);
+  \fill[bookaccent!35] (1.6,-3.0) rectangle (2.0,-1.8); \draw[bookaccent!70!black] (1.6,-3.0) rectangle (2.0,-1.8);
+  \fill[bookaccent!35] (3.6,-4.55) rectangle (4.2,-3.85); \draw[bookaccent!70!black] (3.6,-4.55) rectangle (4.2,-3.85);
+  % decoder: upsampled (green) + concatenated skip, then convs (blue)
+  \fill[bookdef!35] (5.8,-3.0) rectangle (6.2,-1.8);   \draw[bookdef!70!black] (5.8,-3.0) rectangle (6.2,-1.8);
+  \fill[bookaccent!35] (6.3,-3.0) rectangle (6.7,-1.8); \draw[bookaccent!70!black] (6.3,-3.0) rectangle (6.7,-1.8);
+  \fill[bookdef!35] (7.8,-1) rectangle (8.1,1);        \draw[bookdef!70!black] (7.8,-1) rectangle (8.1,1);
+  \fill[bookaccent!35] (8.2,-1) rectangle (8.5,1);     \draw[bookaccent!70!black] (8.2,-1) rectangle (8.5,1);
+  \fill[bookexample!40] (9.6,-1) rectangle (9.9,1);    \draw[bookexample!70!black] (9.6,-1) rectangle (9.9,1);
+  % arrows
+  \draw[->, thick, bookpitfall] (0.15,-1) -- (1.8,-1.8) node[midway, above right, lab] {pool};
+  \draw[->, thick, bookpitfall] (1.8,-3.0) -- (3.9,-3.85) node[midway, above right, lab] {pool};
+  \draw[->, thick, bookdef] (3.9,-3.85) -- (6.0,-3.0) node[midway, right, lab] {up};
+  \draw[->, thick, bookdef] (6.5,-1.8) -- (7.95,-1) node[midway, right, lab] {up};
+  \draw[->, thick, bookexample, dashed] (0.3,0.5) -- (7.8,0.5) node[midway, above, lab] {copy and concatenate};
+  \draw[->, thick, bookexample, dashed] (2.0,-2.1) -- (5.8,-2.1) node[midway, above, lab] {copy and concatenate};
+  \draw[->, thick] (8.5,0) -- (9.6,0) node[midway, above, lab] {$1\times1$};
+  % sizes
+  \node[lab, anchor=east] at (-0.05,0) {$c\times H\times W$};
+  \node[lab, anchor=east] at (1.55,-2.6) {$2c\times\frac H2\times\frac W2$};
+  \node[lab, anchor=east] at (3.55,-4.2) {$4c\times\frac H4\times\frac W4$};
+  \node[lab, anchor=west] at (9.95,0) {$K\times H\times W$};
+\end{tikzpicture}
+\caption{A two-level U-Net. Blue: two $3\times3$ convolutions with ReLU; green: upsampled
+features (transposed convolution, $k = s = 2$) concatenated with the copied encoder features
+(dashed); orange: per-pixel class scores.}
+\label{fully-convolutional:fig:unet}
+\end{figure}
+
+\begin{lstlisting}[language=Python]
+def block(c_in, c_out):
+    return nn.Sequential(nn.Conv2d(c_in, c_out, 3, padding=1), nn.ReLU(),
+                         nn.Conv2d(c_out, c_out, 3, padding=1), nn.ReLU())
+
+class TinyUNet(nn.Module):
+    def __init__(self, c_in=3, n_classes=2, c=16):
+        super().__init__()
+        self.enc1, self.enc2 = block(c_in, c), block(c, 2 * c)
+        self.mid = block(2 * c, 4 * c)
+        self.pool = nn.MaxPool2d(2)
+        self.up2 = nn.ConvTranspose2d(4 * c, 2 * c, 2, stride=2)
+        self.dec2 = block(4 * c, 2 * c)            # 2c (skip) + 2c (up)
+        self.up1 = nn.ConvTranspose2d(2 * c, c, 2, stride=2)
+        self.dec1 = block(2 * c, c)
+        self.head = nn.Conv2d(c, n_classes, 1)     # per-pixel class scores
+
+    def forward(self, x):                          # H, W multiples of 4
+        e1 = self.enc1(x)                          # c   x H   x W
+        e2 = self.enc2(self.pool(e1))              # 2c  x H/2 x W/2
+        m = self.mid(self.pool(e2))                # 4c  x H/4 x W/4
+        d2 = self.dec2(torch.cat([e2, self.up2(m)], dim=1))
+        d1 = self.dec1(torch.cat([e1, self.up1(d2)], dim=1))
+        return self.head(d1)                       # n_classes x H x W
+\end{lstlisting}
+
+The network returns a $2\times64\times64$ map for a $64\times64$ image and a $2\times96\times160$ map for a $96\times160$ image. The
+constraint ``multiple of $4$'' comes from the two poolings: the upsampled maps must match the
+encoder maps they are concatenated with.
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Only fully connected layers fix the input size. A $1\times1$ convolution and global pooling make a
+        classifier size-agnostic; fully connected layers can be rewritten as convolutions.
+  \item Dilations $1,2,\dots,2^{L-1}$ give a receptive field $2^{L+1} - 1$ at full resolution.
+  \item A fully convolutional trunk plus heads that gather features at chosen positions or pool
+        them globally works on grids of any size, as in the lawnmower agent.
+  \item The transposed convolution is $C^\top$, the transpose of the convolution's matrix: a scatter of
+        scaled kernels, or zero insertion plus a convolution with the rotated kernel; it is the
+        convolution's input gradient. Uneven overlaps cause checkerboards.
+  \item FCN and U-Net combine coarse semantic features with fine encoder features through skip
+        connections to predict a class per pixel.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{fully-convolutional:exr:1}
+Compute the shape of the score map of \texttt{TinyFCN} for a $33\times35$ input. What is the smallest input
+it accepts?
+\solutionlink{fully-convolutional:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{fully-convolutional:exr:2}
+Compute the receptive field of a stack of $3\times3$ convolutions with dilations $1, 2, 4, 8, 1, 2, 4, 8$, and the
+number of layers of undilated $3\times3$ convolutions needed for the same receptive field.
+\solutionlink{fully-convolutional:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{fully-convolutional:exr:3}
+For the matrix $C$ of \cref{fully-convolutional:sec:upsampling} with $w = (1,2,3)$, compute $C^\top C$ and check that it is not
+the identity. Which input vectors $x$ satisfy $Cx = 0$?
+\solutionlink{fully-convolutional:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{fully-convolutional:exr:4}
+Compute the output size of \texttt{ConvTranspose2d} with $k = 4$, $s = 2$, $p = 1$ on a $16\times16$ input. Does this
+kernel produce a checkerboard on a constant input? Compare with $k = 3$, $s = 2$.
+\solutionlink{fully-convolutional:exr:4}
+\end{exercise}
+
+\begin{exercise}\label{fully-convolutional:exr:5}
+In the lawnmower network, what would the receptive field be with dilations $(1,1,1,1,1)$? With
+$(1,2,4,8,16,32)$?
+\solutionlink{fully-convolutional:exr:5}
+\end{exercise}
+\end{notechapter}
