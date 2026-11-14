@@ -1,0 +1,219 @@
+\begin{notechapter}
+\chapter{Decomposition and Forecasting}\label{ch:decomposition-forecasting}
+\chaptersubtitle{Trend, seasonality, and feeding a model its own predictions}
+
+\begin{chapterintro}
+Two practical questions come before any model of a time series. How do we separate a
+slowly varying trend and a repeating seasonal pattern from the rest? And once a model
+predicts one step ahead, how do we predict several steps ahead, when the
+intermediate values are not yet observed? This chapter answers the first with the
+classical decomposition, worked through on a series with multiplicative
+seasonality, and the second by comparing recursive and direct forecasting,
+including the two opposite meanings of ``open loop'' and ``closed loop''. You will
+learn
+\begin{itemize}[nosep]
+  \item additive and multiplicative seasonality, and how a logarithm turns one into the
+        other;
+  \item the centred moving average, why its window must be centred, and what it leaves
+        behind when the seasonality is multiplicative;
+  \item how to estimate seasonal indices and remove them;
+  \item recursive and direct multi-step forecasting, how forecast errors grow with the
+        horizon, and the vocabulary of open and closed loops.
+\end{itemize}
+\prerequisites{\cref{ch:linear-time-series}.}
+\end{chapterintro}
+
+\section{Additive and multiplicative seasonality}\label{decomposition-forecasting:sec:models}
+
+A classical decomposition writes the observation $Y_t$ as a combination of a \emph{trend} $T_t$
+(slow changes of level), a \emph{seasonal} component $S_t$ of known period $s$, and an irregular
+remainder $\varepsilon_t$:
+\[
+  \text{additive: } Y_t = T_t + S_t + \varepsilon_t,\qquad
+  \text{multiplicative: } Y_t = T_t\times S_t\times\varepsilon_t .
+\]
+In the additive model the seasonal swings have a fixed size, and $S_t$ sums to $0$ over a
+period. In the multiplicative model they are proportional to the level, and $S_t$ averages
+to $1$ over a period: a value of $1.2$ means ``$20\%$ above trend''. For a positive series,
+$\log Y_t = \log T_t + \log S_t + \log\varepsilon_t$ is additive, which is why multiplicative patterns are often
+handled by modelling the logarithm.
+
+\begin{example}[A series with multiplicative seasonality]\label{decomposition-forecasting:ex:series}
+Monthly sales over three years, $t = 1,\dots,36$ ($t = 1$ is January of year 1), with a linear trend
+and a sinusoidal seasonal factor, without noise:
+\[
+  T_t = 100 + 4t,\qquad S_t = 1 + 0.5\sin\frac{2\pi t}{12},\qquad Y_t = T_tS_t .
+\]
+$S_t$ has period $12$, averages to $1$, and swings by $\pm50\%$. The resulting values (one decimal) are
+\begin{center}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lcccccccccccc@{}}
+\toprule
+ & Jan & Feb & Mar & Apr & May & Jun & Jul & Aug & Sep & Oct & Nov & Dec \\
+\midrule
+year 1 & 130.0 & 154.8 & 168.0 & 166.2 & 150.0 & 124.0 & 96.0 & 74.8 & 68.0 & 79.4 & 108.0 & 148.0 \\
+year 2 & 190.0 & 223.5 & 240.0 & 235.0 & 210.0 & 172.0 & 132.0 & 102.1 & 92.0 & 106.6 & 144.0 & 196.0 \\
+year 3 & 250.0 & 292.3 & 312.0 & 303.8 & 270.0 & 220.0 & 168.0 & 129.3 & 116.0 & 133.8 & 180.0 & 244.0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+The peak-to-trough range grows from $100$ in year 1 to $196$ in year 3: the signature of
+multiplicative seasonality.
+\end{example}
+
+\section{Estimating the trend with a centred moving average}\label{decomposition-forecasting:sec:ma}
+
+Averaging over exactly one period cancels a seasonal pattern that sums to zero over the
+period. With a period of $12$, the plain average $\frac1{12}\sum_{k=-6}^5Y_{t+k}$ covers a full year, but its
+window is not symmetric around $t$: it is centred at $t - \frac12$, between two months. The
+\emph{centred} $2\times12$ moving average averages two consecutive such windows:
+\[
+  \mathrm{MA}_t = \frac1{24}\Bigl(Y_{t-6} + 2\sum_{k=-5}^5Y_{t+k} + Y_{t+6}\Bigr),
+\]
+a symmetric window of $13$ months whose end months get half weight. It is computed for
+$t = 7,\dots,30$ (six values are lost at each end) by a convolution with the weights
+$\frac1{24}(1, 2, 2,\dots,2, 1)$. Being symmetric, it reproduces a linear trend exactly, and it
+annihilates any additive pattern of period $12$ that sums to zero.
+
+\paragraph{What it leaves behind.} In a multiplicative series the seasonal effect is
+$T_t(S_t - 1)$, whose size follows the trend, so the moving average does not cancel it
+exactly. Writing $T_{t+k} = T_t + 4k$,
+\[
+  \mathrm{MA}_t = T_t\underbrace{\sum_kw_kS_{t+k}}_{=1} + 4\sum_kw_k\,k\,S_{t+k} = T_t + 4\sum_kw_k\,k\,(S_{t+k} - 1),
+\]
+using the symmetry of the weights. In the example the remainder oscillates between
+$-3.7$ and $+3.7$ around the trend, about $1.5$ to $3\%$ of its level: small, but visible in
+\cref{decomposition-forecasting:fig:series}.
+
+\section{Seasonal indices}\label{decomposition-forecasting:sec:indices}
+
+Dividing by the trend estimate isolates the seasonal and irregular parts:
+$R_t = Y_t/\mathrm{MA}_t\approx S_t\varepsilon_t$ (for an additive model, subtract instead). Averaging $R_t$ over all years
+for each calendar month, and rescaling the twelve averages to have mean $1$, gives the
+\emph{seasonal indices}. In the example (two values per month are available):
+\begin{center}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lcccccccccccc@{}}
+\toprule
+ & Jan & Feb & Mar & Apr & May & Jun & Jul & Aug & Sep & Oct & Nov & Dec \\
+\midrule
+estimated & 1.227 & 1.418 & 1.500 & 1.448 & 1.272 & 1.020 & 0.767 & 0.574 & 0.500 & 0.561 & 0.736 & 0.978 \\
+true $S_t$ & 1.250 & 1.433 & 1.500 & 1.433 & 1.250 & 1.000 & 0.750 & 0.567 & 0.500 & 0.567 & 0.750 & 1.000 \\
+\bottomrule
+\end{tabular}
+\end{center}
+The errors, at most $0.023$, come from the remainder of the moving average described
+above. The \emph{seasonally adjusted} series is $Y_t/\hat S_t$; fitting a trend model to it and
+multiplying back by $\hat S_t$ gives forecasts. Modern methods (STL, X-13ARIMA-SEATS)
+refine this scheme with robust local regressions and seasonal patterns that evolve over
+time.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=1 by 2, vertical sep=1.4cm}, width=12cm, height=5cm,
+  xmin=0, xmax=37, xtick={1,7,13,19,25,31}, xticklabels={Jan Y1, Jul Y1, Jan Y2, Jul Y2, Jan Y3, Jul Y3},
+  tick label style={font=\scriptsize}, grid=major, grid style={gray!15}]
+\nextgroupplot[ylabel={sales}, legend style={font=\scriptsize, draw=none, at={(0.02,0.98)}, anchor=north west}, legend cell align=left]
+  \addplot[thick, black, mark=*, mark size=1pt] coordinates {(1,130.00) (2,154.77) (3,168.00) (4,166.23) (5,150.00) (6,124.00) (7,96.00) (8,74.84) (9,68.00) (10,79.38) (11,108.00) (12,148.00) (13,190.00) (14,223.55) (15,240.00) (16,235.01) (17,210.00) (18,172.00) (19,132.00) (20,102.06) (21,92.00) (22,106.59) (23,144.00) (24,196.00) (25,250.00) (26,292.33) (27,312.00) (28,303.80) (29,270.00) (30,220.00) (31,168.00) (32,129.27) (33,116.00) (34,133.81) (35,180.00) (36,244.00)};
+  \addlegendentry{$Y_t$}
+  \addplot[very thick, bookaccent, dashed] coordinates {(7,124.77) (8,130.13) (9,136.00) (10,141.87) (11,147.23) (12,151.73) (13,155.23) (14,157.87) (15,160.00) (16,162.13) (17,164.77) (18,168.27) (19,172.77) (20,178.13) (21,184.00) (22,189.87) (23,195.23) (24,199.73) (25,203.23) (26,205.87) (27,208.00) (28,210.13) (29,212.77) (30,216.27)};
+  \addlegendentry{centred moving average}
+  \addplot[thin, bookexample, domain=1:36] {100+4*x};
+  \addlegendentry{true trend $100 + 4t$}
+\nextgroupplot[ylabel={$Y_t/\mathrm{MA}_t$}, ymin=0.4, ymax=1.6]
+  \addplot[thick, bookdef, mark=*, mark size=1pt] coordinates {(7,0.7694) (8,0.5751) (9,0.5000) (10,0.5595) (11,0.7335) (12,0.9754) (13,1.2240) (14,1.4161) (15,1.5000) (16,1.4495) (17,1.2745) (18,1.0222) (19,0.7640) (20,0.5729) (21,0.5000) (22,0.5614) (23,0.7376) (24,0.9813) (25,1.2301) (26,1.4200) (27,1.5000) (28,1.4457) (29,1.2690) (30,1.0173)};
+  \addplot[thin, gray, domain=1:36, samples=200] {1+0.5*sin(deg(2*pi*x/12))};
+\end{groupplot}
+\end{tikzpicture}
+\caption{Top: the series of \cref{decomposition-forecasting:ex:series}, its centred $2\times12$ moving
+average, and the true trend; the moving average wobbles slightly around the trend
+because the seasonality is multiplicative. Bottom: the ratio $Y_t/\mathrm{MA}_t$ (dots) against the
+true seasonal factor $S_t$ (thin line).}
+\label{decomposition-forecasting:fig:series}
+\end{figure}
+
+\section{Forecasting several steps ahead}\label{decomposition-forecasting:sec:multistep}
+
+A model fitted to predict $X_{t+1}$ from the past, $\hat X_{t+1} = g(X_t, X_{t-1},\dots)$, can forecast $h$ steps ahead
+in two ways.
+\begin{itemize}[nosep]
+  \item \emph{Recursive} (iterated) forecasting: predict $\hat X_{t+1}$, insert it in place of the unknown
+        $X_{t+1}$, predict $\hat X_{t+2}$, and so on. One model serves all horizons.
+  \item \emph{Direct} forecasting: fit a separate model $g_h$ for each horizon, $\hat X_{t+h} = g_h(X_t, X_{t-1},\dots)$,
+        trained on pairs $(\text{past}, X_{t+h})$.
+\end{itemize}
+For a correctly specified linear model they coincide. For AR(1),
+$\hat X_{t+h\mid t} = \alpha\hat X_{t+h-1\mid t} = \alpha^hX_t$, which is also $\E[X_{t+h}\mid X_t]$. The forecast error is
+\[
+  X_{t+h} - \alpha^hX_t = \sum_{j=0}^{h-1}\alpha^jZ_{t+h-j},\qquad
+  \Var = \sigma_Z^2\,\frac{1 - \alpha^{2h}}{1 - \alpha^2}\ \xrightarrow[h\to\infty]{}\ \frac{\sigma_Z^2}{1 - \alpha^2} = \Var(X_t).
+\]
+With $\alpha = 0.8$ the error variance, in units of $\sigma_Z^2$, is $1$, $1.64$, $2.48$ and $2.75$ at horizons $1, 2, 5, 10$,
+against $2.78$ for the unconditional variance: the forecast decays to the mean and its
+error grows to the variance of the series. This growth is not a defect of the method; it
+is the information lost about the future. What recursion adds is \emph{model} error: if the
+one-step model is slightly wrong, its errors are fed back and compound, while a direct
+model is fitted to the horizon it serves (at the cost of $h$ models, each with fewer useful
+training pairs). For nonlinear models a further bias appears: iterating a point forecast
+computes $g(\hat X_{t+1})$, whereas the conditional mean is $\E[g(X_{t+1})\mid\text{past}]$, and the two differ by
+Jensen's inequality unless $g$ is linear.
+
+\paragraph{Feeding back observations or predictions.} During forecasting, the inputs at
+each step are either \emph{observed} values (when they arrive in time, as in a forecast
+updated daily with new measurements) or the model's \emph{own predictions} (when they do
+not, as in a ten-day forecast issued today). Using observations prevents error
+accumulation but requires them; using predictions is the only option beyond one step.
+The same distinction arises in training: \emph{teacher forcing} feeds the true previous values
+to a sequence model during training, while at test time it must consume its own outputs.
+The mismatch between the two regimes, called \emph{exposure bias}, is a source of
+compounding errors in recurrent networks and language models.
+
+\begin{pitfall}[``Open loop'' and ``closed loop'' have two opposite meanings]
+In control engineering, a \emph{closed loop} feeds \emph{measured} outputs back into the
+system, and an open loop runs without measurements; by analogy, closed-loop
+forecasting uses observations as they arrive, and open-loop forecasting runs on the
+model's predictions. In the neural-network time-series literature, in particular for
+NARX networks (MATLAB's \texttt{narxnet}), the words are used the other way round: the
+\emph{open-loop} (series--parallel) configuration feeds the \emph{true} past outputs to the
+network, for training and one-step prediction, while the \emph{closed-loop} (parallel)
+configuration feeds back the network's \emph{own predictions}, for multi-step
+forecasting. Always check which convention a source uses; what matters is whether the
+inputs at each step are observed values or predictions.
+\end{pitfall}
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item Additive seasonality has swings of fixed size, multiplicative seasonality swings
+        proportional to the level; the logarithm turns the second into the first.
+  \item The centred $2\times12$ moving average estimates the trend; it cancels additive seasonality
+        exactly and leaves a small remainder for multiplicative seasonality with a trend.
+  \item Seasonal indices are the per-month averages of $Y_t/\mathrm{MA}_t$ (or $Y_t - \mathrm{MA}_t$), normalized.
+  \item Multi-step forecasts are recursive or direct. For AR(1), the $h$-step forecast is $\alpha^hX_t$, and its
+        error variance $\sigma_Z^2(1 - \alpha^{2h})/(1 - \alpha^2)$ grows to the variance of the series.
+  \item Whether a model is fed observations or its own predictions --- teacher forcing versus
+        free running --- matters more than the name given to it, and the names
+        ``open loop'' and ``closed loop'' are used in both senses.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{decomposition-forecasting:exr:1}
+Show that the centred $2\times12$ moving average reproduces a linear trend exactly, and that it
+annihilates any sequence $S_t$ of period $12$ with $\sum_{k=1}^{12}S_k = 0$.
+\solutionlink{decomposition-forecasting:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{decomposition-forecasting:exr:2}
+In \cref{decomposition-forecasting:ex:series}, compute $\mathrm{MA}_7$ (July of year 1) and compare with $T_7 = 128$.
+\solutionlink{decomposition-forecasting:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{decomposition-forecasting:exr:3}
+For the AR(2) model $X_t = X_{t-1} - 0.5X_{t-2} + Z_t$, write the recursive forecasts $\hat X_{t+1\mid t}$, $\hat X_{t+2\mid t}$ and
+$\hat X_{t+3\mid t}$ in terms of $X_t$ and $X_{t-1}$, and the variance of the two-step forecast error.
+\solutionlink{decomposition-forecasting:exr:3}
+\end{exercise}
+\end{notechapter}

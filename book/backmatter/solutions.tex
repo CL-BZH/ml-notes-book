@@ -773,7 +773,10 @@ $\pm(\sigma(z_1 - z_2) - \bbone[y = 1])$, the binary gradient, with opposite sig
 \solution{sigmoid-softmax:exr:6}
 $\softmax(z/0.5)\approx(0.864, 0.117, 0.019)$, $\softmax(z)\approx(0.659, 0.242, 0.099)$,
 $\softmax(z/2)\approx(0.502, 0.304, 0.194)$. With $m = z_{k^*}$ the unique maximum,
-$\softmax(z/T)_k = e^{(z_k - m)/T}/\sum_je^{(z_j - m)/T}$; as $T\to0^+$, every exponent with $z_k<m$ tends to $-\infty$, so the
+\[
+  \softmax(z/T)_k = e^{(z_k - m)/T}\Big/\sum_je^{(z_j - m)/T};
+\]
+as $T\to0^+$, every exponent with $z_k<m$ tends to $-\infty$, so the
 numerator tends to $\bbone[k = k^*]$ and the denominator to $1$. As $T\to\infty$, every exponent tends to $0$
 and every entry to $1/K$.
 
@@ -815,3 +818,222 @@ $\phi(m) = (1 - m)^2$ is convex, differentiable, with $\phi'(0) = -2<0$, hence c
 more than a wrong one. The \emph{squared hinge} $\max(0, 1 - m)^2$ is $0$ for $m\geq1$, convex, differentiable,
 with derivative $-2$ at $0$: still calibrated, and it no longer penalizes confident correct
 predictions.
+
+\section{\nameref*{ch:perceptron}}
+
+\solution{perceptron:exr:1}
+The normal vector of $L_x$ is $(p, q) = x$, so $L_x$ is perpendicular to $x$. Its distance to the origin is
+$\abs{p\cdot0 + q\cdot0 + 1}/\norm x = 1/\norm x$, and the point of $L_x$ closest to the origin is $-x/\norm x^2$, in the
+direction opposite to $x$. With $D = w_1q - w_2p$ and $x_0 = \frac1D(w_2 - bq, bp - w_1)$:
+\[
+  w^\top x_0 + b = \frac{w_1(w_2 - bq) + w_2(bp - w_1)}D + b = \frac{-b(w_1q - w_2p)}D + b = 0,\qquad
+  x^\top x_0 + 1 = \frac{p(w_2 - bq) + q(bp - w_1)}D + 1 = \frac{pw_2 - qw_1}D + 1 = 0 .
+\]
+
+\solution{perceptron:exr:2}
+With $\tilde x_i = (x_i, 1)$ and $v = (8, 4, -7)/11$: $y_iv^\top\tilde x_i = \frac{13}{11}, 1, 1, 1, \frac{23}{11}, \frac{27}{11}$ for $i = 1,\dots,6$ (for
+instance $i = 2$: $-(0 - 4 - 7)/11 = 1$). All are $\geq1$, with equality for points $2, 3, 4$. For $u = v/\norm v$,
+$y_iu^\top\tilde x_i\geq1/\norm v = 11/\sqrt{129}\approx0.968$.
+
+\solution{perceptron:exr:3}
+Visiting $6, 5,\dots,1$ from $\theta = 0$: point 6 ($(-2, -1)$, negative) gives $y\theta^\top\tilde x = 0$, a mistake, and
+$\theta = -(-2, -1, 1) = (2, 1, -1)$. Then $2x_1 + x_2 - 1$ is $6.5$, $-2$, $3.5$, $-2$, $4$ at points $5, 4, 3, 2, 1$, all of the
+right sign, and a second pass makes no mistake. One mistake only, and the boundary
+$2x_1 + x_2 - 1 = 0$: the order of the points changes both the number of mistakes and the
+result.
+
+\solution{perceptron:exr:4}
+If $f(x) = w^\top x + b$ separated XOR, then $f(0, 1) + f(1, 0)>0$ and $f(0, 0) + f(1, 1)<0$; but both sums equal
+$w_1 + w_2 + 2b$. With $\varphi(x) = (x_1^2, \sqrt2x_1x_2, x_2^2)$ (\cref{svm:ex:poly}), the four points map to $(0, 0, 0)$,
+$(1, \sqrt2, 1)$ (negative), $(0, 0, 1)$, $(1, 0, 0)$ (positive), and $g = \varphi_1 + \varphi_3 - \sqrt2\varphi_2 - \frac12$ takes the values
+$-\frac12, -\frac12, \frac12, \frac12$: a separating hyperplane in feature space, which is the curve
+$(x_1 - x_2)^2 = \frac12$ in the plane.
+
+\section{\nameref*{ch:svm}}
+
+\solution{svm:exr:1}
+Take $x$ on $w^\top x + b = -1$; the point $x + tw/\norm w$ lies on $w^\top x + b = 1$ when $t\norm w = 2$. The hyperplanes are
+parallel with normal $w$, so their distance is $t = 2/\norm w$.
+
+\solution{svm:exr:2}
+$\sum_i\alpha_iy_ix_i = (\alpha_1 + \alpha_2, 0)$ and the constraint $\alpha_1 - \alpha_2 = 0$ gives $\alpha_1 = \alpha_2 = a$. The dual objective is
+$2a - \frac12(2a)^2 = 2a - 2a^2$, maximal at $a = \frac12$. Then $w = (1, 0)$, and $y_1(w^\top x_1 + b) = 1$ gives $b = 0$. The
+boundary is $x_1 = 0$ and the margin $1/\norm w = 1$, half the distance between the points.
+
+\solution{svm:exr:3}
+For Gram matrices $K_1, K_2\succeq0$: $c^\top(K_1 + K_2)c = c^\top K_1c + c^\top K_2c\geq0$ and $c^\top(aK_1)c\geq0$ for $a\geq0$. For the
+product,
+\[
+  (k_1k_2)(x, x') = \inner{\varphi_1(x)}{\varphi_1(x')}\inner{\varphi_2(x)}{\varphi_2(x')} = \inner{\varphi_1(x)\otimes\varphi_2(x)}{\varphi_1(x')\otimes\varphi_2(x')},
+\]
+an inner product of feature vectors; equivalently, the Hadamard product $K_1\circ K_2$ of two positive
+semidefinite matrices is positive semidefinite (Schur product theorem).
+
+\solution{svm:exr:4}
+Expanding $\norm{x_i - x_j}^2 = \norm{x_i}^2 + \norm{x_j}^2 - 2x_i^\top x_j$,
+\[
+  -\sum_{i,j}c_ic_j\norm{x_i - x_j}^2 = -2\Bigl(\sum_jc_j\Bigr)\Bigl(\sum_ic_i\norm{x_i}^2\Bigr) + 2\Bigl\Vert\sum_ic_ix_i\Bigr\Vert^2 = 2\Bigl\Vert\sum_ic_ix_i\Bigr\Vert^2\geq0
+\]
+when $\sum_jc_j = 0$: CPD of order $1$. It is not positive semidefinite: for two distinct points and
+$c = (1, 1)$, the form is $-2\norm{x_1 - x_2}^2<0$.
+
+\solution{svm:exr:5}
+Still separable: the line $x_1 + x_2 = \frac14$ has $(0.5, 0.5)$ and the three positive points on one side and
+the three negative points on the other. For the old solution,
+$f(0.5, 0.5) = \frac13 + \frac29 - \frac79 = -\frac29$: the point is misclassified, violates $yf\geq1$, and has slack
+$\xi = 1 - yf = \frac{11}9$. The new maximum-margin line has a smaller margin.
+
+\section{\nameref*{ch:support-vector-methods}}
+
+\solution{support-vector-methods:exr:1}
+The Lagrangian is
+$\frac12\norm w^2 + C\sum(\xi_i + \xi_i^*) - \sum\alpha_i(\varepsilon + \xi_i - y_i + f(x_i)) - \sum\alpha_i^*(\varepsilon + \xi_i^* + y_i - f(x_i)) - \sum(\eta_i\xi_i + \eta_i^*\xi_i^*)$.
+Its derivatives give $w = \sum(\alpha_i - \alpha_i^*)\varphi(x_i)$, $\sum(\alpha_i - \alpha_i^*) = 0$, $\eta_i = C - \alpha_i\geq0$, $\eta_i^* = C - \alpha_i^*\geq0$.
+Substituting, the slack terms cancel and
+$\frac12\norm w^2 - \sum(\alpha_i - \alpha_i^*)w^\top\varphi(x_i) = -\frac12\sum_{i,j}(\alpha_i - \alpha_i^*)(\alpha_j - \alpha_j^*)k(x_i, x_j)$, leaving the stated dual. If both
+$\alpha_i$ and $\alpha_i^*$ were positive, both constraints would be active: $y_i - f(x_i) = \varepsilon + \xi_i$ and
+$f(x_i) - y_i = \varepsilon + \xi_i^*$; adding them gives $0 = 2\varepsilon + \xi_i + \xi_i^*>0$, a contradiction.
+
+\solution{support-vector-methods:exr:2}
+With multipliers $\alpha_i, \mu_i\geq0$, $\mathcal L = \frac12\norm w^2 + \frac1{\nu n}\sum\xi_i - \rho - \sum\alpha_i(w^\top\varphi(x_i) - \rho + \xi_i) - \sum\mu_i\xi_i$; then
+$w = \sum\alpha_i\varphi(x_i)$, $\sum\alpha_i = 1$ (from $\rho$), $\alpha_i = \frac1{\nu n} - \mu_i\leq\frac1{\nu n}$, and the dual is
+$\min\frac12\alpha^\top K\alpha$ under these constraints. For $\nu = 1$, $\alpha_i\leq\frac1n$ and $\sum\alpha_i = 1$ force $\alpha_i = \frac1n$ for all $i$:
+every point is a support vector, $w$ is the mean of the feature vectors, and $f(x) = \frac1n\sum_ik(x_i, x) - \rho$
+is a kernel density estimate thresholded at its smallest training value.
+
+\solution{support-vector-methods:exr:3}
+With $C\geq1$ no slack pays off (the dual's bound $\alpha_i\leq C$ is inactive since $\sum\alpha_i = 1$), and SVDD is the
+smallest ball containing all points. Its centre $a = \sum\alpha_ix_i$ is a convex combination, with
+$\alpha_i>0$ only for points on the sphere (complementary slackness). For $(0,0)$, $(2,0)$, $(0,2)$:
+the right angle is at the origin, so the hypotenuse is a diameter: centre $(1, 1)$, $R = \sqrt2$, with
+$\alpha = (0, \frac12, \frac12)$. The point $(0, 0)$ lies on the sphere but has $\alpha = 0$, a degenerate support vector.
+
+\section{\nameref*{ch:decision-trees}}
+
+\solution{decision-trees:exr:1}
+Two independent draws have the same class with probability $\sum_kp_k^2$, hence different classes with
+probability $1 - \sum_kp_k^2$. By the Cauchy--Schwarz inequality, $1 = (\sum_kp_k)^2\leq K\sum_kp_k^2$, so $\sum_kp_k^2\geq\frac1K$ with
+equality iff all $p_k = \frac1K$: the maximum of the Gini index is $1 - \frac1K$.
+
+\solution{decision-trees:exr:2}
+$\abs S\,i_V(S) = \sum_{i\in S}(y_i - \bar y_S)^2$ is the total squared error of the node, so $\abs S\,\Delta i_V$ is the decrease
+of total squared error. Writing $y_i - \bar y_S = (y_i - \bar y_{S_v}) + (\bar y_{S_v} - \bar y_S)$ and summing within each child (the
+cross terms vanish), $\mathrm{SSE}(S) = \mathrm{SSE}(S_1) + \mathrm{SSE}(S_2) + \abs{S_1}(\bar y_{S_1} - \bar y_S)^2 + \abs{S_2}(\bar y_{S_2} - \bar y_S)^2$, and with
+$\bar y_S = (\abs{S_1}\bar y_{S_1} + \abs{S_2}\bar y_{S_2})/\abs S$ the last two terms equal $\frac{\abs{S_1}\abs{S_2}}{\abs S}(\bar y_{S_1} - \bar y_{S_2})^2$. In
+\cref{decision-trees:ex:stump}: $\frac{3\cdot3}6(3.0 - 1.033)^2\approx5.802 = 5.868 - 0.067$.
+
+\solution{decision-trees:exr:3}
+Every child contains one point and is pure, so $\mathrm{IG} = H(S)$, the full entropy of the node ($1$
+bit for two balanced classes). $\mathrm{SplitInfo} = \log_2n$, and $\mathrm{GainRatio} = 1/\log_2n$, which vanishes as $n$
+grows: the identifier is no longer preferred to genuinely informative splits.
+
+\solution{decision-trees:exr:4}
+The four points are (blue, small, no), (blue, large, yes), (green, small, yes), (green, large, no).
+Splitting on colour gives two children (one yes, one no) each; so does splitting on size.
+Each child has the root's proportions, and every impurity gain is $0$.
+
+\section{\nameref*{ch:ensemble-methods}}
+
+\solution{ensemble-methods:exr:1}
+The limit is $\rho\sigma^2 = 0.3$; the excess is $(1 - \rho)\sigma^2/B = 0.7/B$. It is at most $10\%$ of $0.3$ when
+$B\geq0.7/0.03\approx23.3$: $24$ trees suffice for this purpose.
+
+\solution{ensemble-methods:exr:2}
+The misclassified points have total weight $\varepsilon_t$ before the update, and are multiplied by $e^{\alpha_t}$; the
+others, with total $1 - \varepsilon_t$, by $e^{-\alpha_t}$. With $e^{\alpha_t} = \sqrt{(1 - \varepsilon_t)/\varepsilon_t}$, the two new totals are
+$\varepsilon_te^{\alpha_t} = \sqrt{\varepsilon_t(1 - \varepsilon_t)}$ and $(1 - \varepsilon_t)e^{-\alpha_t} = \sqrt{\varepsilon_t(1 - \varepsilon_t)}$: equal, so after normalization each is $\frac12$.
+
+\solution{ensemble-methods:exr:3}
+If $\varepsilon_t = 0$, $\alpha_t = +\infty$: $h_t$ classifies the training set perfectly, and the algorithm stops with
+$\sign h_t$ (in practice $\varepsilon_t$ is clipped away from $0$). If $\varepsilon_t>\frac12$, $\alpha_t<0$; the learner $-h_t$ has error $1 - \varepsilon_t<\frac12$
+and weight $-\alpha_t>0$, and $\alpha_th_t = (-\alpha_t)(-h_t)$: the same term is added, and the weight update
+$e^{-\alpha_ty_ih_t(x_i)}$ is unchanged.
+
+\solution{ensemble-methods:exr:4}
+Round 1: $\varepsilon_1 = 0.3$ (points $7, 8, 9$), $\alpha_1 = \frac12\ln\frac73\approx0.424$, $Z_1 = 2\sqrt{0.21}\approx0.917$. Misclassified weights become
+$0.1e^{\alpha_1}/Z_1 = 0.1\sqrt{7/3}/0.917\approx\frac16$, the others $0.1e^{-\alpha_1}/Z_1\approx\frac1{14}$ (check: $3\cdot\frac16 + 7\cdot\frac1{14} = 1$). The stump
+``$+1$ if $x\leq9.5$'' errs on $x = 4, 5, 6$ only, so $\varepsilon_2 = \frac3{14}\approx0.214$.
+
+\section{\nameref*{ch:gradient-boosting}}
+
+\solution{gradient-boosting:exr:1}
+For the squared loss, $\sum_{x_i\in R}\frac12(y_i - F_{m-1}(x_i) - \gamma)^2 = \sum\frac12(r_i - \gamma)^2$ is minimized by the mean of the
+residuals $r_i$. For the absolute loss, $\sum\abs{r_i - \gamma}$ is minimized by a median of the $r_i$
+(\cref{output-distributions:exr:2}).
+
+\solution{gradient-boosting:exr:2}
+With $p = \sigma(F)$, $L = \log(1 + e^F) - yF$ has $g = p - y$ and $h = p(1 - p)$. The Newton value
+$-G/H = \sum(y_i - p_i)/\sum p_i(1 - p_i)$. The best constant $F_0$ solves $\sum_i(\sigma(F_0) - y_i) = 0$: $\sigma(F_0) = \bar y$, i.e.\
+$F_0 = \log\frac{\bar y}{1 - \bar y}$, the log-odds of the proportion of positives.
+
+\solution{gradient-boosting:exr:3}
+With $L = e^{-yF}$, the pseudo-residuals are $r_i = y_ie^{-y_iF(x_i)} = y_iw_i$, with $w_i$ the AdaBoost weights. For
+$h$ with values $\pm1$, $\sum_ir_ih(x_i) = \sum_iw_iy_ih(x_i) = W(1 - 2\varepsilon)$, where $W = \sum w_i$ and $\varepsilon$ is the weighted
+error: maximizing it minimizes $\varepsilon$. The line search minimizes $\sum_iw_ie^{-\alpha y_ih(x_i)}$, which gives
+$\alpha = \frac12\ln\frac{1 - \varepsilon}\varepsilon$ (\cref{ensemble-methods:sec:adaboost}): this is AdaBoost.
+
+\solution{gradient-boosting:exr:4}
+The residuals are
+\[
+  r = y - 2.3125 = (-1.3125, -0.3125, 0.1875, 1.6875, 1.1875, 0.6875, -0.8125, -1.3125).
+\]
+For the
+threshold $2.5$ the leaves have means $-0.8125$ and $0.2708$ and total squared error $7.208$; for $6.5$,
+means $0.3542$ and $-1.0625$ and total $5.958$, the smallest over all thresholds. With $\nu = 0.5$ the
+model adds $0.177$ for $x\leq6.5$ and subtracts $0.531$ beyond, which brings the squared error of
+$F_1$ to $6.711$.
+
+\section{\nameref*{ch:dtw}}
+
+\solution{dtw:exr:1}
+A path using only steps $(1, 0)$ and $(0, 1)$ from $(1, 1)$ to $(n, m)$ makes $n - 1$ steps of the first kind and
+$m - 1$ of the second, in any order: $\binom{n + m - 2}{n - 1}$ such paths. Allowing diagonal steps adds more.
+
+\solution{dtw:exr:2}
+The local costs $\abs{a_i - c_j}$ are $(0, 1, 1)$ in both rows. Then $D(1, \cdot) = (0, 1, 2)$ and
+$D(2, 1) = 0 + D(1, 1) = 0$, $D(2, 2) = 1 + \min(1, 0, 0) = 1$, $D(2, 3) = 1 + \min(2, 1, 1) = 2$. So $\mathrm{DTW}_1(a, c) = 2$, reached
+for example by $(1, 1), (2, 1), (2, 2), (2, 3)$, with costs $0 + 0 + 1 + 1$: both $1$s of $c$ must be matched with a $0$.
+
+\solution{dtw:exr:3}
+$\frac\partial{\partial a_l}\bigl(-\gamma\log\sum_ke^{-a_k/\gamma}\bigr) = -\gamma\cdot\frac{-\frac1\gamma e^{-a_l/\gamma}}{\sum_ke^{-a_k/\gamma}} = \softmax(-a/\gamma)_l$. And
+$\operatorname{min}^\gamma(a, a) = -\gamma\log(2e^{-a/\gamma}) = a - \gamma\log2$: below the true minimum, as the bound of the text
+says.
+
+\section{\nameref*{ch:linear-time-series}}
+
+\solution{linear-time-series:exr:1}
+With $\beta = (1, 0.5, -0.3)$: $\gamma(0) = \sigma_Z^2(1 + 0.25 + 0.09) = 1.34\sigma_Z^2$, $\gamma(1) = \sigma_Z^2(0.5 - 0.15) = 0.35\sigma_Z^2$,
+$\gamma(2) = -0.3\sigma_Z^2$, $\gamma(k) = 0$ for $k\geq3$. So $\rho(1)\approx0.261$, $\rho(2)\approx-0.224$, and $\rho(k) = 0$ beyond.
+
+\solution{linear-time-series:exr:2}
+$1 + \beta^2 - 2\abs\beta = (1 - \abs\beta)^2\geq0$ gives $\abs\beta/(1 + \beta^2)\leq\frac12$, with equality iff $\abs\beta = 1$. And
+$\frac{1/\beta}{1 + 1/\beta^2} = \frac\beta{\beta^2 + 1}$.
+
+\solution{linear-time-series:exr:3}
+With $\alpha_1 = 0.5$: $0.5 + \alpha_2<1$, $\alpha_2 - 0.5<1$ and $\abs{\alpha_2}<1$, i.e.\ $-1<\alpha_2<0.5$. For $\alpha_2 = 0.3$, the Yule--Walker
+equations give $\rho(1) = \alpha_1/(1 - \alpha_2) = 0.5/0.7\approx0.714$ and $\rho(2) = \alpha_1\rho(1) + \alpha_2\approx0.657$.
+
+\solution{linear-time-series:exr:4}
+$\nabla(a + bt + ct^2) = b + c(2t - 1)$ and $\nabla(b + c(2t - 1)) = 2c$. If $S_{t-12} = S_t$ for all $t$, then
+$\nabla_{12}S_t = S_t - S_{t-12} = 0$.
+
+\solution{linear-time-series:exr:5}
+By the Itô isometry, the noise term has variance $\sigma^2\int_t^{t+\Delta}e^{-2\lambda(t+\Delta-s)}\,ds = \frac{\sigma^2}{2\lambda}(1 - e^{-2\lambda\Delta})$. The sampled
+process is AR(1) with $\alpha = e^{-\lambda\Delta}$, whose stationary variance is
+$\frac{\sigma^2}{2\lambda}(1 - e^{-2\lambda\Delta})/(1 - e^{-2\lambda\Delta}) = \frac{\sigma^2}{2\lambda}$, the stationary variance of the Ornstein--Uhlenbeck process.
+
+\section{\nameref*{ch:decomposition-forecasting}}
+
+\solution{decomposition-forecasting:exr:1}
+The weights $w_k$ ($k = -6,\dots,6$) are symmetric and sum to $1$, so $\sum_kw_k(a + b(t + k)) = a + bt$. For $S$ of
+period $12$, $S_{t-6} = S_{t+6}$, so $\mathrm{MA}_t = \frac1{12}\bigl(S_{t-6} + \sum_{k=-5}^5S_{t+k}\bigr)$, a sum over $12$ consecutive
+values, which is $0$.
+
+\solution{decomposition-forecasting:exr:2}
+$\mathrm{MA}_7 = \frac1{24}(Y_1 + 2(Y_2 + \dots + Y_{12}) + Y_{13})\approx124.77$, against $T_7 = 128$: $3.23$ below the trend, the
+remainder $4\sum_kw_kk(S_{7+k} - 1)$ of \cref{decomposition-forecasting:sec:ma}.
+
+\solution{decomposition-forecasting:exr:3}
+$\hat X_{t+1} = X_t - 0.5X_{t-1}$, $\hat X_{t+2} = \hat X_{t+1} - 0.5X_t = 0.5X_t - 0.5X_{t-1}$,
+$\hat X_{t+3} = \hat X_{t+2} - 0.5\hat X_{t+1} = -0.25X_{t-1}$. The two-step error is $X_{t+2} - \hat X_{t+2} = Z_{t+2} + Z_{t+1}$ (the first
+weight of the MA($\infty$) representation is $\psi_1 = \alpha_1 = 1$), with variance $2\sigma_Z^2$.

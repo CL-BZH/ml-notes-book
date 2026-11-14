@@ -1,371 +1,280 @@
-% Source: linear_time_series_models.tex
 \begin{notechapter}
-\chapter{Some Linear Time Series Models}\label{ch:linear-time-series}
+\chapter{Linear Time Series Models}\label{ch:linear-time-series}
+\chaptersubtitle{Stationarity, AR, MA, ARMA and their extensions}
 
-\section*{Preamble: Key Operators in Time Series Analysis}
-Before diving into the models, we introduce two fundamental operators 
-used extensively in time series analysis: the \textbf{Backward Shift 
-Operator} and the \textbf{Difference Operator}.
-
-\subsection*{Backward Shift Operator}
-The \textbf{Backward Shift Operator} $B$ is defined as:
-\[
-B X_t = X_{t-1}, \quad B^k X_t = X_{t-k}
-\]
-This operator shifts the time index of a time series backward by one 
-or more steps.
-
-\subsection*{Difference Operator}
-The \textbf{Difference Operator} $\nabla$ is defined as:
-\[
-\nabla X_t = X_t - X_{t-1} = (1 - B) X_t
-\]
-This operator computes the difference between consecutive observations. 
-Higher-order differences are defined recursively:
-\[
-\nabla^d X_t = \nabla (\nabla^{d-1} X_t)
-\]
-For example, the second difference is:
-\[
-\nabla^2 X_t = \nabla (X_t - X_{t-1}) = X_t - 2X_{t-1} + X_{t-2} = (1 - B)^2 X_t
-\]
-
-\subsection*{Seasonal Difference Operator}
-For seasonal time series, the \textbf{Seasonal Difference Operator} 
-$\nabla_s$ is defined as:
-\[
-\nabla_s X_t = X_t - X_{t-s} = (1 - B^s) X_t
-\]
-where $s$ is the seasonal period (e.g., $s = 12$ for monthly data). 
-Higher-order seasonal differences are defined as:
-\[
-\nabla_s^D X_t = (1 - B^s)^D X_t
-\]
-
-\section*{Introduction}
-This chapter introduces various probability models for time series, 
-focusing on linear models such as autoregressive (AR), moving average 
-(MA), and mixed ARMA models. The concept of stationarity is central 
-to these models, and we explore how to identify and fit these models 
-to time series data.
-
-\section{Stochastic Processes and Their Properties}
-A \textbf{stochastic process} is a collection of random variables 
-ordered in time. It can be either continuous or discrete. In this 
-chapter, we focus on discrete-time processes, where observations 
-are made at equal intervals.
-
-\subsection*{Key Properties}
-\begin{itemize}
-    \item \textbf{Mean function}: $\mu(t) = E[X(t)]$
-    \item \textbf{Variance function}: $\sigma^2(t) = \text{Var}[X(t)]$
-    \item \textbf{Autocovariance function (acv.f.)}: 
-          $\gamma(t_1, t_2) = \text{Cov}[X(t_1), X(t_2)]$
-    \item \textbf{Autocorrelation function (ac.f.)}: 
-          $\rho(\tau) = \gamma(\tau)/\gamma(0)$
+\begin{chapterintro}
+A time series is a sequence of observations ordered in time, in which, unlike the
+i.i.d.\ data of most of this book, neighbouring values are dependent. Linear models
+describe that dependence by writing each value as a linear combination of past
+values and of past shocks. This chapter introduces the operators used to write these
+models compactly, the notion of stationarity on which their theory rests, and the
+autoregressive, moving-average and mixed models, with the autocorrelation
+signature that identifies each. You will learn
+\begin{itemize}[nosep]
+  \item the backshift and difference operators, and weak and strict stationarity;
+  \item the autocovariance and autocorrelation functions and their properties;
+  \item MA($q$) processes, their autocorrelation cut-off and invertibility;
+  \item AR($p$) processes, the stationarity condition on the roots, and the Yule--Walker
+        equations;
+  \item ARMA, ARIMA, seasonal ARIMA and long-memory models, Wold's theorem, and the
+        continuous-time analogue of AR(1).
 \end{itemize}
+\prerequisites{covariance (\cref{ch:covariance-estimation}); complex roots of polynomials.}
+\end{chapterintro}
 
-\section{Stationary Processes}
-A time series is \textbf{strictly stationary} if the joint distribution 
-of any set of observations is invariant to time shifts. A process is 
-\textbf{second-order stationary} (or weakly stationary) if its mean 
-and variance are constant, and the autocovariance depends only on 
-the lag $\tau$.
+\section{Operators}\label{linear-time-series:sec:operators}
 
-\subsection*{Importance of Stationarity}
-Stationarity is crucial because much of the theory of time series 
-analysis is based on stationary processes. Non-stationary processes 
-can often be transformed into stationary ones by differencing or 
-other techniques.
+The \emph{backshift operator} $B$ maps a sequence to its delayed version, $BX_t = X_{t-1}$, and
+$B^kX_t = X_{t-k}$. Polynomials in $B$ act term by term: $(1 - 0.5B + 0.2B^2)X_t = X_t - 0.5X_{t-1} + 0.2X_{t-2}$. The
+\emph{difference operator} is $\nabla = 1 - B$:
+\[
+  \nabla X_t = X_t - X_{t-1},\qquad
+  \nabla^2X_t = (1 - B)^2X_t = X_t - 2X_{t-1} + X_{t-2},\qquad
+  \nabla^dX_t = (1 - B)^dX_t .
+\]
+For a seasonal period $s$ (e.g.\ $12$ for monthly data), the \emph{seasonal difference} is
+$\nabla_sX_t = (1 - B^s)X_t = X_t - X_{t-s}$, and $\nabla_s^D = (1 - B^s)^D$. Differencing removes trends: $\nabla$ turns a
+linear trend $a + bt$ into the constant $b$, and $\nabla^d$ removes a polynomial trend of degree $d$;
+$\nabla_s$ removes a pattern that repeats with period $s$.
 
-\section{Properties of the Autocorrelation Function (ac.f.)}
-The autocorrelation function (ac.f.) is a key tool for analyzing 
-time series. It measures the correlation between observations at 
-different lags.
+\section{Stationarity and autocorrelation}\label{linear-time-series:sec:stationarity}
 
-\subsection*{Key Properties of the ac.f.}
-\begin{itemize}
-    \item The ac.f. is an even function: $\rho(\tau) = \rho(-\tau)$.
-    \item The ac.f. is bounded: $|\rho(\tau)| \leq 1$.
-    \item The ac.f. does not uniquely identify the underlying model, 
-          as different processes can have the same ac.f.
+A discrete-time \emph{stochastic process} $(X_t)_{t\in\Z}$ has a mean function $\mu(t) = \E[X_t]$ and an
+autocovariance function $\gamma(t_1, t_2) = \Cov(X_{t_1}, X_{t_2})$.
+
+\begin{definition}[Stationarity]
+$(X_t)$ is \emph{strictly stationary} if the joint distribution of $(X_{t_1 + h},\dots,X_{t_k + h})$ does not depend
+on $h$, for all $k$ and $t_1,\dots,t_k$. It is \emph{weakly} (or second-order) \emph{stationary} if $\E[X_t^2]<\infty$,
+$\mu(t) = \mu$ is constant, and $\gamma(t, t + k) = \gamma(k)$ depends only on the lag $k$. Its
+\emph{autocorrelation function} is then $\rho(k) = \gamma(k)/\gamma(0)$.
+\end{definition}
+
+Strict stationarity with finite second moments implies weak stationarity; the converse
+holds for Gaussian processes, whose distribution is determined by $\mu$ and $\gamma$. From now on
+``stationary'' means weakly stationary.
+
+\begin{proposition}[Properties of the autocovariance]\label{linear-time-series:prop:acf}
+For a stationary process: $\gamma(-k) = \gamma(k)$; $\abs{\rho(k)}\leq1$; and $\gamma$ is \emph{nonnegative definite}:
+$\sum_{s,t}a_sa_t\gamma(t - s)\geq0$ for all finite sequences $(a_t)$.
+\end{proposition}
+
+\begin{proof}
+Symmetry: $\Cov(X_t, X_{t+k}) = \Cov(X_{t-k}, X_t)$. The bound is the Cauchy--Schwarz inequality. Last,
+$\sum_{s,t}a_sa_t\gamma(t - s) = \Var\bigl(\sum_ta_tX_t\bigr)\geq0$.
+\end{proof}
+
+Different processes can share the same autocorrelation function (see the MA(1) case
+below), so the ACF does not identify a model by itself; within the class of models
+considered, it often does once a normalization (invertibility) is imposed.
+
+\paragraph{White noise and random walks.} A \emph{white noise} $(Z_t)$ has mean $0$, variance
+$\sigma_Z^2$ and $\gamma(k) = 0$ for $k\neq0$; a \emph{purely random} (strict) white noise is moreover i.i.d. The
+\emph{random walk} $X_t = X_{t-1} + Z_t$, started at $X_0 = 0$, is $X_t = \sum_{i=1}^tZ_i$, with $\Var(X_t) = t\sigma_Z^2$: it is not
+stationary, but its difference $\nabla X_t = Z_t$ is.
+
+\section{Moving-average processes}\label{linear-time-series:sec:ma}
+
+\begin{definition}[MA($q$)]
+$X_t = Z_t + \beta_1Z_{t-1} + \dots + \beta_qZ_{t-q} = \theta(B)Z_t$, with $\theta(B) = 1 + \beta_1B + \dots + \beta_qB^q$ and $(Z_t)$ white noise.
+\end{definition}
+
+An MA process is a finite linear filter of white noise; it is always stationary, with
+mean $0$ and, setting $\beta_0 = 1$,
+\[
+  \gamma(k) = \Cov\Bigl(\sum_{i=0}^q\beta_iZ_{t-i}, \sum_{j=0}^q\beta_jZ_{t+k-j}\Bigr) = \sigma_Z^2\sum_{i=0}^{q-k}\beta_i\beta_{i+k}\quad(0\leq k\leq q),\qquad\gamma(k) = 0\quad(k>q),
+\]
+since only the terms with $t - i = t + k - j$, i.e.\ $j = i + k$, are correlated. \emph{The ACF of an
+MA($q$) cuts off after lag $q$}: values more than $q$ steps apart share no shock.
+
+For MA(1), $\rho(1) = \beta/(1 + \beta^2)$. This function takes the same value at $\beta$ and at $1/\beta$, so the
+processes with parameters $\beta$ and $1/\beta$ (and suitably rescaled noise) have the same ACF: for
+Gaussian noise they are the same process. The ambiguity is resolved by requiring
+\emph{invertibility}: the roots of $\theta(z) = 0$ lie outside the unit circle ($\abs\beta<1$ for MA(1)). Then
+$\theta(B)^{-1}$ exists as a convergent power series, and
+$Z_t = \theta(B)^{-1}X_t = \sum_j\pi_jX_{t-j}$: the shocks can be recovered from the past observations, which
+is what forecasting needs. Note also that $\abs{\rho(1)}\leq\frac12$ for every MA(1).
+
+\section{Autoregressive processes}\label{linear-time-series:sec:ar}
+
+\begin{definition}[AR($p$)]
+$X_t = \alpha_1X_{t-1} + \dots + \alpha_pX_{t-p} + Z_t$, i.e.\ $\phi(B)X_t = Z_t$ with $\phi(B) = 1 - \alpha_1B - \dots - \alpha_pB^p$.
+\end{definition}
+
+\paragraph{AR(1).} Substituting the equation into itself $k$ times,
+\[
+  X_t = Z_t + \alpha Z_{t-1} + \dots + \alpha^{k-1}Z_{t-k+1} + \alpha^kX_{t-k} .
+\]
+If $\abs\alpha<1$ and the process is bounded in mean square, the last term vanishes as $k\to\infty$ and
+$X_t = \sum_{j\geq0}\alpha^jZ_{t-j}$, an MA($\infty$). Then
+\[
+  \gamma(0) = \sigma_Z^2\sum_j\alpha^{2j} = \frac{\sigma_Z^2}{1 - \alpha^2},\qquad\rho(k) = \alpha^{\abs k} .
+\]
+For $\abs\alpha\geq1$ there is no stationary solution driven by the past ($\alpha = 1$ is the random walk).
+The ACF decays geometrically, alternating in sign when $\alpha<0$.
+
+\paragraph{Stationarity.} In general, $\phi(B)X_t = Z_t$ has a stationary solution of the form
+$X_t = \phi(B)^{-1}Z_t = \sum_{j\geq0}\psi_jZ_{t-j}$ (a \emph{causal} one) iff all roots of the characteristic polynomial
+$\phi(z) = 1 - \alpha_1z - \dots - \alpha_pz^p$ lie outside the unit circle, $\abs z>1$. Then $\phi(B)^{-1}$ factors into
+geometric series $(1 - z/z_r)^{-1}$, one per root, and the $\psi_j$ decay geometrically. The ACF is a
+combination of terms $z_r^{-k}$: geometric decay for real roots, damped oscillations for pairs
+of complex roots.
+
+\paragraph{Yule--Walker equations.} Multiply the AR($p$) equation by $X_{t-k}$, $k\geq1$, and take
+expectations: $\E[Z_tX_{t-k}] = 0$ for a causal process, so $\gamma(k) = \sum_i\alpha_i\gamma(k - i)$. Dividing by $\gamma(0)$, for
+$k = 1,\dots,p$:
+\[
+  \begin{pmatrix}1&\rho(1)&\cdots&\rho(p - 1)\\\rho(1)&1&\cdots&\rho(p - 2)\\\vdots&&\ddots&\vdots\\\rho(p - 1)&\rho(p - 2)&\cdots&1\end{pmatrix}
+  \begin{pmatrix}\alpha_1\\\alpha_2\\\vdots\\\alpha_p\end{pmatrix}
+  = \begin{pmatrix}\rho(1)\\\rho(2)\\\vdots\\\rho(p)\end{pmatrix}.
+\]
+The matrix is a correlation matrix (symmetric, Toeplitz, positive definite). Replacing $\rho$
+by the sample autocorrelations gives the Yule--Walker estimates of the $\alpha_i$; conversely,
+given the $\alpha_i$, the equations for $k>p$ generate the whole ACF recursively.
+
+\begin{example}[An AR(2) with complex roots]\label{linear-time-series:ex:ar2}
+$X_t = X_{t-1} - 0.5X_{t-2} + Z_t$. The roots of $1 - z + 0.5z^2$ are $z = 1\pm i$, of modulus $\sqrt2>1$: the process is
+stationary. The first Yule--Walker equation, $\rho(1) = \alpha_1 + \alpha_2\rho(1)$, gives
+$\rho(1) = \alpha_1/(1 - \alpha_2) = 1/1.5 = \frac23$, and then $\rho(k) = \rho(k - 1) - 0.5\rho(k - 2)$:
+\[
+  \rho = \bigl(1,\ 0.667,\ 0.167,\ -0.167,\ -0.250,\ -0.167,\ -0.042,\ 0.042,\ 0.063,\ \dots\bigr),
+\]
+a damped oscillation of period $8$ (the argument of $1 + i$ is $\pi/4$) whose amplitude shrinks by $1/\sqrt2$
+per lag. \Cref{linear-time-series:fig:acf} shows it with other examples.
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=2 by 2, horizontal sep=0.8cm, vertical sep=2.1cm, yticklabels at=edge left},
+  width=6.5cm, height=4.2cm, ymin=-1, ymax=1.05, xmin=-0.5, xmax=12.5, xtick={0,4,8,12},
+  tick label style={font=\scriptsize}, title style={font=\small}, xlabel={lag}, xlabel style={font=\scriptsize}]
+\nextgroupplot[title={AR(1), $\alpha = 0.8$}]
+  \addplot[ycomb, thick, bookaccent, mark=*, mark size=1pt] coordinates {(0,1.0000) (1,0.8000) (2,0.6400) (3,0.5120) (4,0.4096) (5,0.3277) (6,0.2621) (7,0.2097) (8,0.1678) (9,0.1342) (10,0.1074) (11,0.0859) (12,0.0687)};
+\nextgroupplot[title={AR(1), $\alpha = -0.8$}]
+  \addplot[ycomb, thick, bookaccent, mark=*, mark size=1pt] coordinates {(0,1.0000) (1,-0.8000) (2,0.6400) (3,-0.5120) (4,0.4096) (5,-0.3277) (6,0.2621) (7,-0.2097) (8,0.1678) (9,-0.1342) (10,0.1074) (11,-0.0859) (12,0.0687)};
+\nextgroupplot[title={AR(2), complex roots}]
+  \addplot[ycomb, thick, bookexample, mark=*, mark size=1pt] coordinates {(0,1.0000) (1,0.6667) (2,0.1667) (3,-0.1667) (4,-0.2500) (5,-0.1667) (6,-0.0417) (7,0.0417) (8,0.0625) (9,0.0417) (10,0.0104) (11,-0.0104) (12,-0.0156)};
+\nextgroupplot[title={MA(1), $\beta = 0.6$}]
+  \addplot[ycomb, thick, bookdef, mark=*, mark size=1pt] coordinates {(0,1.0000) (1,0.4412) (2,0) (3,0) (4,0) (5,0) (6,0) (7,0) (8,0) (9,0) (10,0) (11,0) (12,0)};
+\end{groupplot}
+\end{tikzpicture}
+\caption{Theoretical autocorrelation functions. AR processes decay geometrically, with
+alternating signs for a negative coefficient and damped oscillations for complex roots
+(\cref{linear-time-series:ex:ar2}); the MA(1) autocorrelation is $\beta/(1 + \beta^2)\approx0.44$ at lag $1$ and zero
+beyond.}
+\label{linear-time-series:fig:acf}
+\end{figure}
+
+\paragraph{Identification.} The ACF cuts off after lag $q$ for MA($q$) but decays for AR($p$). The
+\emph{partial} autocorrelation function (PACF), the correlation between $X_t$ and $X_{t-k}$ after
+removing the linear effect of $X_{t-1},\dots,X_{t-k+1}$, has the opposite behaviour: it cuts off after
+lag $p$ for AR($p$) (the last coefficient of the Yule--Walker solution of order $k$) and decays for
+MA($q$). Plots of the sample ACF and PACF are the classical first step of the Box--Jenkins
+method for choosing $p$ and $q$.
+
+\section{ARMA and its extensions}\label{linear-time-series:sec:arma}
+
+\begin{definition}[ARMA($p$, $q$)]
+$\phi(B)X_t = \theta(B)Z_t$, i.e.\ $X_t = \sum_{i=1}^p\alpha_iX_{t-i} + Z_t + \sum_{j=1}^q\beta_jZ_{t-j}$.
+\end{definition}
+
+It is stationary and causal if the roots of $\phi$ lie outside the unit circle, invertible if
+those of $\theta$ do (and $\phi$, $\theta$ have no common root, which would cancel). Its ACF is
+determined by the MA part for the first $q$ lags and then follows the AR recursion: it
+decays like an AR's after lag $q$. ARMA models describe with few parameters
+dependence structures that would need long pure AR or MA models.
+
+\paragraph{ARIMA.} A series whose $d$-th difference is ARMA is \emph{integrated} of order $d$:
+\[
+  \phi(B)(1 - B)^dX_t = \theta(B)Z_t\qquad\text{(ARIMA($p$, $d$, $q$))}.
+\]
+Its characteristic polynomial $\phi(z)(1 - z)^d$ has a root of multiplicity $d$ at $z = 1$, on the unit circle:
+the process is not stationary, but $\nabla^dX_t$ is. The random walk is ARIMA(0, 1, 0). Taking
+$d = 1$ removes a stochastic or linear trend, $d = 2$ a quadratic one; over-differencing creates
+an artificial non-invertible MA component and should be avoided.
+
+\paragraph{Seasonal ARIMA.} With period $s$, the SARIMA($p$, $d$, $q$)($P$, $D$, $Q$)$_s$ model
+\[
+  \phi(B)\,\Phi(B^s)\,(1 - B)^d(1 - B^s)^DX_t = \theta(B)\,\Theta(B^s)\,Z_t
+\]
+multiplies non-seasonal polynomials $\phi, \theta$ (lags $1, 2,\dots$) by seasonal ones $\Phi, \Theta$ (lags $s, 2s,\dots$).
+The classic ``airline model'' of Box and Jenkins for monthly data is
+$(1 - B)(1 - B^{12})X_t = (1 + \beta B)(1 + \Theta B^{12})Z_t$, i.e.\ SARIMA(0,1,1)(0,1,1)$_{12}$, usually applied to the
+logarithm of the series.
+
+\paragraph{Long memory.} The fractional difference $(1 - B)^d$ for non-integer $d$ is defined by the
+binomial series $\sum_k\binom dk(-B)^k$. ARFIMA($p$, $d$, $q$) models with $0<d<\frac12$ are stationary, but their
+autocorrelations decay hyperbolically, $\rho(k)\sim ck^{2d-1}$, so slowly that $\sum_k\abs{\rho(k)} = \infty$: \emph{long
+memory}, observed in river flows, network traffic and volatility.
+
+\section{General linear processes and Wold's theorem}\label{linear-time-series:sec:wold}
+
+A \emph{general linear process} is $X_t = \sum_{i\geq0}\psi_iZ_{t-i}$ with white noise $(Z_t)$ and $\psi_0 = 1$. It is well
+defined and stationary as soon as $\sum_i\psi_i^2<\infty$, with $\gamma(k) = \sigma_Z^2\sum_i\psi_i\psi_{i+k}$. The stronger
+condition $\sum_i\abs{\psi_i}<\infty$ is often assumed because it also makes the autocovariances absolutely
+summable (short memory). AR and ARMA processes are general linear processes with
+geometrically decaying $\psi_i$.
+
+\begin{theorem}[Wold decomposition]\label{linear-time-series:thm:wold}
+Every weakly stationary process with mean zero can be written $X_t = \sum_{i\geq0}\psi_iZ_{t-i} + V_t$, where
+$(Z_t)$ is the white noise of one-step linear prediction errors, $\sum\psi_i^2<\infty$, and $(V_t)$ is
+uncorrelated with $(Z_t)$ and \emph{deterministic}: perfectly predictable as a linear function of
+its own past (for instance a sinusoid with random phase).
+\end{theorem}
+
+Wold's theorem justifies linear models for second-order properties: once deterministic
+components are removed, every stationary process is an MA($\infty$), and ARMA models are
+rational approximations of its filter $\psi(B)$. It says nothing about nonlinear dependence,
+which can make the shocks $Z_t$ uncorrelated without being independent.
+
+\paragraph{Continuous time.} The Ornstein--Uhlenbeck process $dX = -\lambda X\,dt + \sigma\,dW$ ($\lambda>0$, $W$ a Brownian
+motion) is the continuous-time analogue of AR(1). Sampled every $\Delta$, it is exactly an AR(1):
+$X_{t+\Delta} = e^{-\lambda\Delta}X_t + \varepsilon_t$, with $\alpha = e^{-\lambda\Delta}\in(0, 1)$ and $\Var(\varepsilon_t) = \frac{\sigma^2}{2\lambda}(1 - e^{-2\lambda\Delta})$
+(\cref{linear-time-series:exr:5}).
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item $B$ shifts, $\nabla = 1 - B$ differences, $\nabla_s = 1 - B^s$ removes period-$s$ patterns.
+  \item Weak stationarity: constant mean, autocovariance depending only on the lag; the ACF
+        is symmetric, bounded by $1$ and nonnegative definite.
+  \item MA($q$): always stationary, ACF zero beyond lag $q$; invertibility (roots of $\theta$ outside the
+        unit circle) removes the ambiguity $\beta\leftrightarrow1/\beta$.
+  \item AR($p$): stationary iff the roots of $\phi$ lie outside the unit circle; ACF geometric or damped
+        oscillation; Yule--Walker equations link $\alpha$ and $\rho$. The PACF cuts off after lag $p$.
+  \item ARIMA differences away unit roots, SARIMA adds seasonal polynomials, ARFIMA gives
+        long memory.
+  \item Wold: every stationary process is an MA($\infty$) plus a deterministic part.
 \end{itemize}
+\end{chaptersummary}
 
-\section{Purely Random Processes}
-A \textbf{purely random process} consists of a sequence of independent 
-and identically distributed (i.i.d.) random variables, often assumed 
-to be normally distributed with mean zero and variance $\sigma^2_Z$.
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
 
-\subsection*{Properties}
-\begin{itemize}
-    \item The ac.f. of a purely random process is zero for all lags 
-          except lag 0, where it is 1.
-    \item Such processes are also called \textbf{white noise}.
-\end{itemize}
+\begin{exercise}\label{linear-time-series:exr:1}
+Compute the ACF of the MA(2) process $X_t = Z_t + 0.5Z_{t-1} - 0.3Z_{t-2}$.
+\solutionlink{linear-time-series:exr:1}
+\end{exercise}
 
-\section{Random Walks}
-A \textbf{random walk} is a process where each value is the sum of 
-the previous value and a purely random error term:
-\[
-X_t = X_{t-1} + Z_t
-\]
-The process is customarily started at zero when t = 0, so that
-\[
-X_1 = Z_1,\; \text{and}\; X_t = \sum_{i=1}^{t}Z_i
-\]
+\begin{exercise}\label{linear-time-series:exr:2}
+Show that $\abs{\beta/(1 + \beta^2)}\leq\frac12$, with equality iff $\beta = \pm1$, and that $\beta$ and $1/\beta$ give the same $\rho(1)$.
+\solutionlink{linear-time-series:exr:2}
+\end{exercise}
 
-Random walks are non-stationary, but their first differences are 
-stationary. Using the difference operator, this can be written as:
-\[
-\nabla X_t = Z_t
-\]
+\begin{exercise}\label{linear-time-series:exr:3}
+For which values of $\alpha_2$ is $X_t = 0.5X_{t-1} + \alpha_2X_{t-2} + Z_t$ stationary? For $\alpha_2 = 0.3$, compute $\rho(1)$
+and $\rho(2)$.
+\hint{An AR(2) is stationary iff $\alpha_1 + \alpha_2<1$, $\alpha_2 - \alpha_1<1$ and $\abs{\alpha_2}<1$.}
+\solutionlink{linear-time-series:exr:3}
+\end{exercise}
 
-\section{Moving Average (MA) Processes}
-An \textbf{MA(q) process} is defined as:
-\[
-X_t = Z_t + \beta_1 Z_{t-1} + \cdots + \beta_q Z_{t-q}
-\]
-Using the backward shift operator, this can be written as:
-\[
-X_t = \theta(B) Z_t
-\]
-where $\theta(B) = 1 + \beta_1 B + \cdots + \beta_q B^q$ is the MA 
-polynomial.
+\begin{exercise}\label{linear-time-series:exr:4}
+Show that $\nabla^2(a + bt + ct^2) = 2c$, and that $\nabla_{12}$ annihilates any sequence of period $12$.
+\solutionlink{linear-time-series:exr:4}
+\end{exercise}
 
-\subsection*{Introduction to MA Processes}
-The moving average (MA) model is a simple yet powerful tool for 
-modeling time series. It predicts future values based on past 
-forecast errors, making it particularly useful for capturing 
-short-term fluctuations in the data. The order $q$ of the MA model 
-determines how many past errors are used for prediction.
-
-\subsection*{Properties}
-\begin{itemize}
-    \item The ac.f. of an MA(q) process "cuts off" after lag $q$, 
-          meaning $\rho(k) = 0$ for $k > q$.
-    \item MA processes are always stationary.
-    \item The process must satisfy the \textbf{invertibility condition} 
-          to ensure uniqueness. This condition requires that the roots 
-          of the MA polynomial $\theta(B)$ lie outside the unit circle.
-\end{itemize}
-
-\subsection*{Invertibility Condition}
-A process is invertible if there exists a polynomial $\theta^{-1}(B)$ 
-such that:
-\[
-\theta^{-1}(B) \theta(B) = 1
-\]
-This ensures that the MA process can be expressed as an infinite AR 
-process, which is useful for forecasting and interpretation.
-
-\section{Autoregressive (AR) Processes}
-An \textbf{AR(p) process} is defined as:
-\[
-X_t = \alpha_1 X_{t-1} + \cdots + \alpha_p X_{t-p} + Z_t
-\]
-Using the backward shift operator, this can be written as:
-\[
-\phi(B) X_t = Z_t
-\]
-where $\phi(B) = 1 - \alpha_1 B - \cdots - \alpha_p B^p$ is the AR 
-polynomial.
-
-\subsection*{Introduction to AR Processes}
-The autoregressive (AR) model is a fundamental tool in time series 
-analysis. It predicts future values based on past values, making it 
-particularly useful for capturing trends and dependencies in the data. 
-The order $p$ of the AR model determines how many past values are used 
-for prediction.
-
-\subsection*{Characteristic Equation}
-The \textbf{characteristic equation} of an AR(p) process is given by:
-\[
-1 - \alpha_1 B - \alpha_2 B^2 - \cdots - \alpha_p B^p = 0
-\]
-The roots of this equation determine the stationarity of the process.
-
-\subsection*{Stationarity Condition}
-An AR(p) process is stationary if all the roots of the characteristic 
-equation lie outside the unit circle. This ensures that the process 
-does not explode over time.
-
-\subsection*{Autocorrelation Function (ac.f.)}
-The ac.f. of an AR(p) process decays exponentially or as a damped 
-sinusoid, depending on the roots of the characteristic equation. 
-For example:
-\begin{itemize}
-    \item If the roots are real, the ac.f. decays exponentially.
-    \item If the roots are complex, the ac.f. exhibits damped 
-          sinusoidal behavior.
-\end{itemize}
-
-\subsection*{Yule-Walker Equations}
-The parameters of an AR(p) process can be estimated using the 
-\textbf{Yule-Walker equations}:
-\[
-\rho(k) = \alpha_1 \rho(k-1) + \cdots + \alpha_p \rho(k-p), \quad k \geq 1
-\]
-These equations relate the autocorrelations to the AR coefficients.
-
-\section{Mixed ARMA Models}
-An \textbf{ARMA(p, q) model} combines AR and MA components:
-\[
-X_t = \alpha_1 X_{t-1} + \cdots + \alpha_p X_{t-p} + Z_t + \beta_1 Z_{t-1} 
-+ \cdots + \beta_q Z_{t-q}
-\]
-Using the backward shift operator, this can be written as:
-\[
-\phi(B) X_t = \theta(B) Z_t
-\]
-where $\phi(B) = 1 - \alpha_1 B - \cdots - \alpha_p B^p$ is the AR 
-polynomial, and $\theta(B) = 1 + \beta_1 B + \cdots + \beta_q B^q$ 
-is the MA polynomial.
-
-\subsection*{Introduction to ARMA Processes}
-The ARMA model combines the strengths of both AR and MA models, 
-allowing for more flexible and accurate predictions. The AR component 
-captures the dependency on past values, while the MA component captures 
-the dependency on past errors. Together, they provide a powerful tool 
-for modeling stationary time series.
-
-\subsection*{Stationarity and Invertibility}
-\begin{itemize}
-    \item The ARMA process is stationary if the roots of $\phi(B)$ 
-          lie outside the unit circle.
-    \item The process is invertible if the roots of $\theta(B)$ 
-          lie outside the unit circle.
-\end{itemize}
-
-\subsection*{Autocorrelation Function (ac.f.)}
-The ac.f. of an ARMA process is a mixture of the ac.f.s of the AR 
-and MA components. It generally decays exponentially after lag $q$.
-
-\section{Integrated ARMA (ARIMA) Models}
-An \textbf{ARIMA(p, d, q) model} is used for non-stationary time series 
-that can be made stationary by differencing $d$ times. The model is 
-written as:
-\[
-\phi(B) \nabla^d X_t = \theta(B) Z_t
-\]
-or equivalently:
-\[
-\phi(B) (1 - B)^d X_t = \theta(B) Z_t
-\]
-where $\nabla^d = (1 - B)^d$ is the $d$-th difference operator.
-
-\subsection*{Introduction to ARIMA Processes}
-The ARIMA model extends the ARMA model by incorporating differencing 
-to handle non-stationary time series. Differencing removes trends and 
-makes the series stationary, allowing the ARMA model to be applied. 
-The order $d$ of differencing determines how many times the series 
-is differenced.
-
-\subsection*{Properties}
-\begin{itemize}
-    \item The differenced series $\nabla^d X_t$ is an ARMA(p, q) 
-          process.
-    \item ARIMA models are widely used in practice, especially for 
-          economic and financial time series.
-    \item The differencing operation removes trends and makes the 
-          series stationary.
-    \item The parameters $p$, $d$, and $q$ must be chosen carefully 
-          to ensure a good fit.
-\end{itemize}
-
-\section{Seasonal ARIMA (SARIMA) Models}
-A \textbf{SARIMA(p, d, q)(P, D, Q)}$_s$ \textbf{model} extends the ARIMA
-model to handle seasonal patterns. It is defined as:
-\[
-\phi(B) \Phi(B^s) \nabla^d \nabla_s^D X_t = \theta(B) \Theta(B^s) Z_t
-\]
-or equivalently:
-\[
-\phi(B) \Phi(B^s) (1 - B)^d (1 - B^s)^D X_t = \theta(B) \Theta(B^s) Z_t
-\]
-where:
-\begin{itemize}
-    \item $\phi(B)$ and $\theta(B)$ are the non-seasonal AR and MA 
-          polynomials.
-    \item $\Phi(B^s)$ and $\Theta(B^s)$ are the seasonal AR and MA 
-          polynomials.
-    \item $s$ is the seasonal period (e.g., 12 for monthly data).
-    \item $D$ is the order of seasonal differencing.
-\end{itemize}
-
-\subsection*{Introduction to SARIMA Processes}
-The SARIMA model extends the ARIMA model to handle seasonal patterns 
-in the data. It incorporates both non-seasonal and seasonal components, 
-making it suitable for time series with strong seasonal trends. The 
-seasonal differencing $\nabla_s^D$ removes seasonal trends, allowing 
-the ARIMA model to be applied.
-
-\subsection*{Properties}
-\begin{itemize}
-    \item SARIMA models are useful for time series with both trend 
-          and seasonal components.
-    \item The seasonal differencing $\nabla_s^D = (1 - B^s)^D$ removes 
-          seasonal trends.
-\end{itemize}
-
-\section{Fractional Differencing and Long-Memory Models}
-\textbf{Fractional ARIMA (ARFIMA) models} extend ARIMA models by 
-allowing the differencing parameter $d$ to be a non-integer. This 
-leads to \textbf{long-memory processes}, where the autocorrelation 
-function decays very slowly.
-
-\subsection*{Long-Memory Processes}
-\begin{itemize}
-    \item In a long-memory process, the autocorrelations are not 
-          absolutely summable, meaning they decay at a hyperbolic 
-          rate rather than exponentially.
-    \item These processes are useful for modeling time series where 
-          observations far apart in time still exhibit some correlation.
-    \item The fractional differencing parameter $d$ controls the 
-          degree of long memory. For $0 < d < 0.5$, the process is 
-          stationary and exhibits long memory.
-\end{itemize}
-
-\section{The General Linear Process}
-A \textbf{general linear process} can be expressed as an infinite-order 
-MA process:
-\[
-X_t = \sum_{i=0}^{\infty} \psi_i Z_{t-i}
-\]
-where $\psi_i$ are weights and $Z_t$ is a purely random process.
-
-\subsection*{Properties}
-\begin{itemize}
-    \item This representation is useful for understanding the 
-          properties of stationary processes.
-        \item The process is (weakly) stationary as soon as the weights are square summable,
-          $\sum_i \psi_i^2 < \infty$ (then $\gamma(k) = \sigma_Z^2 \sum_i \psi_i \psi_{i+k}$). Absolute
-          summability, $\sum_i |\psi_i| < \infty$, is a stronger sufficient condition that is often
-          assumed because it also guarantees absolutely summable autocovariances (short memory).
-\end{itemize}
-
-\section{Continuous-Time Processes}
-The chapter briefly discusses continuous-time processes, such as the 
-\textbf{Ornstein-Uhlenbeck process}, which is a continuous-time 
-analogue of the AR(1) process.
-
-\subsection*{Properties}
-\begin{itemize}
-    \item Continuous-time processes are more complex to analyze 
-          than discrete-time processes.
-    \item They are often used in physics and engineering.
-\end{itemize}
-
-\section{The Wold Decomposition Theorem}
-The \textbf{Wold Decomposition Theorem} states that any stationary 
-process can be decomposed into a purely deterministic component 
-and a purely indeterministic component, which can be represented 
-as an infinite-order MA process.
-
-\subsection*{Implications}
-\begin{itemize}
-    \item The theorem provides a theoretical foundation for the 
-          use of MA and ARMA models in time series analysis.
-    \item It highlights the importance of the purely random 
-          component in modeling time series.
-\end{itemize}
+\begin{exercise}\label{linear-time-series:exr:5}
+For the Ornstein--Uhlenbeck process, $X_{t+\Delta} = e^{-\lambda\Delta}X_t + \int_t^{t+\Delta}e^{-\lambda(t+\Delta-s)}\sigma\,dW_s$. Using the Itô isometry,
+compute the variance of the noise term and the stationary variance of the sampled AR(1).
+\solutionlink{linear-time-series:exr:5}
+\end{exercise}
 \end{notechapter}

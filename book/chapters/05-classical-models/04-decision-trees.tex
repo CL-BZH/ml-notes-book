@@ -1,1212 +1,377 @@
-% Source: decision_tree.tex
 \begin{notechapter}
 \chapter{Decision Trees}\label{ch:decision-trees}
+\chaptersubtitle{Greedy recursive partitioning, impurity, pruning}
 
-\section{Fundamentals}
-
-\subsection{Overview}
-A decision tree is a supervised machine learning algorithm used
-for both classification and regression tasks. It works by
-recursively splitting the data into subsets based on feature
-values, aiming to maximize the homogeneity\footnote{Homogeneity
-refers to the purity of a subset with respect to the target
-variable. In classification, a subset is homogeneous if all
-elements belong to the same class. In regression, a subset is
-homogeneous if the target values are very similar.} of the target
-variable within each subset.
-
-\subsection{Key Concepts}
-
-\subsubsection{Tree Structure}
-\begin{itemize}
-    \item \textbf{Nodes}: Represent decisions based on features.
-    \item \textbf{Branches}: Represent outcomes of decisions.
-    \item \textbf{Leaf Nodes}: Represent final predictions (class
-    labels or continuous values).
+\begin{chapterintro}
+A decision tree predicts by asking a sequence of simple questions about the input
+--- is $x_j\leq s$? is the colour red? --- each answer leading to the next question, until a
+leaf gives the prediction. Trees are grown greedily: at each node, choose the question
+that makes the two (or more) resulting groups as pure as possible, and repeat. This
+chapter makes ``pure'' precise, shows what the greedy choice can miss, and explains
+how trees are pruned and how their features are ranked. You will learn
+\begin{itemize}[nosep]
+  \item the impurity measures (Gini, entropy, misclassification, variance), why the first
+        two are preferred, and the information gain and gain ratio;
+  \item how CART searches for the best binary split, for numerical and categorical
+        features, in classification and regression;
+  \item the differences between ID3, C4.5/C5.0 and CART, including missing values;
+  \item cost-complexity pruning and its sequence of subtrees;
+  \item impurity-based and permutation feature importances, and their biases.
 \end{itemize}
+\prerequisites{entropy (\cref{cross-entropy:sec:entropy}); \cref{ch:erm} for overfitting.}
+\end{chapterintro}
 
-\subsubsection{Splitting Criteria}
-The choice of splitting criterion depends on the task:
-\begin{itemize}
-    \item \textbf{Classification}: Gini Impurity, Entropy,
-    Information Gain, Gain Ratio.
-    \item \textbf{Regression}: Variance Reduction.
-\end{itemize}
+\section{Trees as partitions}\label{decision-trees:sec:partition}
 
-\subsubsection{Recursive Partitioning}
-The tree is built recursively by splitting the data at each node
-until a stopping criterion is met (e.g., maximum depth, minimum
-samples per leaf).
-
-\subsubsection{Prediction}
-To predict a new instance, traverse the tree from the root to a
-leaf node based on feature values. The prediction is the value
-associated with the leaf.
-
-\section{Splitting Criteria}
-
-\subsection{Gini Impurity}
-Gini Impurity measures the likelihood of misclassifying a randomly
-chosen element. It is calculated as:
-
+A binary tree with axis-aligned splits partitions the input space into rectangular cells,
+one per leaf. Each internal node $t$ holds a question $x_j\leq s$ (or $x_j\in A$ for a categorical
+feature), and sends a point left or right according to the answer. Each leaf $\ell$ holds a
+constant $c_\ell$, and the tree predicts
 \[
-\text{Gini}(S) = 1 - \sum_{i=1}^{c} (p_i)^2
+  f(x) = \sum_{\ell\in\text{leaves}}c_\ell\,\bbone[x\in\text{cell}_\ell],
 \]
+a piecewise-constant function. Given the cells, the best constants are immediate: for the
+squared error, the mean of the training targets in the cell; for the 0--1 loss, the
+majority class; for the log-loss, the class frequencies in the cell. The difficulty is
+choosing the cells, and an exhaustive search is hopeless: already the problem of building
+the binary tree of tests that identifies every training point with the smallest expected
+number of tests is NP-complete (Hyafil and Rivest, \emph{Constructing Optimal Binary
+Decision Trees is NP-Complete}, Information Processing Letters, 1976). Trees are therefore grown \emph{greedily}, one split at
+a time, from the root down.
 
-where \( S \) is the dataset, \( c \) is the number of classes,
-and \( p_i \) is the proportion of class \( i \) in \( S \).
+\section{Impurity}\label{decision-trees:sec:impurity}
 
-\subsection{Entropy and Information Gain}
-Entropy measures the disorder or uncertainty in the dataset:
+Let a node contain a set $S$ of training points with class proportions $p = (p_1,\dots,p_K)$. An
+\emph{impurity} is a function $i(p)$ that is zero when one class has all the points and largest
+when the classes are balanced.
 
+\begin{definition}[Impurity measures]
+\begin{align*}
+  \text{Gini:}\quad& i_G(p) = 1 - \sum_kp_k^2 = \sum_kp_k(1 - p_k),\\
+  \text{entropy:}\quad& i_H(p) = -\sum_kp_k\log_2p_k,\\
+  \text{misclassification:}\quad& i_M(p) = 1 - \max_kp_k .
+\end{align*}
+For regression, the impurity of a node is the variance of its targets,
+$i_V(S) = \frac1{\abs S}\sum_{i\in S}(y_i - \bar y_S)^2$.
+\end{definition}
+
+Each has an interpretation. The misclassification rate is the training error of the
+majority vote in the node. The Gini index $\sum_kp_k(1 - p_k)$ is the error of a classifier that
+predicts a class \emph{at random} with the node's proportions: it is right for class $k$ with
+probability $p_k$, wrong with probability $1 - p_k$. Equivalently, it is the probability that two
+points drawn at random from the node have different classes. The entropy is the
+average number of bits needed to code the class of a point of the node
+(\cref{cross-entropy:sec:entropy}); it is also the minimal log-loss of a constant prediction in
+the node. The variance is the minimal squared error of a constant prediction.
+\Cref{decision-trees:fig:impurity} compares them for two classes.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=8.5cm, height=5.5cm, xmin=0, xmax=1, ymin=0, ymax=0.55, xlabel={$p_1$}, ylabel={impurity},
+  legend style={font=\small, draw=none, at={(0.5,-0.32)}, anchor=north}, legend cell align=left, legend columns=3]
+  \addplot[very thick, bookaccent, domain=0:1, samples=101] {2*x*(1-x)};
+  \addlegendentry{Gini}
+  \addplot[very thick, bookexample, dashed, domain=0.0005:0.9995, samples=200] {0.5*(-x*ln(x)-(1-x)*ln(1-x))/ln(2)};
+  \addlegendentry{entropy$/2$}
+  \addplot[very thick, bookpitfall, densely dotted, domain=0:1, samples=3] {min(x,1-x)};
+  \addlegendentry{misclassification}
+\end{axis}
+\end{tikzpicture}
+\caption{Impurity measures for two classes. Entropy is halved so that all three equal $\frac12$
+at $p_1 = \frac12$. Gini and entropy are strictly concave; the misclassification rate is
+piecewise linear.}
+\label{decision-trees:fig:impurity}
+\end{figure}
+
+\paragraph{The gain of a split.} A split sends $S$ into children $S_1,\dots,S_m$. Its \emph{gain} is the
+decrease of the impurity, weighted by the sizes of the children:
 \[
-\text{Entropy}(S) = -\sum_{i=1}^{c} p_i \log_2(p_i)
+  \Delta i = i(S) - \sum_{v=1}^m\frac{\abs{S_v}}{\abs S}\,i(S_v) .
 \]
+With the entropy, $\Delta i$ is the \emph{information gain} $\mathrm{IG}$; it is the mutual information
+between the class and the outcome of the split, in the empirical distribution of the
+node. With the variance, it is the \emph{variance reduction}, and minimizing the weighted
+variance of the children is minimizing the total squared error of a two-leaf tree.
 
-\subsubsection{Information Gain}
-Information Gain measures the reduction in entropy after splitting
-the dataset on a feature:
+\begin{proposition}[Splits never increase a concave impurity]\label{decision-trees:prop:concave}
+If $i$ is concave, $\Delta i\geq0$ for every split. If $i$ is strictly concave, $\Delta i>0$ unless all children
+have the same class proportions as the parent.
+\end{proposition}
 
+\begin{proof}
+The parent's proportions are the average of the children's,
+$p = \sum_v\frac{\abs{S_v}}{\abs S}p^{(v)}$. By Jensen's inequality, $i(p)\geq\sum_v\frac{\abs{S_v}}{\abs S}i(p^{(v)})$, with equality for strictly
+concave $i$ iff all $p^{(v)}$ are equal.
+\end{proof}
+
+This is why Gini and entropy are preferred to the misclassification rate for growing
+trees. The misclassification rate is concave but not strictly: a split can improve the
+purity of the children without changing their majority classes, and then it has gain $0$.
+
+\begin{example}[Two splits with the same error]\label{decision-trees:ex:esl}
+A node holds $400$ points of each of two classes. Split A gives children $(300, 100)$ and
+$(100, 300)$; split B gives $(200, 400)$ and $(200, 0)$. Both misclassify $200$ points: weighted
+misclassification $0.25$ in both cases. But split B produces a pure leaf, which can be
+left alone, whereas A produces two impure ones. Gini prefers B: the weighted Gini is
+$\frac12\cdot0.375 + \frac12\cdot0.375 = 0.375$ for A and $\frac34\cdot\frac49 + \frac14\cdot0 = 0.333$ for B. Entropy agrees ($0.811$ against $0.689$
+bits).
+\end{example}
+
+\paragraph{Gain ratio.} The information gain favours splits into many small children: a
+feature with a different value for every training point (an identifier) has the
+maximal gain, the full entropy of the node, and is useless for prediction. C4.5 divides
+by the entropy of the split itself,
 \[
-\text{IG}(S, A) = \text{Entropy}(S) - \sum_{v \in \text{Values}(A)}
-\frac{|S_v|}{|S|} \text{Entropy}(S_v)
+  \mathrm{SplitInfo} = -\sum_v\frac{\abs{S_v}}{\abs S}\log_2\frac{\abs{S_v}}{\abs S},\qquad
+  \mathrm{GainRatio} = \frac{\mathrm{IG}}{\mathrm{SplitInfo}},
 \]
+which is large for splits into many children of similar size. For a node of $10$ points, $5$
+of each class, split into $(4, 2)$ and $(1, 3)$: $\mathrm{IG} = 1 - (0.6\times0.918 + 0.4\times0.811)\approx0.125$ bits,
+$\mathrm{SplitInfo} = -(0.6\log_20.6 + 0.4\log_20.4)\approx0.971$, and $\mathrm{GainRatio}\approx0.129$. (C4.5 only
+considers splits whose gain is at least the average gain, since the ratio is unstable
+when $\mathrm{SplitInfo}$ is close to $0$.)
 
-where \( A \) is the feature, \( S_v \) is the subset of \( S \)
-where \( A = v \), and \( \text{Values}(A) \) are the possible
-values of \( A \).
+\section{Greedy growth and what it misses}\label{decision-trees:sec:greedy}
 
-\subsubsection{Gain Ratio}
-Gain Ratio is a modification of Information Gain that reduces bias
-towards features with many values. It is calculated as:
-
-\[
-\text{GainRatio}(S, A) = \frac{\text{IG}(S, A)}{\text{SplitInfo}(A)}
-\]
-
-where \(\text{SplitInfo}(A)\) is the entropy of the feature \( A \):
-
-\[
-\text{SplitInfo}(A) = -\sum_{v \in \text{Values}(A)} \frac{|S_v|}{|S|}
-\log_2 \left( \frac{|S_v|}{|S|} \right)
-\]
-
-\subsubsection{Why Split Info?}
-Split Info penalizes features with many values by dividing the
-Information Gain by the entropy of the feature itself. This
-prevents the algorithm from favoring features that split the data
-into many small subsets, which may not generalize well.
-
-\subsection{Variance Reduction}
-For regression tasks, Variance Reduction measures the reduction in
-variance of the target variable after splitting:
-
-\[
-\text{Variance Reduction} = \text{Var}(S) - \sum_{v \in
-\text{Values}(A)} \frac{|S_v|}{|S|} \text{Var}(S_v)
-\]
-
-\subsection{Misclassification Impurity}
-Misclassification Impurity measures the minimum probability of
-misclassifying a randomly chosen element:
-
-\[
-\text{Misclassification}(S) = 1 - \max(p_i)
-\]
-
-\section{Feature Importance in Decision Trees}
-Feature importance is a measure of how much a feature contributes
-to the predictive power of the decision tree. It is calculated
-based on the reduction in the impurity measure (e.g., Gini Impurity
-or Entropy for classification, Variance Reduction for regression)
-that a feature achieves when it is used to split the data.
-
-\subsubsection{How Feature Importance is Calculated}
-\begin{itemize}
-    \item \textbf{Impurity Reduction at Each Split}:
-    \begin{itemize}
-        \item At each node, the algorithm calculates the reduction
-              in impurity achieved by splitting on a feature.
-        \item The reduction is calculated as:
-        \[
-        \text{Impurity Reduction} = \text{Impurity}_{\text{before split}}
-        - \left( \frac{|S_1|}{|S|} \cdot \text{Impurity}(S_1) + \frac{|S_2|}{|S|} \cdot \text{Impurity}(S_2) \right)
-        \]
-        where:
-        \begin{itemize}
-            \item \( S \) is the dataset before the split.
-            \item \( S_1 \) and \( S_2 \) are the datasets in the left and right branches after the split.
-            \item \( \text{Impurity}(S_1) \) and \( \text{Impurity}(S_2) \) are the impurities of the left and right branches.
-            \item \( \frac{|S_1|}{|S|} \) and \( \frac{|S_2|}{|S|} \) are the proportions of data in the left and right branches.
-        \end{itemize}
-    \end{itemize}
-    \item \textbf{Summing Impurity Reduction}:
-    \begin{itemize}
-        \item For each feature, the total impurity reduction is
-              summed across all splits where the feature is used.
-    \end{itemize}
-    \item \textbf{Normalization}:
-    \begin{itemize}
-        \item The importance of each feature is normalized so that
-              the sum of all feature importances is 1.
-        \item The formula for feature importance is:
-        \[
-        \text{Importance}(A) = \frac{\sum_{\text{splits using } A}
-        \text{Impurity Reduction}}{\sum_{\text{all splits}}
-        \text{Impurity Reduction}}
-        \]
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Feature Usage in ID3 vs. CART}
-\begin{itemize}
-    \item \textbf{ID3}:
-    \begin{itemize}
-        \item In ID3, a feature can only be used \textbf{once in a given path}
-              from the root to a leaf node.
-        \item For example, if the feature "color" is used to split the data
-              into branches for "blue," "red," and "green," the feature "color"
-              cannot be reused in any of these branches.
-        \item However, the same feature can be used in \textbf{different paths}
-              (branches) of the tree, as long as it hasn't been used in the
-              current path.
-    \end{itemize}
-    \item \textbf{CART}:
-    \begin{itemize}
-        \item In CART, a feature can be used \textbf{multiple times} in the tree,
-              even in the same path, as long as it provides the best split.
-        \item This allows CART to handle continuous features more effectively
-              and create more flexible trees.
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Example: Feature Usage in ID3}
-Consider the following dataset:
-
-\begin{tabular}{|l|l|l|}
-    \hline
-    Color & Size & Target \\
-    \hline
-    Blue & Small & Yes \\
-    Blue & Large & No \\
-    Red & Small & Yes \\
-    Red & Large & No \\
-    Green & Small & No \\
-    Green & Large & Yes \\
-    \hline
+\begin{example}[An interaction that greedy growth cannot see]\label{decision-trees:ex:xor}
+Six training points, two categorical features:
+\begin{center}
+\begin{tabular}{@{}lll@{\qquad}lll@{}}
+\toprule
+colour & size & class & colour & size & class \\
+\midrule
+blue & small & yes & blue & large & no \\
+red & small & yes & red & large & no \\
+green & small & no & green & large & yes \\
+\bottomrule
 \end{tabular}
+\end{center}
+The root has $3$ yes and $3$ no: entropy $1$ bit.
+\begin{itemize}[nosep]
+  \item Splitting on colour gives three children with one yes and one no each: entropy $1$
+        bit each, $\mathrm{IG}(\text{colour}) = 0$.
+  \item Splitting on size gives (yes, yes, no) and (no, no, yes): entropy $h(\frac13)\approx0.918$ each,
+        $\mathrm{IG}(\text{size})\approx0.082$ bits.
+\end{itemize}
+A greedy algorithm splits on size first; then, inside each child, colour separates the
+classes perfectly. The final tree is correct, but the feature that carries the
+information looks useless at the root. With two features of the XOR kind (colour
+alone and size alone both useless), no first split has any gain and greedy growth stops
+at the root. This is the price of greediness, and a reason why ensembles of trees
+(\cref{ch:ensemble-methods}) or a little lookahead help.
+\end{example}
 
-\subsubsection{Tree Construction}
-\begin{itemize}
-    \item \textbf{Root Node}:
-    \begin{itemize}
-        \item The algorithm selects "color" as the best feature to split on.
-        \item The data is split into three branches: "blue," "red," and "green."
-    \end{itemize}
-    \item \textbf{Left Branch (Color = Blue)}:
-    \begin{itemize}
-        \item The subset of data for "blue" is:
-        \[
-        \text{Blue}: \{(Blue, Small, Yes), (Blue, Large, No)\}
-        \]
-        \item The feature "color" cannot be used again in this branch.
-        \item The algorithm evaluates the remaining feature ("size") and splits the data based on it.
-    \end{itemize}
-    \item \textbf{Middle Branch (Color = Red)}:
-    \begin{itemize}
-        \item The subset of data for "red" is:
-        \[
-        \text{Red}: \{(Red, Small, Yes), (Red, Large, No)\}
-        \]
-        \item The feature "color" cannot be used again in this branch.
-        \item The algorithm evaluates the remaining feature ("size") and splits the data based on it.
-    \end{itemize}
-    \item \textbf{Right Branch (Color = Green)}:
-    \begin{itemize}
-        \item The subset of data for "green" is:
-        \[
-        \text{Green}: \{(Green, Small, No), (Green, Large, Yes)\}
-        \]
-        \item The feature "color" cannot be used again in this branch.
-        \item The algorithm evaluates the remaining feature ("size") and splits the data based on it.
-    \end{itemize}
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[level distance=1.3cm, every node/.style={font=\small},
+  level 1/.style={sibling distance=5cm}, level 2/.style={sibling distance=1.6cm},
+  inner/.style={draw, rounded corners, fill=bookaccent!10, align=center},
+  leaf/.style={draw, fill=gray!8, align=center}]
+  \node[inner] {size?\\[-2pt]\scriptsize 3 yes, 3 no}
+    child {node[inner] {colour?\\[-2pt]\scriptsize 2 yes, 1 no}
+      child {node[leaf] {yes} edge from parent node[left, font=\scriptsize] {blue}}
+      child {node[leaf] {yes} edge from parent node[left, font=\scriptsize] {red}}
+      child {node[leaf] {no} edge from parent node[right, font=\scriptsize] {green}}
+      edge from parent node[left, font=\scriptsize] {small}}
+    child {node[inner] {colour?\\[-2pt]\scriptsize 1 yes, 2 no}
+      child {node[leaf] {no} edge from parent node[left, font=\scriptsize] {blue}}
+      child {node[leaf] {no} edge from parent node[left, font=\scriptsize] {red}}
+      child {node[leaf] {yes} edge from parent node[right, font=\scriptsize] {green}}
+      edge from parent node[right, font=\scriptsize] {large}};
+\end{tikzpicture}
+\caption{The tree grown by ID3 on the data of \cref{decision-trees:ex:xor}. The root splits
+on size, the feature with the larger information gain, although colour is what
+decides the class once size is known.}
+\label{decision-trees:fig:xor}
+\end{figure}
+
+\paragraph{Searching for the best split (CART).} CART considers only binary splits.
+\begin{itemize}[nosep]
+  \item \emph{Numerical feature}: sort the $n_t$ points of the node by $x_j$; the candidate
+        thresholds are the midpoints between consecutive distinct values. Scanning them in
+        order, the class counts (or the sums $\sum y$, $\sum y^2$ for regression) of the left child
+        are updated by one point at a time, so all thresholds are evaluated in $O(n_t)$ after
+        an $O(n_t\log n_t)$ sort.
+  \item \emph{Categorical feature} with $k$ values: there are $2^{k-1} - 1$ ways to split the values into
+        two non-empty groups. For two classes (and for regression), it suffices to sort the
+        values by their proportion of class $1$ (or their mean target) and try the $k - 1$ splits
+        along this order: the optimal split is among them (Breiman et al., 1984).
 \end{itemize}
 
-\subsubsection{Example: Calculating Feature Importance in CART}
-Consider a decision tree with two features: Feature A and Feature B.
-The tree has the following splits:
-
-\begin{itemize}
-    \item \textbf{Root Node}:
-    \begin{itemize}
-        \item Impurity before split: 0.5.
-        \item Split on Feature A divides the data into two branches:
-        \begin{itemize}
-            \item Left branch: 60\% of the data, impurity = 0.4.
-            \item Right branch: 40\% of the data, impurity = 0.2.
-        \end{itemize}
-        \item Impurity reduction:
-        \[
-        0.5 - \left( 0.6 \cdot 0.4 + 0.4 \cdot 0.2 \right) = 0.18
-        \]
-    \end{itemize}
-    \item \textbf{Left Child Node}:
-    \begin{itemize}
-        \item Impurity before split: 0.4.
-        \item Split on Feature B divides the data into two branches:
-        \begin{itemize}
-            \item Left branch: 50\% of the data, impurity = 0.3.
-            \item Right branch: 50\% of the data, impurity = 0.1.
-        \end{itemize}
-        \item Impurity reduction:
-        \[
-        0.4 - \left( 0.5 \cdot 0.3 + 0.5 \cdot 0.1 \right) = 0.2
-        \]
-    \end{itemize}
-    \item \textbf{Right Child Node}:
-    \begin{itemize}
-        \item Impurity before split: 0.2.
-        \item Split on Feature A divides the data into two branches:
-        \begin{itemize}
-            \item Left branch: 70\% of the data, impurity = 0.1.
-            \item Right branch: 30\% of the data, impurity = 0.3.
-        \end{itemize}
-        \item Impurity reduction:
-        \[
-        0.2 - \left( 0.7 \cdot 0.1 + 0.3 \cdot 0.3 \right) = 0.04
-        \]
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Calculating Total Impurity Reduction}
-\begin{itemize}
-    \item \textbf{Feature A}:
-    \begin{itemize}
-        \item Used in two splits with impurity reductions of 0.18 and 0.04.
-        \item Total impurity reduction: \( 0.18 + 0.04 = 0.22 \).
-    \end{itemize}
-    \item \textbf{Feature B}:
-    \begin{itemize}
-        \item Used in one split with an impurity reduction of 0.2.
-        \item Total impurity reduction: \( 0.2 \).
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Calculating Feature Importance}
-\begin{itemize}
-    \item Total impurity reduction across all splits: \( 0.22 + 0.2 = 0.42 \).
-    \item Normalized feature importance:
-    \begin{itemize}
-        \item Importance of Feature A: \( \frac{0.22}{0.42} \approx 0.52 \).
-        \item Importance of Feature B: \( \frac{0.2}{0.42} \approx 0.48 \).
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Interpretation}
-\begin{itemize}
-        \item Feature A contributes approximately 52\% to the model's predictive power.
-    \item Feature B contributes approximately 48\% to the model's predictive power.
-\end{itemize}
-
-\begin{remark}[Weighting by node size]
-In CART and in scikit-learn (``mean decrease in impurity''), the impurity reduction of a split is
-weighted by the fraction of training samples that reach the node, \( N_t/N \): a split deep in the
-tree, which only affects a few samples, counts less. Here the left child receives 60\% of the data and
-the right child 40\%, so the weighted reductions are
-\[
-\text{A}: 1 \cdot 0.18 + 0.4 \cdot 0.04 = 0.196, \qquad \text{B}: 0.6 \cdot 0.2 = 0.12,
-\]
-giving normalized importances \( 0.196/0.316 \approx 0.62 \) for A and \( 0.12/0.316 \approx 0.38 \) for B.
-The unweighted computation above overestimates the importance of features used in small nodes.
-Note also that impurity-based importances are computed on the training data and are biased towards
-features with many possible split points; permutation importance (below) avoids these issues.
-\end{remark}
-
-\section{Algorithms for Decision Trees}
-
-\subsection{ID3 (Iterative Dichotomiser 3)}
-\begin{itemize}
-    \item \textbf{Purpose}: Classification.
-    \item \textbf{Splitting Criterion}: Information Gain.
-    \item \textbf{Pre-Pruning Support}: No.
-    \item \textbf{Post-Pruning Support}: No.
-    \item \textbf{Limitations}:
-    \begin{itemize}
-        \item Cannot handle continuous features.
-        \item Prone to overfitting.
-        \item No pruning support.
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Algorithm Steps}
-\begin{enumerate}
-    \item Start with the entire dataset \( S \).
-    \item Calculate the entropy of \( S \).
-    \item For each feature \( A \) not yet used in the current path,
-          calculate the Information Gain \( \text{IG}(S, A) \).
-    \item Select the feature \( A \) with the highest Information Gain.
-    \item Split \( S \) into subsets \( S_v \) based on the values of \( A \).
-    \item Repeat steps 2--5 for each subset \( S_v \) until:
-    \begin{itemize}
-        \item All instances in a subset belong to the same class.
-        \item No further splitting improves the purity of the subsets.
-        \item All features have been used along the current path.
-    \end{itemize}
-    \item Assign a leaf node to each subset, labeled with the majority class.
-\end{enumerate}
-
-\subsection{C4.5}
-\begin{itemize}
-    \item \textbf{Purpose}: Classification.
-    \item \textbf{Splitting Criterion}: Gain Ratio.
-    \item \textbf{Pre-Pruning Support}: Yes.
-    \item \textbf{Post-Pruning Support}: Yes.
-    \item \textbf{Improvements over ID3}:
-    \begin{itemize}
-        \item Handles continuous features by discretization.
-        \item Supports pruning (both pre-pruning and post-pruning).
-        \item Handles missing values using probabilistic distributions.
-        \item Supports boosting through instance weighting.
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Algorithm Steps}
-\begin{enumerate}
-    \item Start with the entire dataset \( S \).
-    \item Calculate the entropy of \( S \).
-    \item For each feature \( A \) not yet used in the current path,
-          calculate the Gain Ratio \( \text{GainRatio}(S, A) \).
-    \item Select the feature \( A \) with the highest Gain Ratio.
-    \item Split \( S \) into subsets \( S_v \) based on the values of \( A \).
-    \item Repeat steps 2--5 for each subset \( S_v \) until:
-    \begin{itemize}
-        \item All instances in a subset belong to the same class.
-        \item No further splitting improves the purity of the subsets.
-        \item All features have been used along the current path.
-    \end{itemize}
-    \item Prune the tree to remove branches that do not improve generalization.
-    \item Assign a leaf node to each subset, labeled with the majority class.
-\end{enumerate}
-
-\subsection{C5.0}
-\begin{itemize}
-    \item \textbf{Purpose}: Classification.
-    \item \textbf{Splitting Criterion}: Gain Ratio.
-    \item \textbf{Pre-Pruning Support}: Yes.
-    \item \textbf{Post-Pruning Support}: Yes.
-    \item \textbf{Improvements over C4.5}:
-    \begin{itemize}
-        \item More memory-efficient and faster.
-        \item Better handling of noisy data.
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Algorithm Steps}
-\begin{enumerate}
-    \item Start with the entire dataset \( S \).
-    \item Calculate the entropy of \( S \).
-    \item For each feature \( A \), calculate the Gain Ratio
-          \( \text{GainRatio}(S, A) \).
-    \item Select the feature \( A \) with the highest Gain Ratio.
-    \item Split \( S \) into subsets \( S_v \) based on the
-          values of \( A \).
-    \item Repeat steps 2--5 for each subset \( S_v \) until:
-    \begin{itemize}
-        \item All instances in a subset belong to the same class.
-        \item No further splitting improves the purity of the
-              subsets.
-    \end{itemize}
-    \item Prune the tree to remove branches that do not improve
-          generalization.
-    \item Assign a leaf node to each subset, labeled with the
-          majority class.
-    \item (Optional) Apply boosting to improve accuracy.
-\end{enumerate}
-
-\subsection{CART (Classification and Regression Trees)}
-\begin{itemize}
-    \item \textbf{Purpose}: Classification and Regression.
-    \item \textbf{Splitting Criterion}:
-    \begin{itemize}
-        \item Gini Impurity (Classification).
-        \item Variance Reduction (Regression).
-    \end{itemize}
-    \item \textbf{Pre-Pruning Support}: Yes.
-    \item \textbf{Post-Pruning Support}: Yes.
-    \item \textbf{Tree Structure}: Binary splits.
-    \item \textbf{Pruning}: Supports cost-complexity pruning.
-    \item \textbf{Handling Missing Values}: Uses surrogate splits.
-\end{itemize}
-
-\subsubsection{Handling Categorical Features in CART}
-For categorical features, CART handles them differently than
-numerical features. Since categorical values (e.g., colors like
-'red', 'blue', 'green') do not have a natural order, sorting is
-not applicable. Instead, CART considers all possible binary
-partitions of the categories and selects the one that minimizes
-the impurity measure (e.g., Gini Impurity for classification or
-Variance Reduction for regression).
-
-\subsubsection{Binary Splits for Categorical Features}
-CART always performs binary splits, even for categorical features.
-For a feature with \( k \) possible values, the algorithm
-considers all possible ways to split the \( k \) values into two
-subsets. For example, if a feature has three categories: 'red',
-'blue', and 'green', the possible binary splits would be:
-\begin{itemize}
-    \item \{red\} vs. \{blue, green\}
-    \item \{blue\} vs. \{red, green\}
-    \item \{green\} vs. \{red, blue\}
-\end{itemize}
-
-\subsubsection{Evaluating Splits}
-For each possible binary split, CART evaluates the impurity
-measure to determine how well the split separates the target
-variable. The algorithm selects the binary split that maximizes
-the homogeneity of the resulting subsets (i.e., minimizes
-impurity).
-
-\subsubsection{No Sorting Needed}
-Since categorical values don't have an order, there's no need to
-sort them. Instead, the algorithm considers all possible ways to
-partition the categories into two groups and evaluates each
-partition based on the impurity measure.
-
-\subsubsection{Example}
-Suppose you have a categorical feature "Color" with three possible
-values: 'red', 'blue', and 'green'. The target variable is binary
-(e.g., 'Yes' or 'No'). CART would evaluate the following splits:
-\begin{itemize}
-    \item \textbf{Split 1}: \{red\} vs. \{blue, green\}
-    \item \textbf{Split 2}: \{blue\} vs. \{red, green\}
-    \item \textbf{Split 3}: \{green\} vs. \{red, blue\}
-\end{itemize}
-
-The algorithm would then choose the split that results in the
-lowest weighted average Gini Impurity across the two subsets.
-
-\subsubsection{Surrogate Splits}
-CART handles missing values using a technique called \textbf{surrogate splits}:
-\begin{itemize}
-    \item \textbf{Primary Split}: For each node, CART selects the best
-          feature and split point to maximize homogeneity in the subsets.
-    \item \textbf{Surrogate Splits}: If the primary splitting feature
-          is missing for an instance, CART uses alternative features
-          (called surrogate features) to determine the split.
-    \item \textbf{How Surrogate Splits Are Learned}:
-    \begin{itemize}
-        \item During \textbf{training}, for each node, CART identifies
-              the best surrogate features that most closely mimic the
-              primary split.
-        \item The surrogate features are ranked based on their ability
-              to replicate the primary split.
-        \item The best surrogate split is the one that most closely
-              matches the primary split in terms of how it divides the
-              data.
-    \end{itemize}
-    \item \textbf{When Are Surrogate Splits Used?}:
-    \begin{itemize}
-        \item \textbf{Training}: If the primary feature is missing for
-              an instance during training, the instance is sent down
-              the branch determined by the best surrogate split.
-        \item \textbf{Testing}: During prediction, if the primary
-              splitting feature is missing for an instance, the
-              surrogate splits are used to determine the appropriate
-              branch.
-    \end{itemize}
-    \item \textbf{Advantages of Surrogate Splits}:
-    \begin{itemize}
-        \item Allows CART to handle missing values without discarding
-              instances or imputing values.
-        \item Improves the robustness of the tree by providing
-              alternative splitting rules.
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Cost-Complexity Pruning}
-CART uses \textbf{cost-complexity pruning} to prevent overfitting. The process involves:
-\begin{itemize}
-    \item \textbf{Cost-Complexity Parameter (\(\alpha\))}:
-    \begin{itemize}
-        \item \(\alpha\) controls the trade-off between the tree's
-              complexity (number of leaves) and its accuracy.
-        \item A higher \(\alpha\) results in a simpler tree with fewer
-              leaves, while a lower \(\alpha\) allows for a more
-              complex tree.
-    \end{itemize}
-    \item \textbf{Pruning Process}:
-    \begin{itemize}
-        \item If \(\alpha\) is fixed (e.g., \(\alpha = 0.25\)), the
-              algorithm prunes the tree \textbf{once} to minimize the
-              cost-complexity measure:
-        \[
-        R_{\alpha}(T) = R(T) + \alpha |T|
-        \]
-        where:
-        \begin{itemize}
-            \item \( R(T) \) is the error rate of the tree \( T \).
-            \item \( |T| \) is the number of leaves in the tree.
-        \end{itemize}
-        \item If a \textbf{grid search} is performed, the algorithm evaluates
-              a \textbf{sequence of subtrees}, each corresponding to a
-              different value of \(\alpha\).
-    \end{itemize}
-    \item \textbf{Selecting the Optimal \(\alpha\)}:
-    \begin{itemize}
-        \item If \(\alpha\) is fixed, no further selection is needed.
-        \item If a grid search is performed, the optimal \(\alpha\) can
-              be chosen using \textbf{cross-validation} or based on a
-              validation set.
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Feature Selection in CART}
-The CART algorithm selects the best feature to split on by evaluating
-the impurity reduction achieved by each feature. The process involves
-the following steps:
-
-\begin{itemize}
-    \item \textbf{Compute the Best Split for Each Feature}:
-    \begin{itemize}
-        \item For each feature, evaluate all possible splits and
-              compute the impurity measure (e.g., Gini Impurity or
-              Entropy) for each split.
-        \item If using \textbf{Gini Impurity}, the best split is the one
-              that minimizes:
-        \[
-        \text{Gini}_{\text{split}} = \frac{|S_1|}{|S|} \text{Gini}(S_1)
-        + \frac{|S_2|}{|S|} \text{Gini}(S_2)
-        \]
-        \item If using \textbf{Entropy}, the best split is the one that
-              maximizes \textbf{Information Gain}:
-        \[
-        \text{IG}(S, A) = \text{Entropy}(S)
-        - \sum_{v \in \text{Values}(A)} \frac{|S_v|}{|S|} \text{Entropy}(S_v)
-        \]
-    \end{itemize}
-    \item \textbf{Compute the Impurity Reduction}:
-    \begin{itemize}
-        \item If using \textbf{Gini Impurity}, the impurity reduction is:
-        \[
-        \text{Impurity Reduction} = \text{Gini}_{\text{before split}}
-        - \text{Gini}_{\text{split}}
-        \]
-        \item If using \textbf{Entropy}, the impurity reduction is the
-              \textbf{Information Gain}:
-        \[
-        \text{Impurity Reduction} = \text{IG}(S, A)
-        \]
-    \end{itemize}
-    \item \textbf{Select the Best Feature}:
-    \begin{itemize}
-        \item The feature that provides the largest impurity reduction
-              (or highest Information Gain) is selected for the split.
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Example: Feature Selection Using Entropy and Information Gain}
-Consider a dataset with two features: \textbf{Feature A} and \textbf{Feature B}.
-To select the best feature for a split:
-\begin{itemize}
-    \item \textbf{Step 1: Compute the Best Split for Each Feature}:
-    \begin{itemize}
-        \item For \textbf{Feature A}, the best split results in:
-        \[
-        \text{IG}(S, A) = 0.2
-        \]
-        \item For \textbf{Feature B}, the best split results in:
-        \[
-        \text{IG}(S, B) = 0.3
-        \]
-    \end{itemize}
-    \item \textbf{Step 2: Compute the Impurity Reduction}:
-    \begin{itemize}
-        \item The impurity reduction for \textbf{Feature A} is:
-        \[
-        \text{Impurity Reduction}(A) = 0.2
-        \]
-        \item The impurity reduction for \textbf{Feature B} is:
-        \[
-        \text{Impurity Reduction}(B) = 0.3
-        \]
-    \end{itemize}
-    \item \textbf{Step 3: Select the Best Feature}:
-    \begin{itemize}
-        \item Since \textbf{Feature B} provides a larger impurity reduction
-              (0.3) compared to \textbf{Feature A} (0.2), \textbf{Feature B} is
-              selected for the split.
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Advantages of CART}
-CART has several advantages that make it a popular choice:
-\begin{itemize}
-    \item \textbf{Handles Both Tasks}: CART can be used for both
-          classification and regression tasks, making it versatile.
-    \item \textbf{Binary Splits}: CART always performs binary splits,
-          simplifying the tree structure and making it easier to
-          interpret.
-    \item \textbf{Robust to Outliers}: CART is less sensitive to
-          outliers because it uses binary splits and focuses on local
-          splits.
-    \item \textbf{Handles Mixed Data}: CART can handle both numerical
-          and categorical features without extensive preprocessing.
-    \item \textbf{Supports Pruning}: CART supports cost-complexity
-          pruning, which helps prevent overfitting.
-    \item \textbf{Handles Missing Values}: CART uses surrogate splits
-          to handle missing values effectively.
-    \item \textbf{Interpretability}: The tree structure is easy to
-          visualize and interpret, making it useful for explaining
-          model decisions.
-\end{itemize}
-
-\subsubsection{Finding the Best Split Point}
-CART uses a greedy algorithm to find the best split point for each
-feature. The process is as follows:
-
-\begin{itemize}
-    \item \textbf{For Numerical Features}:
-    \begin{itemize}
-        \item For each feature \( A \), sort the unique values of \( A \).
-        \item For each possible split point \( v \) (midpoint between
-              consecutive values):
-        \begin{itemize}
-            \item Split the dataset into two subsets:
-            \begin{itemize}
-                \item \( S_1 \): Instances where \( A \leq v \).
-                \item \( S_2 \): Instances where \( A > v \).
-            \end{itemize}
-            \item Calculate the Gini Impurity for each subset.
-            \item Compute the weighted average Gini Impurity:
-            \[
-            \text{Gini}_{\text{split}} = \frac{|S_1|}{|S|} \text{Gini}(S_1)
-            + \frac{|S_2|}{|S|} \text{Gini}(S_2)
-            \]
-            \item Select the split point \( v \) that minimizes
-                  \( \text{Gini}_{\text{split}} \).
-        \end{itemize}
-    \end{itemize}
-
-    \item \textbf{For Categorical Features}:
-    \begin{itemize}
-        \item For each feature \( A \), consider all possible binary
-              partitions of the categories.
-        \item For each possible binary split:
-        \begin{itemize}
-            \item Split the dataset into two subsets based on the
-                  partition.
-            \item Calculate the Gini Impurity for each subset.
-            \item Compute the weighted average Gini Impurity:
-            \[
-            \text{Gini}_{\text{split}} = \frac{|S_1|}{|S|} \text{Gini}(S_1)
-            + \frac{|S_2|}{|S|} \text{Gini}(S_2)
-            \]
-            \item Select the binary split that minimizes
-                  \( \text{Gini}_{\text{split}} \).
-        \end{itemize}
-    \end{itemize}
-
-    \item \textbf{For Regression (Variance Reduction)}:
-    \begin{itemize}
-        \item For each feature \( A \), sort the unique values of \( A \).
-        \item For each possible split point \( v \) (midpoint between
-              consecutive values):
-        \begin{itemize}
-            \item Split the dataset into two subsets:
-            \begin{itemize}
-                \item \( S_1 \): Instances where \( A \leq v \).
-                \item \( S_2 \): Instances where \( A > v \).
-            \end{itemize}
-            \item Calculate the variance of the target variable for
-                  each subset.
-            \item Compute the weighted average variance:
-            \[
-            \text{Var}_{\text{split}} = \frac{|S_1|}{|S|} \text{Var}(S_1)
-            + \frac{|S_2|}{|S|} \text{Var}(S_2)
-            \]
-            \item Select the split point \( v \) that minimizes
-                  \( \text{Var}_{\text{split}} \).
-        \end{itemize}
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Algorithm Steps}
-\begin{enumerate}
-    \item Start with the entire dataset \( S \).
-    \item For classification, calculate the Gini Impurity of \( S \).
-          For regression, calculate the variance of \( S \).
-    \item For each feature \( A \), find the best split point that
-          minimizes:
-    \begin{itemize}
-        \item Gini Impurity (for classification).
-        \item Variance (for regression).
-    \end{itemize}
-    \item Split \( S \) into two subsets \( S_1 \) and \( S_2 \) based
-          on the best split.
-    \item Repeat steps 2--4 for each subset \( S_1 \) and \( S_2 \) until:
-    \begin{itemize}
-        \item All instances in a subset belong to the same class
-              (classification).
-        \item The variance of the target variable is minimized
-              (regression).
-    \end{itemize}
-    \item Prune the tree using cost-complexity pruning to remove
-          branches that do not improve generalization.
-    \item Assign a leaf node to each subset, labeled with:
-    \begin{itemize}
-        \item The majority class (classification).
-        \item The mean value of the target variable (regression).
-    \end{itemize}
-\end{enumerate}
-
-\section{General Properties of Decision Trees}
-\subsection{Advantages and Disadvantages of Decision Trees}
-Decision trees are widely used in machine learning due to their simplicity and interpretability. However, they also have some limitations. Below is a list of their key advantages and disadvantages:
-
-\subsubsection{Advantages}
-\begin{itemize}
-    \item \textbf{Interpretability}: Decision trees are easy to visualize and interpret, making them useful for explaining model decisions.
-    \item \textbf{Handles Mixed Data}: Decision trees can handle both numerical and categorical features without requiring extensive preprocessing.
-    \item \textbf{Non-Parametric}: Decision trees make no assumptions about the underlying data distribution, making them flexible and suitable for a wide range of datasets.
-    \item \textbf{Handles Missing Values}: Algorithms like CART use surrogate splits to handle missing values effectively.
-    \item \textbf{Supports Both Tasks}: Decision trees can be used for both classification and regression tasks.
-    \item \textbf{Feature Importance}: Decision trees provide a measure of feature importance, which can be useful for feature selection.
-    \item \textbf{Robust to Outliers}: Decision trees are less sensitive to outliers because they use local splits rather than global optimization.
-    \item \textbf{No Need for Scaling}: Decision trees do not require feature scaling, as they are based on splitting rules rather than distance metrics.
-\end{itemize}
-
-\subsubsection{Disadvantages}
-\begin{itemize}
-    \item \textbf{Overfitting}: Decision trees are prone to overfitting, especially when they are deep and complex. Pruning and setting constraints (e.g., maximum depth) can help mitigate this.
-    \item \textbf{High Variance}: Small changes in the data can lead to significantly different trees, making decision trees unstable. Ensemble methods like Random Forests can address this.
-    \item \textbf{Bias Towards Dominant Features}: Decision trees can be biased towards features with many levels or dominant features, which can skew the splits.
-    \item \textbf{Limited Extrapolation}: Decision trees are not well-suited for extrapolation tasks (e.g., predicting values outside the range of the training data).
-    \item \textbf{Computational Complexity}: Building an optimal decision tree is computationally expensive, especially for large datasets with many features.
-    \item \textbf{Imbalanced Data}: Decision trees can struggle with imbalanced datasets, as they may favor the majority class.
-    \item \textbf{Not Suitable for Linear Relationships}: Decision trees are not ideal for datasets with strong linear relationships, as they partition the data into rectangular regions.
-\end{itemize}
-
-\section{Pruning}
-Pruning reduces the size of a decision tree to prevent overfitting.
-
-\subsection{Pre-pruning}
-Stops tree construction early by setting constraints (e.g.,
-maximum depth, minimum samples per leaf).
-
-\subsection{Post-pruning}
-Constructs the full tree and then removes branches that provide
-little predictive power. Common methods include:
-
-\subsubsection{Cost-Complexity Pruning}
-Balances tree complexity and accuracy by minimizing:
-
-\[
-R_{\alpha}(T) = R(T) + \alpha |T|
-\]
-
-where:
-\begin{itemize}
-    \item \( R(T) \) is the error rate of the tree \( T \).
-    \item \( |T| \) is the number of leaves in the tree.
-    \item \( \alpha \) is a complexity parameter.
-\end{itemize}
-
-\subsubsection{Error Rate \( R(T) \)}
-The error rate \( R(T) \) is computed as the proportion of
-misclassified instances in the training set:
-
-\[
-R(T) = \frac{\text{Number of misclassified instances}}{\text{Total
-number of instances}}
-\]
-
-\section{Ensemble Methods}
-
-\subsection{Bagging}
-Bagging (Bootstrap Aggregating) is a general-purpose ensemble 
-technique applicable to any machine learning algorithm. It works as follows:
-\begin{itemize}
-    \item \textbf{Bootstrap Sampling}: Each model is trained on a 
-    random subset of the data (with replacement).
-    \item \textbf{Independence}: Models are trained independently, 
-    making bagging suitable for parallelization.
-    \item \textbf{Aggregation}: Predictions are combined by averaging 
-    (for regression) or voting (for classification).
-\end{itemize}
-
-\subsubsection{Key Features of Bagging}
-\begin{itemize}
-    \item \textbf{Reduces Variance}: Bagging reduces variance in 
-    high-variance algorithms (e.g., decision trees) by averaging models.
-    \item \textbf{Improves Generalization}: Combining multiple models 
-    helps prevent overfitting and improves generalization.
-    \item \textbf{Applicable to Any Algorithm}: While often used with 
-    decision trees (e.g., Random Forests), bagging works with others 
-    like linear regression, SVMs, and neural networks.
-\end{itemize}
-
-\subsection{Random Forest}
-Random Forest extends bagging for decision trees, adding randomness 
-to reduce variance and improve generalization. Key features include:
-\begin{itemize}
-    \item \textbf{Bootstrap Sampling}: Each tree is trained on a 
-    random subset of the data (with replacement).
-    \item \textbf{Feature Randomness}: At each split, a random subset 
-    of features is considered, reducing tree correlation.
-    \item \textbf{Aggregation}: Predictions are averaged (regression) 
-    or voted on (classification).
-\end{itemize}
-
-\subsubsection{Why Random Forests Were Introduced}
-Random Forests address two main limitations of bagging with decision trees:
-\begin{itemize}
-    \item \textbf{High Correlation Between Trees}: In bagging, trees 
-    can become highly correlated if strong features dominate splits. 
-    Random Forests reduce this by considering random feature subsets.
-    \item \textbf{Overfitting}: Additional randomness further reduces 
-    overfitting compared to bagging.
-\end{itemize}
-
-\subsubsection{Out-of-Bag (OOB) Error}
-Out-of-Bag (OOB) error estimates ensemble model performance without 
-a separate validation set. It works as follows:
-\begin{itemize}
-    \item During bootstrap sampling, some instances are not included 
-    in a tree's training set. These are "out-of-bag" (OOB) samples.
-    \item Each tree predicts the OOB samples it did not see during training.
-    \item The OOB error is the average error of these predictions 
-    across all trees.
-\end{itemize}
-
-The OOB error is a reliable estimate of generalization error and can be used for:
-\begin{itemize}
-    \item Model evaluation (e.g., selecting hyperparameters).
-    \item Feature importance estimation.
-\end{itemize}
-
-\section{Permutation Feature Importance}
-Permutation Feature Importance is a model-agnostic method for computing
-feature importance. It measures the increase in the model's prediction
-error after permuting the feature's values. If permuting a feature's
-values leads to a significant increase in error, the feature is
-considered important.
-
-\subsubsection{How Permutation Feature Importance Works}
-\begin{itemize}
-    \item \textbf{Train the Model}:
-    \begin{itemize}
-        \item Train a model (e.g., a Random Forest) on the training data.
-    \end{itemize}
-    \item \textbf{Out-of-Bag (OOB) Samples}:
-    \begin{itemize}
-        \item For each tree, identify the OOB samples (samples not used
-              in training that tree).
-    \end{itemize}
-    \item \textbf{Compute Baseline Error}:
-    \begin{itemize}
-        \item For each tree, compute the prediction error on its OOB
-              samples. This is the baseline error.
-    \end{itemize}
-    \item \textbf{Permute Feature Values}:
-    \begin{itemize}
-        \item For each feature, randomly permute its values in the OOB
-              samples.
-    \end{itemize}
-    \item \textbf{Compute Permuted Error}:
-    \begin{itemize}
-        \item Use the permuted OOB samples to make predictions with the
-              tree and compute the prediction error. This is the permuted
-              error.
-    \end{itemize}
-    \item \textbf{Calculate Feature Importance}:
-    \begin{itemize}
-        \item The importance of the feature is the difference between
-              the permuted error and the baseline error, averaged over
-              all trees in the forest:
-        \[
-        \text{Importance}(A) = \frac{1}{N} \sum_{i=1}^{N} (\text{Permuted Error}_i - \text{Baseline Error}_i)
-        \]
-        where \( N \) is the number of trees in the forest.
-    \end{itemize}
-\end{itemize}
-
-\subsubsection{Advantages of Permutation Feature Importance}
-\begin{itemize}
-    \item \textbf{Model-Agnostic}: Can be applied to any model.
-    \item \textbf{Handles Correlated Features}: Less biased by correlated
-          features compared to traditional importance measures.
-    \item \textbf{Intuitive Interpretation}: Directly measures how much
-          the model's performance degrades when a feature's information
-          is destroyed.
-\end{itemize}
-
-\subsubsection{Limitations of Permutation Feature Importance}
-\begin{itemize}
-    \item \textbf{Computationally Expensive}: Can be time-consuming for
-          large datasets.
-    \item \textbf{Sensitive to Feature Correlations}: May underestimate
-          importance for highly correlated features.
-    \item \textbf{Dependence on Model Performance}: Requires a well-trained
-          model for reliable importance scores.
-\end{itemize}
-
-\subsubsection{Example: Permutation Feature Importance in Random Forests}
-Consider a Random Forest model trained on a dataset. To compute the
-importance of a feature \( A \):
-\begin{itemize}
-    \item For each tree, identify the OOB samples and compute the baseline
-          error (e.g., 0.1).
-    \item Permute the values of feature \( A \) in the OOB samples.
-    \item Compute the permuted error (e.g., 0.15).
-    \item The importance of feature \( A \) for this tree is:
-    \[
-    \text{Importance}(A) = 0.15 - 0.1 = 0.05
-    \]
-    \item Repeat this process for all trees and average the results to
-          get the final importance score for feature \( A \).
-\end{itemize}
-
-\subsection{Boosting}
-Boosting combines multiple weak learners (e.g., shallow trees) to 
-create a strong learner. It works by:
-\begin{itemize}
-    \item Training weak learners sequentially.
-    \item Giving more weight to instances misclassified by previous learners.
-\end{itemize}
-
-\subsubsection{Instance Weights}
-Instance weights assign higher importance to certain instances during 
-training. In boosting, misclassified instances get higher weights in 
-subsequent iterations.
-
-\subsubsection{Why Some Algorithms Don't Support Instance Weights}
-Some algorithms, like ID3, do not natively support instance weights because:
-\begin{itemize}
-    \item They were not designed to handle weighted data.
-    \item Their splitting criteria (e.g., Information Gain) do not 
-    incorporate instance weights.
-\end{itemize}
-
-In contrast, algorithms like C4.5 and C5.0 support instance weights, 
-making them suitable for boosting.
-
-\section{Summary of Algorithms}
-
-\begin{tabular}{llllll}
-    \toprule
-    Algorithm & Purpose & Splitting Criterion & Pre-Pruning & Post-Pruning \\
-    \midrule
-    ID3 & Classification & Information Gain & No & No \\
-    C4.5 & Classification & Gain Ratio & Yes & Yes \\
-    C5.0 & Classification & Gain Ratio & Yes & Yes \\
-    CART & Class. \& Reg. & Gini, Var. Red. & Yes & Yes \\
-    \bottomrule
+\begin{example}[A regression stump]\label{decision-trees:ex:stump}
+Six points with $x = 1,\dots,6$ and $y = (1, 1.2, 0.9, 3.1, 2.9, 3.0)$. The total squared error around
+the mean is $5.868$. The five thresholds give children with total squared errors
+\begin{center}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+threshold & $1.5$ & $2.5$ & $3.5$ & $4.5$ & $5.5$ \\
+\midrule
+SSE after split & $4.628$ & $3.348$ & $0.067$ & $3.255$ & $4.708$ \\
+\bottomrule
 \end{tabular}
+\end{center}
+The best split is $x\leq3.5$, with leaf values $1.033$ and $3.0$: it removes $99\%$ of the squared
+error.
+\end{example}
 
-\section{Conclusion}
-Decision trees are versatile algorithms with various splitting
-criteria and techniques to handle overfitting. Pruning, boosting,
-bagging, and Random Forests are essential tools to improve their
-performance. Understanding these concepts helps in selecting the
-right algorithm for specific tasks.
+\paragraph{When to stop.} Splitting continues until a node is pure, or until a
+\emph{pre-pruning} rule stops it: maximum depth, minimum number of points per node or
+per leaf, minimum gain. Pre-pruning is fast but short-sighted, for the reason of
+\cref{decision-trees:ex:xor}: a split with little gain may enable very good splits below
+it. The alternative is to grow a large tree and prune it afterwards.
 
-\section{Annex: Detailed Derivations and Examples}
+\section{Cost-complexity pruning}\label{decision-trees:sec:pruning}
 
-\subsection{Derivation of Gini Impurity}
-The goal is to calculate the probability of misclassifying a
-randomly chosen element from the dataset. This depends on:
-\begin{itemize}
-    \item The proportion of each class in the dataset (\( p_i \)).
-    \item The probability of misclassifying an element from each
-    class.
+For a tree $T$, let $R(T)$ be its training error (the fraction of misclassified points, or the
+total squared error divided by $n$) and $\abs T$ its number of leaves. For $\alpha\geq0$, CART
+minimizes the \emph{cost-complexity}
+\[
+  R_\alpha(T) = R(T) + \alpha\abs T
+\]
+over the subtrees $T$ of a fully grown tree $T_0$ (a subtree is obtained by collapsing
+internal nodes into leaves). For each $\alpha$ the minimizer is unique if one takes the
+smallest of the minimizers, and as $\alpha$ grows the minimizers form a \emph{nested sequence}
+$T_0\supset T_1\supset\dots\supset\{\text{root}\}$, computed by \emph{weakest-link pruning}. For an internal node $t$, let $R(t)$ be
+the error if $t$ were made a leaf and $T_t$ the branch below $t$. Collapsing $t$ costs $R(t) - R(T_t)$ in
+error and saves $\abs{T_t} - 1$ leaves, so it pays off when $\alpha$ exceeds
+\[
+  g(t) = \frac{R(t) - R(T_t)}{\abs{T_t} - 1} .
+\]
+The node with the smallest $g$ is the weakest link; collapse it, recompute $g$ for its
+ancestors, and repeat. The successive values of $g$ are the breakpoints $\alpha_1<\alpha_2<\dots$ of the
+sequence (Breiman, Friedman, Olshen and Stone, \emph{Classification and Regression Trees},
+1984).
+
+\begin{example}[Weakest-link pruning]\label{decision-trees:ex:pruning}
+A tree on $100$ points has root $t_1$, children $t_2$ ($60$ points) and $t_3$ ($40$ points), and four leaves:
+$t_2$ splits into leaves with $2$ and $6$ errors, $t_3$ into leaves with $3$ and $4$ errors. As leaves,
+$t_1$, $t_2$, $t_3$ would make $40$, $10$ and $15$ errors. With errors counted as fractions of $100$:
+\[
+  g(t_2) = \frac{0.10 - 0.08}{1} = 0.02,\qquad g(t_3) = \frac{0.15 - 0.07}1 = 0.08,\qquad g(t_1) = \frac{0.40 - 0.15}{3}\approx0.083 .
+\]
+The weakest link is $t_2$: $T_1$ collapses it ($3$ leaves, $R = 0.17$). Then $g(t_1) = (0.40 - 0.17)/2 = 0.115$
+and $g(t_3) = 0.08$, so $T_2$ collapses $t_3$ ($2$ leaves, $R = 0.25$). Finally $g(t_1) = 0.15$. The optimal
+subtree is $T_0$ for $\alpha<0.02$, $T_1$ for $0.02\leq\alpha<0.08$, $T_2$ for $0.08\leq\alpha<0.15$, and the root alone
+beyond. The value of $\alpha$, hence the tree, is then chosen by cross-validation over this
+finite sequence.
+\end{example}
+
+\section{ID3, C4.5, C5.0 and CART}\label{decision-trees:sec:algorithms}
+
+\begin{center}
+\small\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lllll@{}}
+\toprule
+algorithm & tasks & criterion & splits & pruning \\
+\midrule
+ID3 (1986) & classification & information gain & one per value & none \\
+C4.5 (1993) & classification & gain ratio & per value; thresholds & error-based \\
+C5.0 & classification & gain ratio & as C4.5 & as C4.5; boosting \\
+CART (1984) & both & Gini / variance & binary & cost-complexity \\
+\bottomrule
+\end{tabular}
+\end{center}
+ID3 and C4.5 are due to Quinlan, CART to Breiman, Friedman, Olshen and Stone.
+ID3 handles only categorical features and uses each one at most once on a path (once
+the node is split by colour, all its points share a colour). C4.5 adds numerical
+features through binary threshold splits $x_j\leq s$, chosen as in CART; a numerical feature
+can then be reused deeper with another threshold, and so can any feature in CART. C5.0 is
+a faster commercial successor of C4.5 that supports boosting and misclassification
+costs. All of them handle instance weights by replacing counts with sums of weights,
+which is what boosting requires (\cref{ch:ensemble-methods}).
+
+\paragraph{Missing values.} C4.5 evaluates a split on the points whose value is known and
+multiplies the gain by the fraction $F$ of such points; when the split is applied, a point
+with a missing value is sent down every branch, with a weight proportional to the
+fraction of known points that went there. For example, with $10$ points of which $9$ have a
+known value of $A$ --- $(5, 1)$ in branch $v_1$, $(2, 1)$ in branch $v_2$ (class counts) --- the known points
+have entropy $h(\frac79)\approx0.764$ and children $h(\frac16)\approx0.650$, $h(\frac13)\approx0.918$, so
+\[
+  \mathrm{Gain} = F\Bigl(0.764 - \tfrac69\times0.650 - \tfrac39\times0.918\Bigr) = 0.9\times0.0248\approx0.022 ;
+\]
+the tenth point then goes to $v_1$ with weight $\frac69$ and to $v_2$ with weight $\frac39$. CART uses
+\emph{surrogate splits} instead: for each node it also records the splits on other
+features that best mimic the primary split, and sends a point with a missing value
+down the first surrogate whose feature is known.
+
+\section{Feature importance}\label{decision-trees:sec:importance}
+
+\paragraph{Mean decrease in impurity.} Each split on feature $j$ at node $t$ reduces the
+impurity by $\Delta i(t)$. Weighting by the fraction $n_t/n$ of training points that reach $t$, the
+importance of $j$ is
+\[
+  \mathrm{MDI}(j) = \sum_{t\text{ split on }j}\frac{n_t}n\,\Delta i(t),
+\]
+usually normalized to sum to $1$ over features (and averaged over the trees of a forest).
+Suppose the root splits on $A$ with gain $0.18$, its left child ($60\%$ of the points) on $B$ with
+gain $0.2$, and its right child ($40\%$) on $A$ again with gain $0.04$. Then
+$\mathrm{MDI}(A) = 0.18 + 0.4\times0.04 = 0.196$ and $\mathrm{MDI}(B) = 0.6\times0.2 = 0.12$: normalized, $0.62$ and $0.38$.
+Without the weights $n_t/n$, a split deep in the tree, which affects few points, would count
+as much as the root split.
+
+\begin{pitfall}[Biases of impurity-based importance]
+MDI is computed on the training data, where deep trees overfit, and it favours
+features with many possible split points (numerical features, categorical features
+with many levels): such features offer more chances of a spurious gain. A random
+identifier column can receive a large importance.
+\end{pitfall}
+
+\paragraph{Permutation importance.} Measure the error of the fitted model on held-out
+data (for a random forest, on each tree's out-of-bag points), shuffle the values of
+feature $j$ among those points, and measure the error again. The increase is the
+importance of $j$: shuffling breaks the link between $x_j$ and the target while keeping the
+marginal distribution of $x_j$. It applies to any model and is not biased towards
+features with many values. With correlated features it understates importance (the
+model can use the correlated copy) and it evaluates the model on unrealistic
+combinations of feature values.
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item A tree is a piecewise-constant function on a partition into cells; even simple notions of
+        optimal tree are NP-complete to construct, so trees are grown greedily.
+  \item A split is chosen to maximize the weighted decrease of an impurity: Gini or entropy
+        for classification, variance for regression. Their strict concavity guarantees
+        positive gains for any informative split; the misclassification rate lacks it.
+  \item The information gain favours many-valued features; the gain ratio corrects it.
+        Greedy growth can miss features that only matter in interaction.
+  \item CART finds the best threshold in linear time after sorting; for two classes, $k - 1$
+        candidate groupings suffice for a categorical feature with $k$ values.
+  \item Cost-complexity pruning minimizes $R(T) + \alpha\abs T$; weakest-link pruning gives a nested
+        sequence of subtrees, among which cross-validation chooses.
+  \item MDI importance is fast but biased; permutation importance on held-out data is
+        more reliable.
 \end{itemize}
+\end{chaptersummary}
 
-\subsubsection{Step-by-Step Derivation}
-\begin{enumerate}
-    \item \textbf{Probability of Correct Classification for Class \( i \)}:
-    For a class \( i \), the probability of correctly classifying
-    a randomly chosen element is \( p_i \).
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
 
-    \item \textbf{Probability of Misclassification for Class \( i \)}:
-    The probability of misclassifying an element from class \( i \)
-    is \( 1 - p_i \).
+\begin{exercise}\label{decision-trees:exr:1}
+Show that the Gini index $1 - \sum_kp_k^2$ is the probability that two points drawn independently
+from the node's class distribution have different classes, and that it is maximal for
+the uniform distribution, with value $1 - \frac1K$.
+\solutionlink{decision-trees:exr:1}
+\end{exercise}
 
-    \item \textbf{Weighted Misclassification Probability}:
-    The overall probability of misclassification is the weighted
-    sum of the misclassification probabilities for each class,
-    where the weights are the class proportions \( p_i \):
+\begin{exercise}\label{decision-trees:exr:2}
+Show that for a node $S$ split into $S_1, S_2$, the variance reduction times $\abs S$ equals the
+decrease of the total squared error, and that it can also be written
+$\frac{\abs{S_1}\abs{S_2}}{\abs S}(\bar y_{S_1} - \bar y_{S_2})^2$. Check it on the best split of \cref{decision-trees:ex:stump}.
+\solutionlink{decision-trees:exr:2}
+\end{exercise}
 
-    \[
-    \sum_{i=1}^{c} p_i (1 - p_i)
-    \]
+\begin{exercise}\label{decision-trees:exr:3}
+A feature takes a different value on each of the $n$ points of a node. What is its
+information gain? Its split information? Its gain ratio, if the node has two balanced
+classes?
+\solutionlink{decision-trees:exr:3}
+\end{exercise}
 
-    \item \textbf{Connection to Gini Impurity}:
-    Expanding the formula:
-
-    \[
-    \sum_{i=1}^{c} p_i (1 - p_i) = \sum_{i=1}^{c} p_i - \sum_{i=1}^{c}
-    p_i^2 = 1 - \sum_{i=1}^{c} p_i^2
-    \]
-
-    This is the Gini Impurity formula:
-
-    \[
-    \text{Gini}(S) = 1 - \sum_{i=1}^{c} p_i^2
-    \]
-\end{enumerate}
-
-\subsection{Example: Gini Impurity Calculation}
-Consider a dataset with 3 classes:
-\begin{itemize}
-    \item Class 1: \( p_1 = 0.5 \)
-    \item Class 2: \( p_2 = 0.3 \)
-    \item Class 3: \( p_3 = 0.2 \)
-\end{itemize}
-
-The Gini Impurity is:
-
-\[
-1 - (0.5^2 + 0.3^2 + 0.2^2) = 1 - (0.25 + 0.09 + 0.04) = 0.62
-\]
-
-\subsection{Example: Information Gain Calculation}
-Consider a dataset \( S \) with 10 instances, split into two
-subsets \( S_1 \) and \( S_2 \) based on a feature \( A \):
-\begin{itemize}
-    \item \( S_1 \): 6 instances (4 Class 1, 2 Class 2).
-    \item \( S_2 \): 4 instances (1 Class 1, 3 Class 2).
-\end{itemize}
-
-The Entropy of \( S \) is:
-
-\[
-\text{Entropy}(S) = -\left( \frac{5}{10} \log_2 \frac{5}{10} +
-\frac{5}{10} \log_2 \frac{5}{10} \right) = 1
-\]
-
-The Entropy of \( S_1 \) is:
-
-\[
-\text{Entropy}(S_1) = -\left( \frac{4}{6} \log_2 \frac{4}{6} +
-\frac{2}{6} \log_2 \frac{2}{6} \right) \approx 0.918
-\]
-
-The Entropy of \( S_2 \) is:
-
-\[
-\text{Entropy}(S_2) = -\left( \frac{1}{4} \log_2 \frac{1}{4} +
-\frac{3}{4} \log_2 \frac{3}{4} \right) \approx 0.811
-\]
-
-The Information Gain is:
-
-\[
-\text{IG}(S, A) = 1 - \left( \frac{6}{10} \times 0.918 +
-\frac{4}{10} \times 0.811 \right) \approx 0.125
-\]
-
-\subsection{Example: Gain Ratio Calculation}
-Consider the same dataset \( S \) with 10 instances, split into
-two subsets \( S_1 \) and \( S_2 \) based on a feature \( A \):
-\begin{itemize}
-    \item \( S_1 \): 6 instances (4 Class 1, 2 Class 2).
-    \item \( S_2 \): 4 instances (1 Class 1, 3 Class 2).
-\end{itemize}
-
-The Information Gain \( \text{IG}(S, A) \) is approximately 0.125
-(as calculated above).
-
-The Split Info for feature \( A \) is:
-
-\[
-\text{Split Info}(A) = -\left( \frac{6}{10} \log_2 \frac{6}{10} +
-\frac{4}{10} \log_2 \frac{4}{10} \right) \approx 0.971
-\]
-
-The Gain Ratio is:
-
-\[
-\text{Gain Ratio}(S, A) = \frac{\text{IG}(S, A)}{\text{Split Info}(A)}
-= \frac{0.125}{0.971} \approx 0.129
-\]
-
-\subsection{Handling Missing Values in C4.5}
-C4.5 handles missing values using probabilistic distributions.
-When a feature value is missing, the instance is fractionally
-assigned to all possible values of the feature, weighted by
-their observed probabilities. This ensures no data is discarded.
-
-\subsubsection{Example: Entropy Calculation with Missing Values}
-Consider a dataset \( S \) with 10 instances, where feature \( A \)
-has two values: \( v_1 \) and \( v_2 \). Suppose:
-\begin{itemize}
-    \item 6 instances have \( A = v_1 \) (5 Class 1, 1 Class 2),
-    \item 3 instances have \( A = v_2 \) (2 Class 1, 1 Class 2),
-    \item 1 instance has a missing value for \( A \) (Class 1).
-\end{itemize}
-
-The observed probabilities for \( A \) are:
-\[
-p(v_1) = \frac{6}{9} = 0.67, \quad p(v_2) = \frac{3}{9} = 0.33.
-\]
-
-The instance with the missing value is fractionally assigned:
-\begin{itemize}
-    \item 67\% to \( v_1 \) (Class 1),
-    \item 33\% to \( v_2 \) (Class 1).
-\end{itemize}
-
-Now, compute the entropy for each subset:
-
-1. \textbf{Subset \( S_{v_1} \)}:
-\begin{itemize}
-    \item Total weight: \( 6 + 0.67 = 6.67 \).
-    \item Class distribution:
-    \begin{itemize}
-        \item Class 1: \( 5 + 0.67 = 5.67 \),
-        \item Class 2: \( 1 + 0 = 1 \).
-    \end{itemize}
-    \item Class probabilities:
-    \[
-    p_1 = \frac{5.67}{6.67} \approx 0.85, \quad
-    p_2 = \frac{1}{6.67} \approx 0.15.
-    \]
-    \item Entropy:
-    \[
-    \text{Entropy}(S_{v_1}) = -0.85 \log_2(0.85) -
-    0.15 \log_2(0.15) \approx 0.61.
-    \]
-\end{itemize}
-
-2. \textbf{Subset \( S_{v_2} \)}:
-\begin{itemize}
-    \item Total weight: \( 3 + 0.33 = 3.33 \).
-    \item Class distribution:
-    \begin{itemize}
-        \item Class 1: \( 2 + 0.33 = 2.33 \),
-        \item Class 2: \( 1 + 0 = 1 \).
-    \end{itemize}
-    \item Class probabilities:
-    \[
-    p_1 = \frac{2.33}{3.33} \approx 0.70, \quad
-    p_2 = \frac{1}{3.33} \approx 0.30.
-    \]
-    \item Entropy:
-    \[
-    \text{Entropy}(S_{v_2}) = -0.70 \log_2(0.70) -
-    0.30 \log_2(0.30) \approx 0.88.
-    \]
-\end{itemize}
-
-3. \textbf{Weighted Average Entropy}:
-\[
-\text{Entropy}_{\text{split}} = \frac{6.67}{10} \times 0.61 +
-\frac{3.33}{10} \times 0.88 \approx 0.69.
-\]
-
-\subsubsection{Why This Approach?}
-This method ensures missing values are handled without discarding
-data or making arbitrary assumptions. By fractionally assigning
-instances, C4.5 maintains statistical validity and uses all
-available information.
+\begin{exercise}\label{decision-trees:exr:4}
+Modify the data of \cref{decision-trees:ex:xor} so that the class is ``yes'' iff (colour is
+green) XOR (size is large) and colour has only two values, green and blue, with each
+combination appearing once. Show that no first split has a positive information gain.
+\solutionlink{decision-trees:exr:4}
+\end{exercise}
 \end{notechapter}

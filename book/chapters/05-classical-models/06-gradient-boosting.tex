@@ -1,290 +1,249 @@
-% Source: Markdown/gradient-boosting-mathematical-justification.md
 \begin{notechapter}
-\chapter{A Mathematical Justification of Gradient Boosting}\label{ch:gradient-boosting}
-
-\section{Problem Formulation}
-
-Let's define the supervised learning problem formally. Consider a
-dataset \(\mathcal{D} = \{(x_i, y_i)\}_{i=1}^n\) where
-\(x_i \in \mathcal{X}\) are input features and \(y_i \in \mathcal{Y}\)
-are target values. Our goal is to find a function
-\(F: \mathcal{X} \rightarrow \mathbb{R}\) that minimizes the expected
-value of some loss function
-\(L: \mathcal{Y} \times \mathbb{R} \rightarrow \mathbb{R}\):
-
-\[F^* = \arg\min_{F} \mathbb{E}_{(x,y)}[L(y, F(x))]\]
-
-In practice, we approximate this using the empirical risk:
-
-\[F^* \approx \arg\min_{F} \frac{1}{n}\sum_{i=1}^n L(y_i, F(x_i))\]
-
-\section{Functional Gradient Descent}
-
-Gradient boosting approaches this minimization problem through
-functional gradient descent. Instead of optimizing over a parameter
-space, we're optimizing in a function space.
-
-\subsection{The Functional Derivative: Comprehensive Treatment}
-
-\subsubsection{Definition of Functional and Gâteaux Derivative}
-
-A functional \(\mathcal{L}\) is a mapping from a function space to the
-real numbers. In our case, we define:
-
-\[\mathcal{L}[F] = \sum_{i=1}^n L(y_i, F(x_i))\]
-
-The Gâteaux derivative (directional derivative) of \(\mathcal{L}\) at
-\(F\) in the direction of a function \(h\) is defined as:
-
-\[\mathcal{L}'[F; h] = \lim_{\epsilon \to 0} \frac{\mathcal{L}[F + \epsilon \cdot h] - \mathcal{L}[F]}{\epsilon}\]
-
-when this limit exists. This represents the rate of change of
-\(\mathcal{L}\) at \(F\) in the direction of \(h\).
-
-\subsubsection{The Functional Derivative as a Distribution}
-
-The functional derivative of \(\mathcal{L}\) at \(F\), denoted
-\(\frac{\delta \mathcal{L}[F]}{\delta F}\), is a distribution
-(generalized function) such that for any test function \(h\) in the
-appropriate space:
-
-\[\left\langle \frac{\delta \mathcal{L}[F]}{\delta F}, h \right\rangle = \mathcal{L}'[F; h]\]
-
-where \(\langle \cdot, \cdot \rangle\) denotes the pairing between a
-distribution and a test function.
-
-For our empirical risk functional:
-
-\[\mathcal{L}'[F; h] = \lim_{\epsilon \to 0} \frac{1}{\epsilon} \left[ \sum_{i=1}^n L(y_i, F(x_i) + \epsilon \cdot h(x_i)) - \sum_{i=1}^n L(y_i, F(x_i)) \right]\]
-
-By the chain rule and assuming sufficient smoothness of \(L\):
-
-\[\mathcal{L}'[F; h] = \sum_{i=1}^n \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \cdot h(x_i)\]
-
-\subsubsection{Representation Using the Dirac Delta Distribution}
-
-The functional derivative can be represented using the Dirac delta
-distribution as:
-
-\[\frac{\delta \mathcal{L}[F]}{\delta F} = \sum_{i=1}^n \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \cdot \delta_{x_i}\]
-
-where \(\delta_{x_i}\) is the Dirac delta distribution centered at
-\(x_i\). This is a distribution, not a function, and should be
-understood in the sense of generalized functions or distributions
-theory.
-
-For any test function \(h\), the pairing gives:
-
-\[\left\langle \frac{\delta \mathcal{L}[F]}{\delta F}, h \right\rangle = \sum_{i=1}^n \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \cdot h(x_i)\]
-
-which matches our previous expression for \(\mathcal{L}'[F; h]\).
-
-\subsubsection{Evaluation at a Point}
-
-For a specific point \(x\) in the input space, the functional derivative
-evaluated at \(x\) is formally given by:
-
-\[\frac{\delta \mathcal{L}[F]}{\delta F(x)} = \sum_{i=1}^n \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \cdot \delta(x - x_i)\]
-
-This is a distribution that, when integrated against a test function,
-yields the directional derivative of \(\mathcal{L}\) at \(F\) in the
-direction specified by the test function.
-
-\subsubsection{Connection to Riesz Representation Theorem}
-
-Under appropriate conditions on the function space (e.g., when working
-in a Hilbert space \(\mathcal{H}\)), the Riesz representation theorem
-implies there exists a unique element
-\(\nabla_F \mathcal{L} \in \mathcal{H}\) such that:
-
-\[\mathcal{L}'[F; h] = \langle \nabla_F \mathcal{L}, h \rangle_{\mathcal{H}}\]
-
-where \(\langle \cdot, \cdot \rangle_{\mathcal{H}}\) is the inner
-product in \(\mathcal{H}\). This element \(\nabla_F \mathcal{L}\) is
-called the gradient of \(\mathcal{L}\) at \(F\).
-
-A caveat: the empirical functional above depends on \(F\) only through its values at the training
-points, so its derivative is a sum of Dirac masses, which is \emph{not} continuous on \(L^2(\mu)\)
-when the input distribution \(\mu\) is continuous: no Riesz representer exists there. It does exist in
-\(L^2(\hat{\mu}_n)\), the space of functions on the training points with the empirical inner product
-\(\langle f, g \rangle_n = \frac{1}{n}\sum_{i} f(x_i) g(x_i)\); there the gradient is the vector of values
-\(n\,\partial L(y_i, F(x_i))/\partial F(x_i)\), \(i = 1,\dots,n\) (the factor \(n\) disappears with the inner
-product \(\sum_i f(x_i)g(x_i)\)). This is why the gradient is only known at the training points and must
-be extended to the whole input space by a weak learner (see below).
-
-\subsubsection{Fréchet Derivative}
-
-When the Gâteaux derivative is linear and continuous in \(h\), it is
-also a Fréchet derivative, which provides stronger properties. The
-Fréchet derivative is essential for establishing convergence results in
-functional optimization.
-
-\subsubsection{Space of Test Functions}
-
-For gradient boosting, we typically work with test functions in the
-hypothesis space \(\mathcal{H}\) (e.g., decision trees of a certain
-depth). The functional derivative must be defined with respect to
-appropriate test functions from this space.
-
-\subsection{Gradient Descent Step}
-
-In functional gradient descent, we update our function in the direction
-of the negative gradient:
-
-\[F_{m+1} = F_m - \rho_m \cdot \nabla_{F_m} \mathcal{L}\]
-
-where \(\rho_m\) is the step size at iteration \(m\) and
-\(\nabla_{F_m} \mathcal{L}\) is the gradient at \(F_m\).
-
-At the training points, this becomes:
-
-\[F_{m+1}(x_i) = F_m(x_i) - \rho_m \cdot \frac{\partial L(y_i, F_m(x_i))}{\partial F_m(x_i)}, \qquad i = 1, \dots, n,\]
-
-(up to the scaling convention of the inner product). At any other point \(x\), the gradient of the
-empirical functional is zero, so this ``pure'' functional gradient step would not change \(F\) away from
-the training data: it would only memorize the training set. (Note that a pairing
-\(\langle \delta \mathcal{L}/\delta F, \delta_x \rangle\) between two distributions is not defined.)
-
-\section{The Steepest Descent Direction}
-
-The steepest descent direction is the negative gradient. In function
-space, this is:
-
-\[h_m = -\nabla_{F_m} \mathcal{L}\]
-
-At each point \(x_i\) in our training set, this equals:
-
-\[h_m(x_i) = -\frac{\partial L(y_i, F_m(x_i))}{\partial F_m(x_i)}\]
-
-These values are often called pseudo-residuals.
-
-\section{Approximating the Gradient}
-
-In practice, we can't directly use \(h_m\) as defined above because: 1.
-It's only defined at training points \(x_i\) 2. It might not be in our
-hypothesis space (e.g., decision trees)
-
-Therefore, we approximate \(h_m\) by fitting a function from our
-hypothesis space to the pseudo-residuals:
-
-\[\tilde{h}_m = \arg\min_{h \in \mathcal{H}} \sum_{i=1}^n \left(h(x_i) - \left(-\frac{\partial L(y_i, F_m(x_i))}{\partial F_m(x_i)}\right)\right)^2\]
-
-which simplifies to:
-
-\[\tilde{h}_m = \arg\min_{h \in \mathcal{H}} \sum_{i=1}^n (h(x_i) - r_{im})^2\]
-
-where \(r_{im} = -\frac{\partial L(y_i, F_m(x_i))}{\partial F_m(x_i)}\)
-are the pseudo-residuals.
-
-\section{Line Search for Optimal Step Size}
-
-After finding the direction \(\tilde{h}_m\), we determine the optimal
-step size \(\rho_m\) by solving:
-
-\[\rho_m = \arg\min_{\rho} \sum_{i=1}^n L(y_i, F_m(x_i) + \rho \cdot \tilde{h}_m(x_i))\]
-
-\section{Final Update Rule}
-
-The final update rule becomes:
-
-\[F_{m+1}(x) = F_m(x) + \rho_m \cdot \tilde{h}_m(x)\]
-
-\section{Mathematical Justification of Convergence}
-
-\subsection{Convergence in the Limit}
-
-Under certain conditions, gradient boosting converges to the global
-optimum (infimum) for convex loss functions. For a loss function \(L\) that is
-convex and smooth with respect to its second argument, and given a rich
-enough hypothesis space \(\mathcal{H}\), there exists a sequence of step
-sizes \(\{\rho_m\}\) such that:
-
-\[\lim_{M \to \infty} \sum_{i=1}^n L(y_i, F_M(x_i)) = \inf_{F} \sum_{i=1}^n L(y_i, F(x_i))\]
-
-\subsection{Convergence Rate}
-
-For \emph{exact} functional gradient descent on a convex and smooth loss whose infimum is attained,
-the classical analysis of gradient descent gives a rate of \(O(1/M)\) after \(M\) iterations. With
-weak learners that only approximate the negative gradient, rates of this type require additional
-assumptions (e.g.\ that each weak learner is sufficiently correlated with the negative gradient), and
-the known guarantees are generally weaker. Schematically:
-
-\[\sum_{i=1}^n L(y_i, F_M(x_i)) - \inf_{F} \sum_{i=1}^n L(y_i, F(x_i)) \leq \frac{C}{M}\]
-
-where \(C\) is a constant dependent on the properties of \(L\) and the
-initial approximation error.
-
-\subsection{Regularization through Early Stopping}
-
-In practice, we often stop before convergence to avoid overfitting
-(early stopping). This can be viewed, informally, as a form of regularization:
-
-\[F_M = \arg\min_{F \in \mathcal{F}_M} \sum_{i=1}^n L(y_i, F(x_i)) + \lambda \cdot \text{complexity}(F)\]
-
-where \(\mathcal{F}_M\) is the space of functions representable by \(M\)
-iterations of gradient boosting, and the complexity penalty is implicit
-in the early stopping procedure.
-
-\section{Connection to Statistical Theory}
-
-\subsection{Consistency}
-
-Under appropriate conditions---in particular a number of iterations that grows with \(n\) but not too
-fast (early stopping), or shrinkage---gradient boosting is consistent: its risk converges to the
-optimal risk,
-\[\mathbb{E}\big[L(Y, F_n(X))\big] \xrightarrow[n\to\infty]{} \mathbb{E}\big[L(Y, F^*(X))\big]\]
-in probability (e.g.\ Zhang and Yu, 2005, \emph{Boosting with early stopping}). Here \(F_n\) is the
-estimator based on \(n\) samples and \(F^*\) the population minimizer. Without early stopping, boosting
-run to convergence on the empirical risk generally overfits. (Uniform convergence
-\(\sup_x |F_n(x) - F^*(x)| \to 0\) is a much stronger requirement and is not what these results state.)
-
-\subsection{Bias-Variance Tradeoff}
-
-Gradient boosting manages the bias-variance tradeoff through:
-\begin{itemize}
-\item reducing bias by adding more weak learners (increasing model complexity);
-\item controlling variance through techniques like shrinkage (step size
-control), subsampling, and early stopping.
+\chapter{Gradient Boosting}\label{ch:gradient-boosting}
+\chaptersubtitle{Gradient descent in a space of functions}
+
+\begin{chapterintro}
+AdaBoost minimizes the exponential loss one term at a time
+(\cref{ensemble-methods:sec:adaboost}). Gradient boosting (Friedman, \emph{Greedy Function
+Approximation: A Gradient Boosting Machine}, Annals of Statistics, 2001) does the same
+for any differentiable loss, by viewing the prediction function itself as the variable
+of a gradient descent. Each step computes the negative gradient of the loss at the
+training points --- the \emph{pseudo-residuals} --- and fits a tree to them. This
+chapter makes the functional gradient precise, derives the algorithm and its
+second-order variant used by XGBoost and LightGBM, and states what is known about its
+convergence. You will learn
+\begin{itemize}[nosep]
+  \item the functional derivative of the empirical risk, and why its gradient depends on the
+        inner product chosen on functions;
+  \item why the raw gradient step would only memorize the training set, and how fitting a
+        tree to the pseudo-residuals extends it;
+  \item the algorithm with line search and shrinkage, and the pseudo-residuals of the
+        common losses;
+  \item Newton boosting, its optimal leaf values $-G/(H + \lambda)$ and split gain;
+  \item what convergence and consistency results say, and the role of early stopping.
 \end{itemize}
+\prerequisites{\cref{ch:gradient-tangent-space} (the gradient depends on the metric);
+\cref{ch:decision-trees,ch:ensemble-methods}; \cref{ch:output-distributions} for the
+losses.}
+\end{chapterintro}
 
-\section{Special Cases for Common Loss Functions}
+\section{The problem}\label{gradient-boosting:sec:problem}
 
-\subsection{Squared Loss (Regression)}
+Given data $(x_i, y_i)_{i=1}^n$ and a loss $L(y, F)$ differentiable in its second argument, we look
+for a function $F$ minimizing the empirical risk
+\[
+  \mathcal R[F] = \sum_{i=1}^nL\bigl(y_i, F(x_i)\bigr),
+\]
+an approximation of the population risk $\E[L(Y, F(X))]$. Here the variable is the function $F$
+itself, not a parameter vector. $\mathcal R$ is a \emph{functional}: it maps functions to numbers.
 
-For \(L(y, F(x)) = \frac{1}{2}(y - F(x))^2\):
+\section{The functional gradient}\label{gradient-boosting:sec:functional}
+
+\paragraph{Directional derivative.} The Gâteaux derivative of $\mathcal R$ at $F$ in the direction of a
+function $h$ is
+\[
+  \mathcal R'[F; h] = \lim_{\epsilon\to0}\frac{\mathcal R[F + \epsilon h] - \mathcal R[F]}\epsilon = \sum_{i=1}^ng_i\,h(x_i),\qquad
+  g_i = \frac{\partial L(y_i, F)}{\partial F}\Big|_{F = F(x_i)},
+\]
+by the chain rule applied to each term. It is linear in $h$, and it depends on $h$ only through
+its values at the training points: $\mathcal R'[F;\cdot] = \sum_ig_i\,\delta_{x_i}$, a combination of the point
+evaluations $\delta_{x_i}: h\mapsto h(x_i)$ (the ``Dirac deltas'' at the training points).
+
+\paragraph{From derivative to gradient.} As in \cref{ch:gradient-tangent-space}, a derivative
+is a linear form; a \emph{gradient} is the vector that represents it through an inner
+product, $\mathcal R'[F; h] = \inner{\nabla\mathcal R[F]}h$, and it depends on the inner product chosen. Three
+choices on spaces of functions are instructive.
 \begin{itemize}
-\item the negative gradient is \(r_{im} = y_i - F_m(x_i)\);
-\item these are the traditional residuals;
-\item gradient boosting reduces to repeatedly fitting the residuals.
+  \item $L^2(\mu)$, with $\inner fg = \int fg\,d\mu$ for the input distribution $\mu$. If $\mu$ has a density, no function
+        represents $h\mapsto\sum_ig_ih(x_i)$: changing $h$ at the finitely many points $x_i$ changes the
+        derivative but not any integral. The linear form is not continuous on $L^2(\mu)$ and there
+        is no gradient.
+  \item $L^2(\hat\mu_n)$, the functions on the training points with $\inner fg_n = \frac1n\sum_if(x_i)g(x_i)$. Here
+        the gradient exists and is the vector of values $(ng_1,\dots,ng_n)$; with the inner product
+        $\sum_if(x_i)g(x_i)$ it is simply $(g_1,\dots,g_n)$.
+  \item A reproducing kernel Hilbert space with kernel $k$ (\cref{ch:rkhs}), where point evaluation is
+        continuous and represented by $k(x_i,\cdot)$: $h(x_i) = \inner h{k(x_i,\cdot)}$. The gradient is then the smooth
+        function $\sum_ig_i\,k(x_i,\cdot)$, defined everywhere. Gradient descent in this space is
+        \emph{kernel boosting}, and every iterate is a kernel expansion, as the representer
+        theorem predicts.
 \end{itemize}
+With the second choice, the steepest-descent step changes $F$ only at the training points:
+\[
+  F_{m+1}(x_i) = F_m(x_i) - \rho\,g_i,\qquad F_{m+1}(x) = F_m(x)\ \text{elsewhere}.
+\]
+Iterated, it drives the training loss to its infimum by memorizing the training set, and
+it says nothing about new inputs.
 
-\subsection{Negative Log-Likelihood (Classification)}
+\paragraph{Restricting the direction.} Gradient boosting chooses the descent direction
+in a class $\Hs$ of simple functions, typically regression trees of a fixed size. The best
+approximation of the negative gradient in $\Hs$, in the norm of $L^2(\hat\mu_n)$, is the least-squares
+fit to the \emph{pseudo-residuals} $r_i = -g_i$:
+\[
+  h_m = \argmin_{h\in\Hs}\sum_{i=1}^n\bigl(r_i - h(x_i)\bigr)^2 .
+\]
+When $\Hs$ is a linear space this is the orthogonal projection of $-\nabla\mathcal R$ onto $\Hs$, and $h_m$ is the
+steepest-descent direction within $\Hs$; for trees, which are not a linear space, it is the
+greedy approximation computed by the tree-growing algorithm of
+\cref{decision-trees:sec:greedy}. Either way, $h_m$ is defined on the whole input space: the tree
+generalizes the gradient from the training points to new inputs.
 
-For binary classification with
-\(y \in \{0, 1\}\) and \(L(y, F(x)) = -y \cdot F(x) + \log(1 + e^{F(x)})\) (\(F\) is the log-odds):
-\begin{itemize}
-\item the negative gradient is \(r_{im} = y_i - \frac{1}{1 + e^{-F_m(x_i)}}\);
-\item this equals \(y_i - p_m(x_i)\) where \(p_m(x_i)\) is the predicted probability.
-\end{itemize}
+\section{The algorithm}\label{gradient-boosting:sec:algorithm}
 
-\section{Conclusion}
-
-The mathematical foundation of gradient boosting rests on functional
-gradient descent in function space, where:
-
-\begin{enumerate}
-\def\labelenumi{\arabic{enumi}.}
-\tightlist
-\item
-  We seek the function that minimizes a loss over the training data
-\item
-  We approximate the negative functional gradient using weak learners
-\item
-  We iteratively update our function by moving in the direction of these
-  approximated gradients
+\begin{definition}[Gradient tree boosting]\label{gradient-boosting:def:algorithm}
+\begin{enumerate}[nosep]
+  \item Initialize with the best constant: $F_0 = \argmin_c\sum_iL(y_i, c)$.
+  \item For $m = 1,\dots,M$:
+  \begin{enumerate}[nosep]
+    \item compute the pseudo-residuals $r_{im} = -\partial L(y_i, F)/\partial F$ at $F = F_{m-1}(x_i)$;
+    \item fit a regression tree with leaves $R_{1m},\dots,R_{Jm}$ to the pairs $(x_i, r_{im})$ by least squares;
+    \item for each leaf, find the best constant step,
+          $\gamma_{jm} = \argmin_\gamma\sum_{x_i\in R_{jm}}L\bigl(y_i, F_{m-1}(x_i) + \gamma\bigr)$;
+    \item update $F_m(x) = F_{m-1}(x) + \nu\sum_j\gamma_{jm}\bbone[x\in R_{jm}]$.
+  \end{enumerate}
 \end{enumerate}
+\end{definition}
 
-This framework provides a unified view of many boosting algorithms and
-explains why gradient boosting is effective for a wide range of loss
-functions and prediction tasks.
+Step (c) is a line search, done separately in each leaf: the tree supplies the cells, the
+loss decides the values. For the squared loss it gives the leaf means of the residuals,
+the values the tree already has. The \emph{shrinkage} $0<\nu\leq1$ (the learning rate) takes only a
+fraction of each step; values of $0.01$ to $0.1$ with many more trees generalize markedly
+better than $\nu = 1$, an empirical fact that the analysis of early stopping explains in
+part. \emph{Stochastic} gradient boosting (Friedman, 2002) fits each tree to a random half
+or so of the data, which both speeds it up and regularizes.
+
+\paragraph{Pseudo-residuals of the usual losses.}
+\begin{center}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+loss & $L(y, F)$ & pseudo-residual $-\partial L/\partial F$ \\
+\midrule
+squared & $\frac12(y - F)^2$ & $y - F$ \\
+absolute & $\abs{y - F}$ & $\sign(y - F)$ \\
+Huber ($\delta$) & $\frac12(y - F)^2$ if $\abs{y - F}\leq\delta$, else $\delta(\abs{y - F} - \frac\delta2)$ & $y - F$, clipped to $[-\delta, \delta]$ \\
+logistic, $y\in\{0, 1\}$ & $\log(1 + e^F) - yF$ & $y - \sigma(F)$ \\
+exponential, $y\in\{\pm1\}$ & $e^{-yF}$ & $ye^{-yF}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+For the squared loss the pseudo-residuals are the residuals, and gradient boosting
+repeatedly fits the errors of the current model. For the logistic loss, $F$ is the
+log-odds and the pseudo-residual is the label minus the predicted probability
+(\cref{sigmoid-softmax:sec:sigmoid}). For the absolute loss only the signs of the residuals
+enter the tree, and the leaf values of step (c) are medians: the algorithm is robust to
+outliers in $y$.
+
+\begin{example}[Three rounds on eight points]\label{gradient-boosting:ex:rounds}
+Data $x = 1,\dots,8$, $y = (1, 2, 2.5, 4, 3.5, 3, 1.5, 1)$, squared loss, stumps, $\nu = 0.5$. Then $F_0 = \bar y = 2.3125$,
+with total squared error $8.969$.
+\begin{center}
+\begin{tabular}{@{}clccc@{}}
+\toprule
+$m$ & residuals $r_{im}$ & split & leaf values & SSE of $F_m$ \\
+\midrule
+1 & $(-1.31, -0.31, 0.19, 1.69, 1.19, 0.69, -0.81, -1.31)$ & $x\leq6.5$ & $0.354, -1.062$ & $6.711$ \\
+2 & $(-1.49, -0.49, 0.01, 1.51, 1.01, 0.51, -0.28, -0.78)$ & $x\leq2.5$ & $-0.990, 0.330$ & $4.752$ \\
+3 & $(-1.00, 0.01, -0.16, 1.35, 0.85, 0.35, -0.45, -0.95)$ & $x\leq6.5$ & $0.232, -0.696$ & $3.783$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+The hump-shaped target is approached by alternately cutting its right and left
+shoulders; the same split can be chosen again, since the residuals change. With $\nu = 0.5$
+each tree contributes half its fit.
+\end{example}
+
+\section{Newton boosting}\label{gradient-boosting:sec:newton}
+
+XGBoost (Chen and Guestrin, 2016) and LightGBM use a second-order expansion of the loss
+around the current predictions. With $g_i$ and $h_i = \partial^2L/\partial F^2$ at $F_{m-1}(x_i)$, a new tree $f$ with leaf
+values $w_1,\dots,w_J$ is chosen to minimize
+\[
+  \sum_i\Bigl(g_if(x_i) + \tfrac12h_if(x_i)^2\Bigr) + \gamma J + \tfrac\lambda2\sum_jw_j^2,
+\]
+where $\gamma$ penalizes the number of leaves and $\lambda$ the leaf values. Grouping the points by leaf,
+with $G_j = \sum_{x_i\in R_j}g_i$ and $H_j = \sum_{x_i\in R_j}h_i$, the objective is $\sum_j(G_jw_j + \frac12(H_j + \lambda)w_j^2) + \gamma J$, a sum of
+independent parabolas. Hence
+\[
+  w_j^* = -\frac{G_j}{H_j + \lambda},\qquad\text{objective}^* = -\frac12\sum_j\frac{G_j^2}{H_j + \lambda} + \gamma J,
+\]
+and a split of a leaf into $L$ and $R$ is worth
+\[
+  \mathrm{Gain} = \frac12\Bigl(\frac{G_L^2}{H_L + \lambda} + \frac{G_R^2}{H_R + \lambda} - \frac{(G_L + G_R)^2}{H_L + H_R + \lambda}\Bigr) - \gamma,
+\]
+which replaces the impurity decrease when growing the tree. Each leaf value is a Newton
+step $-G/H$, shrunk by $\lambda$. For the squared loss ($h_i = 1$) and $\lambda = 0$ it is the mean residual; for
+the logistic loss it is $\sum r_i/\sum p_i(1 - p_i)$, the leaf value Friedman already derived for
+step (c).
+
+\section{Convergence and regularization}\label{gradient-boosting:sec:theory}
+
+\paragraph{Optimization.} For a convex loss, smooth in $F$, and a class $\Hs$ rich enough, gradient
+boosting with suitable step sizes drives the empirical risk to its infimum. With
+\emph{exact} functional gradient steps on a convex smooth risk whose infimum is attained,
+the classical analysis of gradient descent gives an excess of order $C/M$ after $M$
+iterations. With weak learners that only approximate the negative gradient, rates of
+this type require further assumptions (each $h_m$ sufficiently correlated with the negative
+gradient), and the known guarantees are weaker; schematically, the excess empirical risk
+still decreases as $O(1/M)$ under such assumptions.
+
+\paragraph{Statistics.} Driving the empirical risk to its infimum is not the goal: run to
+convergence, boosting overfits. Zhang and Yu (\emph{Boosting with Early Stopping:
+Convergence and Consistency}, Annals of Statistics, 2005) prove that it is
+\emph{consistent} when stopped early: for a loss of the form $\phi(yF)$, base learners of
+finite VC dimension (for example trees with a bounded number of leaves), restricted step
+sizes $h_k$ with $\sum_kh_k = \infty$ and $\sum_kh_k^2<\infty$, and a number of iterations
+$k_n\to\infty$ whose total step size $\sum_{k\leq k_n}h_k$ grows slowly enough with $n$, the
+expected population risk converges to the best one in the span of the base learners,
+\[
+  \E_{\mathcal{D}_n}\bigl[\E[L(Y, F_{k_n}(X))]\bigr]\;\longrightarrow\;\inf_{F\in\operatorname{span}}\E[L(Y, F(X))],
+\]
+where the outer expectation is over the training sample $\mathcal{D}_n$. When that span is dense, the infimum is the
+minimal risk. The number of iterations $M$ is thus the main regularization
+parameter, chosen by validation (early stopping), together with $\nu$, the tree size and
+the subsampling rate. Informally, stopping after $M$ small steps restricts $F$ to functions
+reachable by a short path from $F_0$, a form of implicit regularization, as for early
+stopping in neural networks. In bias--variance terms, each iteration lowers the bias,
+and shrinkage, subsampling and small trees keep the variance in check.
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item The derivative of the empirical risk is $h\mapsto\sum_ig_ih(x_i)$, a combination of point
+        evaluations. Its gradient depends on the inner product: none in $L^2(\mu)$, the vector
+        $(g_i)$ on the training points, $\sum_ig_ik(x_i,\cdot)$ in an RKHS.
+  \item A raw gradient step only changes $F$ at the training points. Gradient boosting fits a
+        tree to the pseudo-residuals $-g_i$ by least squares, then sets leaf values by line
+        search and shrinks the step by $\nu$.
+  \item Pseudo-residuals: residuals (squared loss), signs (absolute), $y - p$ (logistic).
+  \item Newton boosting uses $g_i$ and $h_i$: leaf values $-G/(H + \lambda)$ and a split gain in closed form.
+  \item Boosting run to convergence overfits; with early stopping it is consistent.
+\end{itemize}
+\end{chaptersummary}
+
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\begin{exercise}\label{gradient-boosting:exr:1}
+Show that for the squared loss, step (c) of \cref{gradient-boosting:def:algorithm} returns the
+mean residual of each leaf, and that for the absolute loss it returns a median of the
+residuals of each leaf.
+\solutionlink{gradient-boosting:exr:1}
+\end{exercise}
+
+\begin{exercise}\label{gradient-boosting:exr:2}
+For the logistic loss with $y\in\{0, 1\}$, compute $g_i$ and $h_i$, and show that the Newton leaf value
+with $\lambda = 0$ is $\sum_{i\in R}(y_i - p_i)/\sum_{i\in R}p_i(1 - p_i)$. What is $F_0$?
+\solutionlink{gradient-boosting:exr:2}
+\end{exercise}
+
+\begin{exercise}\label{gradient-boosting:exr:3}
+Show that gradient boosting with the exponential loss, $\nu = 1$ and weak learners with values in
+$\{-1, 1\}$ chosen to maximize $\sum_ir_ih(x_i)$, followed by a line search, is AdaBoost.
+\solutionlink{gradient-boosting:exr:3}
+\end{exercise}
+
+\begin{exercise}\label{gradient-boosting:exr:4}
+Check the first row of \cref{gradient-boosting:ex:rounds}: compute the total squared error of the
+residuals for the thresholds $2.5$ and $6.5$, and the leaf values of the best one.
+\solutionlink{gradient-boosting:exr:4}
+\end{exercise}
 \end{notechapter}

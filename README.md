@@ -7,7 +7,7 @@ graph neural networks.
 
 The notes started as ~100 standalone LaTeX documents, Markdown files and
 notebooks. They are organised here as a single LaTeX book (11 parts,
-78 chapters and three appendices, ~830 pages), with the accompanying code and notebooks.
+77 chapters and three appendices, ~800 pages), with the accompanying code and notebooks.
 
 **[📕 Download the PDF](https://github.com/CL-BZH/ml-notes-book/releases/latest/download/Notes_on_Machine_Learning.pdf)**
 
@@ -50,79 +50,78 @@ notebooks. They are organised here as a single LaTeX book (11 parts,
 
 **Part V — Classical Models**
 
-24. The Perceptron Trick
+24. The Perceptron
 25. Support Vector Machines
-26. Support Vector Methods: SVDD, OCSVM and SVR
+26. Support Vector Methods for Regression and Novelty Detection
 27. Decision Trees
-28. Ensemble Methods
-29. A Mathematical Justification of Gradient Boosting
+28. Ensembles: Bagging, Random Forests and AdaBoost
+29. Gradient Boosting
 30. Dynamic Time Warping
-31. Some Linear Time Series Models
-32. Time Series with Multiplicative Seasonality
-33. Open-Loop versus Closed-Loop Prediction
+31. Linear Time Series Models
+32. Decomposition and Forecasting
 
 **Part VI — Neural Networks: Fundamentals and Training**
 
-34. Deep Learning: An Overview
-35. Desirable Properties of Activation Functions
-36. A Catalogue of Activation Functions
-37. Backpropagation in a Network with Two Hidden Layers
-38. Backpropagation: A Worked Example
-39. Backpropagation and the Chain Rule
-40. Backpropagation as Dynamic Programming
-41. Gradient Descent and its Variants
-42. Normalization in Neural Networks
-43. Dropout as a Regularization Method
-44. Dropout: From Theory to Implementation
+33. Deep Learning: An Overview
+34. Desirable Properties of Activation Functions
+35. A Catalogue of Activation Functions
+36. Backpropagation in a Network with Two Hidden Layers
+37. Backpropagation: A Worked Example
+38. Backpropagation and the Chain Rule
+39. Backpropagation as Dynamic Programming
+40. Gradient Descent and its Variants
+41. Normalization in Neural Networks
+42. Dropout as a Regularization Method
+43. Dropout: From Theory to Implementation
 
 **Part VII — Convolutional Networks and Computer Vision**
 
-45. Convolution versus Cross-Correlation
-46. Convolution in CNNs
-47. Image Gradients by Convolution
-48. Transpose Convolution
-49. Normalization in Convolutional Networks
-50. The Evolution of CNNs
-51. Instance Segmentation
-52. Transfer Learning
+44. Convolution versus Cross-Correlation
+45. Convolution in CNNs
+46. Image Gradients by Convolution
+47. Transpose Convolution
+48. Normalization in Convolutional Networks
+49. The Evolution of CNNs
+50. Instance Segmentation
+51. Transfer Learning
 
 **Part VIII — Recurrent Networks**
 
-53. Gradient Computation in RNNs
-54. From the Chain Rule to Backpropagation Through Time
-55. Long Short-Term Memory
+52. Gradient Computation in RNNs
+53. From the Chain Rule to Backpropagation Through Time
+54. Long Short-Term Memory
 
 **Part IX — Language Modeling and Structured Prediction**
 
-56. Bigram Language Modeling with Multinomial Logistic Regression
-57. Bigram Logistic Regression: Loss and Gradient
-58. A One-Hidden-Layer Neural Bigram Model
-59. Word Embeddings
-60. Hierarchical Softmax and Huffman Trees
-61. Noise Contrastive Estimation and Negative Sampling
-62. Structured Prediction
-63. The Viterbi Algorithm for Part-of-Speech Tagging
-64. Conditional Random Fields for Part-of-Speech Tagging
+55. Bigram Language Modeling with Multinomial Logistic Regression
+56. Bigram Logistic Regression: Loss and Gradient
+57. A One-Hidden-Layer Neural Bigram Model
+58. Word Embeddings
+59. Hierarchical Softmax and Huffman Trees
+60. Noise Contrastive Estimation and Negative Sampling
+61. Structured Prediction
+62. The Viterbi Algorithm for Part-of-Speech Tagging
+63. Conditional Random Fields for Part-of-Speech Tagging
 
 **Part X — Contrastive and Self-Supervised Learning**
 
-65. Contrastive Learning: An Overview
-66. Contrastive Learning: A Mathematical Treatment
+64. Contrastive Learning: An Overview
+65. Contrastive Learning: A Mathematical Treatment
 
 **Part XI — Machine Learning on Graphs**
 
-67. The Laplacian, Local Averages and Graphs
-68. From Harmonic Functions to Graph Laplacians
-69. Graph Laplacians and Spectral Methods
-70. A Unified View of Spectral Decomposition
-71. Fourier Analysis
-72. From the DFT to Graph Neural Networks
-73. Random-Walk Node Similarity
-74. The Leicht–Holme–Newman Similarity
-75. Reproducing Kernel Hilbert Spaces
-76. Semi-Supervised Learning on Graphs
-77. Shallow Graph Embedding Methods
-78. Graph Autoencoders
+66. The Laplacian, Local Averages and Graphs
+67. From Harmonic Functions to Graph Laplacians
+68. Graph Laplacians and Spectral Methods
+69. A Unified View of Spectral Decomposition
+70. Fourier Analysis
+71. From the DFT to Graph Neural Networks
+72. Random-Walk Node Similarity
+73. The Leicht–Holme–Newman Similarity
+74. Reproducing Kernel Hilbert Spaces
+75. Semi-Supervised Learning on Graphs
+76. Shallow Graph Embedding Methods
+77. Graph Autoencoders
 
 **Appendices**
 
