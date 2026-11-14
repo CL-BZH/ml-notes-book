@@ -1,385 +1,374 @@
-% Source: bayes_classification_cross-entropy_and_surrogate_losses.tex
 \begin{notechapter}
-% ---- chapter-local definitions ----
-\forgetcs\E\newcommand{\E}{\mathbb{E}}
-\forgetcs\R\newcommand{\R}{\mathbb{R}}
-% -----------------------------------
-\chapter{Bayes Classification and Surrogate Losses}\label{ch:surrogate-losses}
+\chapter{Surrogate Losses for Classification}\label{ch:surrogate-losses}
+\chaptersubtitle{Training on one loss, being judged on another}
 
-\begin{abstract}
-This document complements the discussion of Bayes risk and Bayes estimators by exploring the practical implementation of classification in machine learning. While the Bayes classifier for 0-1 loss provides the theoretical optimum for both binary and multi-class problems, its direct optimization is infeasible. We examine how surrogate losses like cross-entropy enable practical learning while approximating the Bayes optimal solution, with particular emphasis on the empirical risk minimization framework and Monte Carlo estimation perspective.
-\end{abstract}
-
-\section{Introduction}
-
-In the previous document, we established that for classification with 0-1 loss, the Bayes estimator is:
-\[
-f_{\text{Bayes}}(X) = \arg\max_{y} P(Y=y \mid X)
-\]
-This represents the theoretically optimal classifier that minimizes probability of error, applicable to both binary and multi-class classification. However, in practice, we face two fundamental challenges:
-
-\begin{enumerate}
-    \item We don't know the true distribution $P(Y \mid X)$
-    \item The 0-1 loss is unsuitable for gradient-based optimization
-\end{enumerate}
-
-This document explores how modern machine learning bridges this gap between theoretical optimality and practical learnability through empirical risk minimization with surrogate losses.
-
-\section{Empirical Risk Minimization for Classification}
-
-The empirical risk minimization framework provides the foundation for practical classification:
-
-\begin{itemize}
-    \item \textbf{Target population risk}: $R_{0\text{-}1}(f) = \E_{(X,Y) \sim P(X,Y)}[\mathbb{I}(f(X) \neq Y)]$
-    \item \textbf{Empirical 0-1 risk}: $\hat{R}_{0\text{-}1}(f) = \frac{1}{n}\sum_{i=1}^n \mathbb{I}(f(x_i) \neq y_i)$
-    \item \textbf{Problem}: $\hat{R}_{0\text{-}1}(f)$ is unsuitable for optimization
-    \item \textbf{Solution}: Use surrogate losses within ERM framework over a hypothesis class $\mathcal{H}$
+\begin{chapterintro}
+A classifier is judged by its error rate, the risk under the 0--1 loss, whose
+minimizer is the Bayes classifier (\cref{bayes-decision-theory:thm:bayes-classifier}).
+Yet nobody trains on the 0--1 loss: it is trained on the cross-entropy, the hinge
+loss or another \emph{surrogate}. This chapter asks when that substitution is
+safe. The answer has two parts: a surrogate must lead to the Bayes classifier
+when minimized over all functions (\emph{calibration}), and its excess risk must
+control the excess error rate. You will learn
+\begin{itemize}[nosep]
+  \item why the 0--1 loss cannot be minimized by gradient methods, and the margin;
+  \item the common surrogates (logistic, hinge, exponential, squared) and the
+        functions their population risks are minimized by;
+  \item classification calibration, and bounds of the excess error rate by the
+        excess surrogate risk, proved for the hinge and logistic losses;
+  \item proper scoring rules: which losses also recover probabilities;
+  \item what label smoothing, class weights and the focal loss change in the
+        minimizer.
 \end{itemize}
+\prerequisites{\cref{ch:bayes-decision-theory,ch:erm}; \cref{ch:cross-entropy,ch:sigmoid-softmax}.}
+\end{chapterintro}
 
-The ERM principle for classification selects from the restricted hypothesis class:
+\section{The 0--1 loss and the margin}\label{surrogate-losses:sec:margin}
+
+Take two classes, coded $y\in\{-1, +1\}$ in this chapter, and a real-valued score $f(x)$
+whose sign is the prediction. The 0--1 loss of the classifier $\sign f$ is
+$\bbone[yf(x)\leq0]$ (counting $f(x) = 0$ as an error), so it depends on $f$ and $y$ only through
+the \emph{margin}
 \[
-\hat{f} = \arg\min_{f \in \mathcal{H}} \hat{R}_{\text{surrogate}}(f)
+  m = yf(x),
 \]
-
-\section{The Problem with 0-1 Loss}
-
-The 0-1 loss function is defined identically for both binary and multi-class classification:
-\[
-L_{0\text{-}1}(f(X), Y) = \mathbb{I}(f(X) \neq Y)
-\]
-
-\subsection{Mathematical Limitations}
-
-\begin{itemize}
-    \item \textbf{Non-differentiable}: The gradient is zero almost everywhere and undefined at decision boundaries
-    \item \textbf{Non-convex}: The loss surface has flat regions separated by discontinuous jumps
-    \item \textbf{No gradient signal}: Does not indicate \textit{how wrong} a prediction is, only that it's wrong
-    \item \textbf{Poor empirical estimation}: The empirical risk $\hat{R}_{0\text{-}1}(f)$ has high variance and provides weak learning signals
-\end{itemize}
-
-\subsection{Optimization Challenges}
-
-For a model parameterized by $\theta$, the gradient is:
-\[
-\nabla_\theta \hat{R}_{0\text{-}1}(f_\theta) = 0 \quad \text{almost everywhere}
-\]
-This makes gradient-based optimization impossible for both binary and multi-class problems.
-
-\section{Surrogate Loss Functions in ERM}
-
-Since we cannot optimize the 0-1 loss directly, we use \textbf{surrogate loss functions} within the empirical risk minimization framework.
-
-\subsection{Empirical Risk Minimization with Surrogates}
-
-We face a fundamental mismatch:
-
-\begin{itemize}
-    \item \textbf{Target}: Minimize empirical 0-1 risk $\hat{R}_{0\text{-}1}(f)$ over $\mathcal{H}$
-    \item \textbf{Reality}: We minimize empirical surrogate risk $\hat{R}_{\text{surrogate}}(f)$ over $\mathcal{H}$
-    \item \textbf{Hope}: Minimizing $\hat{R}_{\text{surrogate}}(f)$ leads to small $\hat{R}_{0\text{-}1}(f)$
-\end{itemize}
-
-\subsection{Properties of Good Surrogates}
-
-A good surrogate loss $L_{\text{surrogate}}$ should:
-
-\begin{enumerate}
-    \item Be an \textbf{upper bound} on the 0-1 loss: $L_{0\text{-}1} \leq L_{\text{surrogate}}$
-    \item Be \textbf{convex} and \textbf{differentiable}
-    \item Be \textbf{Fisher consistent} (classification-calibrated): over \emph{all} measurable functions, the minimizer of the population surrogate risk induces the Bayes classifier, e.g.\ $\operatorname{sign}(f^*_{\text{surrogate}}(x)) = \operatorname{sign}(2P(Y=1\mid x) - 1)$ in the binary case. (Requiring $\arg\min_{f \in \mathcal{H}} R_{\text{surrogate}} = \arg\min_{f \in \mathcal{H}} R_{0\text{-}1}$ within a restricted class $\mathcal{H}$ would be much stronger, and is generally false.)
-    \item Have \textbf{efficient empirical risk}: $\hat{R}_{\text{surrogate}}(f)$ should be a good estimator of $R_{\text{surrogate}}(f)$
-\end{enumerate}
-
-\section{Cross-Entropy: The Probabilistic Surrogate}
-
-\subsection{Definition and Monte Carlo Estimation}
-
-Cross-entropy measures the dissimilarity between the true distribution $P(Y|X)$ and our predicted distribution $Q(Y|X)$. The population cross-entropy is:
-
-\[
-H(P,Q) = \E_{(X,Y) \sim P(X,Y)}[-\log Q(Y|X)] = \E_{X}\Big[-\sum_{y} P(Y=y|X) \log Q(Y=y|X)\Big]
-\]
-
-The \textbf{empirical cross-entropy} is the Monte Carlo estimator:
-
-\[
-\hat{H}(P,Q) = -\frac{1}{n}\sum_{i=1}^n \log Q(Y=y_i \mid X=x_i)
-\]
-
-This estimator has desirable properties for ERM:
-\begin{itemize}
-    \item \textbf{Unbiased}: $\E[\hat{H}(P,Q)] = H(P,Q)$
-    \item \textbf{Consistent}: $\hat{H}(P,Q) \xrightarrow[n \to \infty]{\text{a.s.}} H(P,Q)$
-    \item \textbf{Efficient}: $\text{Var}(\hat{H}(P,Q)) = O(1/n)$
-\end{itemize}
-
-\subsection{Specialization to Binary and Multi-class Cases}
-
-\subsubsection{Binary Classification (Sigmoid)}
-
-For \textbf{binary classification} with classes $\{0,1\}$:
-
-\begin{itemize}
-    \item \textbf{Architecture}: Single output neuron
-    \item \textbf{Activation}: Sigmoid function
-    \[
-    Q(Y=1|X) = \sigma(f(X)) = \frac{1}{1+e^{-f(X)}}
-    \]
-    \item \textbf{Empirical risk}: Binary cross-entropy
-    \[
-    \hat{R}_{\text{CE}} = -\frac{1}{n}\sum_{i=1}^n \left[y_i\log(p_i) + (1-y_i)\log(1-p_i)\right]
-    \]
-    where $p_i = \sigma(f(x_i))$
-\end{itemize}
-
-\subsubsection{Multi-class Classification (Softmax)}
-
-For \textbf{multi-class classification} with $K$ classes:
-
-\begin{itemize}
-    \item \textbf{Architecture}: $K$ output neurons
-    \item \textbf{Activation}: Softmax function
-    \[
-    Q(Y=k|X) = \frac{e^{f_k(X)}}{\sum_{j=1}^K e^{f_j(X)}} \quad \text{for } k = 1,\dots,K
-    \]
-    \item \textbf{Empirical risk}: Categorical cross-entropy
-    \[
-    \hat{R}_{\text{CE}} = -\frac{1}{n}\sum_{i=1}^n \sum_{k=1}^K \mathbb{I}(y_i = k) \log(p_{i,k})
-    \]
-    where $p_{i,k} = Q(Y=k|X=x_i)$
-\end{itemize}
-
-\subsection{Connection to Maximum Likelihood and Bayes Optimality}
-
-Minimizing cross-entropy is equivalent to \textbf{maximum likelihood estimation}:
-
-\[
-\arg\min_Q H(P,Q) = \arg\max_Q \E[\log Q(Y|X)]
-\]
-
-This connects to Bayes optimality because the minimizer is $Q(Y|X) = P(Y|X)$, leading to the Bayes classifier when we apply $\arg\max$.
-
-\subsection{The Margin Perspective}
-
-\subsubsection{Binary Case}
-For binary classification, the margin is $m = (2y-1)f(X)$ and the loss becomes:
-\[
-L_{\text{CE}}(m) = \log(1 + e^{-m})
-\]
-
-\subsubsection{Multi-class Case}
-For multi-class, we can define the margin for the true class $y$ as:
-\[
-m = f_y(X) - \max_{j \neq y} f_j(X)
-\]
-The cross-entropy penalizes small or negative margins.
-
-\section{Comparison of Surrogate Losses}
-
-\subsection{Common Surrogate Losses}
-
-\begin{table}[h]
-\centering
-\begin{tabular}{llll}
-\toprule
-\textbf{Loss Function} & \textbf{Formula} & \textbf{Binary} & \textbf{Multi-class} \\
-\midrule
-0-1 Loss & $\mathbb{I}(f(X) \neq Y)$ & \checkmark & \checkmark \\
-Hinge Loss & $\max(0, 1 - m)$ & \checkmark & \checkmark* \\
-Cross-Entropy & See below & \checkmark & \checkmark \\
-\bottomrule
-\end{tabular}
-\caption{Comparison of classification loss functions (*Multi-class hinge loss requires special formulation)}
-\end{table}
-
-\subsection{Monte Carlo Efficiency}
-
-Different surrogates have different Monte Carlo estimation properties:
-
-\begin{itemize}
-    \item \textbf{Cross-entropy}: Smooth loss, efficient gradient estimation
-    \item \textbf{Hinge loss}: Piecewise linear, sparser gradients
-    \item \textbf{0-1 loss}: Discontinuous, poor Monte Carlo estimation
-\end{itemize}
-
-\subsection{Gradient Analysis}
-
-The gradients reveal why cross-entropy is particularly well-suited for Monte Carlo estimation:
-
-\subsubsection{Binary Cross-Entropy}
-\[
-\frac{\partial \hat{R}_{\text{CE}}}{\partial f(x_i)} = \frac{1}{n} (p_i - y_i),
-\qquad
-\nabla_\theta \hat{R}_{\text{CE}} = \frac{1}{n}\sum_{i=1}^n (p_i - y_i)\, \nabla_\theta f_\theta(x_i)
-\]
-for a parametric score \( f_\theta \). The gradient with respect to the parameters is an average of per-example terms: an efficient Monte Carlo estimator of the population gradient.
-
-\subsubsection{Categorical Cross-Entropy}
-\[
-\frac{\partial \hat{R}_{\text{CE}}}{\partial f_k(x_i)} = \frac{1}{n} \big(p_{i,k} - \mathbb{I}(y_i = k)\big)
-\]
-
-Cross-entropy provides \textbf{continuous gradient signals} for all examples, with the elegant property that the gradient estimator is simply the average difference between predictions and targets.
-
-\section{From Theory to Practice: The Complete Pipeline}
-
-\subsection{The Deep Learning Workflow}
-
-\subsubsection{Binary Classification}
-\begin{enumerate}
-    \item \textbf{Model}: Neural network with single output $f(X)$ (part of hypothesis class $\mathcal{H}$)
-    \item \textbf{Probability}: Apply sigmoid: $p = \sigma(f(X))$
-    \item \textbf{Training}: Minimize empirical binary cross-entropy: $\hat{R}_{\text{CE}}(f)$ over $\mathcal{H}$
-    \item \textbf{Inference}: Apply Bayes rule: $\hat{y} = \mathbb{I}(p > 0.5)$
-\end{enumerate}
-
-\subsubsection{Multi-class Classification}
-\begin{enumerate}
-    \item \textbf{Model}: Neural network with $K$ outputs $f_1(X),\dots,f_K(X)$ (part of hypothesis class $\mathcal{H}$)
-    \item \textbf{Probability}: Apply softmax: $p_i = \frac{e^{f_i(X)}}{\sum_j e^{f_j(X)}}$
-    \item \textbf{Training}: Minimize empirical categorical cross-entropy: $\hat{R}_{\text{CE}}(f)$ over $\mathcal{H}$
-    \item \textbf{Inference}: Apply Bayes rule: $\hat{y} = \arg\max_i p_i$
-\end{enumerate}
-
-\subsection{Why This Approximates Bayes Optimal}
-
-\begin{theorem}[Fisher Consistency]
-For both binary and categorical cross-entropy loss, the population minimizer satisfies:
-\[
-\arg\min_Q \E[-\log Q(Y|X)] = P(Y|X)
-\]
-Thus, the resulting classifier approaches the Bayes optimal rule asymptotically.
-\end{theorem}
-
-\begin{theorem}[Monte Carlo Consistency]
-The empirical minimizer converges to the population minimizer:
-\[
-\arg\min_Q \hat{H}(P,Q) \xrightarrow[n \to \infty]{\text{a.s.}} \arg\min_Q H(P,Q)
-\]
-under appropriate regularity conditions.
-\end{theorem}
-
-\section{Monte Carlo Estimation Properties}
-
-\subsection{Convergence Guarantees}
-
-\begin{theorem}[Uniform Convergence]
-For a bounded hypothesis class $\mathcal{H}$, the empirical cross-entropy converges uniformly to the population cross-entropy:
-\[
-\sup_{Q \in \mathcal{Q}} |\hat{H}(P,Q) - H(P,Q)| \xrightarrow[n \to \infty]{\text{a.s.}} 0
-\]
-\end{theorem}
-
-\subsection{Generalization Bounds}
-
-The difference between empirical and population performance can be bounded using Rademacher complexity or VC theory:
-
-\[
-H(P,Q) \leq \hat{H}(P,Q) + O\left(\sqrt{\frac{\text{complexity}(\mathcal{Q})}{n}}\right)
-\]
-
-\subsection{Connection to Generalization Risk Framework}
-
-This Monte Carlo perspective directly connects to the generalization risk decomposition from the main document:
-
-\begin{itemize}
-    \item \textbf{Bayes Risk}: $H(P,P)$ - the entropy of $Y|X$
-    \item \textbf{Approximation Risk}: $\min_{Q \in \mathcal{Q}} H(P,Q) - H(P,P)$
-    \item \textbf{Estimation Risk}: $\hat{H}(P,Q) - \min_{Q \in \mathcal{Q}} H(P,Q)$
-\end{itemize}
-
-\section{Beyond Standard Cross-Entropy}
-
-\subsection{Addressing Practical Challenges}
-
-\subsubsection{Class Imbalance: Focal Loss}
-Applicable to both binary and multi-class:
-\[
-L_{\text{focal}} = -(1-p_t)^\gamma \log(p_t)
-\]
-This modifies the Monte Carlo weights to focus on hard examples.
-
-\subsubsection{Overconfidence: Label Smoothing}
-Replace one-hot targets with smoothed versions (multi-class):
-\[
-y_{\text{smooth}} = (1-\epsilon)y + \frac{\epsilon}{K}
-\]
-This improves calibration of the probability estimates.
-
-\subsubsection{Variance Reduction Techniques}
-\begin{itemize}
-    \item \textbf{Importance sampling}: For imbalanced datasets
-    \item \textbf{Stratified sampling}: Preserve class proportions
-    \item \textbf{Batch normalization}: Stabilize gradient estimates
-\end{itemize}
-
-\section{Theoretical Guarantees}
-
-\subsection{Calibration and Consistency}
-
-\begin{definition}[Calibration]
-A loss function is calibrated if for any sequence of models minimizing the surrogate risk over $\mathcal{H}$, the corresponding 0-1 risk converges to the Bayes risk.
+which is positive for a correct prediction and negative for a wrong one, and whose
+size measures confidence. The empirical risk
+$\ERisk(f) = \frac1n\sum_i\bbone[y_if(x_i)\leq0]$ of a parametric score $f_\theta$ is piecewise constant in $\theta$:
+it changes only when some $f_\theta(x_i)$ crosses zero. Its gradient is zero almost
+everywhere and undefined elsewhere, it says nothing about \emph{how} wrong a
+prediction is, and minimizing it exactly is NP-hard even for linear classifiers
+in general. A \emph{surrogate} replaces the step by a function of the margin that
+is convex and decreasing.
+
+\begin{definition}[Margin-based surrogate]
+A \emph{margin loss} is a function $\phi:\R\to[0,\infty)$; the loss of score $f$ on $(x, y)$ is $\phi(yf(x))$,
+its risk is $\Risk_\phi(f) = \E[\phi(Yf(X))]$, and $\Risk_\phi^* = \inf_f\Risk_\phi(f)$ over all measurable $f$.
 \end{definition}
 
-\begin{theorem}
-Both binary and categorical cross-entropy loss are calibrated for 0-1 loss under mild conditions on the hypothesis class and data distribution.
+The four classical examples are
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+name & $\phi(m)$ & used by \\
+\midrule
+logistic & $\log_2(1 + e^{-m})$ & logistic regression, neural networks \\
+hinge & $\max(0, 1 - m)$ & support vector machines \\
+exponential & $e^{-m}$ & AdaBoost \\
+squared & $(1 - m)^2$ & least-squares classification \\
+\bottomrule
+\end{tabular}
+\end{center}
+The logistic loss with the natural logarithm is the binary cross-entropy of
+\cref{sigmoid-softmax:sec:sigmoid}: with $y\in\{-1, 1\}$ and $P(Y = 1\mid x) = \sigma(f(x))$, the probability of
+the observed label is $\sigma(yf(x))$ and $-\ln\sigma(m) = \ln(1 + e^{-m})$. Base $2$ only rescales it, and
+makes it pass through $(0, 1)$. \Cref{surrogate-losses:fig:losses} draws them.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=10cm, height=6.5cm, xmin=-2, xmax=2.5, ymin=0, ymax=4.2,
+  xlabel={margin $m = yf(x)$}, ylabel={loss}, grid=major, grid style={gray!15},
+  legend style={font=\small, draw=none, at={(0.98,0.98)}, anchor=north east}, legend cell align=left]
+  \addplot[very thick, black, const plot] coordinates {(-2,1) (0,1) (0,0) (2.5,0)};
+  \addlegendentry{0--1}
+  \addplot[very thick, bookaccent, domain=-2:2.5, samples=150] {ln(1+exp(-x))/ln(2)};
+  \addlegendentry{logistic ($\log_2$)}
+  \addplot[very thick, bookexample, dashed, domain=-2:2.5, samples=50] {max(0,1-x)};
+  \addlegendentry{hinge}
+  \addplot[very thick, bookdef, densely dotted, domain=-2:2.5, samples=150] {exp(-x)};
+  \addlegendentry{exponential}
+  \addplot[thick, bookpitfall, dashdotted, domain=-2:2.5, samples=150] {(1-x)^2};
+  \addlegendentry{squared}
+\end{axis}
+\end{tikzpicture}
+\caption{The 0--1 loss and four convex surrogates, as functions of the margin.
+All four pass through $(0, 1)$ and lie above the 0--1 loss. The squared loss also
+penalizes margins larger than $1$, i.e.\ predictions that are right with too much
+confidence.}
+\label{surrogate-losses:fig:losses}
+\end{figure}
+
+\paragraph{Upper bounds.} Each of the four is $\geq\bbone[m\leq0]$, so the empirical surrogate
+risk bounds the training error. For the cross-entropy written with probabilities,
+$-\log p_y$ where $p_y$ is the probability of the true class, this requires the base-2
+logarithm: $-\ln p_y<1$ for $\frac1e<p_y<\frac12$, so with natural logarithms a wrong
+prediction can cost less than $1$. With $\log_2$ the bound holds for any number of
+classes: if the most probable class is wrong, some other class has probability at
+least $p_y$, so $p_y\leq\frac12$ and $-\log_2p_y\geq1$. The two versions differ by the factor $\ln2$
+and have the same minimizers. Being an upper bound is reassuring but not the
+point; what matters is where the minimizer of the surrogate risk lies.
+
+\section{What each surrogate estimates}\label{surrogate-losses:sec:conditional}
+
+By the pointwise principle (\cref{bayes-decision-theory:thm:pointwise}), the surrogate risk is
+minimized over all functions by minimizing, at each $x$, the \emph{conditional
+surrogate risk}. With $\eta = \eta(x) = P(Y = 1\mid X = x)$ and $a = f(x)$, it is
+\[
+  C_\eta(a) = \eta\,\phi(a) + (1 - \eta)\,\phi(-a),\qquad
+  C^*_\eta = \inf_aC_\eta(a).
+\]
+Minimizing in $a$ for each loss (\cref{surrogate-losses:exr:1}) gives:
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+loss & minimizer $a^*(\eta)$ & minimal risk $C^*_\eta$ & recovers $\eta$? \\
+\midrule
+logistic ($\ln$) & $\log\frac\eta{1 - \eta}$ & $-\eta\ln\eta - (1 - \eta)\ln(1 - \eta)$ & yes: $\eta = \sigma(a^*)$ \\
+exponential & $\frac12\log\frac\eta{1 - \eta}$ & $2\sqrt{\eta(1 - \eta)}$ & yes: $\eta = \sigma(2a^*)$ \\
+squared & $2\eta - 1$ & $4\eta(1 - \eta)$ & yes: $\eta = (1 + a^*)/2$ \\
+hinge & $\sign(2\eta - 1)$ & $1 - \abs{2\eta - 1}$ & no \\
+\bottomrule
+\end{tabular}
+\end{center}
+In all four cases $a^*(\eta)$ has the sign of $2\eta - 1$, so $\sign a^*$ is the Bayes classifier
+$\bbone[\eta>\frac12]$ (written in $\pm1$). The first three surrogates estimate a monotone
+transformation of the posterior, from which $\eta$ can be read back. The hinge loss
+estimates only the Bayes decision: its minimizer jumps from $-1$ to $+1$ at $\eta = \frac12$ and
+is the same for $\eta = 0.51$ and $\eta = 0.99$. A support vector machine therefore outputs no
+probabilities; the ``probabilities'' some libraries attach to it are fitted
+afterwards (Platt scaling). \Cref{surrogate-losses:fig:minimizers} plots the four minimizers.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=9cm, height=6cm, xmin=0, xmax=1, ymin=-3, ymax=3,
+  xlabel={$\eta = P(Y = 1\mid x)$}, ylabel={$a^*(\eta)$}, grid=major, grid style={gray!15},
+  legend style={font=\small, draw=none, at={(0.02,0.98)}, anchor=north west}, legend cell align=left]
+  \addplot[very thick, bookaccent, domain=0.047:0.953, samples=150] {ln(x/(1-x))};
+  \addlegendentry{logistic}
+  \addplot[very thick, bookdef, densely dotted, domain=0.0025:0.9975, samples=200] {0.5*ln(x/(1-x))};
+  \addlegendentry{exponential}
+  \addplot[thick, bookpitfall, dashdotted, domain=0:1, samples=2] {2*x-1};
+  \addlegendentry{squared}
+  \addplot[very thick, bookexample, dashed, const plot] coordinates {(0,-1) (0.5,-1) (0.5,1) (1,1)};
+  \addlegendentry{hinge}
+\end{axis}
+\end{tikzpicture}
+\caption{Minimizers of the conditional surrogate risk as functions of the
+posterior. All change sign at $\eta = \frac12$, so all lead to the Bayes classifier; only
+the hinge loss forgets the value of $\eta$.}
+\label{surrogate-losses:fig:minimizers}
+\end{figure}
+
+\section{Calibration and excess-risk bounds}\label{surrogate-losses:sec:calibration}
+
+That $\sign a^*$ is the Bayes classifier is not quite enough. A learning algorithm
+never reaches $\Risk^*_\phi$ exactly; we need that \emph{approaching} it forces the error
+rate towards $R^*$. This holds if a wrong sign always costs a definite amount of
+surrogate risk.
+
+\begin{definition}[Classification calibration]
+$\phi$ is \emph{classification-calibrated} if for every $\eta\neq\frac12$,
+\[
+  \inf\bigl\{C_\eta(a) : a(2\eta - 1)\leq0\bigr\}>C^*_\eta :
+\]
+scores of the wrong sign are strictly worse than the best score, at every $\eta\neq\frac12$.
+\end{definition}
+
+\begin{theorem}[Bartlett, Jordan and McAuliffe, 2006]\label{surrogate-losses:thm:bjm}
+A convex margin loss $\phi$ is classification-calibrated if and only if it is
+differentiable at $0$ with $\phi'(0)<0$. If $\phi$ is calibrated, there is a nondecreasing
+function $\psi$ with $\psi(0) = 0$ and $\psi(\theta)>0$ for $\theta>0$ such that for every measurable $f$,
+\[
+  \psi\bigl(\Risk(\sign f) - R^*\bigr)\leq\Risk_\phi(f) - \Risk^*_\phi .
+\]
 \end{theorem}
 
-\subsection{Excess Risk Bounds}
+The four surrogates above are convex with $\phi'(0)<0$, hence calibrated. For two of
+them the bound is easy to prove, and the proof shows how the argument works.
 
-The excess 0-1 risk can be bounded by the excess surrogate risk for both binary and multi-class cases:
-
+\begin{proposition}[Excess-risk bounds]\label{surrogate-losses:prop:bounds}
+For every measurable $f$,
 \[
-R_{0\text{-}1}(f) - R_{0\text{-}1}^* \leq \psi\left(\hat{H}(P,Q) - \hat{H}(P,P) + O\left(\sqrt{\frac{\text{complexity}(\mathcal{Q})}{n}}\right)\right)
+  \text{(hinge)}\quad\Risk(\sign f) - R^*\leq\Risk_\phi(f) - \Risk^*_\phi,\qquad
+  \text{(logistic, $\ln$)}\quad\Risk(\sign f) - R^*\leq\sqrt{2\bigl(\Risk_\phi(f) - \Risk^*_\phi\bigr)}.
 \]
-where $\psi$ is a calibration function that depends on the loss properties.
+\end{proposition}
 
-\section{Empirical Considerations}
+\begin{proof}
+By \cref{bayes-decision-theory:prop:excess}, the excess error is
+$\E\bigl[\abs{2\eta(X) - 1}\,\bbone[W]\bigr]$, where $W$ is the event that $f(X)$ has the wrong sign
+($f(X)(2\eta(X) - 1)\leq0$ with $\eta(X)\neq\frac12$). Write $\Delta(x) = C_{\eta(x)}(f(x)) - C^*_{\eta(x)}\geq0$, so that
+$\Risk_\phi(f) - \Risk^*_\phi = \E[\Delta(X)]$. It suffices to bound $\abs{2\eta - 1}$ by a function of $\Delta$ on $W$.
 
-\subsection{Monte Carlo Estimation in Practice}
+On $W$, $a = f(x)$ and the minimizer $a^*$ lie on opposite sides of $0$ (or $a = 0$). Since $C_\eta$ is
+convex with minimum at $a^*$, it is monotone between $a^*$ and $a$, so
+$C_\eta(a)\geq C_\eta(0) = \phi(0)$, and $\Delta\geq\phi(0) - C^*_\eta$.
+\begin{itemize}[nosep]
+  \item \emph{Hinge}: $\phi(0) = 1$ and $C^*_\eta = 1 - \abs{2\eta - 1}$, so $\Delta\geq\abs{2\eta - 1}$ on $W$. Hence the
+        excess error is at most $\E[\Delta(X)\bbone[W]]\leq\E[\Delta(X)]$.
+  \item \emph{Logistic}: $\phi(0) = \ln2$ and $C^*_\eta$ is the binary entropy in nats, so
+        $\phi(0) - C^*_\eta = \mathrm{KL}\bigl((\eta, 1 - \eta)\,\Vert\,(\frac12,\frac12)\bigr)$. Pinsker's inequality,
+        $\mathrm{KL}(p\Vert q)\geq2\,\mathrm{TV}(p, q)^2$ with $\mathrm{TV} = \abs{\eta - \frac12}$, gives
+        $\Delta\geq2(\eta - \frac12)^2 = \frac12(2\eta - 1)^2$, i.e.\ $\abs{2\eta - 1}\leq\sqrt{2\Delta}$ on $W$. Then, by Jensen's
+        inequality for the concave square root,
+        $\E\bigl[\abs{2\eta - 1}\bbone[W]\bigr]\leq\E\bigl[\sqrt{2\Delta(X)}\bigr]\leq\sqrt{2\E[\Delta(X)]}$.\qedhere
+\end{itemize}
+\end{proof}
 
-\subsubsection{Minibatch Estimation}
-In large-scale deep learning, we use minibatch estimators:
+\begin{keyidea}[What the surrogate buys]
+Driving the surrogate risk to its minimum over all functions drives the error rate
+to the Bayes rate. Combined with the decomposition of \cref{ch:erm}, the excess error
+of a trained classifier is controlled by the approximation error of the class
+\emph{in surrogate risk} plus the estimation error of the surrogate --- the
+quantities that learning theory can bound. The square root for the logistic
+loss means the error rate may converge more slowly than the surrogate risk.
+\end{keyidea}
+
+\paragraph{Several classes.} With $K$ classes and scores $f_1,\dots,f_K$, the multinomial
+logistic loss of \cref{sigmoid-softmax:eq:loss} is calibrated: its population minimizer is
+$\softmax(f) = \eta(x)$ (\cref{bayes-decision-theory:prop:logloss}), whose $\argmax$ is the Bayes class. Multiclass
+hinge losses are more delicate. The Crammer--Singer loss
+$\max\bigl(0, 1 - f_y + \max_{k\neq y}f_k\bigr)$ asks the true score to exceed every other by $1$; the
+Weston--Watkins loss $\sum_{k\neq y}\max(0, 1 - f_y + f_k)$ asks it pair by pair. Neither is
+calibrated for $K\geq3$: for some conditional distributions --- typically when no class has
+conditional probability above $\frac12$ --- their minimizers need not select the most probable
+class (T.~Zhang, \emph{Statistical Analysis of Some Multi-Category Large Margin Classification
+Methods}, JMLR, 2004; Tewari and Bartlett, \emph{On the Consistency of Multiclass Classification
+Methods}, JMLR, 2007). Replacing the hinge by its square restores calibration for the
+Weston--Watkins form (Tewari and Bartlett, 2007). Training $K$ binary one-versus-rest classifiers is a third,
+different option.
+
+\section{Proper scoring rules}\label{surrogate-losses:sec:proper}
+
+Calibration in the sense above concerns the decision. Often the probability
+itself is wanted: to apply a cost matrix (\cref{bayes-decision-theory:thm:costs}), to rank, or to
+report risk. A loss $S(q, y)$ of a predicted distribution $q$ is a \emph{proper scoring rule}
+if $q\mapsto\E_{Y\sim\eta}[S(q, Y)]$ is minimized at $q = \eta$, and \emph{strictly proper} if $\eta$ is the only
+minimizer. Strictly proper losses are the ones whose population minimizer is the
+true posterior.
+\begin{itemize}[nosep]
+  \item The \emph{log score} $S(q, y) = -\log q_y$ is strictly proper: its expectation is
+        $H(\eta) + \mathrm{KL}(\eta\Vert q)$ (\cref{cross-entropy:eq:decomposition}).
+  \item The \emph{Brier score} $S(q, y) = \sum_k(q_k - \bbone[k = y])^2$ is strictly proper:
+        \[
+          \E_{Y\sim\eta}\Bigl[\sum_k(q_k - \bbone[k = Y])^2\Bigr] = \sum_k(q_k - \eta_k)^2 + \sum_k\eta_k(1 - \eta_k),
+        \]
+        the squared distance to $\eta$ plus an irreducible term (\cref{surrogate-losses:exr:2}).
+  \item The hinge loss, viewed as a loss on scores, is not proper in any sense: its
+        minimizer forgets $\eta$.
+\end{itemize}
+A model trained with a strictly proper loss estimates probabilities consistently
+in the limit, but a large network trained to near-zero training loss is usually
+\emph{overconfident} on new data (\cref{sigmoid-softmax:sec:frequencies}). Whether predicted
+probabilities match observed frequencies --- among predictions of $0.8$, are $80\%$
+correct? --- is measured on held-out data, for instance by the \emph{expected
+calibration error} (Naeini et al., 2015), the average gap between confidence and accuracy
+over bins of confidence. A simple fix is \emph{temperature scaling} (Guo, Pleiss, Sun and
+Weinberger, \emph{On Calibration of Modern Neural Networks}, ICML 2017): divide all
+logits by one scalar $T>0$ fitted by minimizing the cross-entropy on a validation set.
+It changes the probabilities but not their ranking, hence not the predicted class.
+
+\section{Changing the loss: label smoothing, class weights, focal loss}\label{surrogate-losses:sec:beyond}
+
+Modifications of the cross-entropy are common. The question to ask of each is the
+one this chapter has been asking: what does the population risk now estimate?
+
+\paragraph{Label smoothing.} Replace the one-hot target by
+$t = (1 - \varepsilon)e_y + \frac\varepsilon K\bbone$ and minimize $-\sum_kt_k\log q_k$. Since the loss is linear in the target,
+its expectation over $Y\sim\eta$ is the cross-entropy with target $(1 - \varepsilon)\eta + \frac\varepsilon K\bbone$, so the
+minimizer is
 \[
-\hat{H}_{\text{minibatch}} = -\frac{1}{m}\sum_{i=1}^m \log Q(Y=y_i \mid X=x_i)
+  q^* = (1 - \varepsilon)\,\eta + \frac\varepsilon K\bbone .
 \]
-where $m \ll n$. This introduces bias but enables scalable optimization.
+The posterior is shrunk towards the uniform distribution by a known amount: the
+$\argmax$ is unchanged and $\eta$ can be recovered as $(q^* - \frac\varepsilon K)/(1 - \varepsilon)$. No target
+probability is $0$ or $1$ any more, so the optimal logits stay finite: the gap between
+the largest and smallest is at most $\log\frac{1 - \varepsilon + \varepsilon/K}{\varepsilon/K}$ (\cref{surrogate-losses:exr:3}).
 
-\subsubsection{Variance-Bias Tradeoff}
-\begin{itemize}
-    \item \textbf{Large batches}: Lower variance, higher computational cost
-    \item \textbf{Small batches}: Higher variance, better generalization sometimes
-    \item \textbf{Adaptive batch sizes}: Dynamic tradeoff during training
+\paragraph{Class weights.} For imbalanced classes the loss of class $k$ is often
+multiplied by a weight $w_k$. In the binary case the minimizer becomes
+\[
+  q^* = \frac{w_1\eta}{w_1\eta + w_0(1 - \eta)},
+\]
+a distorted posterior whose threshold $q^*>\frac12$ is equivalent to $\eta>\frac{w_0}{w_0 + w_1}$
+(\cref{surrogate-losses:exr:4}). Weighting the loss is therefore the same as moving the
+decision threshold, which is the cost-sensitive Bayes classifier of
+\cref{bayes-decision-theory:thm:costs} with costs proportional to the weights. The output is no
+longer an estimate of $\eta$, but it can be corrected by inverting the formula.
+
+\paragraph{Focal loss.} The focal loss (Lin, Goyal, Girshick, He and Doll\'ar, \emph{Focal Loss for Dense Object Detection}, ICCV 2017) multiplies the cross-entropy of
+the true class by $(1 - p_y)^\gamma$, $\gamma\geq0$, to reduce the weight of examples that are already
+well classified. It is not proper for $\gamma>0$. In the binary case, minimizing
+$-\eta(1 - q)^\gamma\log q - (1 - \eta)q^\gamma\log(1 - q)$ numerically for $\eta = 0.9$ gives $q^* = 0.774$ for $\gamma = 1$,
+$0.694$ for $\gamma = 2$ and $0.597$ for $\gamma = 5$; for $\eta = 0.6$ and $\gamma = 2$ it gives $0.538$. The minimizer stays
+on the same side of $\frac12$ as $\eta$, so the decision is unchanged, but the probabilities are
+pulled towards $\frac12$: the model becomes underconfident by design.
+
+\begin{pitfall}[Modified losses estimate modified quantities]
+Label smoothing, class weights and the focal loss all change what the trained
+model's probabilities mean. That can be the purpose (better decisions on rare
+classes, less overconfidence), but the outputs should not then be read as
+estimates of $P(Y\mid X)$ without the corresponding correction.
+\end{pitfall}
+
+\paragraph{Training with a surrogate.} Whatever the loss, the empirical risk is an
+average over examples, and so is its gradient: for the cross-entropy with a
+sigmoid output,
+\[
+  \nabla_\theta\ERisk(f_\theta) = \frac1n\sum_{i=1}^n\bigl(\sigma(f_\theta(x_i)) - y_i\bigr)\nabla_\theta f_\theta(x_i)\qquad(y_i\in\{0,1\}).
+\]
+A minibatch of $b$ examples drawn uniformly gives an unbiased estimate of this
+average, with variance of order $1/b$ (\cref{monte-carlo:sec:plain}); stochastic gradient
+descent relies on exactly this. The 0--1 loss gives a gradient of zero, whatever the
+batch.
+
+\begin{chaptersummary}
+\begin{itemize}[nosep]
+  \item The 0--1 loss depends on the margin $m = yf(x)$ through a step; its empirical risk
+        is piecewise constant and cannot be minimized by gradients. Convex surrogates
+        $\phi(m)$ replace it: logistic, hinge, exponential, squared.
+  \item The conditional surrogate risk $\eta\phi(a) + (1 - \eta)\phi(-a)$ is minimized by the logit
+        (logistic), half the logit (exponential), $2\eta - 1$ (squared) or $\sign(2\eta - 1)$ (hinge): all
+        give the Bayes classifier, only the first three recover $\eta$.
+  \item A convex $\phi$ is classification-calibrated iff $\phi'(0)<0$; then the excess error rate is
+        controlled by the excess surrogate risk: linearly for the hinge, through a
+        square root for the logistic loss.
+  \item The multinomial cross-entropy is calibrated for any $K$; the usual multiclass hinge
+        losses are not, in general, for $K\geq3$.
+  \item The log score and the Brier score are strictly proper; trained networks are
+        nevertheless often overconfident, which temperature scaling corrects.
+  \item Label smoothing shrinks the estimated posterior towards uniform, class weights
+        move the threshold, the focal loss pulls probabilities towards $\frac12$.
 \end{itemize}
+\end{chaptersummary}
 
-\subsection{When Cross-Entropy Excels}
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
 
-\begin{itemize}
-        \item \textbf{Probability calibration}: As a proper scoring rule, it is minimized in expectation by the true conditional probabilities, which encourages calibrated estimates (but see the limitations below)
-    \item \textbf{Stable optimization}: Smooth loss surface with meaningful gradients
-    \item \textbf{Efficient estimation}: Good Monte Carlo properties for gradient estimation
-    \item \textbf{Theoretical foundations}: Strong connections to information theory and statistics
-\end{itemize}
+\begin{exercise}\label{surrogate-losses:exr:1}
+Derive the minimizers $a^*(\eta)$ and minimal values $C^*_\eta$ of the conditional risk for the
+exponential, squared and hinge losses given in the table of
+\cref{surrogate-losses:sec:conditional}.
+\solutionlink{surrogate-losses:exr:1}
+\end{exercise}
 
-\subsection{Potential Limitations}
+\begin{exercise}\label{surrogate-losses:exr:2}
+Prove the decomposition of the expected Brier score in \cref{surrogate-losses:sec:proper}, and
+deduce that it is strictly proper.
+\solutionlink{surrogate-losses:exr:2}
+\end{exercise}
 
-\begin{itemize}
-    \item \textbf{Sensitivity to outliers}: Can be affected by mislabeled examples
-    \item \textbf{Overconfidence}: Modern neural networks tend to be poorly calibrated without regularization
-    \item \textbf{Monte Carlo variance}: Small batch sizes can lead to noisy gradient estimates
-\end{itemize}
+\begin{exercise}\label{surrogate-losses:exr:3}
+With label smoothing, show that the minimizer of the expected loss is
+$q^* = (1 - \varepsilon)\eta + \frac\varepsilon K\bbone$. If the logits $z$ reach it, show that $\max_kz_k - \min_kz_k\leq\log\frac{1 - \varepsilon + \varepsilon/K}{\varepsilon/K}$, and
+evaluate the bound for $K = 1000$ and $\varepsilon = 0.1$.
+\solutionlink{surrogate-losses:exr:3}
+\end{exercise}
 
-\section{Conclusion}
+\begin{exercise}\label{surrogate-losses:exr:4}
+For the weighted binary cross-entropy $-w_1y\log q - w_0(1 - y)\log(1 - q)$, find the minimizer of the
+expected loss for $P(Y = 1) = \eta$, and show that $q^*>\frac12$ iff $\eta>w_0/(w_0 + w_1)$. Which weights
+correspond to the cost-sensitive classifier with cost $c_{\mathrm{FN}}$ for a false negative and
+$c_{\mathrm{FP}}$ for a false positive?
+\solutionlink{surrogate-losses:exr:4}
+\end{exercise}
 
-The empirical risk minimization framework with cross-entropy surrogate loss provides a complete bridge from theoretical Bayes optimality to practical deep learning:
-
-\begin{itemize}
-    \item The \textbf{Bayes classifier} defines the population optimum for 0-1 loss
-    \item \textbf{Empirical Risk Minimization} provides the practical learning framework over hypothesis class $\mathcal{H}$
-    \item \textbf{Cross-entropy} serves as a tractable surrogate loss within ERM
-    \item \textbf{Monte Carlo estimation} explains the statistical properties of empirical risk
-    \item The complete pipeline learns probability estimates then applies Bayes rule
-\end{itemize}
-
-This unified perspective explains the remarkable success of cross-entropy-based learning: it combines Fisher consistency with efficient optimization properties, creating a robust framework that scales from theoretical analysis to practical implementation across diverse classification tasks.
+\begin{exercise}\label{surrogate-losses:exr:5}
+Show that the squared margin loss $(1 - m)^2$ is calibrated but penalizes some correct
+predictions more than some wrong ones, by comparing $m = 3$ with $m = -0.5$. Propose a
+modification that avoids this and is still calibrated.
+\solutionlink{surrogate-losses:exr:5}
+\end{exercise}
 \end{notechapter}

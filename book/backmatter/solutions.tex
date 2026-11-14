@@ -641,3 +641,177 @@ $x - \eta\tilde f'(x)$, independent of the representative because $\tilde f'$ is
 difference of two points: the heavy-ball term $\theta_k - \theta_{k-1}$ or an average of iterates requires
 choosing a representative (for small steps, the shortest one), a choice the affine structure of
 $\R^n$ makes for us.
+
+\section{\nameref*{ch:cross-entropy}}
+
+\solution{cross-entropy:exr:1}
+\begin{enumerate}[nosep]
+  \item $H(p) = \frac12\cdot1 + \frac14\cdot2 + \frac18\cdot3 + \frac1{16}\cdot4 + 2\cdot\frac1{32}\cdot5 = 0.5 + 0.5 + 0.375 + 0.25 + 0.3125 = 1.9375$ bits.
+        All probabilities are powers of $\frac12$, so the ideal lengths $-\log_2p(x) = 1, 2, 3, 4, 5, 5$ are
+        integers and the prefix code $0$, $10$, $110$, $1110$, $11110$, $11111$ achieves $H(p)$ exactly.
+  \item $H(p, u) = -\sum_xp(x)\log_2\frac16 = \log_26\approx2.585$ bits: a code designed for a fair die
+        spends $\log_26$ bits per throw whatever the throws. $\mathrm{KL}(p\Vert u) = 2.585 - 1.9375\approx0.648$ bits is
+        the waste per throw compared with the best code for $p$.
+\end{enumerate}
+
+\solution{cross-entropy:exr:moments}
+With $q = \mathcal N(\mu, s^2)$, $\mathrm{KL}(p\Vert q) = -h(p) + \E_p[-\log q(X)]$ and
+\[
+  \E_p[-\log q(X)] = \tfrac12\log(2\pi s^2) + \frac{\E_p[(X - \mu)^2]}{2s^2}
+  = \tfrac12\log(2\pi s^2) + \frac{\Var_p(X) + (\E_p[X] - \mu)^2}{2s^2}.
+\]
+For any $s$ this is minimized by $\mu = \E_p[X]$. Then $g(s^2) = \frac12\log s^2 + V/(2s^2)$, with $V = \Var_p(X)$, has
+derivative $\frac1{2s^2} - \frac V{2s^4}$ in $s^2$, which vanishes at $s^2 = V$, a minimum since $g\to\infty$ at $0$ and
+at $\infty$. (If $p$ has no density, replace $\mathrm{KL}$ by the cross-entropy $\E_p[-\log q]$, which has the
+same minimizer.)
+
+\solution{cross-entropy:exr:3}
+$-\log q(x) = \frac12\log(2\pi s^2) + (x - \mu)^2/(2s^2)$, whose expectation under $q$ is
+$\frac12\log(2\pi s^2) + \frac12 = \frac12\log(2\pi es^2)$. It is negative iff $2\pi es^2<1$, i.e.\
+$s<1/\sqrt{2\pi e}\approx0.242$. For the KL divergence, take the expectation of
+$\log q_1 - \log q_2$ under $q_1$:
+\[
+  \mathrm{KL}(q_1\Vert q_2) = \log\frac{s_2}{s_1} + \frac{s_1^2 + (\mu_1 - \mu_2)^2}{2s_2^2} - \frac12 .
+\]
+Rescaling by $a\neq0$ maps $\mathcal N(\mu_i, s_i^2)$ to $\mathcal N(a\mu_i, a^2s_i^2)$; the ratio $s_2/s_1$ and the fraction are
+unchanged, so the KL divergence is too, whereas each differential entropy gains $\log\abs a$.
+
+\solution{cross-entropy:exr:4}
+\begin{enumerate}[nosep]
+  \item \texttt{emma} gives \texttt{em}, \texttt{mm}, \texttt{ma}; \texttt{mama} gives \texttt{ma}, \texttt{am},
+        \texttt{ma}: six bigrams. After \texttt e the next character is always \texttt m; after
+        \texttt a always \texttt m; after \texttt m it is \texttt m once and \texttt a three times. So
+        $\hat p(\texttt m\mid\texttt e) = 1$, $\hat p(\texttt m\mid\texttt a) = 1$, $\hat p(\cdot\mid\texttt m) = (\frac14\text{ on }\texttt m, \frac34\text{ on }\texttt a)$.
+  \item By \cref{cross-entropy:thm:mle}, the minimum is the entropy part, reached by the
+        model equal to the empirical conditionals. The contexts \texttt e and \texttt a
+        contribute $0$; the four bigrams with context \texttt m contribute
+        $H(\frac14,\frac34) = -\frac14\ln\frac14 - \frac34\ln\frac34\approx0.562$ nats each. The average over the six bigrams is
+        $\frac46\times0.562\approx0.375$ nats.
+\end{enumerate}
+
+\section{\nameref*{ch:output-distributions}}
+
+\solution{output-distributions:exr:1}
+With residuals $r_i = y_i - \mu(x_i)$ and $S = \frac1n\sum_ir_i^2$,
+$\frac1n\log\mathcal L = -\frac12\log(2\pi\sigma^2) - S/(2\sigma^2)$. Its derivative in $\sigma^2$ is
+$-\frac1{2\sigma^2} + \frac S{2\sigma^4}$, zero at $\sigma^2 = S$, positive before and negative after: $\hat\sigma^2 = S$.
+The maximal value is $-\frac12\log(2\pi\hat\sigma^2) - \frac12 = -\frac12\log(2\pi e\hat\sigma^2)$: the better the fit, the higher the
+likelihood, through the logarithm of the mean squared residual.
+
+\solution{output-distributions:exr:2}
+$g(\mu) = \sum_i\abs{y_i - \mu}$ is convex and piecewise linear, with slope
+$\#\{i : y_i<\mu\} - \#\{i : y_i>\mu\}$ between data points. The slope is negative while fewer than
+half the points lie below $\mu$ and positive once more than half do, so $g$ is minimal at
+any $\mu$ with at most half the points on each side: a median. For $1, 2, 3, 4, 100$, the
+Gaussian model gives the mean, $22$; the Laplace model gives the median, $3$. Moving
+the outlier $100$ to $10^6$ changes the first enormously and the second not at all.
+
+\solution{output-distributions:exr:3}
+\emph{Bernoulli}: $\pi^y(1 - \pi)^{1-y} = \exp\bigl(y\log\frac\pi{1 - \pi} + \log(1 - \pi)\bigr)$, so $T(y) = y$, $h = 1$,
+$\eta = \log\frac\pi{1 - \pi}$ and $A(\eta) = -\log(1 - \pi) = \log(1 + e^\eta)$. Then $A'(\eta) = \sigma(\eta) = \pi = \E[Y]$ and
+$A''(\eta) = \sigma(\eta)(1 - \sigma(\eta)) = \pi(1 - \pi) = \Var(Y)$.
+\emph{Poisson}: $\lambda^ye^{-\lambda}/y! = \frac1{y!}\exp(y\log\lambda - \lambda)$, so $T(y) = y$, $h(y) = 1/y!$, $\eta = \log\lambda$ and
+$A(\eta) = e^\eta$. Then $A'(\eta) = A''(\eta) = \lambda$, the mean and the variance of the Poisson distribution.
+
+\solution{output-distributions:exr:4}
+With $r = y - z_1$, $\ell = \frac12z_2 + \frac12r^2e^{-z_2} + \text{const}$. The second derivatives are
+\[
+  \frac{\partial^2\ell}{\partial z_1^2} = e^{-z_2},\qquad
+  \frac{\partial^2\ell}{\partial z_1\partial z_2} = re^{-z_2},\qquad
+  \frac{\partial^2\ell}{\partial z_2^2} = \tfrac12r^2e^{-z_2}.
+\]
+For fixed $z_1$ the last one is $\geq0$: convex in $z_2$. The determinant of the Hessian is
+$\frac12r^2e^{-2z_2} - r^2e^{-2z_2} = -\frac12r^2e^{-2z_2}<0$ whenever $r\neq0$: the Hessian has a negative eigenvalue at
+every point with $y\neq z_1$, so $\ell$ is not jointly convex.
+
+\solution{output-distributions:exr:5}
+Write $N_j = \mathcal N(y;\mu_j,\sigma_j^2)$ and $S = \sum_j\pi_jN_j$, so $\ell = -\log S$ and $r_k = \pi_kN_k/S$. Since
+$\partial N_k/\partial\mu_k = N_k(y - \mu_k)/\sigma_k^2$,
+$\partial\ell/\partial\mu_k = -\pi_kN_k(y - \mu_k)/(\sigma_k^2S) = r_k(\mu_k - y)/\sigma_k^2$. For the mixture logits,
+$\partial\pi_j/\partial z^\pi_k = \pi_j(\bbone[j = k] - \pi_k)$ (\cref{sigmoid-softmax:sec:loss}), hence
+\[
+  \frac{\partial\ell}{\partial z^\pi_k} = -\frac1S\sum_jN_j\pi_j(\bbone[j = k] - \pi_k) = -\frac{\pi_kN_k}S + \pi_k\frac{\sum_j\pi_jN_j}S = \pi_k - r_k .
+\]
+
+\section{\nameref*{ch:sigmoid-softmax}}
+
+\solution{sigmoid-softmax:exr:1}
+$1 - \sigma(z) = \frac{e^{-z}}{1 + e^{-z}} = \frac1{e^z + 1} = \sigma(-z)$. Differentiating,
+$\sigma'(z) = \frac{e^{-z}}{(1 + e^{-z})^2} = \sigma(z)\cdot\frac{e^{-z}}{1 + e^{-z}} = \sigma(z)(1 - \sigma(z))$. Solving $\pi = 1/(1 + e^{-z})$ for $z$ gives
+$e^{-z} = (1 - \pi)/\pi$, i.e.\ $z = \log\frac\pi{1 - \pi}$. The derivative of the logit is
+$\frac1\pi + \frac1{1 - \pi} = \frac1{\pi(1 - \pi)}$, the reciprocal of $\sigma'$ at the corresponding point, as it must be for an
+inverse function.
+
+\solution{sigmoid-softmax:exr:2}
+With $S = \sum_je^{z_j}$ and $p_k = e^{z_k}/S$: for $j = k$,
+$\partial p_k/\partial z_k = (e^{z_k}S - e^{z_k}e^{z_k})/S^2 = p_k - p_k^2$; for $j\neq k$, only the denominator depends on
+$z_j$ and $\partial p_k/\partial z_j = -e^{z_k}e^{z_j}/S^2 = -p_kp_j$. Together,
+$\partial p_k/\partial z_j = p_k\bbone[k = j] - p_kp_j$, the $(k,j)$ entry of $\diag(p) - pp^\top$. Since
+$\nabla_z\ell = p - e_y$, its Jacobian is that of $p$.
+
+\solution{sigmoid-softmax:exr:3}
+The bounds are \cref{sigmoid-softmax:prop:lse}. With $m = \max_jz_j$,
+$T\,\mathrm{LSE}(z/T) = m + T\log\sum_je^{(z_j - m)/T}$, and the sum lies in $[1, K]$, so
+$m\leq T\,\mathrm{LSE}(z/T)\leq m + T\log K\to m$ as $T\to0^+$.
+
+\solution{sigmoid-softmax:exr:4}
+For $(1, 1)$ the logit is $w$ and the loss $\log(1 + e^{-w})$; for $(-1, 0)$ the logit is $-w$ and the loss
+$\zeta(-w) = \log(1 + e^{-w})$. The average is $\log(1 + e^{-w})$, strictly decreasing, with infimum $0$ as
+$w\to\infty$ but no minimizer: the data are separated by the sign of $x$, and the larger $w$, the
+more confident and correct the model. With $(2, 0)$ added, the loss of that point is
+$\log(1 + e^{2w})$, which tends to $\infty$ as $w\to\infty$; the average is strictly convex and tends to $\infty$
+in both directions, so it has a unique minimizer. Its derivative
+$\frac13\bigl(-2\sigma(-w) + 2\sigma(2w)\bigr)$ vanishes when $\sigma(2w) = \sigma(-w)$, i.e.\ at $w = 0$.
+
+\solution{sigmoid-softmax:exr:5}
+For $y = 1$: $\log(e^{z_1} + e^{z_2}) - z_1 = \log(1 + e^{-(z_1 - z_2)})$, the binary cross-entropy of a positive
+example with logit $z_1 - z_2$. For $y = 2$: $\log(e^{z_1} + e^{z_2}) - z_2 = \log(1 + e^{z_1 - z_2})$, that of a
+negative example. With $p_1 = \sigma(z_1 - z_2)$ and $p_2 = 1 - p_1$, $\softmax(z) - e_y$ is
+$(p_1 - 1, 1 - p_1)$ for $y = 1$ and $(p_1, -p_1)$ for $y = 2$: in both cases
+$\pm(\sigma(z_1 - z_2) - \bbone[y = 1])$, the binary gradient, with opposite signs on the two logits.
+
+\solution{sigmoid-softmax:exr:6}
+$\softmax(z/0.5)\approx(0.864, 0.117, 0.019)$, $\softmax(z)\approx(0.659, 0.242, 0.099)$,
+$\softmax(z/2)\approx(0.502, 0.304, 0.194)$. With $m = z_{k^*}$ the unique maximum,
+$\softmax(z/T)_k = e^{(z_k - m)/T}/\sum_je^{(z_j - m)/T}$; as $T\to0^+$, every exponent with $z_k<m$ tends to $-\infty$, so the
+numerator tends to $\bbone[k = k^*]$ and the denominator to $1$. As $T\to\infty$, every exponent tends to $0$
+and every entry to $1/K$.
+
+\section{\nameref*{ch:surrogate-losses}}
+
+\solution{surrogate-losses:exr:1}
+\emph{Exponential}: $C_\eta(a) = \eta e^{-a} + (1 - \eta)e^a$ has derivative $-\eta e^{-a} + (1 - \eta)e^a$, zero when
+$e^{2a} = \eta/(1 - \eta)$, i.e.\ $a^* = \frac12\log\frac\eta{1 - \eta}$; then $e^{-a^*} = \sqrt{(1 - \eta)/\eta}$ and
+$C^*_\eta = \eta\sqrt{(1 - \eta)/\eta} + (1 - \eta)\sqrt{\eta/(1 - \eta)} = 2\sqrt{\eta(1 - \eta)}$.
+\emph{Squared}: $C_\eta(a) = \eta(1 - a)^2 + (1 - \eta)(1 + a)^2$ has derivative $-2\eta(1 - a) + 2(1 - \eta)(1 + a) = 2(a - (2\eta - 1))$,
+so $a^* = 2\eta - 1$ and $C^*_\eta = \eta(2 - 2\eta)^2 + (1 - \eta)(2\eta)^2 = 4\eta(1 - \eta)$.
+\emph{Hinge}: on $[-1, 1]$, $C_\eta(a) = \eta(1 - a) + (1 - \eta)(1 + a) = 1 + a(1 - 2\eta)$, linear, minimal at $a = 1$ if $\eta>\frac12$
+and at $a = -1$ if $\eta<\frac12$, with value $1 - \abs{2\eta - 1}$. For $a>1$, $C_\eta(a) = (1 - \eta)(1 + a)>C_\eta(1)$, and
+symmetrically for $a<-1$, so $a^* = \sign(2\eta - 1)$.
+
+\solution{surrogate-losses:exr:2}
+Expanding, $(q_k - \bbone[k = Y])^2 = q_k^2 - 2q_k\bbone[k = Y] + \bbone[k = Y]$, whose expectation is $q_k^2 - 2q_k\eta_k + \eta_k$.
+Summing and completing the square, $\sum_k(q_k - \eta_k)^2 + \sum_k(\eta_k - \eta_k^2)$. The second sum does not depend
+on $q$; the first is minimal, and zero, exactly at $q = \eta$. Hence the Brier score is
+strictly proper.
+
+\solution{surrogate-losses:exr:3}
+The loss $-\sum_kt_k\log q_k$ is linear in the target, so its expectation is $-\sum_k\bar t_k\log q_k$ with
+$\bar t = \E[t] = (1 - \varepsilon)\eta + \frac\varepsilon K\bbone$, a probability vector; by Gibbs' inequality the minimizer is $q^* = \bar t$.
+Its entries lie between $\frac\varepsilon K$ and $1 - \varepsilon + \frac\varepsilon K$, and logits reaching it satisfy $z_k = \log q^*_k + c$, so
+$\max_kz_k - \min_kz_k = \log(\max_kq^*_k/\min_kq^*_k)\leq\log\frac{1 - \varepsilon + \varepsilon/K}{\varepsilon/K}$. For $K = 1000$, $\varepsilon = 0.1$:
+$\log(0.9001/0.0001) = \log9001\approx9.1$.
+
+\solution{surrogate-losses:exr:4}
+The expected loss $-w_1\eta\log q - w_0(1 - \eta)\log(1 - q)$ has derivative $-w_1\eta/q + w_0(1 - \eta)/(1 - q)$, zero at
+$q^* = \frac{w_1\eta}{w_1\eta + w_0(1 - \eta)}$. Then $q^*>\frac12\iff w_1\eta>w_0(1 - \eta)\iff\eta>\frac{w_0}{w_0 + w_1}$. The cost-sensitive
+Bayes classifier predicts the positive class iff $\eta c_{\mathrm{FN}}>(1 - \eta)c_{\mathrm{FP}}$, i.e.\
+$\eta>c_{\mathrm{FP}}/(c_{\mathrm{FP}} + c_{\mathrm{FN}})$: take $w_1\propto c_{\mathrm{FN}}$ and $w_0\propto c_{\mathrm{FP}}$, the weight of each class being
+the cost of missing it.
+
+\solution{surrogate-losses:exr:5}
+$\phi(m) = (1 - m)^2$ is convex, differentiable, with $\phi'(0) = -2<0$, hence calibrated by
+\cref{surrogate-losses:thm:bjm}. But $\phi(3) = 4>\phi(-0.5) = 2.25$: a correct prediction with margin $3$ costs
+more than a wrong one. The \emph{squared hinge} $\max(0, 1 - m)^2$ is $0$ for $m\geq1$, convex, differentiable,
+with derivative $-2$ at $0$: still calibrated, and it no longer penalizes confident correct
+predictions.
