@@ -25,7 +25,7 @@
 \usepackage{titlesec}
 \titleformat{\chapter}[display]
   {\normalfont\color{bookaccent}}
-  {\scshape\large Chapter \thechapter}
+  {\scshape\large \chaptertitlename\ \thechapter}
   {6pt}
   {\Huge\bfseries\color{black}}
   [\vspace{2pt}{\color{bookaccent}\titlerule[1pt]}]
@@ -85,7 +85,7 @@
 \newtcolorbox{chapterintro}{enhanced, breakable, sharp corners, boxrule=0pt,
   frame hidden, colback=bookaccent!6!white, borderline north={1pt}{0pt}{bookaccent},
   borderline south={1pt}{0pt}{bookaccent}, left=8pt, right=8pt, top=6pt, bottom=6pt,
-  before upper={\noindent{\color{bookaccent}\textbf{In this chapter}}\par\smallskip}}
+  before upper={\noindent{\color{bookaccent}\textbf{In this \MakeLowercase{\chaptertitlename}}}\par\smallskip}}
 \newtcolorbox{chaptersummary}{bookbox=booksummary, title={Summary}}
 
 % exercises are numbered within the chapter, independently of theorems
