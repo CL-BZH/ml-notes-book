@@ -645,6 +645,22 @@ difference of two points: the heavy-ball term $\theta_k - \theta_{k-1}$ or an av
 choosing a representative (for small steps, the shortest one), a choice the affine structure of
 $\R^n$ makes for us.
 
+\section{\nameref*{ch:rkhs}}
+
+\solution{rkhs:exr:1}
+Symmetry is clear. For points $x_1, \ldots, x_m \ge 0$ and reals $c_i$, using $\min(x,x') = \int_0^\infty\bbone[t\le x]\bbone[t\le x']\,dt$,
+$\sum_{i,j}c_ic_j\min(x_i,x_j) = \int_0^\infty\bigl(\sum_ic_i\bbone[t\le x_i]\bigr)^2dt \ge 0$.
+This is a feature map into $L^2([0,\infty))$: $\phi(x) = \bbone_{[0,x]}$. (It is the covariance of Brownian motion.)
+
+\solution{rkhs:exr:2}
+Yes: $\cos(x - x') = \cos x\cos x' + \sin x\sin x' = \phi(x)^\top\phi(x')$ with $\phi(x) = (\cos x, \sin x)^\top \in \R^2$, so every Gram matrix is $\Phi\Phi^\top \succeq 0$. The RKHS is spanned by the functions $K(\cdot, x) = \cos x\cos(\cdot) + \sin x\sin(\cdot)$, that is by $\cos$ and $\sin$, which are linearly independent: it is two-dimensional, with $\norm{a\cos + b\sin}_{\mathcal H_K}^2 = a^2 + b^2$.
+
+\solution{rkhs:exr:3}
+Every function on $\{a,b\}$ is $f = c_aK_a + c_bK_b$ for a unique $\mathbf c$, since $\mathbf f = \mathbf K\mathbf c$ and $\mathbf K$ is invertible. Then $\norm{f}_{\mathcal H_K}^2 = \mathbf c^\top\mathbf K\mathbf c = \mathbf f^\top\mathbf K^{-1}\mathbf f$. Here $\mathbf K^{-1} = \frac13\bigl(\begin{smallmatrix}2&-1\\-1&2\end{smallmatrix}\bigr)$ and for $\mathbf f = (5,1)$: $\frac13(2\cdot25 - 2\cdot5 + 2\cdot1) = \frac{42}{3} = 14$, as in the example.
+
+\solution{rkhs:exr:4}
+With $K(x,x') = x^\top x'$, $\mathbf K = \mathbf X\mathbf X^\top$ and $\mathbf k_* = \mathbf Xx_*$. Kernel ridge predicts $\mathbf k_*^\top(\mathbf K + \lambda\mathbf I_n)^{-1}\mathbf y = x_*^\top\mathbf X^\top(\mathbf X\mathbf X^\top + \lambda\mathbf I_n)^{-1}\mathbf y$. The push-through identity follows from $\mathbf X^\top(\mathbf X\mathbf X^\top + \lambda\mathbf I_n) = (\mathbf X^\top\mathbf X + \lambda\mathbf I_d)\mathbf X^\top$ by multiplying on the left by $(\mathbf X^\top\mathbf X + \lambda\mathbf I_d)^{-1}$ and on the right by $(\mathbf X\mathbf X^\top + \lambda\mathbf I_n)^{-1}$. Hence the prediction is $x_*^\top(\mathbf X^\top\mathbf X + \lambda\mathbf I_d)^{-1}\mathbf X^\top\mathbf y = x_*^\top w^*$. Kernel ridge inverts an $n\times n$ matrix, ridge a $d\times d$ one; the kernel form pays off when $d > n$ or $d = \infty$.
+
 \section{\nameref*{ch:cross-entropy}}
 
 \solution{cross-entropy:exr:1}
@@ -1969,25 +1985,6 @@ Off the diagonal all three equal positive multiples ($1$, $n$ and $2(1-\beta k)$
 \solution{node-similarity:exr:5}
 Let node $0$ be the centre and $\mathbf x$ the indicator of the $\ell$ leaves, $\norm{\mathbf x}_2 = \sqrt\ell$. Each leaf has degree $1$, so column $j$ of $\mathbf P$ is $\mathbf e_0$ for every leaf $j$, and $\mathbf P\mathbf x = \ell\,\mathbf e_0$, of norm $\ell$. Hence $\norm{\mathbf P}_2 \ge \ell/\sqrt\ell = \sqrt\ell$, which exceeds $1$ as soon as $\ell \ge 2$. In contrast $\norm{\mathbf P}_1 = 1$ for every graph.
 
-\section{\nameref*{ch:rkhs}}
-
-\solution{rkhs:exr:1}
-Symmetry is clear. For points $x_1, \ldots, x_m \ge 0$ and reals $c_i$, using $\min(x,x') = \int_0^\infty\bbone[t\le x]\bbone[t\le x']\,dt$,
-$\sum_{i,j}c_ic_j\min(x_i,x_j) = \int_0^\infty\bigl(\sum_ic_i\bbone[t\le x_i]\bigr)^2dt \ge 0$.
-This is a feature map into $L^2([0,\infty))$: $\phi(x) = \bbone_{[0,x]}$. (It is the covariance of Brownian motion.)
-
-\solution{rkhs:exr:2}
-Yes: $\cos(x - x') = \cos x\cos x' + \sin x\sin x' = \phi(x)^\top\phi(x')$ with $\phi(x) = (\cos x, \sin x)^\top \in \R^2$, so every Gram matrix is $\Phi\Phi^\top \succeq 0$. The RKHS is spanned by the functions $K(\cdot, x) = \cos x\cos(\cdot) + \sin x\sin(\cdot)$, that is by $\cos$ and $\sin$, which are linearly independent: it is two-dimensional, with $\norm{a\cos + b\sin}_{\mathcal H_K}^2 = a^2 + b^2$.
-
-\solution{rkhs:exr:3}
-Every function on $\{a,b\}$ is $f = c_aK_a + c_bK_b$ for a unique $\mathbf c$, since $\mathbf f = \mathbf K\mathbf c$ and $\mathbf K$ is invertible. Then $\norm{f}_{\mathcal H_K}^2 = \mathbf c^\top\mathbf K\mathbf c = \mathbf f^\top\mathbf K^{-1}\mathbf f$. Here $\mathbf K^{-1} = \frac13\bigl(\begin{smallmatrix}2&-1\\-1&2\end{smallmatrix}\bigr)$ and for $\mathbf f = (5,1)$: $\frac13(2\cdot25 - 2\cdot5 + 2\cdot1) = \frac{42}{3} = 14$, as in the example.
-
-\solution{rkhs:exr:4}
-With $K(x,x') = x^\top x'$, $\mathbf K = \mathbf X\mathbf X^\top$ and $\mathbf k_* = \mathbf Xx_*$. Kernel ridge predicts $\mathbf k_*^\top(\mathbf K + \lambda\mathbf I_n)^{-1}\mathbf y = x_*^\top\mathbf X^\top(\mathbf X\mathbf X^\top + \lambda\mathbf I_n)^{-1}\mathbf y$. The push-through identity follows from $\mathbf X^\top(\mathbf X\mathbf X^\top + \lambda\mathbf I_n) = (\mathbf X^\top\mathbf X + \lambda\mathbf I_d)\mathbf X^\top$ by multiplying on the left by $(\mathbf X^\top\mathbf X + \lambda\mathbf I_d)^{-1}$ and on the right by $(\mathbf X\mathbf X^\top + \lambda\mathbf I_n)^{-1}$. Hence the prediction is $x_*^\top(\mathbf X^\top\mathbf X + \lambda\mathbf I_d)^{-1}\mathbf X^\top\mathbf y = x_*^\top w^*$. Kernel ridge inverts an $n\times n$ matrix, ridge a $d\times d$ one; the kernel form pays off when $d > n$ or $d = \infty$.
-
-\solution{rkhs:exr:5}
-$(\mathbf K\boldsymbol\alpha)_i$ is linear in $\boldsymbol\alpha$, and a convex function of a linear map is convex, so each loss term is convex. $\boldsymbol\alpha^\top\mathbf K\boldsymbol\alpha$ is a positive semi-definite quadratic form, and so is $\boldsymbol\alpha^\top\mathbf K\mathbf L\mathbf K\boldsymbol\alpha = (\mathbf K\boldsymbol\alpha)^\top\mathbf L(\mathbf K\boldsymbol\alpha) \ge 0$, since $\mathbf L \succeq 0$; a positive combination of convex functions is convex. The matrix of the system is $\frac1l\mathbf K_l^\top\mathbf K_l + \gamma_A\mathbf K + \frac{\gamma_I}{n^2}\mathbf K\mathbf L\mathbf K$, a sum of positive semi-definite matrices of which $\gamma_A\mathbf K$ is positive definite when $\mathbf K$ is; the sum is then positive definite, hence invertible, and the solution unique (the objective is strictly convex).
-
 \section{\nameref*{ch:semi-supervised-graphs}}
 
 \solution{semi-supervised-graphs:exr:1}
@@ -2011,6 +2008,9 @@ Setting their sum to zero gives
 \[
 (X^\top MX + \lambda X^\top LX)W = X^\top MY;
 \] both matrices on the left are positive semi-definite, and the solution is unique when their sum is invertible. The matrix $X^\top MX$ involves only the features of labelled nodes, but $X^\top LX = \sum_{\{i,j\}\in E}A_{ij}(x_i - x_j)(x_i - x_j)^\top$ involves the features of all nodes: directions in feature space along which neighbouring nodes differ are penalized, and this is where the unlabelled nodes act on $W$.
+
+\solution{semi-supervised-graphs:exr:6}
+$(\mathbf K\boldsymbol\alpha)_i$ is linear in $\boldsymbol\alpha$, and a convex function of a linear map is convex, so each loss term is convex. $\boldsymbol\alpha^\top\mathbf K\boldsymbol\alpha$ is a positive semi-definite quadratic form, and so is $\boldsymbol\alpha^\top\mathbf KL\mathbf K\boldsymbol\alpha = (\mathbf K\boldsymbol\alpha)^\top L(\mathbf K\boldsymbol\alpha) \ge 0$, since $L \succeq 0$; a positive combination of convex functions is convex. The matrix of the system is $\frac1l\mathbf K_l^\top\mathbf K_l + \gamma_A\mathbf K + \frac{\gamma_I}{n^2}\mathbf KL\mathbf K$, a sum of positive semi-definite matrices of which $\gamma_A\mathbf K$ is positive definite when $\mathbf K$ is; the sum is then positive definite, hence invertible, and the solution unique (the objective is strictly convex).
 
 \section{\nameref*{ch:shallow-embeddings}}
 

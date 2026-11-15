@@ -40,75 +40,75 @@ notebooks. They are organised here as a single LaTeX book (11 parts,
 17. Principal Component Analysis
 18. Matrix Factorization
 19. The Geometry of the Gradient
+20. Reproducing Kernel Hilbert Spaces
 
 **Part IV — Loss Functions, Likelihood and Output Units**
 
-20. Entropy, Cross-Entropy and Maximum Likelihood
-21. Output Distributions and their Losses
-22. Sigmoid and Softmax Output Units
-23. Surrogate Losses for Classification
+21. Entropy, Cross-Entropy and Maximum Likelihood
+22. Output Distributions and their Losses
+23. Sigmoid and Softmax Output Units
+24. Surrogate Losses for Classification
 
 **Part V — Classical Models**
 
-24. The Perceptron
-25. Support Vector Machines
-26. Support Vector Methods for Regression and Novelty Detection
-27. Decision Trees
-28. Ensembles: Bagging, Random Forests and AdaBoost
-29. Gradient Boosting
-30. Dynamic Time Warping
-31. Linear Time Series Models
-32. Decomposition and Forecasting
+25. The Perceptron
+26. Support Vector Machines
+27. Support Vector Methods for Regression and Novelty Detection
+28. Decision Trees
+29. Ensembles: Bagging, Random Forests and AdaBoost
+30. Gradient Boosting
+31. Dynamic Time Warping
+32. Linear Time Series Models
+33. Decomposition and Forecasting
 
 **Part VI — Neural Networks: Fundamentals and Training**
 
-33. Feedforward Neural Networks
-34. Activation Functions and Initialization
-35. Backpropagation in Multilayer Perceptrons
-36. Computational Graphs
-37. Optimization Algorithms for Training
-38. Normalization Layers
-39. Dropout
+34. Feedforward Neural Networks
+35. Activation Functions and Initialization
+36. Backpropagation in Multilayer Perceptrons
+37. Computational Graphs
+38. Optimization Algorithms for Training
+39. Normalization Layers
+40. Dropout
 
 **Part VII — Convolutional Networks and Computer Vision**
 
-40. Convolution and Image Filtering
-41. Convolutional Layers
-42. Classic CNN Architectures
-43. Fully Convolutional Networks and Upsampling
-44. Object Detection and Instance Segmentation
-45. Transfer Learning
+41. Convolution and Image Filtering
+42. Convolutional Layers
+43. Classic CNN Architectures
+44. Fully Convolutional Networks and Upsampling
+45. Object Detection and Instance Segmentation
+46. Transfer Learning
 
 **Part VIII — Recurrent Networks**
 
-46. Recurrent Networks and Backpropagation Through Time
-47. Gated Recurrent Networks: LSTM and GRU
-48. Bidirectional RNNs and Autoregressive Sequence Models
-49. Case Study: Deep Kalman Filters
+47. Recurrent Networks and Backpropagation Through Time
+48. Gated Recurrent Networks: LSTM and GRU
+49. Bidirectional RNNs and Autoregressive Sequence Models
+50. Case Study: Deep Kalman Filters
 
 **Part IX — Language Modeling and Structured Prediction**
 
-50. Bigram Language Models and Softmax Regression
-51. A Neural Bigram Model and the Embedding Matrix
-52. Word Embeddings
-53. Hierarchical Softmax and Huffman Trees
-54. Noise-Contrastive Estimation and Negative Sampling
-55. Structured Prediction, Hidden Markov Models and the Viterbi Algorithm
-56. Conditional Random Fields
+51. Bigram Language Models and Softmax Regression
+52. A Neural Bigram Model and the Embedding Matrix
+53. Word Embeddings
+54. Hierarchical Softmax and Huffman Trees
+55. Noise-Contrastive Estimation and Negative Sampling
+56. Structured Prediction, Hidden Markov Models and the Viterbi Algorithm
+57. Conditional Random Fields
 
 **Part X — Contrastive and Self-Supervised Learning**
 
-57. Contrastive Learning and the InfoNCE Loss
-58. Self-Supervised Representation Learning in Practice
+58. Contrastive Learning and the InfoNCE Loss
+59. Self-Supervised Representation Learning in Practice
 
 **Part XI — Machine Learning on Graphs**
 
-59. From Harmonic Functions to Graph Laplacians
-60. Graph Laplacians and Spectral Methods
-61. Fourier Analysis
-62. From the DFT to Graph Neural Networks
-63. Node Similarity: Path Counts and Random Walks
-64. Reproducing Kernel Hilbert Spaces
+60. From Harmonic Functions to Graph Laplacians
+61. Graph Laplacians and Spectral Methods
+62. Fourier Analysis
+63. From the DFT to Graph Neural Networks
+64. Node Similarity: Path Counts and Random Walks
 65. Semi-Supervised Learning on Graphs
 66. Shallow Graph Embedding Methods
 67. Graph Autoencoders
