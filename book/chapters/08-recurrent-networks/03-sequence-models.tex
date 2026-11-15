@@ -210,7 +210,7 @@ integrals.
 \begin{proof}
 Sum over $x_T$ first: only the last factor depends on $x_T$, and it sums to $1$ because it is a
 distribution over $x_T$ for each fixed $x_{<T}$. What remains is the same expression with $T - 1$ in place
-of $T$; by induction the total is $1$. For densities the sums are integrals of nonnegative
+of $T$; by induction the total is $1$. For densities the sums are integrals of non-negative
 functions, which can be taken in this order (Tonelli's theorem).
 \end{proof}
 
@@ -321,7 +321,7 @@ strict past, and its inference model a summary of the future.
   \item A bidirectional RNN combines both summaries; it suits offline tasks where the whole
         sequence is known.
   \item An autoregressive RNN runs on the sequence shifted by one step, so that $h_{t-1}$ summarizes $x_{<t}$
-        and parameterizes $p_\theta(x_t\mid x_{<t})$; the product of these conditionals is normalized for any
+        and parametrizes $p_\theta(x_t\mid x_{<t})$; the product of these conditionals is normalized for any
         parameters. It is trained with teacher forcing and generates by feeding its samples
         back.
   \item A conditional that sees the element it predicts does not define a distribution over

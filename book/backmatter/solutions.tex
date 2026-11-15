@@ -614,13 +614,13 @@ a multiple of the tangent vector $(\sin\alpha, -\cos\alpha)$. It vanishes iff $\
         the step $\hat m\oslash(\sqrt{\hat s} + \varepsilon)$, are the same in both coordinate systems: Adam adds the same
         vector to the same point.
   \item After one step, $m = (1 - \beta_1)g$ and $s = (1 - \beta_2)\,g\odot g$; the bias corrections divide by
-        $1 - \beta_1$ and $1 - \beta_2$, so $\hat m = g$ and $\hat s = g\odot g$. Coordinate-wise,
+        $1 - \beta_1$ and $1 - \beta_2$, so $\hat m = g$ and $\hat s = g\odot g$. Coordinatewise,
         $\hat m_i/\sqrt{\hat s_i} = g_i/\abs{g_i} = \mathrm{sign}(g_i)$ for $g_i\neq0$ (and $0$ when $g_i = 0$, the limit with $\varepsilon>0$).
   \item Standard basis: step $-\eta(1, 1)$. In the basis $u_1 = \frac1{\sqrt2}(1,1)$, $u_2 = \frac1{\sqrt2}(-1,1)$, the
         coordinates of $g$ are $\inner g{u_1} = \frac3{\sqrt2}$ and $\inner g{u_2} = -\frac1{\sqrt2}$, so the step has coordinates
         $-\eta(1, -1)$: it is $-\eta(u_1 - u_2) = -\eta(\sqrt2, 0)$ in the standard basis. The two steps differ in
         length and are not even parallel. The dot product is the same in both orthonormal bases, so
-        the difference does not come from the inner product but from the coordinate-wise operations,
+        the difference does not come from the inner product but from the coordinatewise operations,
         which depend on the basis itself.
 \end{enumerate}
 
@@ -870,14 +870,14 @@ product,
   (k_1k_2)(x, x') = \inner{\varphi_1(x)}{\varphi_1(x')}\inner{\varphi_2(x)}{\varphi_2(x')} = \inner{\varphi_1(x)\otimes\varphi_2(x)}{\varphi_1(x')\otimes\varphi_2(x')},
 \]
 an inner product of feature vectors; equivalently, the Hadamard product $K_1\circ K_2$ of two positive
-semidefinite matrices is positive semidefinite (Schur product theorem).
+semi-definite matrices is positive semi-definite (Schur product theorem).
 
 \solution{svm:exr:4}
 Expanding $\norm{x_i - x_j}^2 = \norm{x_i}^2 + \norm{x_j}^2 - 2x_i^\top x_j$,
 \[
   -\sum_{i,j}c_ic_j\norm{x_i - x_j}^2 = -2\Bigl(\sum_jc_j\Bigr)\Bigl(\sum_ic_i\norm{x_i}^2\Bigr) + 2\Bigl\Vert\sum_ic_ix_i\Bigr\Vert^2 = 2\Bigl\Vert\sum_ic_ix_i\Bigr\Vert^2\geq0
 \]
-when $\sum_jc_j = 0$: CPD of order $1$. It is not positive semidefinite: for two distinct points and
+when $\sum_jc_j = 0$: CPD of order $1$. It is not positive semi-definite: for two distinct points and
 $c = (1, 1)$, the form is $-2\norm{x_1 - x_2}^2<0$.
 
 \solution{svm:exr:5}
@@ -1100,7 +1100,7 @@ $w^\top a + b\leq0.5 + 0.2 + 0.3 - 1.2 = -0.2<0$ for $a\in[0,1]^3$, so the unit 
 the gradients of $w$ and $b$ are $0$ whatever the loss, and gradient descent never changes
 them. Weight decay multiplies $(w, b)$ by $1 - \eta\lambda$, which keeps $w^\top a + b$ negative: the unit stays dead while
 its parameters shrink to $0$. With a leaky ReLU the derivative is $\alpha>0$ for negative inputs, the
-gradients are nonzero (scaled by $\alpha$), and the unit can recover.
+gradients are non-zero (scaled by $\alpha$), and the unit can recover.
 
 \section{\nameref*{ch:backpropagation}}
 
@@ -1535,7 +1535,7 @@ the room was already warming at $t$. The input explains away part of the observa
 $\mathrm{KL}(q\Vert p) = 0.4431$ (\cref{dkf:ex:kl}). $\mathrm{KL}(p\Vert q) = \frac12\bigl(\log\frac{0.25}1 + \frac{1 + 0.25}{0.25} - 1\bigr) = \frac12(-1.3863 + 4) = 1.3069$: the
 divergence is not symmetric. For the equality case, write each term of
 \cref{dkf:prop:kl} as $\frac12\bigl(r - 1 - \log r\bigr) + (\mu_{q,j} - \mu_{p,j})^2/(2v_{p,j})$ with $r = v_{q,j}/v_{p,j}$. Since $\log r\leq r - 1$ with equality only at
-$r = 1$, both parts are nonnegative, and their sum over $j$ vanishes only if $v_{q,j} = v_{p,j}$ and $\mu_{q,j} = \mu_{p,j}$ for every $j$.
+$r = 1$, both parts are non-negative, and their sum over $j$ vanishes only if $v_{q,j} = v_{p,j}$ and $\mu_{q,j} = \mu_{p,j}$ for every $j$.
 
 \solution{dkf:exr:5}
 In the DKF, yes: $x_{t-2}$ is a leaf whose only neighbour is $z_{t-2}$, and every path from $z_{t-2}$ to $z_t$ goes through
@@ -1544,7 +1544,7 @@ $x_{t-2}\to z_t$ is an edge of the graph, which no conditioning set blocks.
 
 \solution{dkf:exr:6}
 All three models share the generative forward LSTM \texttt{pz\_f\_rnn}, run on the shifted sequence
-$(x_0,\dots,x_{T-1})$, whose state used at time $t$ summarizes $x_{0:t-1}$; it parameterizes the transition
+$(x_0,\dots,x_{T-1})$, whose state used at time $t$ summarizes $x_{0:t-1}$; it parametrizes the transition
 $p_\theta(z_t\mid z_{t-1}, x_{0:t-1})$. Inference
 networks: the AR DKF has the backward LSTM \texttt{q\_b\_rnn} on $x_{1:T}$, whose state at $t$ summarizes $x_{t:T}$; the
 FAR DKF has the same backward LSTM and a forward LSTM \texttt{q\_f\_rnn} on $x_{1:T}$, whose state at $t$ summarizes
@@ -1868,7 +1868,7 @@ prefer the community partition.
 By the appendix, $\bx^\top\bL_{\text{sym}}\bx = 2\norm\bx^2$ requires equality in $(a - b)^2\leq2a^2 + 2b^2$ on every edge, that is $y_i = -y_j$ for $y = \bD^{-1/2}\bx$.
 If the graph is bipartite with parts $V_1, V_2$, take $y = +1$ on $V_1$ and $-1$ on $V_2$: then $\bx = \bD^{1/2}y$ attains $2$, and the Rayleigh
 quotient's maximum is an eigenvalue. Conversely, if $2$ is an eigenvalue with eigenvector $\bx\neq0$, then $y_i = -y_j$ on every edge;
-on a connected graph $\abs{y_i}$ is constant and nonzero, and the sign of $y$ splits the nodes into two sets with every
+on a connected graph $\abs{y_i}$ is constant and non-zero, and the sign of $y$ splits the nodes into two sets with every
 edge between them: the graph is bipartite.
 
 \solution{graph-laplacians:exr:4}
@@ -1984,7 +1984,7 @@ Every function on $\{a,b\}$ is $f = c_aK_a + c_bK_b$ for a unique $\mathbf c$, s
 With $K(x,x') = x^\top x'$, $\mathbf K = \mathbf X\mathbf X^\top$ and $\mathbf k_* = \mathbf Xx_*$. Kernel ridge predicts $\mathbf k_*^\top(\mathbf K + \lambda\mathbf I_n)^{-1}\mathbf y = x_*^\top\mathbf X^\top(\mathbf X\mathbf X^\top + \lambda\mathbf I_n)^{-1}\mathbf y$. The push-through identity follows from $\mathbf X^\top(\mathbf X\mathbf X^\top + \lambda\mathbf I_n) = (\mathbf X^\top\mathbf X + \lambda\mathbf I_d)\mathbf X^\top$ by multiplying on the left by $(\mathbf X^\top\mathbf X + \lambda\mathbf I_d)^{-1}$ and on the right by $(\mathbf X\mathbf X^\top + \lambda\mathbf I_n)^{-1}$. Hence the prediction is $x_*^\top(\mathbf X^\top\mathbf X + \lambda\mathbf I_d)^{-1}\mathbf X^\top\mathbf y = x_*^\top w^*$. Kernel ridge inverts an $n\times n$ matrix, ridge a $d\times d$ one; the kernel form pays off when $d > n$ or $d = \infty$.
 
 \solution{rkhs:exr:5}
-$(\mathbf K\boldsymbol\alpha)_i$ is linear in $\boldsymbol\alpha$, and a convex function of a linear map is convex, so each loss term is convex. $\boldsymbol\alpha^\top\mathbf K\boldsymbol\alpha$ is a positive semidefinite quadratic form, and so is $\boldsymbol\alpha^\top\mathbf K\mathbf L\mathbf K\boldsymbol\alpha = (\mathbf K\boldsymbol\alpha)^\top\mathbf L(\mathbf K\boldsymbol\alpha) \ge 0$, since $\mathbf L \succeq 0$; a positive combination of convex functions is convex. The matrix of the system is $\frac1l\mathbf K_l^\top\mathbf K_l + \gamma_A\mathbf K + \frac{\gamma_I}{n^2}\mathbf K\mathbf L\mathbf K$, a sum of positive semidefinite matrices of which $\gamma_A\mathbf K$ is positive definite when $\mathbf K$ is; the sum is then positive definite, hence invertible, and the solution unique (the objective is strictly convex).
+$(\mathbf K\boldsymbol\alpha)_i$ is linear in $\boldsymbol\alpha$, and a convex function of a linear map is convex, so each loss term is convex. $\boldsymbol\alpha^\top\mathbf K\boldsymbol\alpha$ is a positive semi-definite quadratic form, and so is $\boldsymbol\alpha^\top\mathbf K\mathbf L\mathbf K\boldsymbol\alpha = (\mathbf K\boldsymbol\alpha)^\top\mathbf L(\mathbf K\boldsymbol\alpha) \ge 0$, since $\mathbf L \succeq 0$; a positive combination of convex functions is convex. The matrix of the system is $\frac1l\mathbf K_l^\top\mathbf K_l + \gamma_A\mathbf K + \frac{\gamma_I}{n^2}\mathbf K\mathbf L\mathbf K$, a sum of positive semi-definite matrices of which $\gamma_A\mathbf K$ is positive definite when $\mathbf K$ is; the sum is then positive definite, hence invertible, and the solution unique (the objective is strictly convex).
 
 \section{\nameref*{ch:semi-supervised-graphs}}
 
@@ -2008,12 +2008,12 @@ With $F = XW$, the gradients of the two terms with respect to $W$ are (using $M^
 Setting their sum to zero gives
 \[
 (X^\top MX + \lambda X^\top LX)W = X^\top MY;
-\] both matrices on the left are positive semidefinite, and the solution is unique when their sum is invertible. The matrix $X^\top MX$ involves only the features of labelled nodes, but $X^\top LX = \sum_{\{i,j\}\in E}A_{ij}(x_i - x_j)(x_i - x_j)^\top$ involves the features of all nodes: directions in feature space along which neighbouring nodes differ are penalized, and this is where the unlabelled nodes act on $W$.
+\] both matrices on the left are positive semi-definite, and the solution is unique when their sum is invertible. The matrix $X^\top MX$ involves only the features of labelled nodes, but $X^\top LX = \sum_{\{i,j\}\in E}A_{ij}(x_i - x_j)(x_i - x_j)^\top$ involves the features of all nodes: directions in feature space along which neighbouring nodes differ are penalized, and this is where the unlabelled nodes act on $W$.
 
 \section{\nameref*{ch:shallow-embeddings}}
 
 \solution{shallow-embeddings:exr:1}
-By the Eckart--Young theorem, among matrices of rank at most $d$ the truncated SVD $\mathbf U_d\boldsymbol\Sigma_d\mathbf V_d^\top$ minimizes $\norm{\mathbf S - \mathbf M}_F$, with error $\bigl(\sum_{k>d}\sigma_k^2\bigr)^{1/2}$; writing it as $(\mathbf U_d\boldsymbol\Sigma_d^{1/2})(\mathbf V_d\boldsymbol\Sigma_d^{1/2})^\top$ gives $\mathbf Y_s$ and $\mathbf Y_t$. If $\mathbf S$ is symmetric positive semidefinite, its SVD is its eigendecomposition, $\mathbf U = \mathbf V$, so $\mathbf Y_s = \mathbf Y_t$. If $\mathbf S$ is symmetric but has negative eigenvalues $\mu$, the singular values are $\abs\mu$ and the right singular vector is minus the left one for those directions: $\mathbf V \ne \mathbf U$, and no single $\mathbf Y$ with $\mathbf Y\mathbf Y^\top \approx \mathbf S$ can produce a negative eigenvalue, since $\mathbf Y\mathbf Y^\top \succeq 0$. The Katz matrix has eigenvalues $\beta\lambda/(1 - \beta\lambda)$ for the eigenvalues $\lambda$ of $\mathbf A$, negative when $\lambda < 0$, which happens on every graph with at least one edge (the trace of $\mathbf A$ is $0$).
+By the Eckart--Young theorem, among matrices of rank at most $d$ the truncated SVD $\mathbf U_d\boldsymbol\Sigma_d\mathbf V_d^\top$ minimizes $\norm{\mathbf S - \mathbf M}_F$, with error $\bigl(\sum_{k>d}\sigma_k^2\bigr)^{1/2}$; writing it as $(\mathbf U_d\boldsymbol\Sigma_d^{1/2})(\mathbf V_d\boldsymbol\Sigma_d^{1/2})^\top$ gives $\mathbf Y_s$ and $\mathbf Y_t$. If $\mathbf S$ is symmetric positive semi-definite, its SVD is its eigendecomposition, $\mathbf U = \mathbf V$, so $\mathbf Y_s = \mathbf Y_t$. If $\mathbf S$ is symmetric but has negative eigenvalues $\mu$, the singular values are $\abs\mu$ and the right singular vector is minus the left one for those directions: $\mathbf V \ne \mathbf U$, and no single $\mathbf Y$ with $\mathbf Y\mathbf Y^\top \approx \mathbf S$ can produce a negative eigenvalue, since $\mathbf Y\mathbf Y^\top \succeq 0$. The Katz matrix has eigenvalues $\beta\lambda/(1 - \beta\lambda)$ for the eigenvalues $\lambda$ of $\mathbf A$, negative when $\lambda < 0$, which happens on every graph with at least one edge (the trace of $\mathbf A$ is $0$).
 
 \solution{shallow-embeddings:exr:2}
 With $t = 1$ and $v = 2$, the neighbours of $2$ are $1$ (return, weight $1/p$), $3$ (a neighbour of $1$, weight $1$) and $4$ (not adjacent to $1$, weight $1/q$).
@@ -2041,7 +2041,7 @@ Expanding as in \cref{graph-autoencoders:eq:l1_expanded}, $\sum_{i,j}S_{ij}\norm
 \begin{align*}
 \mathcal L_{1^{st}} &= 2\sum_id_i\norm{\bm y_i}^2 - 2\sum_{i,j}S_{ij}\bm y_i^\top\bm y_j\\
 &= 2\tr(\bm Y^\top D\bm Y) - 2\tr(\bm Y^\top S\bm Y) = 2\tr(\bm Y^\top L\bm Y).
-\end{align*} Each term $S_{ij}\norm{\bm y_i - \bm y_j}^2$ is nonnegative, so $\mathcal L_{1^{st}} \ge 0$, with equality iff $\bm y_i = \bm y_j$ whenever $S_{ij} > 0$. On a connected graph this propagates along paths and forces all $\bm y_i$ to be equal; conversely equal embeddings give $0$.
+\end{align*} Each term $S_{ij}\norm{\bm y_i - \bm y_j}^2$ is non-negative, so $\mathcal L_{1^{st}} \ge 0$, with equality iff $\bm y_i = \bm y_j$ whenever $S_{ij} > 0$. On a connected graph this propagates along paths and forces all $\bm y_i$ to be equal; conversely equal embeddings give $0$.
 
 \solution{graph-autoencoders:exr:3}
 $L = \bigl(\begin{smallmatrix}1&-1&0\\-1&2&-1\\0&-1&1\end{smallmatrix}\bigr)$, $D = \diag(1,2,1)$. The constraint $\bm y^\top D\mathbf 1 = 0$ excludes the eigenvector $\mathbf 1$ ($\mu = 0$). The vector $(a, 0, -a)$ satisfies $L\bm y = (a, 0, -a) = 1\cdot D\bm y$, so $\mu = 1$; the vector $(b, -b, b)$ gives $L\bm y = (2b, -4b, 2b) = 2D\bm y$, so $\mu = 2$. The minimum of $\bm y^\top L\bm y$ under the constraints is the smallest admissible $\mu$, attained at $\bm y = (1/\sqrt2, 0, -1/\sqrt2)$ (normalized by $\bm y^\top D\bm y = 2a^2 = 1$). Nodes $1$ and $3$ end up at $\pm1/\sqrt2$, symmetric about node $2$. There is no contradiction: in Laplacian eigenmaps the $\bm y_i$ are free variables, not a function of the adjacency rows. The reflection exchanging $1$ and $3$ maps this solution to its negative, which is equally optimal; which of the two nodes goes to the left is arbitrary.

@@ -292,8 +292,8 @@ and $\log\softmax(z)_k = z_k - m - \log\sum_je^{z_j - m}$.
 \end{proposition}
 
 \begin{proof}
-Factor $e^m$ out of the sum. The remaining sum contains the term $e^0 = 1$ and $K$ terms at
-most $1$, so it lies in $[1, K]$.
+Factor $e^m$ out of the sum. The remaining sum has $K$ terms, each at most $1$, one of
+which is $e^0 = 1$, so it lies in $[1, K]$.
 \end{proof}
 
 After the shift, every exponent is $\leq0$, so nothing overflows; the sum is at least
@@ -382,7 +382,7 @@ sigmoid. What is the derivative of the logit?
 \end{exercise}
 
 \begin{exercise}\label{sigmoid-softmax:exr:2}
-Derive $\nabla^2_z\ell = \diag(p) - pp^\top$ for the loss \cref{sigmoid-softmax:eq:loss} by computing
+Derive $\nabla^2_z\ell = \diag(p) - pp^\top$ for the loss \eqref{sigmoid-softmax:eq:loss} by computing
 $\partial p_k/\partial z_j$ separately for $j = k$ and $j\neq k$.
 \solutionlink{sigmoid-softmax:exr:2}
 \end{exercise}

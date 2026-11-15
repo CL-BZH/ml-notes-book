@@ -329,18 +329,18 @@ on $L(\theta) + \frac\lambda2\norm{\theta - o}^2$, that is, MAP estimation with 
 (\cref{bayesian-reasoning:sec:map}). The test does not say that weight decay is wrong; it says that
 the formula contains a modelling choice --- the centre of the prior --- that the notation $\lambda\theta$ hides.
 For a network trained from scratch, decaying towards the zero weights is a reasonable prior. For a
-network fine-tuned from pre-trained weights $\theta_0$, decaying towards $\theta_0$, i.e.\ replacing $\lambda\theta$ by
+network fine-tuned from pretrained weights $\theta_0$, decaying towards $\theta_0$, i.e.\ replacing $\lambda\theta$ by
 $\lambda(\theta - \theta_0)$, is often the better one. This is the ``L2-SP'' regularizer (Li, Grandvalet and
 Davoine, \emph{Explicit Inductive Bias for Transfer Learning with Convolutional Networks}, ICML
 2018), $\frac\alpha2\norm{w_S - w_S^0}^2 + \frac\beta2\norm{w_{\bar S}}^2$: the layers $S$ shared with the source model are pulled
-towards their pre-trained values $w_S^0$, while the new layers $\bar S$, which have no such values,
+towards their pretrained values $w_S^0$, while the new layers $\bar S$, which have no such values,
 keep the zero weights as their centre. One regularizer, two chosen origins.
 \end{example}
 
 The same test applied to a change of \emph{basis} rather than of origin is the subject of
 \cref{gradient-tangent-space:exr:2}. Plain gradient descent is unchanged by an orthonormal change
 of basis but not by a general one, because ``the dot product of the coordinates'' is a different
-inner product in each non-orthonormal basis. Coordinate-wise methods such as Adam pass the origin
+inner product in each non-orthonormal basis. Coordinatewise methods such as Adam pass the origin
 test but are changed even by a rotation of an orthonormal basis
 (\cref{gradient-tangent-space:exr:4}): they use the basis itself, not only an inner product.
 
@@ -640,10 +640,10 @@ $f(\theta) = \theta^\top S\theta$, and check that it vanishes exactly at the fou
 
 \begin{exercise}\label{gradient-tangent-space:exr:4}
 Adam updates $m\leftarrow\beta_1m + (1 - \beta_1)g$, $s\leftarrow\beta_2s + (1 - \beta_2)\,g\odot g$ from the gradient $g = \nabla L(\theta)$ and steps
-$\theta\leftarrow\theta - \eta\,\hat m\oslash(\sqrt{\hat s} + \varepsilon)$, coordinate-wise, with the bias-corrected $\hat m$, $\hat s$.
+$\theta\leftarrow\theta - \eta\,\hat m\oslash(\sqrt{\hat s} + \varepsilon)$, coordinatewise, with the bias-corrected $\hat m$, $\hat s$.
 \begin{enumerate}[nosep]
   \item Show that Adam passes the origin test of \cref{gradient-tangent-space:prop:origin}.
-  \item Show that its first step (from $m = s = 0$) is $-\eta\,\mathrm{sign}(g)$ coordinate-wise when $\varepsilon = 0$
+  \item Show that its first step (from $m = s = 0$) is $-\eta\,\mathrm{sign}(g)$ coordinatewise when $\varepsilon = 0$
         (with $\mathrm{sign}(0) = 0$).
   \item In $\R^2$ let $g = (2, 1)$. Compute the first step in the standard basis, then in the orthonormal
         basis rotated by $45^\circ$, and express the second back in the standard basis. Are the two steps

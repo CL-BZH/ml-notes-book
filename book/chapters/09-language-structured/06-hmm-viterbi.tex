@@ -112,7 +112,7 @@ $y_T^* = \arg\max_k\delta_T(k)$ and $y_{t-1}^* = \psi_t(y_t^*)$ for $t = T,\dots
 
 \begin{proof}
 By the factorization, $p(x_{1:t}, y_{1:t}) = p(x_{1:t-1}, y_{1:t-1})\,A_{y_{t-1}y_t}B_{y_t}(x_t)$. Fix $y_t = k$ and split the maximum over $y_{1:t-1}$ into a
-maximum over $y_{t-1} = j$ and over $y_{1:t-2}$. The factor $A_{jk}B_k(x_t)$ does not depend on $y_{1:t-2}$ and is nonnegative,
+maximum over $y_{t-1} = j$ and over $y_{1:t-2}$. The factor $A_{jk}B_k(x_t)$ does not depend on $y_{1:t-2}$ and is non-negative,
 so it can be taken out of the inner maximum:
 \[
   \delta_t(k) = \max_j\Bigl(\max_{y_{1:t-2}}p(x_{1:t-1}, y_{1:t-2}, y_{t-1} = j)\Bigr)A_{jk}B_k(x_t) = \max_j\delta_{t-1}(j)A_{jk}B_k(x_t) .

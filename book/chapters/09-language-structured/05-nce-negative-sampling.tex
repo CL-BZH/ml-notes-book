@@ -164,7 +164,7 @@ words, and the vectors of rare words would rarely be pushed away from anything. 
 the optimum is a PMI computed with a smoothed context distribution, which reduces the
 large PMI values of rare contexts (Levy, Goldberg and Dagan, 2015).
 
-\paragraph{The number of negatives.} Mikolov et al.\ recommend $k$ between $5$ and $20$ for small data sets
+\paragraph{The number of negatives.} Mikolov et al.\ recommend $k$ between $5$ and $20$ for small datasets
 and $2$ to $5$ for large ones. Each pair costs $O((k + 1)d)$, against $O(Vd)$ for the softmax.
 
 \begin{remark}[From words to contrastive learning]

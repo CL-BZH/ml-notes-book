@@ -168,7 +168,7 @@ scores of the wrong sign are strictly worse than the best score, at every $\eta\
 
 \begin{theorem}[Bartlett, Jordan and McAuliffe, 2006]\label{surrogate-losses:thm:bjm}
 A convex margin loss $\phi$ is classification-calibrated if and only if it is
-differentiable at $0$ with $\phi'(0)<0$. If $\phi$ is calibrated, there is a nondecreasing
+differentiable at $0$ with $\phi'(0)<0$. If $\phi$ is calibrated, there is a non-decreasing
 function $\psi$ with $\psi(0) = 0$ and $\psi(\theta)>0$ for $\theta>0$ such that for every measurable $f$,
 \[
   \psi\bigl(\Risk(\sign f) - R^*\bigr)\leq\Risk_\phi(f) - \Risk^*_\phi .
@@ -309,7 +309,7 @@ sigmoid output,
 \[
   \nabla_\theta\ERisk(f_\theta) = \frac1n\sum_{i=1}^n\bigl(\sigma(f_\theta(x_i)) - y_i\bigr)\nabla_\theta f_\theta(x_i)\qquad(y_i\in\{0,1\}).
 \]
-A minibatch of $b$ examples drawn uniformly gives an unbiased estimate of this
+A mini-batch of $b$ examples drawn uniformly gives an unbiased estimate of this
 average, with variance of order $1/b$ (\cref{monte-carlo:sec:plain}); stochastic gradient
 descent relies on exactly this. The 0--1 loss gives a gradient of zero, whatever the
 batch.

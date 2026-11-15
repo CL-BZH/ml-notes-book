@@ -121,7 +121,7 @@ local slope instead. Lower bounds such as LB\_Keogh, cheap to compute, let a nea
 neighbour search discard most candidates without computing their DTW.
 
 \begin{pitfall}[DTW is not a metric]
-DTW is symmetric and nonnegative, but two different sequences can be at distance $0$ (a
+DTW is symmetric and non-negative, but two different sequences can be at distance $0$ (a
 sequence and its copy with a repeated sample), and the triangle inequality fails. With
 $q = 1$ and absolute differences: $a = (0, 0)$, $b = (0, 1)$, $c = (0, 1, 1)$ give $\mathrm{DTW}(a, b) = 1$,
 $\mathrm{DTW}(b, c) = 0$ and $\mathrm{DTW}(a, c) = 2>1 + 0$. Algorithms that rely on the triangle inequality
@@ -163,7 +163,7 @@ $\mathrm{sDTW}_\gamma(x, x)$ is not $0$; it can be negative, since every path, n
 contributes to the sum. Minimizing $\mathrm{sDTW}_\gamma(x, y)$ over $y$ therefore need not return $y = x$.
 Blondel, Mensch and Vert (2021) proposed the \emph{soft-DTW divergence}
 $\mathrm{sDTW}_\gamma(x, y) - \frac12\mathrm{sDTW}_\gamma(x, x) - \frac12\mathrm{sDTW}_\gamma(y, y)$ (\emph{Differentiable Divergences
-Between Time Series}, AISTATS 2021). They prove it nonnegative and zero iff $x = y$ for
+Between Time Series}, AISTATS 2021). They prove it non-negative and zero iff $x = y$ for
 two modified costs (a log-augmented squared Euclidean cost, and the absolute value in
 dimension~$1$); for the plain squared Euclidean cost they only conjecture it, with
 numerical support.

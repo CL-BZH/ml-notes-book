@@ -116,7 +116,7 @@ $\norm{f(g(x)) - f(g(y))}\leq\mathrm{Lip}(f)\norm{g(x) - g(y)}\leq\mathrm{Lip}(f
 \end{proof}
 
 \begin{example}[A bound for a neural network]\label{lipschitz-continuity:ex:network}
-A feed-forward network
+A feedforward network
 $F(x) = W_K\,\varphi(W_{K-1}\cdots\varphi(W_1x))$ with a $1$-Lipschitz activation
 $\varphi$ (ReLU, $\tanh$) applied coordinatewise is a composition of linear maps
 and $1$-Lipschitz maps (biases do not change Lipschitz constants). By

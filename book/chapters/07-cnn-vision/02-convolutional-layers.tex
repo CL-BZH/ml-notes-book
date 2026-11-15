@@ -126,7 +126,7 @@ connected layer from a $3\times224\times224$ image to a $64\times224\times224$ o
 
 As a matrix acting on the flattened input, a convolutional layer is a fully connected layer
 with two constraints: \emph{locality} (each output depends on a $k\times k$ window only, so most weights are
-$0$) and \emph{weight sharing} (the nonzero weights are the same at every position: the matrix is
+$0$) and \emph{weight sharing} (the non-zero weights are the same at every position: the matrix is
 block Toeplitz). By \cref{convolution-filtering:thm:lti}, these are exactly the constraints
 of a shift-equivariant linear map with a finite kernel. With stride $1$, translating the input
 by an integer number of pixels translates every feature map by the same amount (away from

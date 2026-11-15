@@ -522,7 +522,7 @@ f(t) = \sum_{n=-\infty}^{\infty} f(nT_s) \sinc\left(\frac{t - nT_s}{T_s}\right).
 \]
 \end{theorem}
 
-Here and below $\sinc(x) = \sin(\pi x)/(\pi x)$ (with $\sinc(0) = 1$) is the \emph{normalized} sinc, which vanishes at every nonzero integer. The interpolating function $\sinc((t-nT_s)/T_s)$ is therefore $1$ at $t = nT_s$ and $0$ at all other sample times, so the formula reproduces the samples exactly. A proof is given in the chapter appendix.
+Here and below $\sinc(x) = \sin(\pi x)/(\pi x)$ (with $\sinc(0) = 1$) is the \emph{normalized} sinc, which vanishes at every non-zero integer. The interpolating function $\sinc((t-nT_s)/T_s)$ is therefore $1$ at $t = nT_s$ and $0$ at all other sample times, so the formula reproduces the samples exactly. A proof is given in the chapter appendix.
 
 \subsection{Relationship to Fourier transform}
 
@@ -893,7 +893,7 @@ Fix $\varepsilon > 0$. By Fubini and the Gaussian pair (Example on the Gaussian,
 = \int g(t)\,G_\varepsilon(t)\,dt,
 \qquad G_\varepsilon(t) = \frac{1}{\sqrt{4\pi\varepsilon}}e^{-t^2/(4\varepsilon)} .
 \]
-The kernels $G_\varepsilon$ are nonnegative, integrate to $1$ and concentrate at $0$ as $\varepsilon\to0$; since $g$ is bounded and continuous at $0$, the right side tends to $g(0) = \norm{f}_2^2$. On the left, $\abs{\hat f}^2 e^{-\varepsilon\omega^2}$ increases to $\abs{\hat f}^2$, so by monotone convergence the left side tends to $\frac1{2\pi}\int\abs{\hat f}^2$. Hence $\norm{f}_2^2 = \frac1{2\pi}\norm{\hat f}_2^2$, which in particular shows $\hat f \in L^2$.
+The kernels $G_\varepsilon$ are non-negative, integrate to $1$ and concentrate at $0$ as $\varepsilon\to0$; since $g$ is bounded and continuous at $0$, the right side tends to $g(0) = \norm{f}_2^2$. On the left, $\abs{\hat f}^2 e^{-\varepsilon\omega^2}$ increases to $\abs{\hat f}^2$, so by monotone convergence the left side tends to $\frac1{2\pi}\int\abs{\hat f}^2$. Hence $\norm{f}_2^2 = \frac1{2\pi}\norm{\hat f}_2^2$, which in particular shows $\hat f \in L^2$.
 \end{proof}
 
 \begin{remark}

@@ -82,7 +82,7 @@ weight $A_{ij}$, the probability that $y_i = y_j$ increases with $A_{ij}$.
 \begin{remark}[Homophily vs.\ heterophily]
 \label{semi-supervised-graphs:rem:heterophily}
 Assumption~\ref{semi-supervised-graphs:ass:smoothness} is the \emph{homophily} regime. In
-\emph{heterophilic} graphs (e.g., dating networks, protein interactions),
+\emph{heterophilic} graphs (e.g.\ dating networks, protein interactions),
 connected nodes tend to have \emph{different} labels. Standard methods (label
 propagation, GCN) degrade under heterophily; see Zhu et al.\ (\emph{Beyond Homophily in Graph Neural Networks}, 2020) and Lim et al.\ (\emph{Large Scale Learning on Non-Homophilous Graphs}, 2021) for dedicated architectures.
 \end{remark}
@@ -103,11 +103,11 @@ structure.
 \section{Notation and preliminaries}
 \label{semi-supervised-graphs:sec:prelim}
 
-We use the graph notation of \cref{ch:graph-laplacians}, with plain capitals for matrices. A graph $G = (V, E, A)$ has nodes $V = \{v_1, \ldots, v_n\}$ and a nonnegative symmetric adjacency (weight) matrix $A$; $d_i = \sum_jA_{ij}$ is the degree, $D = \diag(d_1, \ldots, d_n)$, and $L = D - A$ is the Laplacian.
+We use the graph notation of \cref{ch:graph-laplacians}, with plain capitals for matrices. A graph $G = (V, E, A)$ has nodes $V = \{v_1, \ldots, v_n\}$ and a non-negative symmetric adjacency (weight) matrix $A$; $d_i = \sum_jA_{ij}$ is the degree, $D = \diag(d_1, \ldots, d_n)$, and $L = D - A$ is the Laplacian.
 
 \begin{definition}[Standing assumptions]
 \label{semi-supervised-graphs:def:standing}
-Unless stated otherwise, every graph is undirected ($A = A^\top$), simple ($A_{ii} = 0$), connected, and nonnegatively weighted ($A_{ij} \ge 0$). In particular $d_i > 0$ for every node. A graph is \emph{$r$-regular} if $d_i = r$ for all $i$.
+Unless stated otherwise, every graph is undirected ($A = A^\top$), simple ($A_{ii} = 0$), connected, and non-negatively weighted ($A_{ij} \ge 0$). In particular $d_i > 0$ for every node. A graph is \emph{$r$-regular} if $d_i = r$ for all $i$.
 \end{definition}
 
 Directed graphs (citation networks, the web) give an asymmetric $A$; the usual remedies are symmetrization $\frac12(A + A^\top)$ or a magnetic Laplacian (Zhang et al., \emph{MagNet: A Neural Network for Directed Graphs}, 2021), and \cref{ch:dft-to-gnn} discusses what goes wrong without them.
@@ -165,7 +165,7 @@ than 1. We define this concept here so it is ready when we need it.
 \begin{definition}[Spectral radius]
 \label{semi-supervised-graphs:def:spectral_radius}
 Let $M \in \R^{n \times n}$. A scalar $\lambda \in \mathbb{C}$ is an
-\textbf{eigenvalue} of $M$ if there exists a nonzero vector $v$ with
+\textbf{eigenvalue} of $M$ if there exists a non-zero vector $v$ with
 $Mv = \lambda v$. The \textbf{spectral radius} of $M$ is the largest
 eigenvalue magnitude:
 \begin{equation}
@@ -291,7 +291,7 @@ A = \left(\begin{array}{cc|cccc}
 
 Reading the blocks: $A_{LU} = \bigl(\begin{smallmatrix} 1&1&0&0 \\ 0&1&1&0
 \end{smallmatrix}\bigr)$ encodes which unlabelled nodes are neighbours of each
-labelled node (e.g., $v_1$ connects to $v_3, v_4$). $A_{UU}$ encodes edges
+labelled node (e.g.\ $v_1$ connects to $v_3, v_4$). $A_{UU}$ encodes edges
 among unlabelled nodes only.
 
 \textbf{Transition matrix} $P = D^{-1}A$ with $D = \diag(2, 2, 3, 4, 2, 3)$:
@@ -791,7 +791,7 @@ competing objectives:
 This variational perspective is important for two reasons. First, it shows
 that label spreading is not merely an ad-hoc iterative scheme---it is solving
 a principled optimization problem with a clear objective. Second, the two
-terms reveal the tradeoff controlled by $\alpha$: when $\alpha$ is large, the
+terms reveal the trade-off controlled by $\alpha$: when $\alpha$ is large, the
 smoothness term dominates and the solution follows the graph structure; when
 $\alpha$ is small, the fitting term dominates and the solution stays close to
 the initial labels.
@@ -804,7 +804,7 @@ See Appendix~\ref{semi-supervised-graphs:app:ls_energy}.
 \label{semi-supervised-graphs:sec:cs}
 
 Label propagation and label spreading operate directly on the label matrix
-$Y$. But what if we already have a powerful base predictor (e.g., a neural
+$Y$. But what if we already have a powerful base predictor (e.g.\ a neural
 network trained on node features) that produces soft predictions
 $\hat{Y} \in \R^{n \times C}$? Can we use the graph to \emph{correct} and
 \emph{smooth} these predictions without retraining?
@@ -825,7 +825,7 @@ predictions to enforce local consistency.
 \subsection{Intuition: errors are contagious}
 
 Consider a simple binary classification problem on a graph with high homophily.
-A base model (e.g., a multilayer perceptron trained only on node features)
+A base model (e.g.\ a multilayer perceptron trained only on node features)
 produces predictions $\hat{y}_i \in [0,1]$ for each node. On labelled nodes, we
 can compute the \textbf{training error}:
 \begin{equation}
@@ -871,7 +871,7 @@ The corrected predictions are:
 
 The hyperparameter $\alpha \in (0,1)$ controls how much error information flows
 from labelled nodes. Higher $\alpha$ means longer-range propagation. In practice,
-$k$ is often set to a small integer (e.g., 5--10) rather than iterating to
+$k$ is often set to a small integer (e.g.\ 5--10) rather than iterating to
 convergence.
 
 \begin{remark}[Why propagate errors, not labels?]
@@ -942,7 +942,7 @@ minimizer of:
   \left\|\frac{F_i}{\sqrt{d_i}} - \frac{F_j}{\sqrt{d_j}}\right\|^2
 \end{equation}
 That is, $E^*$ is the smoothest signal (in the normalized-Laplacian sense) that
-remains close to the observed error matrix $E$. Since $E$ is nonzero only on
+remains close to the observed error matrix $E$. Since $E$ is non-zero only on
 labelled nodes, the optimization spreads these errors to unlabelled nodes via the
 graph structure.
 \end{theorem}
@@ -1021,7 +1021,7 @@ trained on node features produces predictions $\hat{Y}$ (shown). We apply
 C\&S with $\alpha = \beta = 0.7$.
 \vspace{0.5em}
 
-\textbf{Step 1: Correct.} The error matrix $E$ is nonzero only on labelled
+\textbf{Step 1: Correct.} The error matrix $E$ is non-zero only on labelled
 nodes: $E_1 = [+0.3, -0.3]$ (base model under-predicts Red for $v_1$),
 $E_2 = [-0.4, +0.4]$ (under-predicts Green for $v_2$). Error propagation
 via $E^{(t+1)} = 0.3\,E + 0.7\,S\,E^{(t)}$ spreads these errors through
@@ -1511,9 +1511,9 @@ setting.
 \textbf{When does label masking apply?} In the standard semi-supervised
 setting, we have very few labels ($l \ll n$). Masking some of these
 would further reduce supervision. Label masking is most useful when:
-(a) a large fully-labelled auxiliary graph is available (e.g., pretrain on a
+(a) a large fully-labelled auxiliary graph is available (e.g.\ pretrain on a
 large annotated citation network, then fine-tune on a smaller one), or
-(b) labels come from a cheap proxy (e.g., automatically extracted
+(b) labels come from a cheap proxy (e.g.\ automatically extracted
 categories). Feature masking, by contrast, applies in \emph{any} setting.
 \end{pitfall}
 
@@ -1649,7 +1649,7 @@ This argument is heuristic: whether pretraining helps depends on how well the pr
 \State \textbf{Fine-tuning} (using the few available labels):
 \State Initialize $f_\theta$ with pretrained weights
 \State Replace reconstruction head with classification head
-\State Train on labelled nodes with small learning rate (e.g., $10^{-3}$)
+\State Train on labelled nodes with small learning rate (e.g.\ $10^{-3}$)
 \end{algorithmic}
 \end{algorithm}
 
@@ -1660,7 +1660,7 @@ This argument is heuristic: whether pretraining helps depends on how well the pr
           model learns little. Too high ($>0.5$): too little context remains.
           Typical range: $0.15$--$0.30$.
     \item \textbf{Fine-tuning learning rate.} Use a smaller learning rate
-          than for pretraining (e.g., $10^{-3}$ vs.\ $10^{-2}$) to avoid
+          than for pretraining (e.g.\ $10^{-3}$ vs.\ $10^{-2}$) to avoid
           destroying the pretrained representation.
     \item \textbf{Partial fine-tuning.} Freezing early GNN layers and only
           fine-tuning the classification head can help when very few labels
@@ -1719,7 +1719,7 @@ Correct \& Smooth is not applicable without a base predictor.
 
 \textbf{Features available, small to medium graph ($n < 10^5$):}
 Start with a 2-layer GCN---it's simple, fast, and often works well.
-If you have a strong feature-based model (e.g., XGBoost on node features),
+If you have a strong feature-based model (e.g.\ XGBoost on node features),
 apply Correct \& Smooth to its predictions for a quick boost.
 
 \textbf{Large graph ($n > 10^6$):}

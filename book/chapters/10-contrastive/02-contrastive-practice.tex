@@ -5,7 +5,7 @@
 \begin{chapterintro}
 The InfoNCE loss of \cref{ch:contrastive-learning} became a practical way to learn visual
 representations without labels around 2020, when a few design choices made contrastive
-pre-training competitive with supervised pre-training: strong augmentations, a projection
+pretraining competitive with supervised pretraining: strong augmentations, a projection
 head, many negatives, normalized embeddings and a small temperature. This chapter
 describes the main frameworks, each through the problem it solves, with verified code for
 their losses, and the geometric view of what they learn: alignment of positives and uniformity
@@ -110,7 +110,7 @@ downstream; the head absorbs this loss of information, and $h$ keeps it.
 \paragraph{Batch size and optimization.} With in-batch negatives, the number of negatives is
 tied to the batch size, and SimCLR benefits from very large batches (up to $8192$, trained with the
 LARS optimizer on many accelerators), with $\tau = 0.1$ in its best ImageNet setting. A ResNet-50
-pre-trained this way reaches $69.3\%$ top-1 accuracy on ImageNet with a linear classifier, and $76.5\%$ with
+pretrained this way reaches $69.3\%$ top-1 accuracy on ImageNet with a linear classifier, and $76.5\%$ with
 a $4\times$ wider network, the accuracy of the supervised ResNet-50.
 
 \section{Evaluating representations}\label{contrastive-practice:sec:evaluation}
@@ -118,7 +118,7 @@ a $4\times$ wider network, the accuracy of the supervised ResNet-50.
 A self-supervised representation is judged by what it makes easy downstream.
 \begin{itemize}
   \item \textbf{Linear probing.} Freeze the encoder and train a linear classifier (logistic
-        regression) on its representations of a labelled data set. This measures how linearly
+        regression) on its representations of a labelled dataset. This measures how linearly
         separable the classes are; it is the standard ImageNet benchmark.
   \item \textbf{$k$-nearest neighbours.} Classify a test image by a vote among its nearest training
         images in representation space; no training at all.
@@ -179,7 +179,7 @@ column (which image matches text $j$?):
 \[
   \mathcal L = \frac12\Bigl(-\frac1B\sum_i\log\frac{e^{\ell_{ii}}}{\sum_je^{\ell_{ij}}} - \frac1B\sum_j\log\frac{e^{\ell_{jj}}}{\sum_ie^{\ell_{ij}}}\Bigr).
 \]
-The batch size is $32\,768$, and the temperature is learned, as a log-parameterized scale initialized to
+The batch size is $32\,768$, and the temperature is learned, as a log-parametrized scale initialized to
 $1/0.07$ and clipped at $100$. Because the text encoder can embed any phrase, CLIP classifies images
 \emph{zero-shot}: embed the prompts ``a photo of a \{label\}'' for every class name, and assign the image to
 the class whose prompt embedding has the highest cosine with the image embedding.

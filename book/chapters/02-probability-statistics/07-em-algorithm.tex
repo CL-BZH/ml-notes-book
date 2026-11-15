@@ -287,7 +287,7 @@ two terms. In variational inference the latent variable $z$ is continuous and
 high-dimensional, $Q$ is restricted to a parametric family (often produced by a
 neural network, the \emph{inference network}), and the ELBO is an integral with no
 closed form. Sums become integrals and $P$, $Q$ become densities $p$, $q$; the bound
-\cref{em-algorithm:eq:elbo} reads
+\eqref{em-algorithm:eq:elbo} reads
 \[
   \mathrm{ELBO}(\theta, q) = \E_{z\sim q}\bigl[\log w(z)\bigr],\qquad
   w(z) = \frac{p(y,z\mid\theta)}{q(z)}\quad\text{(the \emph{importance weight})},
@@ -418,7 +418,7 @@ This is the estimator of the deep Kalman filter (Krishnan, Shalit and Sontag,
 \emph{Structured Inference Networks for Nonlinear State Space Models}, 2017),
 derived in detail in the report of the repository \texttt{CL-BZH/Deep-Kalman-Filters}.
 Several trajectories can be averaged to reduce the variance, but one per sequence
-and per gradient step is the usual choice: the minibatch already averages over
+and per gradient step is the usual choice: the mini-batch already averages over
 sequences.
 
 \subsection{Gradients: the reparametrization trick}
@@ -452,7 +452,7 @@ translate directly:
 \begin{itemize}[nosep]
   \item $\mathcal L_1 = \mathrm{ELBO}$;
   \item $\mathcal L_K\leq\log p(y)$ for every $K$ (Jensen, \cref{monte-carlo:thm:bias});
-  \item $\mathcal L_K$ is nondecreasing in $K$ (the subset-average argument of
+  \item $\mathcal L_K$ is non-decreasing in $K$ (the subset-average argument of
         \cref{monte-carlo:ex:running-nested});
   \item $\log p(y) - \mathcal L_K\approx\Var_q(w)/(2K\,p(y)^2)$ (\cref{monte-carlo:exr:2}).
 \end{itemize}

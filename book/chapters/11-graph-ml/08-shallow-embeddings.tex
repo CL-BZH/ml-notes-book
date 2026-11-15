@@ -398,7 +398,7 @@ GF only looks at direct neighbours. But in many applications, we care about broa
 \end{intuition}
 
 \begin{definition}[HOPE objective]
-Given a high-order proximity matrix $\similarity$ (e.g., Katz index), find \textbf{source} embeddings $\embed_s$ and \textbf{target} embeddings $\embed_t$ minimizing:
+Given a high-order proximity matrix $\similarity$ (e.g.\ Katz index), find \textbf{source} embeddings $\embed_s$ and \textbf{target} embeddings $\embed_t$ minimizing:
 \[
 \mathcal{L}_{\text{HOPE}} = \frobnorm{\similarity - \embed_s \embed_t^\top}^2
 \]
@@ -511,8 +511,8 @@ The log-ratio keeps the specific relation of node $1$ to its community and disca
 \begin{keyidea}
 If we use:
 \begin{itemize}
-    \item $K$ scales (e.g., $K = 4$ for 1-hop, 2-hop, 3-hop, 4-hop)
-    \item $d$ dimensions per scale (e.g., $d = 64$)
+    \item $K$ scales (e.g.\ $K = 4$ for 1-hop, 2-hop, 3-hop, 4-hop)
+    \item $d$ dimensions per scale (e.g.\ $d = 64$)
 \end{itemize}
 Then each node's final embedding has dimension $K \times d = 4 \times 64 = 256$.
 
@@ -795,7 +795,7 @@ DeepWalk = Random Walks + Skip-Gram
 \State Initialize embeddings randomly
 \For{$i = 1$ to $\gamma$}
     \For{each node $v \in V$}
-        \State $W \gets \text{RandomWalk}(G, v, \ell)$ \Comment{e.g., $[v, u_1, u_2, \ldots]$}
+        \State $W \gets \text{RandomWalk}(G, v, \ell)$ \Comment{e.g.\ $[v, u_1, u_2, \ldots]$}
         \State Update embeddings using Skip-Gram on $W$
     \EndFor
 \EndFor
@@ -1274,7 +1274,7 @@ The quality of negative samples significantly impacts learning:
 \begin{itemize}
     \item \textbf{Uniform}: Sample $h'$ or $t'$ uniformly from $V$. Simple but may produce ``easy'' negatives.
     \item \textbf{Frequency-based}: Sample proportional to entity frequency, like $P_n(v) \propto (\text{freq}(v))^{3/4}$
-    \item \textbf{Type-constrained}: Only sample entities of the correct type (e.g., for \textsc{BornIn}, only sample locations as tails)
+    \item \textbf{Type-constrained}: Only sample entities of the correct type (e.g.\ for \textsc{BornIn}, only sample locations as tails)
     \item \textbf{Adversarial}: Use a separate model to generate hard negatives
 \end{itemize}
 Filtering known positives from the negative sample set (``filtered'' setting) is important for evaluation.
@@ -1361,11 +1361,11 @@ Restrict $\vect{R}_\tau$ to be diagonal: $\vect{R}_\tau = \text{diag}(\vect{r}_\
 \begin{equation}
 f_{\text{DistMult}}(h, \tau, t) = \langle \vect{z}_h, \vect{r}_\tau, \vect{z}_t \rangle = \sum_{i=1}^{d} z_{h,i} \cdot r_{\tau,i} \cdot z_{t,i}
 \end{equation}
-This is equivalent to element-wise multiplication followed by summation:
+This is equivalent to elementwise multiplication followed by summation:
 \[
 f_{\text{DistMult}}(h, \tau, t) = (\vect{z}_h \odot \vect{r}_\tau)^\top \vect{z}_t
 \]
-where $\odot$ denotes the Hadamard (element-wise) product.
+where $\odot$ denotes the Hadamard (elementwise) product.
 \end{definition}
 
 \begin{intuition}
@@ -1532,7 +1532,7 @@ TransE requires:
 
 This forces all citizens of USA to have \emph{nearly identical} embeddings---collapsing distinct entities! This is clearly undesirable.
 
-Similarly, for many-to-one (e.g., \textsc{BornIn}) and symmetric relations (e.g., \textsc{Spouse}), TransE struggles.
+Similarly, for many-to-one (e.g.\ \textsc{BornIn}) and symmetric relations (e.g.\ \textsc{Spouse}), TransE struggles.
 \end{keyidea}
 
 \begin{definition}[TransE extensions (TransX family)]
@@ -1635,7 +1635,7 @@ For ComplEx with embeddings $\vect{z}_h, \vect{z}_t, \vect{r}_\tau \in \mathbb{C
 \begin{equation}
 f_{\text{ComplEx}}(h, \tau, t) - f_{\text{ComplEx}}(t, \tau, h) = -2 \sum_{i=1}^{d} \text{Im}(r_{\tau,i})\,\text{Im}\bigl(z_{h,i}\,\bar z_{t,i}\bigr).
 \end{equation}
-It is generally nonzero, which allows asymmetric relations; it vanishes for every pair when $\vect r_\tau$ is real, so real relation vectors give symmetric relations (DistMult is the special case of real embeddings).
+It is generally non-zero, which allows asymmetric relations; it vanishes for every pair when $\vect r_\tau$ is real, so real relation vectors give symmetric relations (DistMult is the special case of real embeddings).
 \end{proposition}
 
 \begin{proof}
@@ -1675,7 +1675,7 @@ The scoring function is:
 \begin{equation}
 f_{\text{RotatE}}(h, \tau, t) = -\|\vect{z}_h \circ \vect{r}_\tau - \vect{z}_t\|
 \end{equation}
-where $\circ$ denotes element-wise (Hadamard) product.
+where $\circ$ denotes elementwise (Hadamard) product.
 
 \textbf{Intuition}: Each dimension of the head embedding is \emph{rotated} by angle $\theta_{\tau,i}$ to match the tail.
 \end{definition}
@@ -1859,7 +1859,7 @@ Shallow knowledge graph embeddings have limitations similar to simple graph embe
 \begin{itemize}
     \item Cannot generalize to unseen entities (transductive)
     \item Don't leverage entity features or descriptions
-    \item Limited reasoning capabilities (e.g., negation, counting)
+    \item Limited reasoning capabilities (e.g.\ negation, counting)
 \end{itemize}
 \textbf{Graph Neural Networks} for multi-relational data (R-GCN, CompGCN) address some of these issues---see the next major topic on deep graph learning.
 \end{remark}
@@ -1878,7 +1878,7 @@ Once we have node embeddings, we can create edge embeddings by combining endpoin
 For edge $(i, j)$ with node embeddings $\vect{y}_i, \vect{y}_j$:
 \begin{align*}
 \text{Average}: & \quad \vect{e}_{ij} = \frac{\vect{y}_i + \vect{y}_j}{2} \\
-\text{Hadamard}: & \quad \vect{e}_{ij} = \vect{y}_i \odot \vect{y}_j \quad \text{(element-wise product)} \\
+\text{Hadamard}: & \quad \vect{e}_{ij} = \vect{y}_i \odot \vect{y}_j \quad \text{(elementwise product)} \\
 \text{L1 distance}: & \quad \vect{e}_{ij} = |\vect{y}_i - \vect{y}_j| \\
 \text{L2 distance}: & \quad \vect{e}_{ij} = (\vect{y}_i - \vect{y}_j)^2
 \end{align*}
@@ -1910,7 +1910,7 @@ Sometimes we want to compare entire graphs, not just nodes:
 \begin{itemize}
     \item Is this molecule similar to that molecule?
     \item Is this social network similar to that one?
-    \item Classify graphs by type (toxic vs. non-toxic compounds)
+    \item Classify graphs by type (toxic vs.\ non-toxic compounds)
 \end{itemize}
 \end{intuition}
 
@@ -2047,7 +2047,7 @@ Hamilton (\emph{Graph Representation Learning}, 2020) is the main source for thi
 \addcontentsline{toc}{section}{Exercises}
 
 \begin{exercise}\label{shallow-embeddings:exr:1}
-Show that the best rank-$d$ approximation of a symmetric similarity matrix $\similarity$ in Frobenius norm is $\mathbf U_d\mathbf\Sigma_d\mathbf V_d^\top$ from its SVD, and that for a positive semidefinite $\similarity$ one can take $\embed_s = \embed_t = \mathbf U_d\mathbf\Sigma_d^{1/2}$. Why can $\embed_s \ne \embed_t$ be needed when $\similarity$ is symmetric but indefinite, as the Katz matrix of the running example is?
+Show that the best rank-$d$ approximation of a symmetric similarity matrix $\similarity$ in Frobenius norm is $\mathbf U_d\mathbf\Sigma_d\mathbf V_d^\top$ from its SVD, and that for a positive semi-definite $\similarity$ one can take $\embed_s = \embed_t = \mathbf U_d\mathbf\Sigma_d^{1/2}$. Why can $\embed_s \ne \embed_t$ be needed when $\similarity$ is symmetric but indefinite, as the Katz matrix of the running example is?
 \hint{Eckart--Young; the Katz matrix has eigenvalues $\frac{1}{1-\beta\lambda} - 1$, negative when $\lambda < 0$.}
 \solutionlink{shallow-embeddings:exr:1}
 \end{exercise}

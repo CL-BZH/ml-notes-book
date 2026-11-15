@@ -65,7 +65,7 @@ $\frac12e_{ij}^2$ plus the corresponding regularization are
   \frac{\partial}{\partial b_i^{\text{user}}} = -e_{ij} + \lambda b_i^{\text{user}},\quad
   \frac{\partial}{\partial b_j^{\text{item}}} = -e_{ij} + \lambda b_j^{\text{item}} .
 \]
-SGD visits the observed pairs in random order and updates, e.g.,
+SGD visits the observed pairs in random order and updates, e.g.
 $\mathbf p_i\leftarrow\mathbf p_i + \eta(e_{ij}\mathbf q_j - \lambda\mathbf p_i)$ (regularization applied at each visit). The full
 gradient for one user sums over the items $\mathcal J_i = \{j : (i,j)\in\Omega\}$ that the user rated:
 $\partial\mathcal L/\partial\mathbf p_i = -\sum_{j\in\mathcal J_i}e_{ij}\mathbf q_j + \lambda\mathbf p_i$.
@@ -198,7 +198,7 @@ estimates, at a higher computational cost.
 
 \section{Relation with the SVD, and practice}\label{matrix-factorization:sec:practice}
 
-If $R$ were fully observed and unregularized, the best rank-$k$ approximation would be the
+If $R$ were fully observed and the loss unregularized, the best rank-$k$ approximation would be the
 truncated SVD (\cref{svd:thm:eckart-young}), which factors as
 \[
   R_k = U_k\Sigma_kV_k^\top = \bigl(U_k\Sigma_k^{1/2}\bigr)\bigl(V_k\Sigma_k^{1/2}\bigr)^\top = PQ^\top .

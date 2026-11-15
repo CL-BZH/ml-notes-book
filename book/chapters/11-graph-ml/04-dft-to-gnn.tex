@@ -18,12 +18,12 @@ Most introductions present the discrete Fourier transform as a computational too
 
 \section{Notation}
 
-We use the notation of \cref{ch:graph-laplacians}, with plain capitals for matrices as in the neural-network chapters. A graph $G = (V, E)$ has nodes $V = \{0, \ldots, N-1\}$, numbered from $0$ to match the DFT, and symmetric adjacency matrix $A$ with nonnegative weights $A_{ij}$; $d_i = \sum_j A_{ij}$ is the degree, $D = \diag(d_0, \ldots, d_{N-1})$, and $L = D - A$ is the (combinatorial) Laplacian. A \emph{signal} on $G$ is a vector $\mathbf{x} \in \R^N$ (or $\C^N$) with one value per node. Two facts from \cref{ch:graph-laplacians} are used throughout: $L$ acts locally,
+We use the notation of \cref{ch:graph-laplacians}, with plain capitals for matrices as in the neural-network chapters. A graph $G = (V, E)$ has nodes $V = \{0, \ldots, N-1\}$, numbered from $0$ to match the DFT, and symmetric adjacency matrix $A$ with non-negative weights $A_{ij}$; $d_i = \sum_j A_{ij}$ is the degree, $D = \diag(d_0, \ldots, d_{N-1})$, and $L = D - A$ is the (combinatorial) Laplacian. A \emph{signal} on $G$ is a vector $\mathbf{x} \in \R^N$ (or $\C^N$) with one value per node. Two facts from \cref{ch:graph-laplacians} are used throughout: $L$ acts locally,
 \begin{equation}
 (L\mathbf{x})_i = d_i x_i - \sum_{j} A_{ij} x_j = \sum_{j \sim i} A_{ij}(x_i - x_j),
 \label{dft-to-gnn:eq:local}
 \end{equation}
-where $j \sim i$ means that $j$ is a neighbour of $i$; and its quadratic form $\mathbf{x}^\top L \mathbf{x} = \frac12\sum_{i,j} A_{ij}(x_i - x_j)^2$ measures how much the signal varies across edges. Hence $L$ is symmetric positive semidefinite, with eigenvalues $0 = \lambda_0 \le \lambda_1 \le \cdots \le \lambda_{N-1}$ and $L\mathbf{1} = \mathbf{0}$. The letter $W$ is reserved for learnable weight matrices.
+where $j \sim i$ means that $j$ is a neighbour of $i$; and its quadratic form $\mathbf{x}^\top L \mathbf{x} = \frac12\sum_{i,j} A_{ij}(x_i - x_j)^2$ measures how much the signal varies across edges. Hence $L$ is symmetric positive semi-definite, with eigenvalues $0 = \lambda_0 \le \lambda_1 \le \cdots \le \lambda_{N-1}$ and $L\mathbf{1} = \mathbf{0}$. The letter $W$ is reserved for learnable weight matrices.
 
 %==========================================================================
 \section{The circular graph: where Fourier analysis emerges}
@@ -115,7 +115,7 @@ $v_N = v_0$ (we go around the whole circle and return). This requires:
 \begin{equation}
 e^{i\theta N} = e^{i\theta \cdot 0} = 1
 \end{equation}
-which means $\theta N = 2\pi k$ for some integer $k$, i.e.,
+which means $\theta N = 2\pi k$ for some integer $k$, i.e.
 $\theta = \frac{2\pi k}{N}$.
 
 \begin{theorem}[Eigenvectors of the circular graph Laplacian]
@@ -469,7 +469,7 @@ Then the linear convolution $y = x * h$ can be computed as:
 y[n] = \text{IDFT}\left(\text{DFT}(x_{\text{pad}}) \odot
        \text{DFT}(h_{\text{pad}})\right)[n]
 \end{equation}
-for $0 \leq n \leq N+M-2$, where $\odot$ denotes element-wise
+for $0 \leq n \leq N+M-2$, where $\odot$ denotes elementwise
 multiplication.
 \end{theorem}
 
@@ -547,7 +547,7 @@ So $\mathbf{H} = [2, 1-i, 0, 1+i]$.
 \vspace{0.3cm}
 \textbf{Step 3: Multiply in frequency domain}
 
-Element-wise multiplication: $Y[k] = X[k] \cdot H[k]$
+Elementwise multiplication: $Y[k] = X[k] \cdot H[k]$
 \begin{align*}
 Y[0] &= 6 \times 2 = 12 \\
 Y[1] &= (-2-2i) \times (1-i) = (-2-2i)(1-i) = -2(1-i) -2i(1-i) \\
@@ -1025,7 +1025,7 @@ Let $\operatorname{dist}(i,j)$ be the shortest-path distance in $G$. Then $(L^k)
 \end{lemma}
 
 \begin{proof}
-$L_{ij} \ne 0$ only if $i = j$ or $j \sim i$. Expanding, $(L^k)_{ij} = \sum_{m_1,\ldots,m_{k-1}} L_{i m_1}L_{m_1m_2}\cdots L_{m_{k-1}j}$, and a nonzero term requires a sequence $i, m_1, \ldots, m_{k-1}, j$ in which consecutive nodes are equal or adjacent, that is a walk of length at most $k$ from $i$ to $j$. None exists when $\operatorname{dist}(i,j) > k$.
+$L_{ij} \ne 0$ only if $i = j$ or $j \sim i$. Expanding, $(L^k)_{ij} = \sum_{m_1,\ldots,m_{k-1}} L_{i m_1}L_{m_1m_2}\cdots L_{m_{k-1}j}$, and a non-zero term requires a sequence $i, m_1, \ldots, m_{k-1}, j$ in which consecutive nodes are equal or adjacent, that is a walk of length at most $k$ from $i$ to $j$. None exists when $\operatorname{dist}(i,j) > k$.
 \end{proof}
 
 The lemma is due to Hammond et al.\ (2011); it is what makes polynomial filters behave like the small kernels of a CNN rather than like a global Fourier multiplier.
@@ -1173,7 +1173,7 @@ $g_\theta$:
 \mathbf{y} = \sigma\left( U \, g_\theta(\Lambda) \, U^T \mathbf{x}
              \right)
 \end{equation}
-where $\sigma$ is a nonlinearity (e.g., ReLU).
+where $\sigma$ is a nonlinearity (e.g.\ ReLU).
 \end{definition}
 
 \textbf{Problem}: Computing the full eigendecomposition
@@ -1196,7 +1196,7 @@ Any polynomial of degree $K-1$ can be written either as:
 \sum_{k=0}^{K-1} b_k T_k(\lambda) \quad \text{(Chebyshev basis)}
 \]
 
-These are just two different ways to parameterize the \emph{same} set
+These are just two different ways to parametrize the \emph{same} set
 of polynomials. So why prefer Chebyshev?
 
 \begin{enumerate}
@@ -1355,7 +1355,7 @@ of adding $I$ after normalizing, add self-loops \emph{before} normalizing.
 Define:
 \begin{itemize}
     \item $\hat{A} = A + I$ (adjacency matrix with self-loops added)
-    \item $\hat{D}$ = degree matrix of $\hat{A}$ (i.e.,
+    \item $\hat{D}$ = degree matrix of $\hat{A}$ (i.e.
           $\hat{D}_{ii} = \sum_j \hat{A}_{ij} = D_{ii} + 1$)
 \end{itemize}
 Then use $\hat{D}^{-1/2} \hat{A} \hat{D}^{-1/2}$ instead of
@@ -1384,7 +1384,7 @@ where:
           features at layer $l$ ($N$ nodes, $d$ features each)
     \item $W^{(l)} \in \mathbb{R}^{d \times d'}$ is the learnable weight
           matrix for layer $l$
-    \item $\sigma$ is a nonlinear activation (e.g., ReLU)
+    \item $\sigma$ is a nonlinear activation (e.g.\ ReLU)
     \item $H^{(l+1)} \in \mathbb{R}^{N \times d'}$ is the output
 \end{itemize}
 
@@ -1513,7 +1513,7 @@ The GCN layer can be interpreted as:
 \item \textbf{Neighbourhood aggregation}: Multiply by
       $\hat{D}^{-1/2} \hat{A} \hat{D}^{-1/2}$ to average each node's
       features with its neighbours' features
-\item \textbf{Nonlinearity}: Apply $\sigma$ (e.g., ReLU) to enable
+\item \textbf{Nonlinearity}: Apply $\sigma$ (e.g.\ ReLU) to enable
       nonlinear decision boundaries
 \end{enumerate}
 
@@ -2081,13 +2081,13 @@ The vast majority of GNN architectures can be categorized into three
 
 
 \begin{enumerate}
-    \item \textbf{Convolutional} (e.g., GCN): Messages are scaled by
+    \item \textbf{Convolutional} (e.g.\ GCN): Messages are scaled by
           fixed coefficients $c_{uv}$ that depend only on graph structure:
           \[
           h_u = \phi\left(x_u, \bigoplus_{v \in \mathcal{N}(u)} c_{uv} \, \psi(x_v)\right)
           \]
 
-    \item \textbf{Attentional} (e.g., GAT): Coefficients are computed
+    \item \textbf{Attentional} (e.g.\ GAT): Coefficients are computed
           dynamically via an attention mechanism:
           \[
           h_u = \phi\left(x_u, \bigoplus_{v \in \mathcal{N}(u)}
@@ -2150,7 +2150,7 @@ h_i^{(l+1)} = \sigma\left( \sum_{j \in \mathcal{N}(i) \cup \{i\}}
     \item \textbf{Message from $j$ to $i$}:
           $m_{j \to i} = \frac{1}{\sqrt{d_i+1}\sqrt{d_j+1}} h_j W$
     \item \textbf{Aggregation}: $\bigoplus = \sum$ (summation)
-    \item \textbf{Update}: $\phi = \sigma$ (nonlinearity, e.g., ReLU)
+    \item \textbf{Update}: $\phi = \sigma$ (nonlinearity, e.g.\ ReLU)
 \end{itemize}
 
 The normalization $\frac{1}{\sqrt{d_i+1}\sqrt{d_j+1}}$ comes from the
@@ -2535,7 +2535,7 @@ u_{N-2} = (1 - \lambda) u_{N-1}
 \]
 
 These are \textbf{Neumann-like} boundary conditions (the discrete
-analog of $\frac{du}{dx} = 0$ at the boundary).
+analogue of $\frac{du}{dx} = 0$ at the boundary).
 
 A convenient way to impose them is the \emph{ghost-node} trick. Extend $\mathbf u$ by $u_{-1} = u_0$ and $u_N = u_{N-1}$. Then the interior equation $-u_{n-1} + 2u_n - u_{n+1} = \lambda u_n$ at $n = 0$ reads $-u_0 + 2u_0 - u_1 = \lambda u_0$, which is the first boundary equation, and likewise at $n = N-1$. So we need a solution of the interior recurrence on $n = -1, \ldots, N$ with $u_{-1} = u_0$ and $u_N = u_{N-1}$.
 

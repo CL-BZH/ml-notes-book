@@ -69,7 +69,7 @@ where:
     1 & \text{if } A_{ij} = 0
     \end{cases}
     \end{equation}
-    \item $\hadamard$: Hadamard (element-wise) product
+    \item $\hadamard$: Hadamard (elementwise) product
     \item $\beta > 1$: Hyperparameter controlling the penalty for edge reconstruction errors (typically $\beta \in [5, 10]$)
 \end{itemize}
 
@@ -109,7 +109,7 @@ With $\beta = 5$, the weight vector is:
 \bm{A}_i - \tilde{\bm{A}}_i = [-0.1, 0.2, 0.1, -0.05, 0.3]
 \]
 
-\textbf{Step 2}: Apply element-wise weighting:
+\textbf{Step 2}: Apply elementwise weighting:
 \[
 (\bm{A}_i - \tilde{\bm{A}}_i) \hadamard \bm{B}_i = [-0.1, 1.0, 0.5, -0.05, 1.5]
 \]
@@ -451,7 +451,7 @@ With $\alpha = 1$ and $\lambda = 0.001$, and assuming $\norm{\bm{W}}^2_F = 100$:
         \State
         \State \textbf{Backward pass:}
         \State \quad Compute gradients: $\nabla_{\bm{W}^{enc}} \mathcal{L}_{total}$, $\nabla_{\bm{W}^{dec}} \mathcal{L}_{total}$
-        \State \quad Update weights using optimizer (e.g., Adam)
+        \State \quad Update weights using optimizer (e.g.\ Adam)
     \EndFor
 \EndFor
 \State \Return Final embeddings $\{\bm{y}_i\}_{i=1}^n$
@@ -606,7 +606,7 @@ layers & 2-4 & Deeper = more expressive (but harder to train) \\ \bottomrule
 \begin{itemize}
     \item \textbf{Preserves both local and global structure} through combined loss
     \item \textbf{Handles weighted graphs} naturally via $S_{ij}$
-    \item \textbf{Non-linear embeddings} capture complex relationships
+    \item \textbf{Nonlinear embeddings} capture complex relationships
     \item \textbf{End-to-end differentiable} enables gradient-based optimization
 \end{itemize}
 
@@ -650,7 +650,7 @@ where the weight $w$ (the ratio of non-edges to edges) plays the role of SDNE's 
 
 The inner-product decoder has no parameters, so, as for the shallow methods of \cref{ch:shallow-embeddings}, the geometry of the embeddings must itself encode the edges. Because the encoder is a GCN, it uses node features, and it applies to nodes or graphs not seen in training whenever their features and neighbourhoods are known.
 
-\paragraph{Variational graph autoencoder (VGAE).} In the variational version, two GCN heads output for each node a mean $\boldsymbol\mu_i$ and a diagonal log-variance $\log\boldsymbol\sigma_i^2$, the embedding is sampled as $\bm y_i = \boldsymbol\mu_i + \boldsymbol\sigma_i\odot\boldsymbol\varepsilon_i$ with $\boldsymbol\varepsilon_i \sim \mathcal N(0, I)$ (the reparameterization trick), and the loss is the negative evidence lower bound
+\paragraph{Variational graph autoencoder (VGAE).} In the variational version, two GCN heads output for each node a mean $\boldsymbol\mu_i$ and a diagonal log-variance $\log\boldsymbol\sigma_i^2$, the embedding is sampled as $\bm y_i = \boldsymbol\mu_i + \boldsymbol\sigma_i\odot\boldsymbol\varepsilon_i$ with $\boldsymbol\varepsilon_i \sim \mathcal N(0, I)$ (the reparametrization trick), and the loss is the negative evidence lower bound
 \[
 -\E_q\Bigl[\sum_{i,j}\log p(A_{ij}\mid\bm y_i,\bm y_j)\Bigr] + \sum_i\mathrm{KL}\bigl(\mathcal N(\boldsymbol\mu_i, \diag\boldsymbol\sigma_i^2)\,\|\,\mathcal N(0, I)\bigr),
 \]

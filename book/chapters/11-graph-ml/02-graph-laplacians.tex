@@ -197,7 +197,7 @@ Concrete examples of graph signals:
     \item \textbf{Social network}: Age, income, or any numeric attribute of each person
     \item \textbf{Citation network}: Number of citations for each paper
     \item \textbf{Traffic network}: Current traffic flow at each intersection
-    \item \textbf{Binary label}: Community membership (e.g., $x_i = 1$ if node $i$ is in community A, $x_i = 0$ otherwise)
+    \item \textbf{Binary label}: Community membership (e.g.\ $x_i = 1$ if node $i$ is in community A, $x_i = 0$ otherwise)
 \end{itemize}
 
 For our running example, the vector $\bx = (25, 30, 28, 45, 42, 48)^\top$ could represent the age of each person in the social network.
@@ -355,7 +355,7 @@ In particular, $\dim(\ker(\bL)) = K$.
 \begin{proof}
 We established in Theorem~\ref{graph-laplacians:thm:zero-eigenvalue} that any $\bv \in \ker(\bL)$ must satisfy $v_i = v_j$ for all edges $(i,j)$, which implies $\bv$ is constant on each connected component.
 
-Any such vector can be written as $\bv = \sum_{k=1}^{K} c_k \bone_{C_k}$ where $c_k$ is the constant value on component $C_k$. Conversely, each $\bone_{C_k}$ satisfies $\bL \bone_{C_k} = \mathbf{0}$ (verify: nodes in $C_k$ have their degree canceled by neighbour contributions, nodes outside $C_k$ contribute nothing).
+Any such vector can be written as $\bv = \sum_{k=1}^{K} c_k \bone_{C_k}$ where $c_k$ is the constant value on component $C_k$. Conversely, each $\bone_{C_k}$ satisfies $\bL \bone_{C_k} = \mathbf{0}$ (verify: nodes in $C_k$ have their degree cancelled by neighbour contributions, nodes outside $C_k$ contribute nothing).
 
 Since the $\bone_{C_k}$ are linearly independent (they have disjoint support), they form a basis for $\ker(\bL)$.
 \end{proof}
