@@ -38,8 +38,8 @@ Reproducing kernel Hilbert spaces (RKHS) are the function spaces behind kernel m
 
 Suppose we want to learn a function $f$ from data. In classical linear
 regression we restrict $f$ to be linear: $f(x) = w^\top x$. This is
-computationally convenient---we optimize over a finite number of
-parameters $w \in \R^d$---but the linearity assumption is limiting.
+computationally convenient --- we optimize over a finite number of
+parameters $w \in \R^d$ --- but the linearity assumption is limiting.
 
 A natural idea: \emph{optimize over a much richer class of functions}.
 But if we allow $f$ to be ``any function'' we immediately face two
@@ -58,9 +58,9 @@ The RKHS framework solves both problems simultaneously:
   $\hk$ (rich enough to approximate very complex functions).
   \item It equips $\hk$ with a \textbf{norm} $\norm{f}_{\hk}$ that
   measures function ``complexity'' (enabling regularization).
-  \item The \textbf{Representer Theorem} guarantees that, despite the
+  \item The \textbf{representer theorem} guarantees that, despite the
   infinite dimensionality, the optimal function can always be written as
-  a finite linear combination---making computation tractable.
+  a finite linear combination --- making computation tractable.
 \end{itemize}
 
 
@@ -153,7 +153,7 @@ property: the reproducing property
 \label{rkhs:subsec:orthogonal}
 
 One crucial property of Hilbert spaces that we will use in the proof of
-the Representer Theorem:
+the representer theorem:
 
 \begin{theorem}[Orthogonal decomposition]
 \label{rkhs:thm:ortho_decomp}
@@ -232,7 +232,7 @@ A function $K: \X \times \X \to \R$ is a \textbf{positive definite
 says that for \emph{any} finite collection of points, the matrix of
 pairwise kernel evaluations is positive semi-definite. This is exactly
 what we need to interpret $K(x,x')$ as an inner product in some
-(possibly high-dimensional) space---as we will see in
+(possibly high-dimensional) space --- as we will see in
 Section~\ref{rkhs:sec:feature_maps}.
 
 In compact notation, condition~\eqref{rkhs:eq:pd_condition} states
@@ -535,8 +535,9 @@ Cost: $O(d^2)$ per pair.
 \textbf{With the kernel trick}: Compute $(x^\top x')^2$
 directly. Cost: $O(d)$ per pair.
 
-For degree-$p$ polynomial kernels in $\R^d$, the
-feature space has dimension $\binom{d+p}{p}$, which
+For the degree-$p$ kernel $(x^\top x')^p$ on $\R^d$, the
+feature space has dimension $\binom{d+p-1}{p}$
+($\binom{d+p}{p}$ for $(x^\top x' + c)^p$ with $c > 0$), which
 grows explosively. The kernel trick avoids this
 entirely.
 \end{example}
@@ -902,7 +903,7 @@ $K(\mat{e}_1,\mat{e}_2) = 0$:
 \bigr] \\
 &= \tfrac{1}{2}[4 - 2 - 2 + 1 + 0 + 1] = 1.
 \end{align*}
-The off-diagonal terms vanish similarly (e.g.
+The off-diagonal terms vanish similarly (e.g.\
 $\inner{Te_1}{Te_2}_{\hk}
 = \frac{\sqrt{2}}{2}[K(\mat{e}_1, s)
 - K(\mat{e}_1, \mat{e}_1)
@@ -1003,9 +1004,9 @@ a single kernel section $g = K_{x'}$:
   - \sum_k \gamma_k K(y_k, x')
 \;=\; h(x').
 \]
-The first equality applies
+The second equality applies
 formula~\eqref{rkhs:eq:inner_product_h0} to each term.
-The second equality uses the definition of $h$ as
+The last equality uses the definition of $h$ as
 a function: $h(x') = \sum_i \alpha_i K(x', x_i)
 - \sum_k \gamma_k K(x', y_k)$, together with the
 symmetry $K(x_i, x') = K(x', x_i)$. Since $h = 0$
@@ -1123,7 +1124,7 @@ argument) and the result of Step~1:
 \textbf{Step 3:} For general $f \in \hk$. Since $\hk$
 is the completion of $\hilb_0$, there exists a
 sequence $(f_n)$ in $\hilb_0$ with
-$f_n \to f$ in $\hk$-norm, i.e.
+$f_n \to f$ in $\hk$-norm, i.e.\
 $\norm{f_n - f}_{\hk} \to 0$. By Step~2,
 $f_n(x) = \inner{f_n}{K_x}_{\hk}$ for each $n$.
 We pass to the limit on both sides.
@@ -1221,14 +1222,14 @@ ways to read equation~\eqref{rkhs:eq:reproducing}:
     % Origin
     \fill[gray] (0,0) circle (1pt);
 
-    % K(.,x) vector — pointing right and slightly up
+    % K(.,x) vector --- pointing right and slightly up
     \node[point, thmred,
       label={[thmred, xshift=-4pt, yshift=3pt]below right:%
         $\phi_x = K(\cdot,x)$}]
       (kx) at (3.0, 0.6) {};
     \draw[->, thmred, thick] (0,0) -- (kx);
 
-    % f vector — pointing up-right, clearly not
+    % f vector --- pointing up-right, clearly not
     % orthogonal to K(.,x)
     \node[point, defblue,
       label={[defblue, xshift=-1pt, yshift=-5pt] above left:$f$}]
@@ -1420,7 +1421,7 @@ happens to behave like a similarity measure.
 \label{rkhs:sec:representer}
 % ══════════════════════════════════════════════════════════════
 
-The Representer Theorem is the practical workhorse of kernel methods. It
+The representer theorem is the practical workhorse of kernel methods. It
 says: \emph{when you optimize over the entire (infinite-dimensional)
 RKHS with an RKHS-norm regularizer, the solution is always a finite
 linear combination of kernel evaluations at the data points.}
@@ -1534,7 +1535,7 @@ f^*(x) = \sum_{i=1}^n \alpha_i K(x, x_i). \qedhere
   % Origin
   \fill (0,0) circle (1pt);
 \end{tikzpicture}
-\caption{Geometric intuition for the Representer Theorem. The loss
+\caption{Geometric intuition for the representer theorem. The loss
 function sees only $f_\parallel$ (the projection onto the span of kernel
 sections at data points). The perpendicular component $f_\perp$ is
 invisible to the loss but increases the regularizer. Therefore, the
@@ -1545,7 +1546,7 @@ optimal $f^*$ has $f_\perp = 0$.}
 % ────────────────────────────
 \subsection{Kernelization: from infinite to finite dimensions}
 
-The Representer Theorem reduces the infinite-dimensional
+The representer theorem reduces the infinite-dimensional
 optimization~\eqref{rkhs:eq:representer_problem} to a finite-dimensional
 problem over $\vect{\alpha} = (\alpha_1, \ldots, \alpha_n)^\top \in
 \R^n$. Let us work out the details.
@@ -1629,7 +1630,7 @@ are strictly positive, which implies the matrix is invertible
 \smallskip
 \textbf{Intuition:} Regularization $\lambda\mat{I}$ ``shifts'' the entire
 spectrum of $\mat{K}$ upward by $\lambda$, turning any zero eigenvalues
-into $\lambda > 0$. This guarantees invertibility — exactly why ridge
+into $\lambda > 0$. This guarantees invertibility --- exactly why ridge
 regression fixes the non-invertibility problem in ordinary least squares.
 \end{intuition}
 
@@ -1738,7 +1739,7 @@ $f_w(z) = z^\top w$:
     $\inner{f_w}{K(\cdot,x)}_{\hk}
     = \inner{f_w}{f_x}_{\hk} = w^\top x
     = f_w(x)$. \checkmark
-  \item The Representer Theorem says
+  \item The representer theorem says
     $w^* = \sum_i \alpha_i x_i$ (the optimal weight
     vector lies in the span of the data).
 \end{itemize}
@@ -1762,7 +1763,7 @@ For $K(x,x') = (x^\top x')^p$ on $\R^d$, the RKHS is
     $f \in \hk$ is uniquely determined by finitely many
     coefficients. The Riesz identification between $f$
     and a coefficient vector in $\R^{\binom{d+p-1}{p}}$
-    is exact---this is why the vector notation
+    is exact --- this is why the vector notation
     $\phi(x) \in \R^3$ from \cref{rkhs:ex:kernel-trick} is fully rigorous,
     not merely a shorthand.
   \item The RKHS norm penalizes monomial coefficients
@@ -1821,7 +1822,7 @@ The following table summarizes how the key concepts relate to each other:
 \renewcommand{\arraystretch}{1.4}
 \begin{tabular}{@{}p{4cm}p{9.5cm}@{}}
 \toprule
-\textbf{Concept} & \textbf{Role in the RKHS Framework} \\
+\textbf{Concept} & \textbf{Role in the RKHS framework} \\
 \midrule
 P.D.\ kernel $K$ & Measures similarity; determines the RKHS uniquely
 (Moore--Aronszajn) \\
@@ -1834,7 +1835,7 @@ RKHS norm $\norm{f}_{\hk}$ & Measures function ``complexity''; used for
 regularization \\
 Reproducing property & $f(x) = \inner{f}{K(\cdot,x)}$; evaluation =
 inner product \\
-Representer Theorem & Optimal $f^* = \sum_i \alpha_i K(\cdot, x_i)$;
+Representer theorem & Optimal $f^* = \sum_i \alpha_i K(\cdot, x_i)$;
 reduces to finite dimensions \\
 Kernelized problem & $\min_{\vect{\alpha}}
 \,\mathrm{Loss}(\mat{K}\vect{\alpha}, \mat{y}) +
@@ -2072,7 +2073,7 @@ $\gamma_I = 0$, we recover standard supervised kernel methods.
 
 Why does the solution still have the form $\sum_{i=1}^n \alpha_i
 K(\cdot, x_i)$, now using \textbf{all} $n$ points? The proof is an
-elegant extension of the classical Representer Theorem.
+elegant extension of the classical representer theorem.
 
 \begin{proof}[Proof sketch]
 Let $M = \spn\{K(\cdot, x_1), \ldots, K(\cdot, x_n)\} \subseteq \hk$.
@@ -2097,12 +2098,12 @@ By orthogonality, $\norm{f}_{\hk}^2 = \norm{f_\parallel}_{\hk}^2
 
 \textbf{Step 3: Conclude.}
 For any $f$, the objective $J(f) \geq J(f_\parallel)$ with equality
-iff $f_\perp = 0$. Therefore the minimizer must lie in $M$, i.e.
+iff $f_\perp = 0$. Therefore the minimizer must lie in $M$, i.e.\
 $f^* = \sum_{i=1}^n \alpha_i K(\cdot, x_i)$.
 \end{proof}
 
 \begin{remark}
-The crucial difference from the classical Representer Theorem: the
+The crucial difference from the classical representer theorem: the
 intrinsic regularizer involves \emph{evaluations} $f(x_i)$ at
 \textbf{all} $n$ points, not just the labelled ones. This is why the
 expansion now includes \emph{every} data point.
@@ -2214,9 +2215,9 @@ With $\gamma_I = 0$ the problem is kernel ridge regression on four points: the d
 
   \item \textbf{Computational cost.}
   \begin{itemize}
-    \item Computing $\mat{K}$ is $O(n^2 d)$, constructing $k$-NN graph
+    \item Computing $\mat{K}$ is $O(n^2 d)$, constructing the $k$-NN graph
       is $O(n^2 d)$.
-    \item Solving the linear system is $O(n^3)$ — the main bottleneck.
+    \item Solving the linear system is $O(n^3)$ --- the main bottleneck.
     \item For large $n$, use Nystr\"om approximation or iterative solvers.
   \end{itemize}
 
@@ -2294,7 +2295,7 @@ Section~\ref{rkhs:sec:reproducing_property}).
 Yes. The Moore--Aronszajn theorem (Theorem~\ref{rkhs:thm:moore_aronszajn})
 guarantees that each p.d.\ kernel determines exactly one RKHS, and conversely the RKHS determines its kernel, since $K(x,x') = \inner{K(\cdot,x)}{K(\cdot,x')}$. Two different kernels can still give the same \emph{set} of functions with different norms: $K$ and $2K$ have the same functions, with $\norm{f}_{\mathcal H_{2K}}^2 = \frac12\norm{f}_{\hk}^2$.
 
-\item \textbf{What if I don't regularize ($\lambda = 0$)?}
+\item \textbf{What if I do not regularize ($\lambda = 0$)?}
 
 Without regularization, we minimize only the loss. If the RKHS is rich
 (e.g.\ Gaussian kernel), we can interpolate any data perfectly, but the
@@ -2310,7 +2311,7 @@ data). Polynomial kernels assume the function is polynomial. In
 practice, the kernel and its hyperparameters (e.g.\ $\sigma$) are chosen
 via cross-validation.
 
-\item \textbf{How does the RKHS relate to Gaussian Processes?}
+\item \textbf{How does the RKHS relate to Gaussian processes?}
 
 A Gaussian process (GP) with covariance function $K$ and the RKHS $\hk$ are closely related but not the same. The posterior mean of GP regression with noise variance $\sigma^2$ is exactly the kernel ridge regression solution with $\lambda = \sigma^2$ (\cref{rkhs:sec:representer}), so it lies in $\hk$. Formally, the prior density of $f$ is proportional to $\exp(-\frac12\norm{f}_{\hk}^2)$, which is why the RKHS penalty corresponds to MAP estimation. The formula is only heuristic in infinite dimensions: when $\hk$ is infinite-dimensional, the sample paths of the GP lie outside $\hk$ with probability one (Driscoll's theorem), although $\hk$ (the Cameron--Martin space of the GP) still determines its law.
 
@@ -2318,7 +2319,7 @@ A Gaussian process (GP) with covariance function $K$ and the RKHS $\hk$ are clos
 
 Yes --- for the linear kernel $K(x,x') = x^\top x'$, the RKHS is
 $d$-dimensional (the set of linear functions). For polynomial kernels of
-degree $p$ in $\R^d$, the dimension is $\binom{d+p}{p}$. Only for
+degree $p$ in $\R^d$, the dimension is $\binom{d+p-1}{p}$ for $(x^\top x')^p$ and $\binom{d+p}{p}$ for $(x^\top x' + c)^p$ with $c > 0$. Only for
 kernels like the Gaussian (with infinitely many non-zero Mercer
 eigenvalues) is the RKHS infinite-dimensional.
 
@@ -2337,7 +2338,7 @@ eigenvalues) is the RKHS infinite-dimensional.
 
 \chapterappendix
 
-\section{Appendix: Mercer's theorem (spectral characterization)}
+\section{Mercer's theorem (spectral characterization)}
 \label{rkhs:sec:mercer}
 % ══════════════════════════════════════════════════════════════
 
@@ -2369,7 +2370,7 @@ where the convergence is absolute and uniform.
   \norm{f}_{\hk}^2 = \sum_{k=1}^\infty \frac{a_k^2}{\lambda_k} < \infty.
   \end{equation}
   \item Functions whose expansion coefficients $a_k$ decay faster than
-  $\sqrt{\lambda_k}$ belong to the RKHS; those that don't, don't.
+  $\sqrt{\lambda_k}$ belong to the RKHS; those that do not, do not.
   \item Larger eigenvalues $\lambda_k$ correspond to ``easier''
   directions: components along these eigenfunctions are penalized less
   by the RKHS norm.

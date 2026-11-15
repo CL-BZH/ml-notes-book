@@ -147,7 +147,7 @@ On a bipartite graph $\lambda_n = -\lambda_1$ and the counts alternate between t
 \end{equation}
 
 \begin{remark}
-\Cref{node-similarity:eq:expected-path-approx} is an approximation, not a theorem: it applies the growth rate of the \emph{observed} graph to the expected counts in the \emph{random} graph. For $i = 2$ it replaces the mean excess degree of \cref{node-similarity:prop:expected-path2} by $\lambda_1$. In the running example the mean excess degree is $\sum_w d_w(d_w-1)/2m = 60/22 \approx 2.73$, against $\lambda_1 \approx 3.24$; the approximation is of the right order, which is all the index needs.
+\Cref{node-similarity:eq:expected-path-approx} is an approximation, not a theorem: it applies the growth rate of the \emph{observed} graph to the expected counts in the \emph{random} graph. For $i = 2$ it replaces the mean excess degree of \cref{node-similarity:prop:expected-path2} by $\lambda_1$. In the running example the mean excess degree is $\sum_w d_w(d_w-1)/2m = 58/22 \approx 2.64$, against $\lambda_1 \approx 3.24$; the approximation is of the right order, which is all the index needs.
 \end{remark}
 
 \subsection{The LHN index}
@@ -175,7 +175,7 @@ Write $\beta^i\lambda_1^{1-i} = \lambda_1(\beta/\lambda_1)^i$. The matrix $\frac
 Note the convergence condition: $\beta < 1$, not $\beta < 1/\lambda_1$, because the powers of $\bA$ are already divided by $\lambda_1^i$. Hamilton (2020) writes \cref{node-similarity:eq:lhn-closed} with a different constant in front; a global constant does not affect rankings. Large $\beta$ (close to $1$) gives weight to long paths, small $\beta$ to short ones.
 
 \begin{example}[LHN on the running example]
-With $\beta = 0.5$, \cref{node-similarity:eq:lhn-closed} gives $S_{\text{LHN}}[1,2] = 1.219$, $S_{\text{LHN}}[1,0] = 0.449$ and $S_{\text{LHN}}[1,5] = 0.416$. The ranking is reversed compared with Katz: the hub is no longer favoured, because its paths to node $1$ are about as many as its degree predicts. With $\beta = 0.9$ the values are $14.61$, $7.05$ and $11.77$: node $2$ is still first, but the leaf $5$ now beats the hub. The factor $1/(d_ud_v)$ boosts low-degree nodes, and for $\beta$ close to $1$ long paths through the hub reach the leaf in large numbers; LHN with large $\beta$ can overcorrect.
+With $\beta = 0.5$, \cref{node-similarity:eq:lhn-closed} gives $S_{\text{LHN}}[1,2] = 1.219$, $S_{\text{LHN}}[1,0] = 0.449$ and $S_{\text{LHN}}[1,5] = 0.416$. The ranking is reversed compared with Katz: the hub is no longer favoured, because its paths to node $1$ are about as many as its degree predicts. With $\beta = 0.9$ the values are $14.61$, $7.05$ and $11.76$: node $2$ is still first, but the leaf $5$ now beats the hub. The factor $1/(d_ud_v)$ boosts low-degree nodes, and for $\beta$ close to $1$ long paths through the hub reach the leaf in large numbers; LHN with large $\beta$ can overcorrect.
 \end{example}
 
 \section{Random walks with restart: personalized PageRank}

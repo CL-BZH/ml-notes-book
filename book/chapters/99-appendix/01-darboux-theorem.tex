@@ -10,8 +10,8 @@ Let $f$ be a function differentiable on a neighbourhood of the closed interval $
 To prove this result, we rely on the following fundamental theorems of real analysis:
 
 \begin{enumerate}
-    \item \textbf{Extreme Value Theorem (EVT):} If a function $g$ is continuous on a closed and bounded interval $[a, b]$, then $g$ attains its absolute minimum and maximum values on that interval.
-    \item \textbf{Fermat's Theorem (Interior Extremum Theorem):} If a function $g$ is differentiable at an interior point $c \in (a, b)$ and attains a local extremum at $c$, then $g'(c) = 0$.
+    \item \textbf{Extreme value theorem (EVT):} If a function $g$ is continuous on a closed and bounded interval $[a, b]$, then $g$ attains its absolute minimum and maximum values on that interval.
+    \item \textbf{Fermat's theorem (interior extremum theorem):} If a function $g$ is differentiable at an interior point $c \in (a, b)$ and attains a local extremum at $c$, then $g'(c) = 0$.
 \end{enumerate}
 
 \section{The formal proof}
@@ -19,7 +19,7 @@ To prove this result, we rely on the following fundamental theorems of real anal
 \subsection{Step 1: construction of the auxiliary function}
 Define the function $g: [a, b] \to \mathbb{R}$ by:
 \[ g(x) = f(x) - mx \]
-Since $f$ is differentiable on $[a, b]$, it is necessarily continuous on $[a, b]$. Because $mx$ is also continuous, $g$ is continuous on the compact set $[a, b]$. By the \textbf{Extreme Value Theorem}, $g$ must attain an absolute minimum on $[a, b]$. 
+Since $f$ is differentiable on $[a, b]$, it is necessarily continuous on $[a, b]$. Because $mx$ is also continuous, $g$ is continuous on the compact set $[a, b]$. By the \textbf{extreme value theorem}, $g$ must attain an absolute minimum on $[a, b]$.
 
 The derivative of $g$ is given by $g'(x) = f'(x) - m$. Evaluating at the endpoints, we have:
 \begin{align*}
@@ -50,7 +50,7 @@ Thus, $g(b)$ is not the minimum value of $g$ on $[a, b]$.
 \subsection{Step 4: conclusion via Fermat's theorem}
 Since the absolute minimum exists on $[a, b]$ but is attained at neither $x=a$ nor $x=b$, the minimum must occur at some point $c$ in the open interval $(a, b)$. 
 
-Because $c$ is an interior point and $g$ is differentiable at $c$, \textbf{Fermat's Theorem} implies:
+Because $c$ is an interior point and $g$ is differentiable at $c$, \textbf{Fermat's theorem} implies:
 \[ g'(c) = 0 \]
 Substituting our expression for $g'(x)$:
 \[ f'(c) - m = 0 \implies f'(c) = m \]

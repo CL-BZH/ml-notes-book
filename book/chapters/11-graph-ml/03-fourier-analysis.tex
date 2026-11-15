@@ -203,8 +203,8 @@ f(t) = a_0 + \sum_{n=1}^{\infty} \left( a_n \cos\frac{2\pi n t}{T} + b_n \sin\fr
 where
 \begin{align*}
 a_0 &= c_0 = \frac{1}{T} \int_0^T f(t) \, dt, \\
-a_n &= 2\text{Re}(c_n) = \frac{2}{T} \int_0^T f(t) \cos\frac{2\pi n t}{T} \, dt, \\
-b_n &= -2\text{Im}(c_n) = \frac{2}{T} \int_0^T f(t) \sin\frac{2\pi n t}{T} \, dt.
+a_n &= 2\operatorname{Re}(c_n) = \frac{2}{T} \int_0^T f(t) \cos\frac{2\pi n t}{T} \, dt, \\
+b_n &= -2\operatorname{Im}(c_n) = \frac{2}{T} \int_0^T f(t) \sin\frac{2\pi n t}{T} \, dt.
 \end{align*}
 \end{proposition}
 
@@ -290,7 +290,7 @@ f(t) = \fourier^{-1}\{\hat{f}\}(t) = \frac{1}{2\pi} \int_{-\infty}^{\infty} \hat
 There are several conventions for the Fourier transform differing in the placement of factors of $2\pi$ and the sign of the exponent. We use the angular frequency convention where $\omega = 2\pi f$.
 \end{remark}
 
-\begin{theorem}[Riemann-Lebesgue lemma]
+\begin{theorem}[Riemann--Lebesgue lemma]
 If $f \in L^1(\R)$, then $\hat{f}$ is continuous and
 \[
 \lim_{\abs{\omega} \to \infty} \hat{f}(\omega) = 0.
@@ -515,7 +515,7 @@ This periodicity reflects the \emph{aliasing} phenomenon: frequencies differing 
 
 \subsection{Sampling theorem}
 
-\begin{theorem}[Nyquist-Shannon sampling theorem]
+\begin{theorem}[Nyquist--Shannon sampling theorem]
 Let $f(t)$ be a bandlimited signal with $\hat{f}(\omega) = 0$ for $\abs{\omega} > \omega_{\max}$. If $f$ is sampled at rate $\omega_s = 2\pi/T_s > 2\omega_{\max}$ (the Nyquist rate), then $f$ can be perfectly reconstructed from its samples:
 \[
 f(t) = \sum_{n=-\infty}^{\infty} f(nT_s) \sinc\left(\frac{t - nT_s}{T_s}\right).
@@ -607,20 +607,20 @@ N & \text{if } m = n \\
 \subsection{Relationship to DTFT and Fourier series}
 
 \begin{proposition}
-The DFT is the DTFT sampled at $N$ equally-spaced frequencies:
+The DFT is the DTFT sampled at $N$ equally spaced frequencies:
 \[
 X[k] = X(e^{i\omega})\big|_{\omega = 2\pi k/N}.
 \]
 \end{proposition}
 
-Alternatively, if we periodically extend $x[n]$ to create $\tilde{x}[n] = x[n \mod N]$, then $X[k]$ are the Fourier series coefficients of $\tilde{x}[n]$ (up to scaling).
+Alternatively, if we periodically extend $x[n]$ to create $\tilde{x}[n] = x[n \bmod N]$, then $X[k]$ are the Fourier series coefficients of $\tilde{x}[n]$ (up to scaling).
 
 \subsection{Circular convolution}
 
 \begin{definition}[Circular convolution]\label{fourier-analysis:def:circular-convolution}
 The \emph{circular convolution} of two length-$N$ sequences is
 \[
-(x \circledast h)[n] = \sum_{m=0}^{N-1} x[m] h[(n-m) \mod N].
+(x \circledast h)[n] = \sum_{m=0}^{N-1} x[m] h[(n-m) \bmod N].
 \]
 \end{definition}
 
@@ -652,7 +652,7 @@ If $x[n] \in \R$, then $X[N-k] = \overline{X[k]}$.
 
 Computing the DFT directly requires $O(N^2)$ complex multiplications. The FFT is a class of algorithms that compute the DFT in $O(N \log N)$ operations.
 
-\subsection{Cooley-Tukey FFT algorithm}
+\subsection{Cooley--Tukey FFT algorithm}
 
 Assume $N = 2^m$ (radix-2 FFT). We use the \emph{decimation-in-time} approach.
 
@@ -703,7 +703,7 @@ If the recursion is unrolled into an in-place iterative algorithm, the input mus
 For $N = 8$:
 \begin{center}
 \begin{tabular}{c|c|c}
-Index & Binary & Bit-Reversed \\
+Index & Binary & Bit-reversed \\
 \hline
 0 & 000 & 000 = 0 \\
 1 & 001 & 100 = 4 \\
@@ -720,11 +720,11 @@ Index & Binary & Bit-Reversed \\
 \subsection{Variants and generalizations}
 
 \begin{itemize}
-\item \textbf{Radix-4, Radix-8, etc.}: Further subdivide into 4 or 8 parts for better cache performance.
+\item \textbf{Radix-4, radix-8, etc.}: Further subdivide into 4 or 8 parts for better cache performance.
 \item \textbf{Split-radix FFT}: Combines radix-2 and radix-4 for optimal operation count.
 \item \textbf{Mixed-radix FFT}: For $N$ that is not a power of 2.
 \item \textbf{Prime-factor algorithm}: For $N = N_1 N_2$ with $\gcd(N_1, N_2) = 1$.
-\item \textbf{Bluestein's algorithm}: For arbitrary $N$ using chirp z-transform.
+\item \textbf{Bluestein's algorithm}: For arbitrary $N$ using the chirp $z$-transform.
 \end{itemize}
 
 \section{The four transforms side by side}

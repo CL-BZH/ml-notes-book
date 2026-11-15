@@ -40,7 +40,7 @@ The answer, known since the work of Laplace in the 18th century, is that the
 steady-state temperature is a \textbf{harmonic function}: at every interior
 point, the temperature equals the average of the temperatures in a small
 neighbourhood around it. There are no ``hot spots'' or ``cold spots'' in the
-interior---only a smooth interpolation between the boundary temperatures.
+interior --- only a smooth interpolation between the boundary temperatures.
 
 This same principle appears throughout mathematics and physics:
 \begin{itemize}
@@ -54,8 +54,8 @@ This same principle appears throughout mathematics and physics:
 
 Perhaps surprisingly, the same concept appears in \textbf{graph-based
 machine learning}. When we run a label propagation algorithm on a
-graph---assigning labels to unknown nodes based on the labels of their
-neighbours---we are solving the \emph{discrete} analogue of the boundary
+graph --- assigning labels to unknown nodes based on the labels of their
+neighbours --- we are solving the \emph{discrete} analogue of the boundary
 value problem that governs heat flow.
 
 This chapter makes the connection precise. We start with the simplest
@@ -130,11 +130,11 @@ This is the \textbf{centred finite difference} formula for $f''(x)$.
 It says:
 \begin{itemize}
     \item $f''(x) > 0$: $f(x)$ is \emph{below} the average of its
-          neighbours---the function is locally convex (like a valley).
+          neighbours --- the function is locally convex (like a valley).
     \item $f''(x) < 0$: $f(x)$ is \emph{above} the average of its
-          neighbours---the function is locally concave (like a hilltop).
+          neighbours --- the function is locally concave (like a hilltop).
     \item $f''(x) = 0$: $f(x)$ \emph{equals} the average of its
-          neighbours---the function is locally linear (harmonic).
+          neighbours --- the function is locally linear (harmonic).
 \end{itemize}
 
 \begin{example}[The 1D boundary value problem]
@@ -145,7 +145,7 @@ unique solution is:
 \[
 T(x) = 100\left(1 - \frac{x}{L}\right)
 \]
-A linear interpolation between the boundary values---exactly as the mean
+A linear interpolation between the boundary values --- exactly as the mean
 value property predicts. At every interior point, the temperature equals
 the average of its two neighbours.
 \end{example}
@@ -215,7 +215,7 @@ $\Omega \subset \R^d$ if $\Delta f(x) = 0$ for all $x \in \Omega$.
 
 In 1D, we saw that $f''(x)$ measures how much $f(x)$ deviates from the
 average of $f(x-r)$ and $f(x+r)$. The same principle holds in any
-dimension---but now the ``two neighbours at distance $r$'' are replaced by
+dimension --- but now the ``two neighbours at distance $r$'' are replaced by
 the entire \emph{sphere} of radius $r$ around $x$.
 
 We write $S^{d-1} = \{\mathbf{u} \in \R^d : \|\mathbf{u}\| = 1\}$ for the
@@ -309,7 +309,7 @@ For any symmetric matrix $H \in \R^{d \times d}$:
 In words: when you average the quadratic form $\mathbf{u}^\top H\mathbf{u}$
 over all directions $\mathbf{u}$ on the unit sphere, you get $\tr(H)/d$
 regardless of the off-diagonal structure of $H$. Only the diagonal (the
-trace) survives the averaging---all directional biases wash out.
+trace) survives the averaging --- all directional biases wash out.
 
 \begin{proof}
 The proof has three steps.
@@ -338,9 +338,9 @@ the $i$-th eigendirection. Integrating over the sphere:
   dS(\mathbf{u})}_{=:\, I_i}
 \end{equation}
 
-\textbf{Step 2: Symmetry argument---all $I_i$ are equal.} The integral $I_i$
+\textbf{Step 2: Symmetry argument --- all $I_i$ are equal.} The integral $I_i$
 asks: ``how much does a random direction on the sphere align with the fixed
-direction $\mathbf{v}_i$?'' But the sphere has no preferred direction---it
+direction $\mathbf{v}_i$?'' But the sphere has no preferred direction --- it
 looks the same from every angle. Formally, for any rotation $R$ that maps
 $\mathbf{v}_i$ to $\mathbf{v}_j$, the change of variables
 $\mathbf{u} \mapsto R\mathbf{u}$ leaves the sphere and its surface measure
@@ -477,7 +477,7 @@ Dividing by $\Area(S^2) = 4\pi$: the average is $20\pi / 4\pi = 5 =
 Theorem~\ref{harmonic-functions:thm:laplacian_average}.} We left the main proof at the point
 where we needed to evaluate the second-order term in the Taylor expansion of
 $M_f(x,r)$. That term involved the spherical average of
-$\mathbf{u}^\top H_f(x)\,\mathbf{u}$---exactly the quantity that
+$\mathbf{u}^\top H_f(x)\,\mathbf{u}$ --- exactly the quantity that
 Lemma~\ref{harmonic-functions:lem:sphere_average_quadratic} computes. We now apply it with
 $H = H_f(x)$ (the Hessian of $f$ at $x$), for which
 $\tr(H_f(x)) = \Delta f(x)$ (by Definition~\ref{harmonic-functions:def:cont_laplacian}).
@@ -530,7 +530,7 @@ $\overline{B(x,r)} \subset \Omega$:
 M_f(x,r) = f(x)
 \end{equation}
 The value of $f$ at the centre equals the spherical mean for every
-radius---with no error term and no limit.
+radius --- with no error term and no limit.
 \end{theorem}
 
 \begin{proof}
@@ -545,7 +545,7 @@ unit normal, and $dS(\mathbf u) = d\sigma/r^{d-1}$, so by the divergence theorem
 &= \frac rd\cdot\frac1{\abs{B(x, r)}}\int_{B(x,r)}\Delta f(y)\,dV(y),
 \end{align*}
 using $\abs{B(x, r)} = \omega_{d-1}r^d/d$. (The last form agrees with the expansion
-\cref{harmonic-functions:eq:spherical_mean_expansion}: $\frac{d}{dr}\bigl(f(x) + \frac{r^2}{2d}\Delta f(x)\bigr) = \frac rd\Delta f(x)$.)
+\eqref{harmonic-functions:eq:spherical_mean_expansion}: $\frac{d}{dr}\bigl(f(x) + \frac{r^2}{2d}\Delta f(x)\bigr) = \frac rd\Delta f(x)$.)
 When $\Delta f = 0$ throughout $\Omega$, the integrand vanishes, so
 $\frac{d}{dr}M_f(x,r) = 0$ for all admissible $r$. This means $M_f(x,r)$
 is constant in $r$, and its value is $\lim_{r \to 0^+} M_f(x,r) = f(x)$.
@@ -562,12 +562,12 @@ graphs (Section~\ref{harmonic-functions:sec:graph_laplacian}).
 \textbf{Physical interpretation of the Laplacian:}
 \begin{itemize}
     \item $\Delta f(x) > 0$: $f(x)$ is \emph{below} the local average
-          (like a valley). In heat flow, heat flows \emph{in}---the point
+          (like a valley). In heat flow, heat flows \emph{in} --- the point
           warms up.
     \item $\Delta f(x) < 0$: $f(x)$ is \emph{above} the local average
-          (like a hilltop). Heat flows \emph{out}---the point cools down.
+          (like a hilltop). Heat flows \emph{out} --- the point cools down.
     \item $\Delta f(x) = 0$: $f(x)$ \emph{equals} the local average. No
-          net heat flow---the system is in equilibrium. This is the
+          net heat flow --- the system is in equilibrium. This is the
           harmonic condition.
 \end{itemize}
 \end{intuition}
@@ -598,7 +598,7 @@ Consider a \textbf{connected} undirected weighted graph $G = (V, E, A)$ with
 $n$ nodes, adjacency matrix $A$ (where $A_{ij} \geq 0$ is the weight of edge
 $\{i,j\}$), and degree matrix $D = \diag(d_1, \ldots, d_n)$ where
 $d_i = \sum_j A_{ij}$. Connectivity means that every pair of nodes is linked
-by some path---the graph analogue of a connected domain $\Omega$ in the
+by some path --- the graph analogue of a connected domain $\Omega$ in the
 continuous setting. A function on the graph is simply a vector
 $f \in \R^n$, with $f_i$ being the value at node $v_i$.
 
@@ -667,7 +667,7 @@ on a set $S \subset V$ if it is harmonic at every node in $S$.
 
 Just as in the continuous case, a harmonic function on a graph has no local
 extrema on the interior: no node's value can be strictly larger (or smaller)
-than all its neighbours'. Every value is a weighted average---a compromise.
+than all its neighbours'. Every value is a weighted average --- a compromise.
 
 \subsection{The unnormalized Laplacian}
 
@@ -687,7 +687,7 @@ The \textbf{unnormalized Laplacian} is $L = D - A$, with:
 The unnormalized Laplacian is simply the random walk Laplacian scaled by the
 degree: $(Lf)_i = d_i \cdot (\mathcal{L}_{\mathrm{rw}} f)_i$. The degree
 $d_i$ plays the role of the factor $2d/r^2$ in the continuous
-formula~\eqref{harmonic-functions:eq:laplacian_avg}---it accounts for the ``size'' of the
+formula~\eqref{harmonic-functions:eq:laplacian_avg} --- it accounts for the ``size'' of the
 neighbourhood.
 
 The unnormalized Laplacian has a beautiful quadratic form that measures
@@ -753,7 +753,7 @@ $f_3 = 1/2$, $f_4 = 1/4$.
 \end{center}
 
 The discrete solution (blue dots) is a linear interpolation between the
-boundary values---exactly the discrete analogue of the continuous 1D
+boundary values --- exactly the discrete analogue of the continuous 1D
 harmonic function $T(x) = 1 - x/L$ from Section~\ref{harmonic-functions:sec:1d} (red dashed).
 \end{example}
 
@@ -787,7 +787,7 @@ Dirichlet problem & Label propagation & Boundary value problem \\
 % ====================================================================
 
 The connection becomes most powerful when we consider boundary value
-problems---finding a function that is harmonic in the interior and matches
+problems --- finding a function that is harmonic in the interior and matches
 prescribed values on the boundary.
 
 \subsection{The continuous Dirichlet problem}
@@ -859,7 +859,7 @@ combined with the fixed boundary values, gives in block form:
 f_U = P_{UU}\,f_U + P_{UL}\,f_L
 \]
 Rearranging: $(I - P_{UU})\,f_U = P_{UL}\,f_L$. The matrix $I - P_{UU}$ is
-invertible because $G$ is connected: the sub-matrix $P_{UU}$ is
+invertible because $G$ is connected: the submatrix $P_{UU}$ is
 sub-stochastic (its spectral radius is strictly less than~1, since a random
 walk confined to $\mathcal{V}_U$ eventually escapes to a boundary node). The
 full argument is given in Appendix~\ref{harmonic-functions:app:proof_dirichlet}.
@@ -958,13 +958,13 @@ Intuitively, the particle is equally likely to move left or right at each
 instant, so its expected position never drifts. A process with this
 ``fair game'' property is called a \textbf{martingale}.
 
-\textbf{The Optional Stopping Theorem.} Let $\tau$ be the first time the
+\textbf{The optional stopping theorem.} Let $\tau$ be the first time the
 Brownian motion hits the boundary $\{0, L\}$. Each individual path ends at
-either $0$ or $L$---but different paths end at different endpoints. The
+either $0$ or $L$ --- but different paths end at different endpoints. The
 question is: on average (over all possible random paths), where does the
 particle end up?
 
-The Optional Stopping Theorem (under conditions satisfied here: the
+The optional stopping theorem (under conditions satisfied here: the
 particle is confined to a bounded interval, so $\tau$ is finite) states
 that the martingale property extends to the stopping time:
 \[
@@ -983,7 +983,7 @@ either $0$ (with probability $p$) or $L$ (with probability $1-p$). So:
 \[
 \E[B_\tau \mid B_0 = x] = p \cdot 0 + (1-p) \cdot L = (1-p)\,L
 \]
-Setting this equal to $x$ (from the Optional Stopping Theorem):
+Setting this equal to $x$ (from the optional stopping theorem):
 \[
 (1-p)\,L = x \implies p = 1 - \frac{x}{L} = \frac{L-x}{L}
 \]
@@ -1010,7 +1010,7 @@ $\mathcal{V}_U$ (where we seek the harmonic function). In
 Theorem~\ref{harmonic-functions:thm:discrete_dirichlet}, we found the solution
 $f_U = (I - P_{UU})^{-1}P_{UL}f_L$ by solving a linear system. The
 following theorem gives a completely different way to compute the same
-solution---using random walks.
+solution --- using random walks.
 
 \begin{theorem}[Random walk interpretation]
 \label{harmonic-functions:thm:rw_label_prop}
@@ -1122,7 +1122,7 @@ $p_k = p_1 + (k-1)\delta = 1 + (k-1)\delta$. Imposing $p_5 = 0$:
 0 = 1 + 4\delta \implies \delta = -\tfrac{1}{4}
 \]
 So $p_k = 1 - (k-1)/4 = (5-k)/4$. (This is the same linear interpolation
-we found in Section~\ref{harmonic-functions:sec:graph_laplacian}---as expected, since both
+we found in Section~\ref{harmonic-functions:sec:graph_laplacian} --- as expected, since both
 solve the same harmonic system.)
 
 \textbf{Results.}
@@ -1146,7 +1146,7 @@ $v_4$ & $1/4$ & $3/4$ & $\frac{1}{4}\cdot 1 + \frac{3}{4}\cdot 0$ &
 These match the harmonic solution from Section~\ref{harmonic-functions:sec:graph_laplacian}.
 The closer a node is to $v_1$ (labelled~$1$), the more likely the walk is to
 reach $v_1$ first, and the higher its value. At the midpoint $v_3$, the
-walk is equally likely to reach either boundary---just as symmetry demands.
+walk is equally likely to reach either boundary --- just as symmetry demands.
 
 Note the parallel with the Brownian motion example: in the continuous case,
 a particle starting at $x$ on $[0, L]$ hits $0$ with probability
@@ -1186,7 +1186,7 @@ The fundamental insight that unifies everything in this chapter is:
 \textbf{A function is harmonic if and only if its value at every interior
 point equals the average of its values in a local neighbourhood.}
 
-The Laplacian---whether continuous or discrete---measures the deviation
+The Laplacian --- whether continuous or discrete --- measures the deviation
 from this averaging property:
 \begin{align}
 \text{Continuous:}\quad & \Delta f(x)
@@ -1219,10 +1219,10 @@ Solution & $\E[g(B_\tau)]$ & $\E[y_{X_\tau}]$ \\
 \end{tabular}
 \end{center}
 
-When you run label propagation on a graph, you are not running an ad-hoc
+When you run label propagation on a graph, you are not running an ad hoc
 algorithm. You are computing the discrete harmonic function that minimizes
 energy, satisfies the mean value property, and equals the expected boundary
-value seen by a random walk---exactly as nature computes steady-state
+value seen by a random walk --- exactly as nature computes steady-state
 temperatures, electric potentials, and diffusion equilibria.
 
 
@@ -1380,13 +1380,13 @@ The key question is: what is your expected wealth when you walk out?
 
 Since every individual bet is fair, your expected wealth after one bet equals
 your current wealth. After two bets, your expected wealth still equals your
-starting wealth. After $n$ bets---still $x$. The game never drifts in your
+starting wealth. After $n$ bets --- still $x$. The game never drifts in your
 favour or against you. A process with this property (expected future value
 $=$ current value) is called a \textbf{martingale}.
 
-Now, you might think: ``I am choosing a \emph{clever} time to stop---I stop
-when I reach $L$, so surely I can come out ahead?'' The Optional Stopping
-Theorem says: \emph{no}. In a fair game, no stopping strategy can create
+Now, you might think: ``I am choosing a \emph{clever} time to stop --- I stop
+when I reach $L$, so surely I can come out ahead?'' The optional stopping
+theorem says: \emph{no}. In a fair game, no stopping strategy can create
 value out of nothing. The expected wealth at your (random) exit time $\tau$
 is still $x$:
 \[
@@ -1395,7 +1395,7 @@ is still $x$:
 This is not obvious! The intuition is: yes, you \emph{might} walk out rich
 (with $\$L$), but to reach that outcome, you must accept the risk of going
 broke (reaching $\$0$) along the way. The rare big wins and the frequent
-small losses---or the frequent small wins and the rare big losses---always
+small losses --- or the frequent small wins and the rare big losses --- always
 balance out to exactly $x$.
 
 \subsection*{Why the probabilities must adjust}
@@ -1451,7 +1451,7 @@ p \cdot 0 + (1-p) \cdot L = x
 This is exactly the martingale condition. Starting closer to $L$ means
 more weight at $L$ (higher probability of reaching it), but the ``lever
 arm'' to $L$ is shorter. Starting far from $L$ means less weight there, but
-a longer arm. The two effects---probability and distance---always balance
+a longer arm. The two effects --- probability and distance --- always balance
 out.
 
 \subsection*{Why no stopping strategy can beat a fair game}
@@ -1462,12 +1462,12 @@ feels like a winning strategy because you always stop when you are ahead.
 
 But this reasoning is flawed. To gain $+1$, you must risk the possibility
 that the motion drops far below your starting point before ever going up
-by~$1$. The deeper the drop, the rarer it is---but the loss when it happens
+by~$1$. The deeper the drop, the rarer it is --- but the loss when it happens
 is correspondingly larger. When you average over all possible paths, the
 frequent small wins of $+1$ are exactly cancelled by the rare but deep
 losses. The expected outcome remains $x$.
 
-This is the essence of the Optional Stopping Theorem: in a martingale,
+This is the essence of the optional stopping theorem: in a martingale,
 $\E[B_\tau] = \E[B_0]$ for any stopping time $\tau$ (under mild
 conditions, such as the process being bounded, which is automatically
 satisfied when $[0, L]$ is a bounded interval).
@@ -1478,8 +1478,8 @@ The martingale property of Brownian motion is ultimately \emph{why}
 harmonic functions arise from random processes. At each instant, the
 particle moves randomly with no drift, so its position satisfies the mean
 value property: the expected position after an infinitesimal step equals the
-current position. This is precisely the harmonic condition. The Optional
-Stopping Theorem extends this local averaging property to the global
+current position. This is precisely the harmonic condition. The optional
+stopping theorem extends this local averaging property to the global
 boundary value problem, giving Kakutani's theorem
 (Theorem~\ref{harmonic-functions:thm:kakutani}).
 
@@ -1492,6 +1492,7 @@ discrete version of the continuous story.
 
 
 \section*{Further reading}
+\addcontentsline{toc}{section}{Further reading}
 Axler, Bourdon and Ramey, \emph{Harmonic Function Theory}, 2013, for the continuous theory;
 Evans, \emph{Partial Differential Equations}, 2022, Chapter~2, for the mean value property and the
 Dirichlet problem; Doyle and Snell, \emph{Random Walks and Electric Networks}, 1984, for the

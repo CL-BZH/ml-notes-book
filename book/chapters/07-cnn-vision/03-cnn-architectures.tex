@@ -238,7 +238,7 @@ Parameter counts are those of the \texttt{torchvision} implementations.
   \item Classic CNNs alternate convolutions and downsampling, increasing channels as the
         resolution decreases, and end with a classifier.
   \item AlexNet (2012) brought ReLU, dropout, augmentation and GPUs; VGG showed that stacks
-        of $3\times3$ kernels give large receptive fields with fewer weights ($18C^2$ vs $25C^2$ for a $5\times5$).
+        of $3\times3$ kernels give large receptive fields with fewer weights ($18C^2$ vs.\ $25C^2$ for a $5\times5$).
   \item Inception modules process several scales in parallel; $1\times1$ bottlenecks cut their cost
         about tenfold; global average pooling removed the huge fully connected layers.
   \item Residual blocks $y = x + F(x)$ make the identity easy to represent; the gradient reaches early

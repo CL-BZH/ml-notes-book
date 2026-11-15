@@ -19,7 +19,7 @@ An autoencoder compresses its input into a low-dimensional code and reconstructs
 
 \section{Introduction}
 
-Graph autoencoders extend the classical autoencoder framework to handle graph-structured data. While the encoder-decoder architecture remains conceptually similar, the design of appropriate loss functions requires careful consideration of the unique properties of graph structures.
+Graph autoencoders extend the classical autoencoder framework to handle graph-structured data. While the encoder--decoder architecture remains conceptually similar, the design of appropriate loss functions requires careful consideration of the unique properties of graph structures.
 
 \subsection{The autoencoder framework}
 
@@ -223,9 +223,9 @@ We can expand equation \eqref{graph-autoencoders:eq:l1_loss} to better understan
 
 \begin{align}
 \mathcal{L}_{1^{st}} &= \sum_{i,j} S_{ij} \norm{\bm{y}_i - \bm{y}_j}^2_2 \nonumber \\
-&= \sum_{i,j} S_{ij} (\bm{y}_i - \bm{y}_j)^T(\bm{y}_i - \bm{y}_j) \nonumber \\
-&= \sum_{i,j} S_{ij} (\bm{y}_i^T\bm{y}_i - 2\bm{y}_i^T\bm{y}_j + \bm{y}_j^T\bm{y}_j) \nonumber \\
-&= \sum_{i,j} S_{ij} (\norm{\bm{y}_i}^2 - 2\bm{y}_i^T\bm{y}_j + \norm{\bm{y}_j}^2)
+&= \sum_{i,j} S_{ij} (\bm{y}_i - \bm{y}_j)^\top(\bm{y}_i - \bm{y}_j) \nonumber \\
+&= \sum_{i,j} S_{ij} (\bm{y}_i^\top\bm{y}_i - 2\bm{y}_i^\top\bm{y}_j + \bm{y}_j^\top\bm{y}_j) \nonumber \\
+&= \sum_{i,j} S_{ij} (\norm{\bm{y}_i}^2 - 2\bm{y}_i^\top\bm{y}_j + \norm{\bm{y}_j}^2)
 \label{graph-autoencoders:eq:l1_expanded}
 \end{align}
 
@@ -264,7 +264,7 @@ The model has three key hyperparameters:
         \item Small $\alpha$: Focus on reconstructing neighbourhoods (second-order)
         \item Large $\alpha$: Focus on preserving direct connections (first-order)
     \end{itemize}
-    \item $\beta > 1$: Penalty factor for edge reconstruction errors (typically 5-10)
+    \item $\beta > 1$: Penalty factor for edge reconstruction errors (typically 5--10)
     \item $\lambda \geq 0$: Regularization strength to prevent overfitting
 \end{itemize}
 
@@ -294,7 +294,7 @@ The balance between the two losses is controlled by $\alpha$ in:
 The useful range depends on the scale of the two terms: $\mathcal L_{2^{nd}}$ sums $n^2$ entries, $\mathcal L_{1^{st}}$ only $2\abs E$, and Wang et al.\ report values of $\alpha$ between $10^{-6}$ and $10^{-2}$ on large graphs. On the $34$-node karate club graph below, $\alpha$ between $10^{-2}$ and $1$ works well.
 
 \begin{example}[Why we need both]
-Consider a graph with two tightly-knit communities connected by a single edge:
+Consider a graph with two tightly knit communities connected by a single edge:
 
 \begin{center}
 \begin{tikzpicture}[node distance=1cm,
@@ -331,7 +331,7 @@ Consider a graph with two tightly-knit communities connected by a single edge:
 \end{center}
 
 \begin{itemize}
-    \item \textbf{Only $\mathcal{L}_{2^{nd}}$}: Nodes 2 and 5 (connected by red edge) might be separated because they have very different neighbourhoods
+    \item \textbf{Only $\mathcal{L}_{2^{nd}}$}: Nodes 2 and 5 (connected by the red edge) might be separated because they have very different neighbourhoods
     \item \textbf{Only $\mathcal{L}_{1^{st}}$}: The model might miss that nodes 1,2,3,4 form a tight community
     \item \textbf{Both combined}: Preserves both the bridge connection and community structure
 \end{itemize}
@@ -339,7 +339,7 @@ Consider a graph with two tightly-knit communities connected by a single edge:
 
 \section{Complete worked example}
 
-Let's work through a complete example with a small graph.
+Let us work through a complete example with a small graph.
 
 \begin{example}[Complete SDNE computation]
 Consider the following 4-node graph:
@@ -359,7 +359,7 @@ Consider the following 4-node graph:
 \end{tikzpicture}
 \end{center}
 
-\textbf{Adjacency Matrix}:
+\textbf{Adjacency matrix}:
 \[
 \bm{A} = \begin{bmatrix}
 0 & 1 & 1 & 0 \\
@@ -432,7 +432,7 @@ With $\alpha = 1$ and $\lambda = 0.001$, and assuming $\norm{\bm{W}}^2_F = 100$:
 \subsection{Algorithm}
 
 \begin{algorithm}
-\caption{Training Graph Autoencoder (SDNE)}
+\caption{Training a graph autoencoder (SDNE)}
 \begin{algorithmic}[1]
 \Require Graph adjacency matrix $\bm{A}$, embedding dimension $d$, hyperparameters $\alpha, \beta, \lambda$
 \Ensure Node embeddings $\{\bm{y}_i\}_{i=1}^n$
@@ -507,10 +507,10 @@ We trained SDNE on the karate club graph (\cref{graph-autoencoders:sec:karate_cl
 
 \subsection{Historical context}
 
-The Zachary's Karate Club graph is one of the most famous datasets in network science. It was collected by anthropologist Wayne Zachary in the 1970s during a study of a university karate club.
+Zachary's karate club graph is one of the most famous datasets in network science. It was collected by anthropologist Wayne Zachary in the 1970s during a study of a university karate club.
 
 \begin{remark}[The story]
-Zachary observed social interactions between 34 members of a karate club over a period of 3 years (1970-1972). During this time, a conflict arose between the club's instructor (Mr. Hi) and the club's administrator (John A.) over various issues including the instructor's pricing policies.
+Zachary observed social interactions between 34 members of a karate club over a period of 3 years (1970--1972). During this time, a conflict arose between the club's instructor (Mr.\ Hi) and the club's administrator (John A.) over various issues including the instructor's pricing policies.
 
 This conflict eventually led to a split of the club into two separate organizations. Zachary modelled the network as a flow network and showed that a minimum cut separating the instructor from the officer, computed from ties observed before the split, assigned all but one member to the faction they actually joined (Zachary, \emph{An Information Flow Model for Conflict and Fission in Small Groups}, 1977).
 \end{remark}
@@ -522,25 +522,25 @@ This conflict eventually led to a split of the club into two separate organizati
     \item \textbf{Edges}: 78 (social interactions outside of club activities, such as socializing at bars and attending karate tournaments together)
     \item \textbf{Two main communities}:
     \begin{itemize}
-        \item Instructor's faction (loyal to Mr. Hi)
+        \item Instructor's faction (loyal to Mr.\ Hi)
         \item Administrator's faction (loyal to John A.)
     \end{itemize}
     \item \textbf{Bridge nodes}: Members with connections to both factions who faced difficult decisions during the split
 \end{itemize}
 
-\subsection{Why it's important}
+\subsection{Why it is important}
 
-The Karate Club graph has become a standard benchmark in network science because:
+The karate club graph has become a standard benchmark in network science because:
 
 \begin{enumerate}
     \item \textbf{Real-world validation}: The network structure predicts the actual social split (all members but one, in Zachary's analysis)
     \item \textbf{Clear community structure}: It exhibits two well-defined communities with some inter-community connections
-    \item \textbf{Manageable size}: With only 34 nodes, it's small enough to visualize completely and understand intuitively
+    \item \textbf{Manageable size}: With only 34 nodes, it is small enough to visualize completely and understand intuitively
     \item \textbf{Complex enough}: Despite its size, it demonstrates important phenomena like community detection, bridge nodes, and the predictive power of network analysis
-    \item \textbf{Historical significance}: It's one of the earliest examples of using network analysis to understand and predict social phenomena
+    \item \textbf{Historical significance}: It is one of the earliest examples of using network analysis to understand and predict social phenomena
 \end{enumerate}
 
-The Karate Club graph is now a standard benchmark for:
+The karate club graph is now a standard benchmark for:
 \begin{itemize}
     \item Community detection algorithms
     \item Graph embedding methods
@@ -589,14 +589,14 @@ embeddings = sdne.get_embedding()
 \centering
 \begin{tabular}{@{}lll@{}}
 \toprule
-\textbf{Parameter} & \textbf{Typical Range} & \textbf{Effect} \\ \midrule
-$\beta$ & 5-10 & Higher = more focus on edge reconstruction \\
+\textbf{Parameter} & \textbf{Typical range} & \textbf{Effect} \\ \midrule
+$\beta$ & 5--10 & Higher = more focus on edge reconstruction \\
 $\alpha$ & $10^{-5}$ to $10^{-2}$ & Higher = more first-order preservation \\
 $\lambda$ & $10^{-6}$ to $10^{-4}$ & Higher = more regularization \\
-$d$ & 2-128 & Embedding dimension \\
-layers & 2-4 & Deeper = more expressive (but harder to train) \\ \bottomrule
+$d$ & 2--128 & Embedding dimension \\
+layers & 2--4 & Deeper = more expressive (but harder to train) \\ \bottomrule
 \end{tabular}
-\caption{Typical hyperparameter ranges for SDNE}
+\caption{Typical hyperparameter ranges for SDNE.}
 \end{table}
 
 \section{Advantages and limitations}
@@ -623,15 +623,15 @@ layers & 2-4 & Deeper = more expressive (but harder to train) \\ \bottomrule
 
 Use SDNE when:
 \begin{itemize}
-    \item Graph has $<100,000$ nodes
+    \item Graph has $<100{,}000$ nodes
     \item Need to preserve both community structure and local connections
     \item Have computational resources for training
-    \item Don't need to embed new nodes after training
+    \item Do not need to embed new nodes after training
 \end{itemize}
 
 Consider alternatives when:
 \begin{itemize}
-    \item Graph is very large ($>1$ million nodes) $\rightarrow$ use sampling-based methods (DeepWalk, Node2Vec)
+    \item Graph is very large ($>1$ million nodes) $\rightarrow$ use sampling-based methods (DeepWalk, node2vec)
     \item Need inductive capability $\rightarrow$ use GNNs (GraphSAGE, GAT)
     \item Have rich node features $\rightarrow$ use feature-aware methods
 \end{itemize}

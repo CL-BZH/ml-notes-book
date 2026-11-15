@@ -175,7 +175,7 @@ The Laplacian $\bL = \bD - \bA$ of an undirected graph satisfies:
 \begin{proof}
 \textbf{(1) Symmetry}: Since $\bA$ is symmetric for undirected graphs and $\bD$ is diagonal (hence symmetric), $\bL = \bD - \bA$ is symmetric.
 
-\textbf{(2) Positive semi-definiteness}: We prove this by deriving a key identity.
+\textbf{(2) Positive semi-definiteness}: This follows from the identity of \cref{graph-laplacians:thm:quadratic-form} below, which writes $\bx^\top\bL\bx$ as a sum of squares.
 
 \textbf{(3)} Follows from (1) and (2): symmetric matrices have real eigenvalues, and positive semi-definite matrices have non-negative eigenvalues.
 
@@ -260,7 +260,7 @@ is, is the analogue of $-\Delta$.
 \end{intuition}
 
 \begin{example}
-Let's compute $\bx^\top \bL \bx$ for two signals on our graph:
+Let us compute $\bx^\top \bL \bx$ for two signals on our graph:
 
 \textbf{Smooth signal} (respects communities): $\bx_{\text{smooth}} = (1, 1, 1, 0, 0, 0)^\top$
 \begin{align}
@@ -313,7 +313,7 @@ Thus the signal $\bv$ is constant across all nodes: $\bv = c \cdot \bone$ for so
 
 \textbf{Case 2: $K$ connected components.} If the graph has $K$ connected components $C_1, \ldots, C_K$, then by the argument above, any eigenvector for eigenvalue $0$ must be constant within each component (but can have different constants in different components).
 
-We can construct $K$ linearly independent such eigenvectors---the indicator signals for each component:
+We can construct $K$ linearly independent such eigenvectors --- the indicator signals for each component:
 \[
 \bv^{(k)}[i] = \begin{cases} 1 & \text{if } i \in C_k \\ 0 & \text{otherwise} \end{cases}
 \]
@@ -325,7 +325,7 @@ where each $\bL_k$ is the Laplacian of component $C_k$, contributing one zero ei
 \end{proof}
 
 \begin{remark}
-The block diagonal structure only appears visually if the nodes are ordered so that each connected component is contiguous. With arbitrary node ordering, the matrix entries are scattered, but $\bL$ is still \textbf{permutation-similar} to the block diagonal form: $\bL = \bP^\top \bL_{\text{block}} \bP$ for some permutation matrix $\bP$. Since permutation similarity preserves eigenvalues, the spectral properties (number of zero eigenvalues, etc.) don't depend on node ordering.
+The block diagonal structure only appears visually if the nodes are ordered so that each connected component is contiguous. With arbitrary node ordering, the matrix entries are scattered, but $\bL$ is still \textbf{permutation-similar} to the block diagonal form: $\bL = \boldsymbol{\Pi}^\top \bL_{\text{block}} \boldsymbol{\Pi}$ for some permutation matrix $\boldsymbol{\Pi}$. Since permutation similarity preserves eigenvalues, the spectral properties (number of zero eigenvalues, etc.) do not depend on node ordering.
 \end{remark}
 
 \begin{remark}
@@ -333,7 +333,7 @@ This theorem provides an algorithmic way to count connected components: compute 
 \end{remark}
 
 \begin{intuition}
-The proof reveals a beautiful connection: eigenvectors of $\bL$ are graph signals, and the zero-eigenvalue eigenvectors are precisely the signals that are ``perfectly smooth''---they don't vary across any edge. The only way to be perfectly smooth is to be constant within each connected piece of the graph.
+The proof reveals a beautiful connection: eigenvectors of $\bL$ are graph signals, and the zero-eigenvalue eigenvectors are precisely the signals that are ``perfectly smooth'' --- they do not vary across any edge. The only way to be perfectly smooth is to be constant within each connected piece of the graph.
 \end{intuition}
 
 \subsection{The kernel of the Laplacian}
@@ -361,18 +361,18 @@ Since the $\bone_{C_k}$ are linearly independent (they have disjoint support), t
 \end{proof}
 
 \begin{keyidea}
-\textbf{Comparing with general matrices:} For an arbitrary singular matrix $\bA$ (with $\det(\bA) = 0$), the kernel can be any subspace---there's no particular structure. But for the Laplacian:
+\textbf{Comparing with general matrices:} For an arbitrary singular matrix $\bA$ (with $\det(\bA) = 0$), the kernel can be any subspace --- there is no particular structure. But for the Laplacian:
 \begin{itemize}
     \item The kernel has dimension equal to the number of connected components
     \item A natural basis consists of indicator vectors for each component
-    \item Every vector in $\ker(\bL)$ is ``piecewise constant''---constant within each component
+    \item Every vector in $\ker(\bL)$ is ``piecewise constant'' --- constant within each component
 \end{itemize}
 
 This is a beautiful example of how \textbf{algebraic structure (the kernel) encodes topological structure (connectivity)}.
 \end{keyidea}
 
 \begin{example}
-For our 6-node graph with two communities (assuming it's connected via the bridge edge), $K = 1$ and:
+For our 6-node graph with two communities (assuming it is connected via the bridge edge), $K = 1$ and:
 \[
 \ker(\bL) = \mathrm{span}\{(1, 1, 1, 1, 1, 1)^\top\} = \{c \cdot \bone : c \in \R\}
 \]
@@ -386,7 +386,7 @@ Any vector in this kernel assigns one constant to Community A and another consta
 
 \subsection{Using eigenvectors to identify components}
 
-The eigenvalues tell us \textit{how many} connected components exist, but can we identify \textit{which nodes belong to which component}? Yes---the eigenvectors reveal this information!
+The eigenvalues tell us \textit{how many} connected components exist, but can we identify \textit{which nodes belong to which component}? Yes --- the eigenvectors reveal this information!
 
 \begin{keyidea}
 For a graph with $K$ connected components, compute the $K$ eigenvectors $\bv^{(1)}, \ldots, \bv^{(K)}$ corresponding to eigenvalue $0$. Then:
@@ -423,7 +423,7 @@ Nodes 4, 5, 6 share the same row $(0, 1)$ $\Rightarrow$ same component.
 \end{example}
 
 \begin{remark}
-The specific values in the eigenvectors depend on the node ordering and our choice of basis. For instance, if the nodes were numbered differently---say the first component was $\{1, 3, 5\}$ and the second was $\{2, 4, 6\}$---we might have:
+The specific values in the eigenvectors depend on the node ordering and our choice of basis. For instance, if the nodes were numbered differently --- say the first component was $\{1, 3, 5\}$ and the second was $\{2, 4, 6\}$ --- we might have:
 \[
 \bv^{(1)} = (1,0,1,0,1,0)^\top, \quad \bv^{(2)} = (0,1,0,1,0,1)^\top
 \]
@@ -445,10 +445,10 @@ The techniques above work beautifully for disconnected graphs: zero eigenvalues 
 In our running example, the two communities $\{1, 2, 3\}$ and $\{4, 5, 6\}$ are connected by the bridge edge $(2, 4)$. With this edge present:
 \begin{itemize}
     \item There is only \textbf{one} zero eigenvalue (the graph is connected)
-    \item The kernel is just $\ker(\bL) = \mathrm{span}\{\bone\}$---no cluster information!
+    \item The kernel is just $\ker(\bL) = \mathrm{span}\{\bone\}$ --- no cluster information!
 \end{itemize}
 
-Yet the community structure clearly exists. We need a different approach: instead of looking for \textit{exact} separations (disconnected components), we look for \textit{approximate} separations---places where the graph is ``almost'' disconnected, with only a few edges crossing between groups.
+Yet the community structure clearly exists. We need a different approach: instead of looking for \textit{exact} separations (disconnected components), we look for \textit{approximate} separations --- places where the graph is ``almost'' disconnected, with only a few edges crossing between groups.
 
 This leads us to the theory of \textbf{graph cuts} and \textbf{spectral clustering}, which we develop after introducing normalized Laplacians.
 \end{intuition}
@@ -550,7 +550,7 @@ The connection $\bL_{\text{rw}} = \bI - \bP$ links spectral methods to random wa
 \begin{center}
 \begin{tabular}{lccc}
 \toprule
-\textbf{Laplacian} & \textbf{Formula} & \textbf{Eigenvalues} & \textbf{Main Use} \\
+\textbf{Laplacian} & \textbf{Formula} & \textbf{Eigenvalues} & \textbf{Main use} \\
 \midrule
 Unnormalized $\bL$ & $\bD - \bA$ & $[0, \infty)$ & Graph cuts, basic theory \\
 Symmetric $\bL_{\text{sym}}$ & $\bI - \bD^{-1/2}\bA\bD^{-1/2}$ & $[0, 2]$ & Spectral clustering \\
@@ -574,7 +574,7 @@ Imagine you have a social network and want to find communities. Intuitively, a g
     \item Have \textbf{many edges within} each group (communities are cohesive)
 \end{itemize}
 
-The challenge: this is an NP-hard combinatorial problem! We can't try all possible partitions.
+The challenge: this is an NP-hard combinatorial problem! We cannot try all possible partitions.
 
 \textbf{The spectral method's key insight}: We can relax the discrete problem to a continuous one, solve it using linear algebra (eigenvalues), and then round back to a discrete solution.
 \end{intuition}
@@ -597,11 +597,11 @@ This is a good cut! But if $A = \{1\}$ and $\bar{A} = \{2,3,4,5,6\}$:
 \[
 \cut(A, \bar{A}) = 2 \quad \text{(edges (1,2) and (1,3))}
 \]
-This cut is also small, but it's a terrible partition---we just isolated one node!
+This cut is also small, but it is a terrible partition --- we just isolated one node!
 \end{example}
 
 \begin{keyidea}
-Minimizing the cut alone doesn't work: it tends to cut off tiny pieces of the graph. We need to also encourage \textbf{balanced} partitions.
+Minimizing the cut alone does not work: it tends to cut off tiny pieces of the graph. We need to also encourage \textbf{balanced} partitions.
 \end{keyidea}
 
 \begin{definition}[RatioCut and normalized cut]\label{graph-laplacians:def:balanced-cuts}
@@ -672,7 +672,7 @@ a_u = \begin{cases} +\sqrt{|\bar{A}|/|A|}  & \text{if } u \in A \\[4pt] -\sqrt{|
 
 Using the Laplacian quadratic form $\mathbf{a}^\top \bL \mathbf{a} = \sum_{(u,v) \in E} (a_u - a_v)^2$:
 \begin{itemize}
-    \item If $u, v$ are in the \textbf{same} cluster: $a_u = a_v$, so $(a_u - a_v)^2 = 0$. These edges don't contribute!
+    \item If $u, v$ are in the \textbf{same} cluster: $a_u = a_v$, so $(a_u - a_v)^2 = 0$. These edges do not contribute!
     \item If $u \in A, v \in \bar{A}$: these are cut edges, and they contribute.
 \end{itemize}
 
@@ -698,11 +698,11 @@ The constraint that $\mathbf{a}$ take only the two values of \eqref{graph-laplac
 
 \textbf{The spectral relaxation}: Drop this constraint! Allow $\mathbf{a}$ to be any real vector satisfying $\mathbf{a} \perp \bone$ and $\|\mathbf{a}\|^2 = n$.
 
-This relaxed problem has a beautiful closed-form solution via the Rayleigh-Ritz theorem:
+This relaxed problem has a beautiful closed-form solution via the Rayleigh--Ritz theorem:
 \[
-\min_{\substack{\mathbf{x} \perp \bone \\ \|\mathbf{x}\|^2 = n}} \mathbf{x}^\top \bL \mathbf{x} \quad \Longrightarrow \quad \mathbf{x}^* = \sqrt{n} \cdot \be_2
+\min_{\substack{\mathbf{x} \perp \bone \\ \|\mathbf{x}\|^2 = n}} \mathbf{x}^\top \bL \mathbf{x} \quad \Longrightarrow \quad \mathbf{x}^* = \sqrt{n} \cdot \be_{n-1}
 \]
-where $\be_2$ is the \textbf{Fiedler vector}---the eigenvector for the second-smallest eigenvalue of $\bL$.
+where $\be_{n-1}$ is the \textbf{Fiedler vector} --- the eigenvector for the second-smallest eigenvalue of $\bL$.
 \end{keyidea}
 
 \begin{intuition}
@@ -710,18 +710,18 @@ Why the \textit{second}-smallest eigenvector?
 \begin{itemize}
     \item The smallest eigenvalue is $\lambda_n = 0$ with eigenvector $\bone$ (the constant signal).
     \item But we required $\mathbf{x} \perp \bone$, which excludes this trivial solution.
-    \item So the minimum is achieved at the next eigenvector: $\be_2$ with eigenvalue $\lambda_{n-1}$.
+    \item So the minimum is achieved at the next eigenvector: $\be_{n-1}$ with eigenvalue $\lambda_{n-1}$.
 \end{itemize}
 \end{intuition}
 
 \subsection{From eigenvector to partition}
 
-The Fiedler vector $\be_2$ is a real-valued vector, not a partition. How do we get clusters?
+The Fiedler vector $\be_{n-1}$ is a real-valued vector, not a partition. How do we get clusters?
 
 \begin{keyidea}
-\textbf{Simple rounding}: Assign nodes to clusters based on the sign of $\be_2[u]$:
+\textbf{Simple rounding}: Assign nodes to clusters based on the sign of $\be_{n-1}[u]$:
 \[
-u \in A \text{ if } \be_2[u] \geq 0, \qquad u \in \bar{A} \text{ if } \be_2[u] < 0
+u \in A \text{ if } \be_{n-1}[u] \geq 0, \qquad u \in \bar{A} \text{ if } \be_{n-1}[u] < 0
 \]
 \end{keyidea}
 
@@ -729,7 +729,7 @@ u \in A \text{ if } \be_2[u] \geq 0, \qquad u \in \bar{A} \text{ if } \be_2[u] <
 For our 6-node graph, the eigenvalues of $\bL$ are $0$, $\frac{5 - \sqrt{17}}2\approx0.438$, $3$ (three times) and $\frac{5 + \sqrt{17}}2\approx4.562$, and the
 Fiedler vector, normalized, is
 \[
-\be_2\approx(0.465,\ 0.261,\ 0.465,\ -0.261,\ -0.465,\ -0.465)^\top
+\be_5\approx(0.465,\ 0.261,\ 0.465,\ -0.261,\ -0.465,\ -0.465)^\top
 \]
 (up to its sign). The bridge nodes $2$ and $4$ have the smallest magnitudes: they are the least
 committed to their side. The values are antisymmetric because the map $1\leftrightarrow5$, $2\leftrightarrow4$, $3\leftrightarrow6$ is a symmetry of the
@@ -744,7 +744,7 @@ The spectral method perfectly recovers the two communities!
 \subsection{The spectral clustering algorithm}
 
 \begin{keyidea}
-\textbf{Spectral Clustering Algorithm} (for $K$ clusters):
+\textbf{Spectral clustering algorithm} (for $K$ clusters):
 \begin{enumerate}
     \item Compute the Laplacian $\bL$ (or $\bL_{\text{sym}}$, $\bL_{\text{rw}}$)
     \item Find the $K$ eigenvectors $\be_n, \be_{n-1}, \ldots, \be_{n-K+1}$ for the $K$ smallest eigenvalues
@@ -757,7 +757,7 @@ The spectral method perfectly recovers the two communities!
 \begin{intuition}
 Why does this work for $K > 2$ clusters?
 \begin{itemize}
-    \item The first eigenvector ($\lambda = 0$) is constant---no cluster information
+    \item The first eigenvector ($\lambda = 0$) is constant --- no cluster information
     \item The second eigenvector optimally splits the graph into 2 parts
     \item The third eigenvector provides the next best ``direction'' of separation
     \item Together, $K$ eigenvectors embed nodes so that cluster structure becomes apparent in Euclidean space
@@ -768,7 +768,7 @@ Nodes in the same cluster end up with similar eigenvector coordinates, so $K$-me
 
 \subsection{The big picture: from disconnected to connected}
 
-Now that we've developed the theory of spectral clustering, let's step back and see how everything fits together. The key insight is that \textbf{disconnected components} and \textbf{soft clusters} are two ends of a spectrum.
+Now that we have developed the theory of spectral clustering, let us step back and see how everything fits together. The key insight is that \textbf{disconnected components} and \textbf{soft clusters} are two ends of a spectrum.
 
 \begin{keyidea}
 The eigenvalues of the Laplacian measure how ``separable'' the graph is:
@@ -779,7 +779,7 @@ The eigenvalues of the Laplacian measure how ``separable'' the graph is:
 \textbf{Eigenvalue} & \textbf{What it reveals} \\
 \midrule
 $\lambda_n = 0$ & Graph is connected (multiplicity $>1$ means disconnected) \\
-$\lambda_{n-1}$ small & Graph is ``almost'' disconnected---good 2-way cut exists \\
+$\lambda_{n-1}$ small & Graph is ``almost'' disconnected --- good 2-way cut exists \\
 $\lambda_{n-2}$ small & Good 3-way partition exists \\
 \vdots & \vdots \\
 \bottomrule
@@ -802,9 +802,9 @@ Cluster identification is trivial: nodes with the same values are in the same co
 \[
 \be_5 \approx (0.465, 0.261, 0.465, -0.261, -0.465, -0.465)^\top
 \]
-The values aren't exactly equal within each community, but they're close---and crucially, they have opposite signs across the cut. Thresholding at zero recovers the communities.
+The values are not exactly equal within each community, but they are close --- and crucially, they have opposite signs across the cut. Thresholding at zero recovers the communities.
 
-\textbf{Many bridges added}: As we add more edges between communities, $\lambda_5$ grows larger. The Fiedler vector becomes less ``clean''---the communities are harder to separate because they're more interconnected.
+\textbf{Many bridges added}: As we add more edges between communities, $\lambda_5$ grows larger. The Fiedler vector becomes less ``clean'' --- the communities are harder to separate because they are more interconnected.
 \end{intuition}
 
 \begin{definition}[Algebraic connectivity]\label{graph-laplacians:def:algebraic-connectivity}
@@ -817,7 +817,7 @@ The second-smallest eigenvalue $\lambda_{n-1}$ of the Laplacian is called the \t
 \end{definition}
 
 \begin{remark}
-This explains why spectral clustering works: we're looking for structure that is ``almost disconnected.'' The smallest non-zero eigenvalues correspond to the weakest connections in the graph, and their eigenvectors reveal where to cut. Spectral clustering is really just a continuous relaxation of the problem of finding disconnected components!
+This explains why spectral clustering works: we are looking for structure that is ``almost disconnected.'' The smallest non-zero eigenvalues correspond to the weakest connections in the graph, and their eigenvectors reveal where to cut. Spectral clustering is really just a continuous relaxation of the problem of finding disconnected components!
 \end{remark}
 
 %=============================================================================
@@ -844,7 +844,7 @@ The eigenvalues $\lambda_k$ act like ``frequencies'':
 \end{itemize}
 This follows directly from the quadratic form: $\be_k^\top \bL \be_k = \lambda_k$ measures how much $\be_k$ varies across edges.
 
-The eigenvector $\be_n$ with $\lambda_n = 0$ is the constant signal $\bone$---the smoothest possible signal with zero variation. The eigenvector $\be_1$ with the largest eigenvalue is the ``most oscillatory'' signal on the graph.
+The eigenvector $\be_n$ with $\lambda_n = 0$ is the constant signal $\bone$ --- the smoothest possible signal with zero variation. The eigenvector $\be_1$ with the largest eigenvalue is the ``most oscillatory'' signal on the graph.
 \end{intuition}
 
 \subsection{Frequencies as eigenvalues of a Laplacian}\label{graph-laplacians:sec:frequencies}
@@ -917,7 +917,7 @@ The objective encourages connected nodes to have nearby embeddings. The constrai
 
 \subsection{Connection to random walk methods}
 
-Methods like DeepWalk and Node2Vec use random walks to generate node embeddings. These are deeply connected to the Laplacian:
+Methods like DeepWalk and node2vec use random walks to generate node embeddings. These are deeply connected to the Laplacian:
 
 \begin{keyidea}
 With window size $T$ and $b$ negative samples, DeepWalk with negative sampling implicitly factorizes
@@ -939,8 +939,8 @@ method (\cref{ch:shallow-embeddings}).
         components.
   \item $\bL_{\text{sym}} = \bI - \bD^{-1/2}\bA\bD^{-1/2}$ and $\bL_{\text{rw}} = \bI - \bD^{-1}\bA$ are similar, with eigenvalues in $[0, 2]$; $\bL_{\text{rw}}$ is tied to random walks.
   \item RatioCut equals $\frac1n\mathbf a^\top\bL\mathbf a$ for a two-valued vector; relaxing the two values gives the Fiedler vector, the
-        eigenvector of the second-smallest eigenvalue, and spectral clustering runs $K$-means on the first
-        $K$ eigenvectors.
+        eigenvector of the second-smallest eigenvalue, and spectral clustering runs $K$-means on the
+        $K$ eigenvectors with the smallest eigenvalues.
   \item The eigenvectors of $\bL$ are the graph Fourier basis, with eigenvalues as frequencies; Laplacian
         regularization $(\bI + \alpha\bL)^{-1}\by$ is a low-pass filter.
   \item Laplacian eigenmaps embed nodes with generalized eigenvectors $\bL\bv = \lambda\bD\bv$; random-walk embeddings factorize a
@@ -974,7 +974,7 @@ for bipartite components.)
 
 \textbf{Part 2: From quadratic form bounds to eigenvalue bounds.}
 
-For any symmetric matrix $\bM$, the Rayleigh-Ritz theorem (Theorem~\ref{graph-laplacians:thm:rayleigh-ritz}) states:
+For any symmetric matrix $\bM$, the Rayleigh--Ritz theorem (Theorem~\ref{graph-laplacians:thm:rayleigh-ritz}) states:
 \[
 \lambda_{\min}(\bM) = \min_{\|\bx\| = 1} \bx^\top \bM \bx, \qquad \lambda_{\max}(\bM) = \max_{\|\bx\| = 1} \bx^\top \bM \bx
 \]
@@ -987,9 +987,9 @@ Since we proved $0 \leq \bx^\top \bL_{\text{sym}} \bx \leq 2$ for all unit vecto
 Therefore all eigenvalues lie in $[0, 2]$.
 \end{proof}
 
-\subsection{Rayleigh-Ritz theorem}
+\subsection{Rayleigh--Ritz theorem}
 
-\begin{theorem}[Rayleigh-Ritz]\label{graph-laplacians:thm:rayleigh-ritz}
+\begin{theorem}[Rayleigh--Ritz]\label{graph-laplacians:thm:rayleigh-ritz}
 Let $\bM$ be a symmetric matrix with eigenvalues $\lambda_1 \geq \lambda_2 \geq \cdots \geq \lambda_n$ and corresponding orthonormal eigenvectors $\be_1, \ldots, \be_n$. Then:
 \begin{equation}
 \min_{\bx \neq \mathbf{0}} \frac{\bx^\top \bM \bx}{\bx^\top \bx} = \lambda_n
@@ -1003,6 +1003,7 @@ More generally:
 \end{theorem}
 
 \section*{Further reading}
+\addcontentsline{toc}{section}{Further reading}
 Hamilton, \emph{Graph Representation Learning}, 2020, Chapters 1--2; von Luxburg, \emph{A Tutorial on
 Spectral Clustering}, 2007; Chung, \emph{Spectral Graph Theory}, 1997; Ortega et al., \emph{Graph Signal
 Processing: Overview, Challenges, and Applications}, 2018.
