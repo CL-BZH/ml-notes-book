@@ -23,7 +23,7 @@ notebooks. They are organised here as a single LaTeX book (11 parts,
 6. Lipschitz Continuity
 7. Measuring Performance
 
-**Part II — Probability and Statistics**
+**Part II — Estimation, Inference and Sampling**
 
 8. Estimators and Sampling Distributions
 9. Limit Theorems and Statistical Inference
