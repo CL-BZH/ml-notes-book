@@ -90,7 +90,11 @@
 \include{chapters/11-graph-ml/08-graph-autoencoders}
 
 \appendix
-\part*{Appendix}\addcontentsline{toc}{part}{Appendix}
+% the contents line goes before \part*, which ends its page: placed after it,
+% the line is written after the entries of the first appendix chapter
+\clearpage\phantomsection
+\addcontentsline{toc}{part}{Appendix}
+\part*{Appendix}
 \include{chapters/99-appendix/01-darboux-theorem}
 \include{chapters/99-appendix/02-flat-circle}
 \include{backmatter/solutions}
