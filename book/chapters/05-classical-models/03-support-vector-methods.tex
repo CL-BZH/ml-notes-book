@@ -186,8 +186,8 @@ decision regions.
 \end{proposition}
 
 \begin{proof}
-Under $\sum\alpha_i = 1$, the first term of the SVDD dual is the constant $\kappa$, so maximizing it
-is minimizing $\sum_{i,j}\alpha_i\alpha_jk(x_i, x_j)$ under the same constraints as the one-class SVM. The SVDD
+Under $\sum\alpha_i = 1$, the first term of the SVDD dual is the constant $\kappa$, so maximizing the
+dual objective is minimizing $\sum_{i,j}\alpha_i\alpha_jk(x_i, x_j)$ under the same constraints as the one-class SVM. The SVDD
 accepts $x$ iff $\kappa - 2\sum_i\alpha_ik(x_i, x) + c\leq R^2$, i.e.\ iff $\sum_i\alpha_ik(x_i, x)\geq(\kappa + c - R^2)/2$, a threshold
 on the same function as the one-class SVM; evaluating both at a margin support vector
 shows that the thresholds agree.

@@ -1,5 +1,5 @@
 \begin{notechapter}
-\chapter{Output Distributions and their Losses}\label{ch:output-distributions}
+\chapter{Output Distributions and Their Losses}\label{ch:output-distributions}
 \chaptersubtitle{Choose a distribution, read off the loss}
 
 \begin{chapterintro}
@@ -159,7 +159,7 @@ Differentiate $A(\eta) = \log Z(\eta)$, $Z(\eta) = \int h(y)e^{\eta^\top T(y)}\,
 \[
   \nabla^2A = \frac{\nabla^2Z}Z - \frac{\nabla Z\,\nabla Z^\top}{Z^2} = \E_\eta[T(Y)T(Y)^\top] - \E_\eta[T(Y)]\,\E_\eta[T(Y)]^\top = \Cov_\eta(T(Y)).
 \]
-A covariance matrix is positive semidefinite.
+A covariance matrix is positive semi-definite.
 \end{proof}
 
 When the output unit is chosen so that the network output \emph{is} the natural

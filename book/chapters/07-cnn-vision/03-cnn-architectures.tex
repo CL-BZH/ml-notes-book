@@ -40,7 +40,7 @@ convolutions and pooling that shrink the image while increasing the channels, th
 connected layers, is the template of all classic CNNs.
 
 \paragraph{AlexNet} (Krizhevsky, Sutskever and Hinton, \emph{ImageNet Classification with
-Deep Convolutional Neural Networks}, NIPS, 2012) won ILSVRC 2012 with a top-5 error of
+Deep Convolutional Neural Networks}, NeurIPS, 2012) won ILSVRC 2012 with a top-5 error of
 $15.3\%$, against $26.2\%$ for the second entry. It has five convolutional layers (the first with $11\times11$
 kernels and stride $4$) and three fully connected layers, about $61$ million parameters, of which
 $58$ million are in the fully connected layers. Its ingredients, all now standard, were: ReLU
@@ -238,7 +238,7 @@ Parameter counts are those of the \texttt{torchvision} implementations.
   \item Classic CNNs alternate convolutions and downsampling, increasing channels as the
         resolution decreases, and end with a classifier.
   \item AlexNet (2012) brought ReLU, dropout, augmentation and GPUs; VGG showed that stacks
-        of $3\times3$ kernels give large receptive fields with fewer weights ($18C^2$ vs $25C^2$ for a $5\times5$).
+        of $3\times3$ kernels give large receptive fields with fewer weights ($18C^2$ vs.\ $25C^2$ for a $5\times5$).
   \item Inception modules process several scales in parallel; $1\times1$ bottlenecks cut their cost
         about tenfold; global average pooling removed the huge fully connected layers.
   \item Residual blocks $y = x + F(x)$ make the identity easy to represent; the gradient reaches early

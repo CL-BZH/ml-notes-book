@@ -168,7 +168,7 @@ scores of the wrong sign are strictly worse than the best score, at every $\eta\
 
 \begin{theorem}[Bartlett, Jordan and McAuliffe, 2006]\label{surrogate-losses:thm:bjm}
 A convex margin loss $\phi$ is classification-calibrated if and only if it is
-differentiable at $0$ with $\phi'(0)<0$. If $\phi$ is calibrated, there is a nondecreasing
+differentiable at $0$ with $\phi'(0)<0$. If $\phi$ is calibrated, there is a non-decreasing
 function $\psi$ with $\psi(0) = 0$ and $\psi(\theta)>0$ for $\theta>0$ such that for every measurable $f$,
 \[
   \psi\bigl(\Risk(\sign f) - R^*\bigr)\leq\Risk_\phi(f) - \Risk^*_\phi .
@@ -256,7 +256,7 @@ probabilities match observed frequencies --- among predictions of $0.8$, are $80
 correct? --- is measured on held-out data, for instance by the \emph{expected
 calibration error} (Naeini et al., 2015), the average gap between confidence and accuracy
 over bins of confidence. A simple fix is \emph{temperature scaling} (Guo, Pleiss, Sun and
-Weinberger, \emph{On Calibration of Modern Neural Networks}, ICML 2017): divide all
+Weinberger, \emph{On Calibration of Modern Neural Networks}, ICML, 2017): divide all
 logits by one scalar $T>0$ fitted by minimizing the cross-entropy on a validation set.
 It changes the probabilities but not their ranking, hence not the predicted class.
 
@@ -288,7 +288,7 @@ decision threshold, which is the cost-sensitive Bayes classifier of
 \cref{bayes-decision-theory:thm:costs} with costs proportional to the weights. The output is no
 longer an estimate of $\eta$, but it can be corrected by inverting the formula.
 
-\paragraph{Focal loss.} The focal loss (Lin, Goyal, Girshick, He and Doll\'ar, \emph{Focal Loss for Dense Object Detection}, ICCV 2017) multiplies the cross-entropy of
+\paragraph{Focal loss.} The focal loss (Lin, Goyal, Girshick, He and Doll\'ar, \emph{Focal Loss for Dense Object Detection}, ICCV, 2017) multiplies the cross-entropy of
 the true class by $(1 - p_y)^\gamma$, $\gamma\geq0$, to reduce the weight of examples that are already
 well classified. It is not proper for $\gamma>0$. In the binary case, minimizing
 $-\eta(1 - q)^\gamma\log q - (1 - \eta)q^\gamma\log(1 - q)$ numerically for $\eta = 0.9$ gives $q^* = 0.774$ for $\gamma = 1$,
@@ -309,7 +309,7 @@ sigmoid output,
 \[
   \nabla_\theta\ERisk(f_\theta) = \frac1n\sum_{i=1}^n\bigl(\sigma(f_\theta(x_i)) - y_i\bigr)\nabla_\theta f_\theta(x_i)\qquad(y_i\in\{0,1\}).
 \]
-A minibatch of $b$ examples drawn uniformly gives an unbiased estimate of this
+A mini-batch of $b$ examples drawn uniformly gives an unbiased estimate of this
 average, with variance of order $1/b$ (\cref{monte-carlo:sec:plain}); stochastic gradient
 descent relies on exactly this. The 0--1 loss gives a gradient of zero, whatever the
 batch.

@@ -15,7 +15,7 @@ products, which kernels can replace. You will learn
         hinge-loss minimization;
   \item the Lagrangian dual, the KKT conditions, and the three kinds of training
         points they distinguish;
-  \item kernels: the Gram matrix, positive semidefiniteness, the usual kernels, and
+  \item kernels: the Gram matrix, positive semi-definiteness, the usual kernels, and
         conditionally positive definite kernels;
   \item what the margin says about generalization, and how to handle several
         classes.
@@ -157,7 +157,7 @@ primal solution is $w = \sum_i\alpha_iy_ix_i$. The hard-margin dual is the same 
 
 In matrix form, with $Q_{ij} = y_iy_jx_i^\top x_j$, i.e.\ $Q = \diag(y)\,XX^\top\diag(y)$ for the data matrix $X$ with
 rows $x_i^\top$, the objective is $\bbone^\top\alpha - \frac12\alpha^\top Q\alpha$. Since $Q$ is a Gram matrix up to signs, it is
-positive semidefinite and the dual is a concave maximization.
+positive semi-definite and the dual is a concave maximization.
 
 \paragraph{The KKT conditions.} At the optimum, complementary slackness gives
 $\alpha_i\bigl(y_if(x_i) - 1 + \xi_i\bigr) = 0$ and $\mu_i\xi_i = (C - \alpha_i)\xi_i = 0$. Together they sort the training points:
@@ -197,21 +197,21 @@ function is $f(x) = \sum_i\alpha_iy_i\,x_i^\top x + b$. If the inputs are first 
 $\varphi$, everything still depends only on inner products $\varphi(x)^\top\varphi(x')$. A \emph{kernel} computes
 them directly.
 
-\begin{definition}[Positive semidefinite kernel]
-A symmetric function $k:\Xs\times\Xs\to\R$ is a \emph{positive semidefinite kernel} if, for every $n$ and all
-$x_1,\dots,x_n\in\Xs$, the \emph{Gram matrix} $K_{ij} = k(x_i, x_j)$ is positive semidefinite:
+\begin{definition}[Positive semi-definite kernel]
+A symmetric function $k:\Xs\times\Xs\to\R$ is a \emph{positive semi-definite kernel} if, for every $n$ and all
+$x_1,\dots,x_n\in\Xs$, the \emph{Gram matrix} $K_{ij} = k(x_i, x_j)$ is positive semi-definite:
 $c^\top Kc = \sum_{i,j}c_ic_jk(x_i, x_j)\geq0$ for all $c\in\R^n$.
 \end{definition}
 
 If $k(x, x') = \inner{\varphi(x)}{\varphi(x')}$ for some map $\varphi$ into an inner-product space, then $k$ is positive
-semidefinite, since $c^\top Kc = \norm{\sum_ic_i\varphi(x_i)}^2\geq0$. Conversely, every positive semidefinite
+semi-definite, since $c^\top Kc = \norm{\sum_ic_i\varphi(x_i)}^2\geq0$. Conversely, every positive semi-definite
 kernel is of this form, with $\varphi$ mapping into a Hilbert space of functions, its
 \emph{reproducing kernel Hilbert space} (\cref{ch:rkhs}). Replacing $x_i^\top x_j$ by $k(x_i, x_j)$ in the
 dual gives the kernel SVM, with decision function
 \[
   f(x) = \sum_{i\in\mathrm{SV}}\alpha_iy_i\,k(x_i, x) + b,
 \]
-linear in the feature space, nonlinear in $x$. Positive semidefiniteness is exactly what
+linear in the feature space, nonlinear in $x$. Positive semi-definiteness is exactly what
 keeps the dual concave.
 
 \begin{example}[The quadratic kernel, written out]\label{svm:ex:poly}
@@ -240,8 +240,8 @@ Laplacian & $\exp(-\gamma\norm{x - z})$ & infinite-dimensional \\
 \bottomrule
 \end{tabular}
 \end{center}
-Sums, products, positive multiples and limits of positive semidefinite kernels are
-positive semidefinite (\cref{svm:exr:3}). For the Gaussian kernel, $\gamma$ sets the scale: the
+Sums, products, positive multiples and limits of positive semi-definite kernels are
+positive semi-definite (\cref{svm:exr:3}). For the Gaussian kernel, $\gamma$ sets the scale: the
 decision function is a sum of bumps of width about $1/\sqrt\gamma$ around the support vectors,
 and a very large $\gamma$ memorizes the training set.
 
@@ -256,9 +256,9 @@ degree less than $m$.
 \end{definition}
 
 For $m = 0$ there is no condition (the only polynomial of degree less than $0$ is the zero
-polynomial), and CPD of order $0$ is positive semidefinite. For $m = 1$ the condition is
+polynomial), and CPD of order $0$ is positive semi-definite. For $m = 1$ the condition is
 $\sum_ic_i = 0$, the one the SVM dual provides; CPD kernels of order $1$ can therefore be used in an
-SVM with a bias term (Schölkopf, \emph{The Kernel Trick for Distances}, NIPS 2000). Examples:
+SVM with a bias term (Schölkopf, \emph{The Kernel Trick for Distances}, NeurIPS, 2000). Examples:
 $-\norm{x - z}^\beta$ for $0<\beta\leq2$ and the negative multiquadric $-\sqrt{\norm{x - z}^2 + c^2}$ are CPD of order $1$;
 the thin-plate spline $\norm{x - z}^2\log\norm{x - z}$ is CPD of order $2$ in $\R^2$. Order $2$ requires the
 coefficients to annihilate affine functions as well, which the SVM dual does not
@@ -307,7 +307,7 @@ An SVM separates two classes. For $K$ classes, the usual reductions are:
   \item The dual maximizes $\sum\alpha_i - \frac12\sum\alpha_i\alpha_jy_iy_jx_i^\top x_j$ under $0\leq\alpha_i\leq C$, $\sum\alpha_iy_i = 0$; $w = \sum\alpha_iy_ix_i$. KKT
         conditions sort the points into non-support vectors ($\alpha = 0$), margin support
         vectors ($0<\alpha<C$, which give $b$) and bound support vectors ($\alpha = C$).
-  \item Kernels replace inner products; positive semidefiniteness keeps the dual
+  \item Kernels replace inner products; positive semi-definiteness keeps the dual
         concave, and thanks to $\sum\alpha_iy_i = 0$ conditionally positive definite kernels of order
         $1$ work too.
   \item The margin bounds the capacity by $R^2/\Delta^2$ independently of the dimension; scale the
@@ -330,17 +330,17 @@ $x_2 = (-1, 0)$ with $y_2 = -1$. Solve it and recover $w$, $b$ and the margin.
 \end{exercise}
 
 \begin{exercise}\label{svm:exr:3}
-Show that if $k_1$ and $k_2$ are positive semidefinite kernels, so are $k_1 + k_2$, $ck_1$ for $c\geq0$,
+Show that if $k_1$ and $k_2$ are positive semi-definite kernels, so are $k_1 + k_2$, $ck_1$ for $c\geq0$,
 and $k_1k_2$.
-\hint{For the product, use that the Hadamard product of two positive semidefinite
-matrices is positive semidefinite (Schur), or write it as a kernel of the tensor
+\hint{For the product, use that the Hadamard product of two positive semi-definite
+matrices is positive semi-definite (Schur), or write it as a kernel of the tensor
 product of the feature maps.}
 \solutionlink{svm:exr:3}
 \end{exercise}
 
 \begin{exercise}\label{svm:exr:4}
 Show that $k(x, z) = -\norm{x - z}^2$ is conditionally positive definite of order $1$ on $\R^d$, but not
-positive semidefinite.
+positive semi-definite.
 \hint{Expand $\norm{x_i - x_j}^2$ and use $\sum_ic_i = 0$.}
 \solutionlink{svm:exr:4}
 \end{exercise}

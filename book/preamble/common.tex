@@ -19,11 +19,15 @@
 % ---------- chapter wrapper ----------------------------------------------
 \newenvironment{notechapter}{\begingroup}{\endgroup}
 
-% Appendix inside a chapter (replaces \appendix of the original notes)
+% Appendix inside a chapter
 \newcommand{\chapterappendix}{%
   \par\setcounter{section}{0}%
   \renewcommand{\thesection}{\thechapter.\Alph{section}}%
-  \renewcommand{\theHsection}{\thechapter.appendix.\Alph{section}}}
+  \renewcommand{\theHsection}{\thechapter.appendix.\Alph{section}}%
+  % \cref prints "Appendix 12.A" for the sections of a chapter appendix
+  \crefalias{section}{appendix}%
+  \crefalias{subsection}{subappendix}%
+  \crefalias{subsubsection}{subsubappendix}}
 
 % Abstract (the book class has none)
 \newenvironment{abstract}%

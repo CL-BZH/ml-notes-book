@@ -36,7 +36,7 @@ where the sum defining $Z(x)$, the \emph{partition function}, runs over all $K^T
 
 The model is softmax regression (\cref{ch:bigram-models}) over the $K^T$ sequences, with a score that
 decomposes into terms involving two neighbouring tags. Each term may depend on the
-\emph{whole} input $x$ and on the position $t$. Two parameterizations are common.
+\emph{whole} input $x$ and on the position $t$. Two parametrizations are common.
 \begin{itemize}
   \item \emph{Feature weights} (Lafferty, McCallum and Pereira, \emph{Conditional Random Fields:
         Probabilistic Models for Segmenting and Labeling Sequence Data}, 2001):
@@ -109,7 +109,7 @@ which is why the partition function is over sequences and not over single tags.
 \section{Training: observed minus expected features}\label{crf:sec:training}
 
 The conditional log-likelihood of a training pair $(x, y)$ is $\log p(y\mid x) = S(x, y) - \log Z(x)$. For the
-feature-weight parameterization, $S(x, y) = \theta^\top F(x, y)$ with the global feature vector $F(x, y) = \sum_tf(y_{t-1}, y_t, x, t)$.
+feature-weight parametrization, $S(x, y) = \theta^\top F(x, y)$ with the global feature vector $F(x, y) = \sum_tf(y_{t-1}, y_t, x, t)$.
 
 \begin{proposition}[Gradient of the log-likelihood]\label{crf:prop:gradient}
 \begin{align*}

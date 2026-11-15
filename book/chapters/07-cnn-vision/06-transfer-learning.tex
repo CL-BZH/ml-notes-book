@@ -3,7 +3,7 @@
 \chaptersubtitle{Reusing pretrained networks: preprocessing, feature extraction and fine-tuning}
 
 \begin{chapterintro}
-Training a large CNN from scratch needs a large labelled data set. Most applications do
+Training a large CNN from scratch needs a large labelled dataset. Most applications do
 not have one, but they can start from a network pretrained on ImageNet: its features are
 useful far beyond the classes it was trained on. This chapter explains why features
 transfer, how to prepare inputs exactly as the pretrained network expects, and the two
@@ -49,11 +49,11 @@ Compute $\mu_c$ and $\sigma_c$ on the training set only, and apply the same valu
 test data: recomputing them on test data, or on all the data, leaks information about the
 evaluation set into the model (\cref{ch:measuring-performance}). With a \emph{pretrained}
 network, use the statistics it was trained with (and its resizing and cropping), not those of
-your data set: its first layer expects exactly that input distribution.
+your dataset: its first layer expects exactly that input distribution.
 \end{pitfall}
 
 \paragraph{Computing the statistics correctly.} The standard deviation of a channel over the
-data set is \emph{not} the average of the per-image standard deviations. By the law of total
+dataset is \emph{not} the average of the per-image standard deviations. By the law of total
 variance, the variance over all pixels is the average within-image variance \emph{plus} the
 variance of the image means: averaging per-image standard deviations underestimates it.
 Accumulate sums and sums of squares instead:
@@ -77,7 +77,7 @@ def channel_mean_std(dataset, batch_size=256):
 \end{lstlisting}
 
 On $50$ random images of varying contrast, this gives $\sigma\approx0.220$ per channel, the exact value,
-while the average of per-image standard deviations gives $0.171$. (For very large data sets in
+while the average of per-image standard deviations gives $0.171$. (For very large datasets in
 low precision, accumulate in double precision or use Welford's algorithm.)
 
 \begin{lstlisting}[language=Python]
@@ -110,7 +110,7 @@ The last layers are \emph{specific} to the training task. Yosinski, Clune, Bengi
 Transferable Are Features in Deep Neural Networks?}, NeurIPS, 2014) measured this by
 transferring the first $n$ layers between networks trained on two halves of ImageNet:
 transfer degrades as $n$ grows and as the tasks become more different, and initializing with
-transferred features and fine-tuning helped even when the new data set was large.
+transferred features and fine-tuning helped even when the new dataset was large.
 The penultimate features of an ImageNet network are, in practice, strong generic image
 descriptors: a linear classifier on them is a hard baseline for many vision tasks (Razavian,
 Azizpour, Sullivan and Carlsson, \emph{CNN Features Off-the-Shelf}, CVPR Workshops, 2014).
@@ -181,8 +181,8 @@ opt = torch.optim.AdamW([
 \end{lstlisting}
 
 \paragraph{Which layers.} The less data, and the closer the new task to ImageNet, the fewer
-layers should be trained. Typical choices: only the head (linear probing) for very small data
-sets; the last stage and the head for small ones; everything for large ones. Above, $8.4$ of the
+layers should be trained. Typical choices: only the head (linear probing) for very small
+datasets; the last stage and the head for small ones; everything for large ones. Above, $8.4$ of the
 $11.2$ million parameters are trainable.
 
 \paragraph{Learning rates.} Pretrained layers need small steps, or the first updates, driven
@@ -208,8 +208,8 @@ entirely.
 \toprule
 & similar task to the source & different task \\
 \midrule
-small data set & feature extraction, linear head & features of earlier layers; careful fine-tuning \\
-large data set & fine-tune everything & fine-tune everything, or train from scratch \\
+small dataset & feature extraction, linear head & features of earlier layers; careful fine-tuning \\
+large dataset & fine-tune everything & fine-tune everything, or train from scratch \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -219,7 +219,7 @@ photographs (medical scans, satellite multispectral images, spectrograms), the g
 early features still help, but the higher ones less, and \emph{negative transfer}, where
 pretraining hurts, is possible. Inputs with a different number of channels need an adapted
 first layer (e.g.\ averaging the RGB filters for grey-level images). The same pattern of
-pretraining on a large generic data set and adapting to a small specific one is the basis of
+pretraining on a large generic dataset and adapting to a small specific one is the basis of
 language models, with BERT and its successors in place of ImageNet CNNs
 (\cref{part:language}).
 

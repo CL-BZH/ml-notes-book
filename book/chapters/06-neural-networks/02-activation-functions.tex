@@ -61,14 +61,14 @@ $\bbone[z>0]$: it does not saturate for $z>0$, and its exact zeros make activati
 popularized by Nair and Hinton (\emph{Rectified Linear Units Improve Restricted Boltzmann
 Machines}, ICML, 2010) and Glorot, Bordes and Bengio (\emph{Deep Sparse Rectifier Neural
 Networks}, AISTATS, 2011). For $z<0$ the derivative is $0$, which can kill units
-(\cref{activation-functions:sec:dead}). Variants keep a nonzero slope there:
+(\cref{activation-functions:sec:dead}). Variants keep a non-zero slope there:
 \begin{itemize}[nosep]
   \item \emph{leaky ReLU} $\max(\alpha z, z)$ with a small fixed $\alpha$, e.g.\ $0.01$ (Maas, Hannun and Ng,
         \emph{Rectifier Nonlinearities Improve Neural Network Acoustic Models}, ICML Workshop, 2013);
         with a learned $\alpha$ it is the \emph{PReLU} of He, Zhang, Ren and Sun (2015, below);
   \item \emph{ELU} $z$ for $z>0$ and $\alpha(e^z - 1)$ for $z\leq0$, smooth for $\alpha = 1$ and with negative outputs
         bounded below by $-\alpha$ (Clevert, Unterthiner and Hochreiter, ICLR, 2016);
-  \item \emph{softplus} $\log(1 + e^z)$, a smooth ReLU: its derivative is $\sigma(z)$ and
+  \item \emph{softplus} $\log(1 + e^z)$, a smooth ReLU with derivative $\sigma(z)$; it satisfies
         $0<\mathrm{softplus}(z) - \mathrm{ReLU}(z)\leq\log2$.
 \end{itemize}
 
@@ -183,7 +183,7 @@ The gradient for the incoming weights $w_j$ of unit $j$ of layer $l$ is, for one
 the activation vector of the previous layer multiplied by a scalar.
 
 \begin{proposition}\label{activation-functions:prop:orthant}
-If the activations $a^{(l-1)}$ are all positive (sigmoid outputs, or the nonzero ReLU outputs),
+If the activations $a^{(l-1)}$ are all positive (sigmoid outputs, or the non-zero ReLU outputs),
 the coordinates of $\nabla_{w_j}\ell$ for a single example all have the sign of $\delta_j$. A gradient step on
 this example then increases all the weights of $w_j$, or decreases all of them.
 \end{proposition}
@@ -239,7 +239,7 @@ the pitfall of \cref{backpropagation:sec:pitfalls} shows its effect on one gradi
 
 Units die after a large step pushes $b_j$ very negative, or $w_j$ in a direction where all inputs
 give negative values; high learning rates make this frequent. Leaky ReLU, ELU, GELU and SiLU
-have nonzero derivatives for $z<0$ and cannot die in this sense.
+have non-zero derivatives for $z<0$ and cannot die in this sense.
 
 \section{Initialization}\label{activation-functions:sec:init}
 
@@ -297,7 +297,7 @@ scale still decays slowly, because $\abs{\tanh z}<\abs z$ shrinks every layer a 
   \item Any continuous non-polynomial activation is expressive enough; what matters is $\phi'$, which
         multiplies the backward signal at every layer.
   \item Sigmoid ($\sigma'\leq\frac14$) and tanh saturate; ReLU has derivative $0$ or $1$; leaky ReLU, ELU, softplus,
-        GELU and SiLU keep a nonzero derivative for $z<0$.
+        GELU and SiLU keep a non-zero derivative for $z<0$.
   \item $\delta^{(l)}$ is a product of $L - l$ factors $D^{(k)}W^{(k+1)\top}$: it vanishes or explodes geometrically unless the
         factors are near $1$. Clipping treats explosion only.
   \item Positive activations restrict single-example updates of a unit's weights to an orthant;

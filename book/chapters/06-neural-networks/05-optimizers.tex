@@ -32,7 +32,7 @@ second-order Taylor expansion
 $H$ is symmetric; its eigenvalues are the curvatures along its eigenvectors. At a
 \emph{critical point} ($\nabla\ell(\theta) = 0$): if $H$ is positive definite, $\theta$ is a strict local minimum; if
 negative definite, a strict local maximum; if $H$ has eigenvalues of both signs, a saddle
-point; if $H$ is only semidefinite, the second order does not decide. Away from a critical
+point; if $H$ is only semi-definite, the second order does not decide. Away from a critical
 point the Hessian says nothing of this kind: the gradient term dominates. In large
 networks, critical points with many negative eigenvalues (saddles) are far more common than
 local maxima, and the Hessian at the end of training typically has a few large
@@ -255,7 +255,7 @@ choices, with initial rate $\eta_0$ and $T$ total steps:
         it periodically);
   \item \textbf{linear warm-up} $\eta_t = \eta_0t/T_w$ for $t\leq T_w$, then another schedule: large rates are unstable in the
         first steps, when the weights and Adam's statistics are far from typical values (Goyal
-        et al., \emph{Accurate, Large Minibatch SGD: Training ImageNet in 1 Hour}, 2017);
+        et al., \emph{Accurate, Large Mini-batch SGD: Training ImageNet in 1 Hour}, 2017);
   \item \textbf{one-cycle}: increase from a small rate to a large one, then decrease below the
         start, over a single cycle (Smith and Topin, \emph{Super-Convergence}, 2019).
 \end{itemize}

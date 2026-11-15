@@ -54,7 +54,7 @@ holds for Gaussian processes, whose distribution is determined by $\mu$ and $\ga
 ``stationary'' means weakly stationary.
 
 \begin{proposition}[Properties of the autocovariance]\label{linear-time-series:prop:acf}
-For a stationary process: $\gamma(-k) = \gamma(k)$; $\abs{\rho(k)}\leq1$; and $\gamma$ is \emph{nonnegative definite}:
+For a stationary process: $\gamma(-k) = \gamma(k)$; $\abs{\rho(k)}\leq1$; and $\gamma$ is \emph{non-negative definite}:
 $\sum_{s,t}a_sa_t\gamma(t - s)\geq0$ for all finite sequences $(a_t)$.
 \end{proposition}
 
@@ -236,7 +236,7 @@ $X_{t+\Delta} = e^{-\lambda\Delta}X_t + \varepsilon_t$, with $\alpha = e^{-\lamb
 \begin{itemize}[nosep]
   \item $B$ shifts, $\nabla = 1 - B$ differences, $\nabla_s = 1 - B^s$ removes period-$s$ patterns.
   \item Weak stationarity: constant mean, autocovariance depending only on the lag; the ACF
-        is symmetric, bounded by $1$ and nonnegative definite.
+        is symmetric, bounded by $1$ and non-negative definite.
   \item MA($q$): always stationary, ACF zero beyond lag $q$; invertibility (roots of $\theta$ outside the
         unit circle) removes the ambiguity $\beta\leftrightarrow1/\beta$.
   \item AR($p$): stationary iff the roots of $\phi$ lie outside the unit circle; ACF geometric or damped

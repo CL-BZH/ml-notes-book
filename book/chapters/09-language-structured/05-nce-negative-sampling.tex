@@ -131,7 +131,7 @@ vector.
 
 \begin{pitfall}[Signs]
 The objective $J_{\mathrm{NS}}$ is maximized, the loss $-J_{\mathrm{NS}}$ minimized. Writing the gradient of $J_{\mathrm{NS}}$,
-$(1 - \sigma(s_+))u_c - \sum_i\sigma(s_i)u_{c_i}$, and then updating with $v\leftarrow v - \eta\nabla$, as the original version of this chapter did,
+$(1 - \sigma(s_+))u_c - \sum_i\sigma(s_i)u_{c_i}$, and then updating with $v\leftarrow v - \eta\nabla$
 moves every vector in the wrong direction. Gradient \emph{ascent} on $J_{\mathrm{NS}}$ and gradient \emph{descent} on $-J_{\mathrm{NS}}$
 are the same update; mixing the two is not.
 \end{pitfall}
@@ -154,7 +154,7 @@ renormalized,
 \[
   P_n(c) = \frac{\operatorname{count}(c)^{3/4}}{\sum_{c'}\operatorname{count}(c')^{3/4}},
 \]
-a choice that Mikolov et al.\ report to work better than both the unigram ($\alpha = 1$) and the uniform
+a choice that Mikolov et al.\ report to work better than both the unigram (exponent $\alpha = 1$) and the uniform
 ($\alpha = 0$) distributions. The exponent flattens the distribution: a ratio of counts of $10^4$ between ``the'' and a
 rare word becomes $10^3$. For four words with counts $1000$, $100$, $10$, $1$, the unigram probabilities $(0.900,
 0.090, 0.009, 0.0009)$ become $(0.823, 0.146, 0.026, 0.0046)$: the rare words are drawn about five times more
@@ -164,7 +164,7 @@ words, and the vectors of rare words would rarely be pushed away from anything. 
 the optimum is a PMI computed with a smoothed context distribution, which reduces the
 large PMI values of rare contexts (Levy, Goldberg and Dagan, 2015).
 
-\paragraph{The number of negatives.} Mikolov et al.\ recommend $k$ between $5$ and $20$ for small data sets
+\paragraph{The number of negatives.} Mikolov et al.\ recommend $k$ between $5$ and $20$ for small datasets
 and $2$ to $5$ for large ones. Each pair costs $O((k + 1)d)$, against $O(Vd)$ for the softmax.
 
 \begin{remark}[From words to contrastive learning]

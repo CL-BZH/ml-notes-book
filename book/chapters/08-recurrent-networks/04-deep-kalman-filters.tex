@@ -212,13 +212,13 @@ surprise and changes what $z_t$ must have been.
 \begin{equation}\label{dkf:eq:q}
   q_\phi(z_{1:T}\mid x_{1:T}) = \prod_{t=1}^Tq_\phi(z_t\mid z_{t-1}, x_{t:T}),
 \end{equation}
-where from now on there are no inputs, as in the data sets of the repository. Then the
+where from now on there are no inputs, as in the datasets of the repository. Then the
 family of $q_\phi$ contains the true posterior when the networks are flexible enough, and the
 ELBO can be tight. The first DKF paper experimented with mean-field inference networks
 that ignore $z_{t-1}$, conditioning $z_t$ on $x_t$, on $x_{t-1:t+1}$, on $x_{1:t}$ or on $x_{1:T}$. They cannot represent the strong
 dependence between successive states of the posterior. The follow-up (Krishnan, Shalit and
 Sontag, \emph{Structured Inference Networks for Nonlinear State Space Models}, 2017) builds
-networks of the form \cref{dkf:eq:q}, called the deep Kalman smoother, from $z_{t-1}$ and an RNN summary of
+networks of the form \eqref{dkf:eq:q}, called the deep Kalman smoother, from $z_{t-1}$ and an RNN summary of
 $x_{t:T}$; the repository follows this structure.
 
 \section{The inference network}\label{dkf:sec:inference}
@@ -324,7 +324,7 @@ read samples, are then applied to all time steps at once.
 
 \section{The ELBO and its estimator}\label{dkf:sec:elbo}
 
-The generative model \cref{dkf:eq:generative} and the inference model \cref{dkf:eq:q} are the two Markov
+The generative model \eqref{dkf:eq:generative} and the inference model \eqref{dkf:eq:q} are the two Markov
 chains of \cref{em-algorithm:sec:mc-elbo}, with $y_t = x_t$ and with conditionals of $q$ that depend on the
 observations. The derivation there gives
 \[
@@ -476,7 +476,7 @@ them redundant. In the AR DKF they influence $z_t$ \emph{directly}, and they can
 redundant: the inference network for $z_t$ must see the past as well as the future.
 
 \paragraph{Three inference networks.} The repository implements three variants with the
-generative model \cref{dkf:eq:ar}, which differ only in the inference network:
+generative model \eqref{dkf:eq:ar}, which differ only in the inference network:
 \begin{center}\small
 \begin{tabular}{lp{0.5\textwidth}l}
 \textbf{model} & \textbf{inference network} & \textbf{matches the posterior?}\\\hline

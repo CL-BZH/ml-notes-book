@@ -86,7 +86,7 @@ Let $\hat y = \sum_jw_j\tilde x_j$ with inverted dropout on the inputs, $\tilde 
 \[
   \E_m\bigl[(y - \hat y)^2\bigr] = (y - w^\top x)^2 + \frac pq\sum_jw_j^2x_j^2 .
 \]
-Over a data set with design matrix $X$, the expected dropout loss is
+Over a dataset with design matrix $X$, the expected dropout loss is
 $\norm{y - Xw}^2 + \frac pq\,w^\top\diag(X^\top X)\,w$: ridge regression with a penalty on each $w_j$ proportional to
 $\sum_ix_{ij}^2$.
 \end{proposition}

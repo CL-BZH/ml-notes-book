@@ -1,58 +1,84 @@
-% Source: Graph_ML/Temp/tmp.tex
 \begin{notechapter}
 \chapter{Darboux's Theorem}\label{ch:darboux-theorem}
 \chaptersubtitle{The intermediate value property of derivatives}
 
-\section{Theorem Statement}
-Let $f$ be a function differentiable on a neighborhood of the closed interval $[a, b]$. Suppose that $f'(a) < m < f'(b)$. Then there exists a point $c \in (a, b)$ such that $f'(c) = m$.
+\begin{chapterintro}
+A derivative need not be continuous: the function $f(x) = x^2\sin(1/x)$, with $f(0) = 0$, is differentiable at every point, yet $f'$ has no limit at $0$. Darboux's theorem says that a derivative is nevertheless not an arbitrary function. Like a continuous function, it has the intermediate value property: it cannot pass from one value to another without taking every value in between. In particular a function with a jump, such as the step function that stands for the derivative of ReLU (\cref{ch:activation-functions}), is not the derivative of any function that is differentiable on an interval around the jump. You will learn
+\begin{itemize}[nosep]
+  \item the statement of Darboux's theorem and its proof from the extreme value theorem and Fermat's theorem;
+  \item why a derivative has no jump discontinuity, and what a discontinuous derivative looks like.
+\end{itemize}
+\prerequisites{the derivative as a limit; continuous functions on a closed bounded interval.}
+\end{chapterintro}
 
-\section{Recalling Supporting Theorems}
-To prove this result, we rely on the following fundamental theorems of real analysis:
+\section{Statement}
 
-\begin{enumerate}
-    \item \textbf{Extreme Value Theorem (EVT):} If a function $g$ is continuous on a closed and bounded interval $[a, b]$, then $g$ attains its absolute minimum and maximum values on that interval.
-    \item \textbf{Fermat's Theorem (Interior Extremum Theorem):} If a function $g$ is differentiable at an interior point $c \in (a, b)$ and attains a local extremum at $c$, then $g'(c) = 0$.
-\end{enumerate}
+\begin{theorem}[Darboux]\label{darboux-theorem:thm:darboux}
+Let $f$ be differentiable on an open interval containing $[a, b]$, and let $m$ lie strictly between $f'(a)$ and $f'(b)$. Then there exists a point $c \in (a, b)$ such that $f'(c) = m$.
+\end{theorem}
 
-\section{The Formal Proof}
+No continuity of $f'$ is assumed. When $f'$ is continuous the statement is the intermediate value theorem applied to $f'$; the content of the theorem is that the conclusion holds without it. The proof rests on two classical results of real analysis.
+\begin{itemize}
+    \item \textbf{Extreme value theorem.} A function $g$ that is continuous on a closed bounded interval $[a, b]$ attains its minimum and its maximum on that interval.
+    \item \textbf{Fermat's theorem.} If $g$ is differentiable at an interior point $c \in (a, b)$ and has a local extremum at $c$, then $g'(c) = 0$.
+\end{itemize}
 
-\subsection{Step 1: Construction of the Auxiliary Function}
-Define the function $g: [a, b] \to \mathbb{R}$ by:
-\[ g(x) = f(x) - mx \]
-Since $f$ is differentiable on $[a, b]$, it is necessarily continuous on $[a, b]$. Because $mx$ is also continuous, $g$ is continuous on the compact set $[a, b]$. By the \textbf{Extreme Value Theorem}, $g$ must attain an absolute minimum on $[a, b]$. 
+\section{Proof}
 
-The derivative of $g$ is given by $g'(x) = f'(x) - m$. Evaluating at the endpoints, we have:
+\begin{proof}[Proof of \cref{darboux-theorem:thm:darboux}]
+Replacing $f$ by $-f$ and $m$ by $-m$ if necessary, we may assume that $f'(a) < m < f'(b)$.
+
+\emph{Step 1: an auxiliary function.} Define $g: [a, b] \to \mathbb{R}$ by
+\[ g(x) = f(x) - mx . \]
+Since $f$ is differentiable on $[a, b]$, it is continuous there, and so is $g$. By the extreme value theorem, $g$ attains its minimum on $[a, b]$. Its derivative is $g'(x) = f'(x) - m$, so that
 \begin{align*}
-    g'(a) &= f'(a) - m < 0 \\
-    g'(b) &= f'(b) - m > 0
+    g'(a) &= f'(a) - m < 0, \\
+    g'(b) &= f'(b) - m > 0 .
 \end{align*}
 
-\subsection{Step 2: Formal Proof that $a$ is not the Minimum}
-We use the $\epsilon$-$\delta$ definition of the derivative at $x=a$. Since $g'(a) = L < 0$, we have:
-\[ \lim_{x \to a^+} \frac{g(x) - g(a)}{x - a} = L \]
-Let $\epsilon = \frac{|L|}{2} > 0$. By the definition of the limit, there exists $\delta_1 > 0$ such that for all $x \in (a, a + \delta_1) \cap [a, b]$:
-\[ \left| \frac{g(x) - g(a)}{x - a} - L \right| < \epsilon \]
-Specifically, this implies:
-\[ \frac{g(x) - g(a)}{x - a} < L + \epsilon = L + \frac{-L}{2} = \frac{L}{2} \]
-Since $L < 0$, then $\frac{L}{2} < 0$. Because $x > a$, we have $x - a > 0$. Multiplying both sides by $(x - a)$ yields:
-\[ g(x) - g(a) < \frac{L}{2}(x - a) < 0 \implies g(x) < g(a) \]
-Thus, $g(a)$ is not the minimum value of $g$ on $[a, b]$.
+\emph{Step 2: the minimum is not attained at $a$.} Let $L = g'(a) < 0$. By the definition of the derivative,
+\[ \lim_{x \to a^+} \frac{g(x) - g(a)}{x - a} = L , \]
+so with $\epsilon = \abs{L}/2 > 0$ there exists $\delta_1 > 0$ such that for all $x \in (a, a + \delta_1) \cap [a, b]$:
+\[ \frac{g(x) - g(a)}{x - a} < L + \epsilon = \frac{L}{2} < 0 . \]
+Because $x - a > 0$, multiplying both sides by $x - a$ yields
+\[ g(x) - g(a) < \frac{L}{2}(x - a) < 0 , \]
+that is $g(x) < g(a)$. Thus $g(a)$ is not the minimum of $g$ on $[a, b]$.
 
-\subsection{Step 3: Formal Proof that $b$ is not the Minimum}
-Similarly, consider the limit at $x=b$. Since $g'(b) = K > 0$, we have:
-\[ \lim_{x \to b^-} \frac{g(x) - g(b)}{x - b} = K \]
-Let $\epsilon = \frac{K}{2} > 0$. There exists $\delta_2 > 0$ such that for all $x \in (b - \delta_2, b) \cap [a, b]$:
-\[ \frac{g(x) - g(b)}{x - b} > K - \epsilon = K - \frac{K}{2} = \frac{K}{2} \]
-Since $K > 0$, then $\frac{K}{2} > 0$. However, for $x < b$, we have $x - b < 0$. Multiplying both sides by $(x - b)$ reverses the inequality:
-\[ g(x) - g(b) < \frac{K}{2}(x - b) < 0 \implies g(x) < g(b) \]
-Thus, $g(b)$ is not the minimum value of $g$ on $[a, b]$.
+\emph{Step 3: the minimum is not attained at $b$.} Similarly, let $K = g'(b) > 0$ and $\epsilon = K/2$. There exists $\delta_2 > 0$ such that for all $x \in (b - \delta_2, b) \cap [a, b]$:
+\[ \frac{g(x) - g(b)}{x - b} > K - \epsilon = \frac{K}{2} > 0 . \]
+Now $x - b < 0$, so multiplying both sides by $x - b$ reverses the inequality:
+\[ g(x) - g(b) < \frac{K}{2}(x - b) < 0 , \]
+that is $g(x) < g(b)$. Thus $g(b)$ is not the minimum either.
 
-\subsection{Step 4: Conclusion via Fermat's Theorem}
-Since the absolute minimum exists on $[a, b]$ but is attained at neither $x=a$ nor $x=b$, the minimum must occur at some point $c$ in the open interval $(a, b)$. 
+\emph{Step 4: conclusion.} The minimum of $g$ on $[a, b]$ exists and is attained at neither endpoint, so it is attained at some $c$ in the open interval $(a, b)$. Since $g$ is differentiable at the interior point $c$, Fermat's theorem gives $g'(c) = 0$, that is
+\[ f'(c) = m . \qedhere \]
+\end{proof}
 
-Because $c$ is an interior point and $g$ is differentiable at $c$, \textbf{Fermat's Theorem} implies:
-\[ g'(c) = 0 \]
-Substituting our expression for $g'(x)$:
-\[ f'(c) - m = 0 \implies f'(c) = m \]
-This completes the proof.
+\section{Consequences}
+
+\begin{corollary}[No jump discontinuity]\label{darboux-theorem:cor:jump}
+Let $f$ be differentiable on an open interval $I$ and let $c \in I$. If the right limit $f'(c^+)$ exists, it equals $f'(c)$, and likewise for the left limit $f'(c^-)$.
+\end{corollary}
+
+\begin{proof}
+Suppose that $\ell = f'(c^+)$ exists and differs from $f'(c)$; replacing $f$ by $-f$ if necessary, $f'(c) < \ell$. Let $\epsilon = (\ell - f'(c))/3$, and choose $\delta > 0$ such that $\abs{f'(x) - \ell} < \epsilon$ for all $x \in (c, c + \delta)$. Fix $b \in (c, c + \delta)$ and put $m = \ell - 2\epsilon$. Then $f'(c) = \ell - 3\epsilon < m < \ell - \epsilon < f'(b)$, so by \cref{darboux-theorem:thm:darboux} there is $x \in (c, b)$ with $f'(x) = m$. But then $\abs{f'(x) - \ell} = 2\epsilon$, which contradicts the choice of $\delta$. The left limit is treated in the same way.
+\end{proof}
+
+\begin{example}[The step function is not a derivative]
+The step function $s(x) = \bbone[x > 0]$ has the one-sided limits $s(0^-) = 0$ and $s(0^+) = 1$. By \cref{darboux-theorem:cor:jump}, no function that is differentiable on an interval around $0$ has $s$ as its derivative. This is the reason why ReLU, whose derivative is $s$ away from $0$, cannot be differentiable at $0$, whatever value a library assigns to its ``derivative'' there.
+\end{example}
+
+\begin{example}[A discontinuous derivative]
+Let $f(x) = x^2\sin(1/x)$ for $x \neq 0$ and $f(0) = 0$. Then $f'(0) = \lim_{x \to 0} x\sin(1/x) = 0$, and for $x \neq 0$,
+\[ f'(x) = 2x\sin(1/x) - \cos(1/x) , \]
+which oscillates between values close to $-1$ and $1$ as $x \to 0$. So $f'$ is discontinuous at $0$, in agreement with the corollary: the one-sided limits do not exist. A derivative can only be discontinuous in this way, never by a jump.
+\end{example}
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item A derivative takes every value between any two of its values (Darboux's theorem), even when it is not continuous.
+  \item The proof minimizes $g(x) = f(x) - mx$ on $[a, b]$: the signs of $g'$ at the endpoints exclude them, and Fermat's theorem gives $g'(c) = 0$ at the interior minimum.
+  \item Consequently a derivative has no jump discontinuity. Step functions are not derivatives, and a derivative is discontinuous only where a one-sided limit fails to exist, as for $x^2\sin(1/x)$ at $0$.
+\end{itemize}
+\end{chaptersummary}
 \end{notechapter}
