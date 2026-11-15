@@ -1,4 +1,3 @@
-% Sources: Graph_ML/LHN_Similarity/lhn_similarity.tex and Graph_ML/Random_Walk_Similarity/random_walk_similarity.tex
 \begin{notechapter}
 % ---- chapter-local definitions ----
 \forgetcs\bA\newcommand{\bA}{\mathbf{A}}
@@ -54,7 +53,7 @@ Recall that $\bA^i[u,v]$ is the number of walks of length $i$ from $u$ to $v$ (w
 \section{Counting paths: the Katz index}
 
 \begin{definition}[Katz index]\label{node-similarity:def:katz}
-Let $\lambda_1$ be the largest eigenvalue of the adjacency matrix $\bA$ of an undirected graph. For $0 < \beta < 1/\lambda_1$, the \textbf{Katz index} of nodes $u$ and $v$ is
+Let $\lambda_1$ be the largest eigenvalue of the adjacency matrix $\bA$ of an undirected graph. For $0 < \beta < 1/\lambda_1$, the \emph{Katz index} of nodes $u$ and $v$ is
 \begin{equation}
 S_{\text{Katz}}[u,v] = \sum_{i=1}^{\infty} \beta^i \bA^i[u,v].
 \label{node-similarity:eq:katz}
@@ -82,7 +81,7 @@ The question to ask is therefore not ``how many paths join $u$ and $v$?'' but ``
 A \emph{null model} is a random graph that represents ``nothing special going on''. Leicht, Holme and Newman (\emph{Vertex Similarity in Networks}, 2006) use one that keeps the degrees of the observed graph and randomizes everything else.
 
 \begin{definition}[Configuration model]\label{node-similarity:def:configuration}
-Given a degree sequence $(d_1, \ldots, d_n)$ with $\sum_u d_u = 2m$, the \textbf{configuration model} generates a random multigraph as follows: give each node $u$ exactly $d_u$ \emph{stubs} (half-edges), then pair the $2m$ stubs uniformly at random, each pair forming an edge.
+Given a degree sequence $(d_1, \ldots, d_n)$ with $\sum_u d_u = 2m$, the \emph{configuration model} generates a random multigraph as follows: give each node $u$ exactly $d_u$ \emph{stubs} (half-edges), then pair the $2m$ stubs uniformly at random, each pair forming an edge.
 \end{definition}
 
 Every node of the random graph $G'$ has the same degree as in the observed graph $G$, but the wiring is random. (Self-loops and multiple edges can occur; their expected number stays bounded as $m$ grows with bounded degrees, and they are ignored below.) A simpler null model such as the Erd\H{o}s--R\'enyi graph, where every edge is present with the same probability, would make high-degree nodes look special merely for having high degree; fixing the degrees removes this effect.
@@ -158,7 +157,7 @@ Divide each path count by its approximate expectation and weight the ratios as i
 \qquad
 S_{\text{LHN}}[u,v] = \frac{2m}{d_ud_v}\sum_{i=0}^\infty\beta^i\lambda_1^{1-i}\bA^i[u,v].
 \]
-The $i = 0$ term affects only the diagonal $u = v$. Some authors (and the original source of these notes) drop it and add the identity instead, which changes nothing for distinct nodes.
+The $i = 0$ term affects only the diagonal $u = v$. Some authors drop it and add the identity instead, which changes nothing for distinct nodes.
 
 \begin{theorem}[Closed form of the LHN index]\label{node-similarity:thm:lhn-closed}
 For $0 < \beta < 1$,
@@ -183,7 +182,7 @@ With $\beta = 0.5$, \cref{node-similarity:eq:lhn-closed} gives $S_{\text{LHN}}[1
 \subsection{The transition matrix}
 
 \begin{definition}[Transition matrix]\label{node-similarity:def:transition}
-For a graph without isolated nodes, the \textbf{random-walk transition matrix} is
+For a graph without isolated nodes, the \emph{random-walk transition matrix} is
 \begin{equation}
 \bP = \bA\bD^{-1}, \qquad \bP[v,u] = \frac{\bA[v,u]}{d_u},
 \label{node-similarity:eq:transition}
@@ -202,7 +201,7 @@ Consider a walker that, at each step, follows a random edge with probability $c$
 \end{equation}
 
 \begin{definition}[Personalized PageRank]\label{node-similarity:def:ppr}
-For a source node $u$ and damping factor $c\in(0,1)$, the \textbf{personalized PageRank vector} $\bq_u$ is the solution of
+For a source node $u$ and damping factor $c\in(0,1)$, the \emph{personalized PageRank vector} $\bq_u$ is the solution of
 \begin{equation}
 \bq_u = c\bP\bq_u + (1-c)\be_u .
 \label{node-similarity:eq:ppr-recurrence}
@@ -231,7 +230,7 @@ The series \eqref{node-similarity:eq:ppr-closed} says that personalized PageRank
 \subsection{Random-walk similarity}
 
 \begin{definition}[Random-walk similarity]\label{node-similarity:def:rw-sim}
-The \textbf{random-walk similarity} of $u$ and $v$ is $S_{\text{RW}}[u,v] = \bq_u[v] + \bq_v[u]$.
+The \emph{random-walk similarity} of $u$ and $v$ is $S_{\text{RW}}[u,v] = \bq_u[v] + \bq_v[u]$.
 \end{definition}
 
 The sum is symmetric by construction, while $\bq_u[v]$ and $\bq_v[u]$ differ in general. On an undirected graph the difference has a simple form.
@@ -260,7 +259,7 @@ With $c = 0.85$: $\bq_1[2] = \bq_2[1] = 0.0874$, so $S_{\text{RW}}[1,2] = 0.175$
 \small
 \begin{tabular}{@{}llll@{}}
 \toprule
- & \textbf{Katz} & \textbf{LHN} & \textbf{Personalized PageRank} \\
+ & Katz & LHN & Personalized PageRank \\
 \midrule
 Basic quantity & path counts $\bA^i[u,v]$ & counts over expected counts & walk probabilities $\bP^k[v,u]$ \\
 Weights & $\beta^i$ & $\beta^i$ & $(1-c)c^k$ \\

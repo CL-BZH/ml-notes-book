@@ -1898,7 +1898,9 @@ Parseval: $\frac1{2\pi}\int_{-\pi}^{\pi}t^2dt = \frac{\pi^2}{3} = \sum_{n\ne0}\f
 
 \solution{fourier-analysis:exr:2}
 Split the integral at $0$:
-$\hat f(\omega) = \int_0^\infty e^{-(a+i\omega)t}dt + \int_{-\infty}^0 e^{(a-i\omega)t}dt = \frac1{a+i\omega} + \frac1{a-i\omega} = \frac{2a}{a^2+\omega^2}$.
+\[
+\hat f(\omega) = \int_0^\infty e^{-(a+i\omega)t}dt + \int_{-\infty}^0 e^{(a-i\omega)t}dt = \frac1{a+i\omega} + \frac1{a-i\omega} = \frac{2a}{a^2+\omega^2} .
+\]
 Plancherel: $\int e^{-2a\abs t}dt = \frac1a = \frac1{2\pi}\int\frac{4a^2}{(a^2+\omega^2)^2}d\omega$, so
 $\int_{-\infty}^\infty (a^2+\omega^2)^{-2}d\omega = \frac{2\pi}{4a^3} = \frac{\pi}{2a^3}$ (for $a=1$, the familiar $\pi/2$).
 

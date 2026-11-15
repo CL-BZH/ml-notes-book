@@ -29,7 +29,7 @@ and $b_2\in\R^V$,
   a = W_1^\top x + b_1,\qquad h = \tanh(a),\qquad z = W_2^\top h + b_2,\qquad p = \softmax(z),
 \]
 and the loss of the bigram $(i, j)$ is $\ell = -\log p_j$. As in \cref{ch:bigram-models} the weights multiply their
-input transposed, $W^\top x$ (the row-vector convention \texttt{x @ W} of the original notes and of
+input transposed, $W^\top x$ (the row-vector convention \texttt{x @ W} of
 the code below).
 
 \begin{figure}[ht]
@@ -81,8 +81,7 @@ embedding of its own context word, but it updates \emph{all} of $W_2$, which is 
 contexts.
 
 \begin{pitfall}[Shapes and the factor $1 - h^2$]
-Two mistakes are common in hand-written backward passes for this model, and both were
-in the original version of this chapter. The first is a shape error: writing $\nabla_{W_2}\ell = \bar z\,h^\top$ ($V\times D$)
+Two mistakes are common in hand-written backward passes for this model. The first is a shape error: writing $\nabla_{W_2}\ell = \bar z\,h^\top$ ($V\times D$)
 for a matrix $W_2$ of shape $D\times V$; the update $W_2 - \eta\nabla_{W_2}\ell$ is then not even defined, and a hand calculation
 silently mixes entries. The second is applying the derivative of $\tanh$ twice, once in $\bar a$ and
 again in $\nabla_{W_1}\ell$. Checking every gradient's shape against its parameter, and comparing with
@@ -215,7 +214,7 @@ recompute the entry $(2, 3)$ of $\nabla_{W_2}\ell$.
 \end{exercise}
 
 \begin{exercise}\label{bigram-neural:exr:2}
-The original code of this chapter computed \texttt{dh = W2 @ dz * (1 - h**2)} and then
+A hand-written backward pass computes \texttt{dh = W2 @ dz * (1 - h**2)} and then
 \texttt{dW1 = np.outer(x, dh * (1 - h**2))}. What does it compute instead of $\nabla_{W_1}\ell$? Give its non-zero row in
 the example.
 \solutionlink{bigram-neural:exr:2}

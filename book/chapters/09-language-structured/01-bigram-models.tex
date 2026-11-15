@@ -77,8 +77,8 @@ one-hot vector $x = e_i\in\R^V$ and compute
 \[
   z = W^\top x + b,\qquad p = \softmax(z),\qquad p_j = \frac{e^{z_j}}{\sum_{k=1}^Ve^{z_k}} = p_\theta(\text{next} = j\mid\text{previous} = i),
 \]
-with $W\in\R^{V\times V}$ and $b\in\R^V$; $z$ is the vector of \emph{logits}. Here $W$ multiplies $x$ transposed, as in the
-original notes and in \texttt{x @ W} with row vectors; the layer of \cref{ch:backpropagation} would
+with $W\in\R^{V\times V}$ and $b\in\R^V$; $z$ is the vector of \emph{logits}. Here $W$ multiplies $x$ transposed, as in
+\texttt{x @ W} with row vectors; the layer of \cref{ch:backpropagation} would
 be written with $W^\top$ in place of $W$.
 
 \paragraph{A row lookup.} For a one-hot input, the product selects one row:

@@ -393,8 +393,8 @@ Equivalently, for $\delta\in(0,1)$, with probability at least $1-\delta$,
 \begin{proof}
 The event that $\sup_f\abs{\ERisk(f) - \Risk(f)}\geq\epsilon$ is the union,
 over $f\in\Hs$, of the events $\abs{\ERisk(f) - \Risk(f)}\geq\epsilon$. Each $f$ is
-fixed, so Hoeffding's inequality applies to the losses
-$\ell(f(X_i),Y_i)\in[0,1]$ and bounds the probability of each event by
+fixed and its losses $\ell(f(X_i),Y_i)$ lie in $[0,1]$, so Hoeffding's inequality
+bounds the probability of each event by
 $2e^{-2n\epsilon^2}$; the union bound adds $\abs{\Hs}$ of them. For the second
 form, set $2\abs{\Hs}e^{-2n\epsilon^2} = \delta$, solve for $\epsilon$, and apply
 \cref{erm:thm:uniform}.

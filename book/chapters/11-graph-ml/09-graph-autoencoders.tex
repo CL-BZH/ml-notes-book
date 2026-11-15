@@ -1,4 +1,3 @@
-% Source: Graph_ML/Graph_AE/graph_autoencoders_tutorial.tex
 \begin{notechapter}
 % ---- chapter-local definitions ----
 \forgetcs\hadamard\newcommand{\hadamard}{\odot}
@@ -25,9 +24,9 @@ Graph autoencoders extend the classical autoencoder framework to handle graph-st
 
 A classical autoencoder consists of:
 \begin{itemize}
-    \item \textbf{Encoder}: $f: \R^n \to \R^d$ where $d \ll n$ (dimensionality reduction)
-    \item \textbf{Decoder}: $g: \R^d \to \R^n$ (reconstruction)
-    \item \textbf{Loss function}: Typically $\mathcal{L} = \norm{x - g(f(x))}^2$ (reconstruction error)
+    \item \textbf{Encoder}: $f: \R^n \to \R^d$ where $d \ll n$ (dimensionality reduction).
+    \item \textbf{Decoder}: $g: \R^d \to \R^n$ (reconstruction).
+    \item \textbf{Loss function}: Typically $\mathcal{L} = \norm{x - g(f(x))}^2$ (reconstruction error).
 \end{itemize}
 
 The goal is to learn a compressed representation that preserves the essential information in the input.
@@ -37,9 +36,9 @@ The goal is to learn a compressed representation that preserves the essential in
 When applying autoencoders to graphs, several critical issues arise:
 
 \begin{enumerate}
-    \item \textbf{Sparsity}: Adjacency matrices are extremely sparse (most entries are 0)
-    \item \textbf{Asymmetric information}: Edge presence ($A_{ij} = 1$) is informative, but edge absence ($A_{ij} = 0$) does not necessarily indicate dissimilarity
-    \item \textbf{Imbalanced learning}: The model naturally tends to predict 0 everywhere to minimize standard reconstruction error
+    \item \textbf{Sparsity}: Adjacency matrices are extremely sparse (most entries are 0).
+    \item \textbf{Asymmetric information}: Edge presence ($A_{ij} = 1$) is informative, but edge absence ($A_{ij} = 0$) does not necessarily indicate dissimilarity.
+    \item \textbf{Imbalanced learning}: The model naturally tends to predict 0 everywhere to minimize standard reconstruction error.
 \end{enumerate}
 
 \begin{keyidea}
@@ -60,8 +59,8 @@ The second-order proximity loss is defined as:
 
 where:
 \begin{itemize}
-    \item $\bm{A}_i \in \R^n$: The $i$-th row of the adjacency matrix (neighbourhood of node $i$)
-    \item $\tilde{\bm{A}}_i \in \R^n$: The $i$-th row of the reconstructed adjacency matrix
+    \item $\bm{A}_i \in \R^n$: The $i$-th row of the adjacency matrix (neighbourhood of node $i$).
+    \item $\tilde{\bm{A}}_i \in \R^n$: The $i$-th row of the reconstructed adjacency matrix.
     \item $\bm{B}_i \in \R^n$: Weight vector with entries:
     \begin{equation}
     B_{ij} = \begin{cases}
@@ -69,8 +68,8 @@ where:
     1 & \text{if } A_{ij} = 0
     \end{cases}
     \end{equation}
-    \item $\hadamard$: Hadamard (elementwise) product
-    \item $\beta > 1$: Hyperparameter controlling the penalty for edge reconstruction errors (typically $\beta \in [5, 10]$)
+    \item $\hadamard$: Hadamard (elementwise) product.
+    \item $\beta > 1$: Hyperparameter controlling the penalty for edge reconstruction errors (typically $\beta \in [5, 10]$).
 \end{itemize}
 
 \subsection{Intuition behind the weighting}
@@ -80,8 +79,8 @@ The key innovation is the weight vector $\bm{B}_i$. By setting $B_{ij} = \beta$ 
 \begin{intuition}[Why this works]
 \begin{itemize}
     \item If the model predicts $\tilde{A}_{ij} = 0.1$ when $A_{ij} = 1$, the term is $(0.9\,\beta)^2 = 0.81\,\beta^2$, large. (The weight multiplies the error before squaring, so an edge counts $\beta^2$ times as much as a non-edge.)
-    \item If the model predicts $\tilde{A}_{ij} = 0.1$ when $A_{ij} = 0$, the term is $(0.1)^2 = 0.01$, small
-    \item This forces the model to focus on correctly reconstructing existing edges
+    \item If the model predicts $\tilde{A}_{ij} = 0.1$ when $A_{ij} = 0$, the term is $(0.1)^2 = 0.01$, small.
+    \item This forces the model to focus on correctly reconstructing existing edges.
 \end{itemize}
 \end{intuition}
 
@@ -104,17 +103,17 @@ With $\beta = 5$, the weight vector is:
 \bm{B}_i = [1, 5, 5, 1, 5]
 \]
 
-\textbf{Step 1}: Compute the reconstruction error:
+\emph{Step 1}: Compute the reconstruction error:
 \[
 \bm{A}_i - \tilde{\bm{A}}_i = [-0.1, 0.2, 0.1, -0.05, 0.3]
 \]
 
-\textbf{Step 2}: Apply elementwise weighting:
+\emph{Step 2}: Apply elementwise weighting:
 \[
 (\bm{A}_i - \tilde{\bm{A}}_i) \hadamard \bm{B}_i = [-0.1, 1.0, 0.5, -0.05, 1.5]
 \]
 
-\textbf{Step 3}: Compute squared norm:
+\emph{Step 3}: Compute squared norm:
 \begin{align*}
 \mathcal{L}_{2^{nd}}(i) &= \norm{[-0.1, 1.0, 0.5, -0.05, 1.5]}^2 \\
 &= (-0.1)^2 + (1.0)^2 + (0.5)^2 + (-0.05)^2 + (1.5)^2 \\
@@ -122,7 +121,7 @@ With $\beta = 5$, the weight vector is:
 &= 3.5125
 \end{align*}
 
-\textbf{Comparison without weighting} ($\beta = 1$):
+\emph{Comparison without weighting} ($\beta = 1$):
 \begin{align*}
 \mathcal{L}_{2^{nd}-{unweighted}}(i) &= (-0.1)^2 + (0.2)^2 + (0.1)^2 + (-0.05)^2 + (0.3)^2 \\
 &= 0.01 + 0.04 + 0.01 + 0.0025 + 0.09 = 0.1525
@@ -151,10 +150,10 @@ The first-order proximity loss is defined as:
 
 where:
 \begin{itemize}
-    \item $\bm{y}_i, \bm{y}_j \in \R^d$: Embedding vectors for nodes $i$ and $j$ (output of encoder)
-    \item $S_{ij}$: Strength/weight of the connection between nodes $i$ and $j$
-    \item For unweighted graphs: $S_{ij} = A_{ij} \in \{0, 1\}$
-    \item For weighted graphs: $S_{ij}$ is the edge weight
+    \item $\bm{y}_i, \bm{y}_j \in \R^d$: Embedding vectors for nodes $i$ and $j$ (output of encoder).
+    \item $S_{ij}$: Strength/weight of the connection between nodes $i$ and $j$.
+    \item For unweighted graphs: $S_{ij} = A_{ij} \in \{0, 1\}$.
+    \item For weighted graphs: $S_{ij}$ is the edge weight.
 \end{itemize}
 
 \subsection{Intuition behind first-order loss}
@@ -162,9 +161,9 @@ where:
 The loss function explicitly penalizes distance between embeddings of connected nodes:
 
 \begin{itemize}
-    \item If $S_{ij}$ is large (strong connection), then $\norm{\bm{y}_i - \bm{y}_j}^2$ must be small to keep loss low
-    \item If $S_{ij} = 0$ (no connection), this term contributes nothing to the loss
-    \item Connected nodes are pulled together in embedding space
+    \item If $S_{ij}$ is large (strong connection), then $\norm{\bm{y}_i - \bm{y}_j}^2$ must be small to keep loss low.
+    \item If $S_{ij} = 0$ (no connection), this term contributes nothing to the loss.
+    \item Connected nodes are pulled together in embedding space.
 \end{itemize}
 
 \begin{intuition}[Geometric interpretation]
@@ -192,7 +191,7 @@ Suppose the encoder produces 2D embeddings:
 \bm{y}_3 &= [2, 0]
 \end{align*}
 
-\textbf{Computing the loss}:
+\emph{Computing the loss}:
 
 Since $S_{ij} = A_{ij}$, only the edges $\{1,2\}$ and $\{2,3\}$ contribute, each twice in the double sum (as $(i,j)$ and as $(j,i)$):
 \begin{align*}
@@ -200,7 +199,7 @@ Since $S_{ij} = A_{ij}$, only the edges $\{1,2\}$ and $\{2,3\}$ contribute, each
 &= 2\bigl(\norm{[-1,0]}^2 + \norm{[-1,0]}^2\bigr) = 2(1 + 1) = 4 .
 \end{align*}
 
-\textbf{Compare with bad embeddings}:
+\emph{Compare with bad embeddings}:
 
 Suppose instead:
 \begin{align*}
@@ -214,7 +213,7 @@ Then:
 \mathcal{L}_{1^{st}} &= 2\bigl(\norm{[5,5]}^2 + \norm{[5,5]}^2\bigr) = 2(50 + 50) = 200
 \end{align*}
 
-The poor embeddings result in a loss that is 50 times larger!
+The poor embeddings result in a loss that is 50 times larger.
 \end{example}
 
 \subsection{Expansion of the loss}
@@ -261,11 +260,11 @@ The model has three key hyperparameters:
 \begin{itemize}
     \item $\alpha \geq 0$: Balance between reconstruction and proximity
     \begin{itemize}
-        \item Small $\alpha$: Focus on reconstructing neighbourhoods (second-order)
-        \item Large $\alpha$: Focus on preserving direct connections (first-order)
+        \item Small $\alpha$: Focus on reconstructing neighbourhoods (second-order).
+        \item Large $\alpha$: Focus on preserving direct connections (first-order).
     \end{itemize}
-    \item $\beta > 1$: Penalty factor for edge reconstruction errors (typically 5--10)
-    \item $\lambda \geq 0$: Regularization strength to prevent overfitting
+    \item $\beta > 1$: Penalty factor for edge reconstruction errors (typically 5--10).
+    \item $\lambda \geq 0$: Regularization strength to prevent overfitting.
 \end{itemize}
 
 \subsection{Why combine both losses?}
@@ -331,9 +330,9 @@ Consider a graph with two tightly knit communities connected by a single edge:
 \end{center}
 
 \begin{itemize}
-    \item \textbf{Only $\mathcal{L}_{2^{nd}}$}: Nodes 2 and 5 (connected by the red edge) might be separated because they have very different neighbourhoods
-    \item \textbf{Only $\mathcal{L}_{1^{st}}$}: The model might miss that nodes 1,2,3,4 form a tight community
-    \item \textbf{Both combined}: Preserves both the bridge connection and community structure
+    \item \textbf{Only $\mathcal{L}_{2^{nd}}$}: Nodes 2 and 5 (connected by the red edge) might be separated because they have very different neighbourhoods.
+    \item \textbf{Only $\mathcal{L}_{1^{st}}$}: The model might miss that nodes 1,2,3,4 form a tight community.
+    \item \textbf{Both combined}: Preserves both the bridge connection and community structure.
 \end{itemize}
 \end{example}
 
@@ -359,7 +358,7 @@ Consider the following 4-node graph:
 \end{tikzpicture}
 \end{center}
 
-\textbf{Adjacency matrix}:
+\emph{Adjacency matrix}:
 \[
 \bm{A} = \begin{bmatrix}
 0 & 1 & 1 & 0 \\
@@ -369,7 +368,7 @@ Consider the following 4-node graph:
 \end{bmatrix}
 \]
 
-This is the $4$-cycle $1 - 2 - 4 - 3 - 1$. Nodes $1$ and $4$ have the same row, and so do nodes $2$ and $3$, so by \cref{graph-autoencoders:rem:identical} the encoder gives $\bm y_1 = \bm y_4$ and $\bm y_2 = \bm y_3$, and the decoder gives them the same reconstructed rows. \textbf{Suppose} the encoder produces
+This is the $4$-cycle $1 - 2 - 4 - 3 - 1$. Nodes $1$ and $4$ have the same row, and so do nodes $2$ and $3$, so by \cref{graph-autoencoders:rem:identical} the encoder gives $\bm y_1 = \bm y_4$ and $\bm y_2 = \bm y_3$, and the decoder gives them the same reconstructed rows. \emph{Suppose} the encoder produces
 \begin{align*}
 \bm{y}_1 = \bm y_4 &= [0.5, 0.5], \qquad
 \bm{y}_2 = \bm y_3 = [1.0, 0.5],
@@ -385,8 +384,7 @@ and the decoder reconstructs
 \]
 (the decoder does not know which entry of a row is the diagonal one, so rows $1$ and $4$, and rows $2$ and $3$, are equal).
 
-\subsection*{Computing $\mathcal{L}_{2^{nd}}$ (with $\beta = 5$)}
-
+\emph{Computing $\mathcal{L}_{2^{nd}}$ (with $\beta = 5$).}
 For node 1: $\bm{A}_1 = [0, 1, 1, 0]$, $\tilde{\bm{A}}_1 = [0.05, 0.90, 0.85, 0.10]$
 
 Weight vector: $\bm{B}_1 = [1, 5, 5, 1]$
@@ -406,8 +404,7 @@ Nodes $4$ and $3$ repeat nodes $1$ and $2$:
 \end{align*}
 Total: $\mathcal{L}_{2^{nd}} = 2(0.825 + 0.4225) = 2.495$.
 
-\subsection*{Computing $\mathcal{L}_{1^{st}}$}
-
+\emph{Computing $\mathcal{L}_{1^{st}}$.}
 The graph has edges: $(1,2), (1,3), (2,4), (3,4)$
 
 \begin{align*}
@@ -415,8 +412,7 @@ The graph has edges: $(1,2), (1,3), (2,4), (3,4)$
 \end{align*}
 Each edge appears twice in the double sum: $\mathcal{L}_{1^{st}} = 2(4\times0.25) = 2.0$.
 
-\subsection*{Computing total loss}
-
+\emph{Computing the total loss.}
 With $\alpha = 1$ and $\lambda = 0.001$, and assuming $\norm{\bm{W}}^2_F = 100$:
 
 \begin{align*}
@@ -467,9 +463,9 @@ With $\alpha = 1$ and $\lambda = 0.001$, and assuming $\norm{\bm{W}}^2_F = 100$:
 
 For large graphs, the input dimension (number of nodes) can be millions, making naive implementations infeasible. Solutions include:
 \begin{itemize}
-    \item Mini-batch training
-    \item Sampling neighbourhoods
-    \item Using Graph Neural Networks (GNNs) instead
+    \item Mini-batch training.
+    \item Sampling neighbourhoods.
+    \item Using Graph Neural Networks (GNNs) instead.
 \end{itemize}
 
 \section{Interpretation and properties}
@@ -518,14 +514,14 @@ This conflict eventually led to a split of the club into two separate organizati
 \subsection{Graph properties}
 
 \begin{itemize}
-    \item \textbf{Nodes}: 34 (club members)
-    \item \textbf{Edges}: 78 (social interactions outside of club activities, such as socializing at bars and attending karate tournaments together)
+    \item \textbf{Nodes}: 34 (club members).
+    \item \textbf{Edges}: 78 (social interactions outside of club activities, such as socializing at bars and attending karate tournaments together).
     \item \textbf{Two main communities}:
     \begin{itemize}
-        \item Instructor's faction (loyal to Mr.\ Hi)
+        \item Instructor's faction (loyal to Mr.\ Hi).
         \item Administrator's faction (loyal to John A.)
     \end{itemize}
-    \item \textbf{Bridge nodes}: Members with connections to both factions who faced difficult decisions during the split
+    \item \textbf{Bridge nodes}: Members with connections to both factions who faced difficult decisions during the split.
 \end{itemize}
 
 \subsection{Why it is important}
@@ -533,19 +529,19 @@ This conflict eventually led to a split of the club into two separate organizati
 The karate club graph has become a standard benchmark in network science because:
 
 \begin{enumerate}
-    \item \textbf{Real-world validation}: The network structure predicts the actual social split (all members but one, in Zachary's analysis)
-    \item \textbf{Clear community structure}: It exhibits two well-defined communities with some inter-community connections
-    \item \textbf{Manageable size}: With only 34 nodes, it is small enough to visualize completely and understand intuitively
-    \item \textbf{Complex enough}: Despite its size, it demonstrates important phenomena like community detection, bridge nodes, and the predictive power of network analysis
-    \item \textbf{Historical significance}: It is one of the earliest examples of using network analysis to understand and predict social phenomena
+    \item \textbf{Real-world validation}: The network structure predicts the actual social split (all members but one, in Zachary's analysis).
+    \item \textbf{Clear community structure}: It exhibits two well-defined communities with some inter-community connections.
+    \item \textbf{Manageable size}: With only 34 nodes, it is small enough to visualize completely and understand intuitively.
+    \item \textbf{Complex enough}: Despite its size, it demonstrates important phenomena like community detection, bridge nodes, and the predictive power of network analysis.
+    \item \textbf{Historical significance}: It is one of the earliest examples of using network analysis to understand and predict social phenomena.
 \end{enumerate}
 
 The karate club graph is now a standard benchmark for:
 \begin{itemize}
-    \item Community detection algorithms
-    \item Graph embedding methods
-    \item Social network analysis techniques
-    \item Network visualization approaches
+    \item Community detection algorithms.
+    \item Graph embedding methods.
+    \item Social network analysis techniques.
+    \item Network visualization approaches.
 \end{itemize}
 
 \section{Practical implementation}
@@ -589,7 +585,7 @@ embeddings = sdne.get_embedding()
 \centering
 \begin{tabular}{@{}lll@{}}
 \toprule
-\textbf{Parameter} & \textbf{Typical range} & \textbf{Effect} \\ \midrule
+Parameter & Typical range & Effect \\ \midrule
 $\beta$ & 5--10 & Higher = more focus on edge reconstruction \\
 $\alpha$ & $10^{-5}$ to $10^{-2}$ & Higher = more first-order preservation \\
 $\lambda$ & $10^{-6}$ to $10^{-4}$ & Higher = more regularization \\
@@ -604,36 +600,36 @@ layers & 2--4 & Deeper = more expressive (but harder to train) \\ \bottomrule
 \subsection{Advantages}
 
 \begin{itemize}
-    \item \textbf{Preserves both local and global structure} through combined loss
-    \item \textbf{Handles weighted graphs} naturally via $S_{ij}$
-    \item \textbf{Nonlinear embeddings} capture complex relationships
-    \item \textbf{End-to-end differentiable} enables gradient-based optimization
+    \item \textbf{Preserves both local and global structure} through combined loss.
+    \item \textbf{Handles weighted graphs} naturally via $S_{ij}$.
+    \item \textbf{Nonlinear embeddings} capture complex relationships.
+    \item \textbf{End-to-end differentiable} enables gradient-based optimization.
 \end{itemize}
 
 \subsection{Limitations}
 
 \begin{itemize}
-    \item \textbf{Scalability}: Input dimension equals number of nodes (problematic for large graphs)
-    \item \textbf{Transductive}: Cannot directly embed new nodes without retraining
-    \item \textbf{No node features}: Only uses graph structure (though can be extended)
-    \item \textbf{Hyperparameter sensitivity}: Requires careful tuning of $\alpha$, $\beta$, $\lambda$
+    \item \textbf{Scalability}: Input dimension equals number of nodes (problematic for large graphs).
+    \item \textbf{Transductive}: Cannot directly embed new nodes without retraining.
+    \item \textbf{No node features}: Only uses graph structure (though can be extended).
+    \item \textbf{Hyperparameter sensitivity}: Requires careful tuning of $\alpha$, $\beta$, $\lambda$.
 \end{itemize}
 
 \subsection{When to use SDNE}
 
 Use SDNE when:
 \begin{itemize}
-    \item Graph has $<100{,}000$ nodes
-    \item Need to preserve both community structure and local connections
-    \item Have computational resources for training
-    \item Do not need to embed new nodes after training
+    \item Graph has $<100{,}000$ nodes.
+    \item Need to preserve both community structure and local connections.
+    \item Have computational resources for training.
+    \item Do not need to embed new nodes after training.
 \end{itemize}
 
 Consider alternatives when:
 \begin{itemize}
-    \item Graph is very large ($>1$ million nodes) $\rightarrow$ use sampling-based methods (DeepWalk, node2vec)
-    \item Need inductive capability $\rightarrow$ use GNNs (GraphSAGE, GAT)
-    \item Have rich node features $\rightarrow$ use feature-aware methods
+    \item Graph is very large ($>1$ million nodes) $\rightarrow$ use sampling-based methods (DeepWalk, node2vec).
+    \item Need inductive capability $\rightarrow$ use GNNs (GraphSAGE, GAT).
+    \item Have rich node features $\rightarrow$ use feature-aware methods.
 \end{itemize}
 
 \section{Graph autoencoders with a GNN encoder (GAE, VGAE)}

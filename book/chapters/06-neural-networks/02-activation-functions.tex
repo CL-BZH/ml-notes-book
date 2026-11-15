@@ -68,7 +68,7 @@ Networks}, AISTATS, 2011). For $z<0$ the derivative is $0$, which can kill units
         with a learned $\alpha$ it is the \emph{PReLU} of He, Zhang, Ren and Sun (2015, below);
   \item \emph{ELU} $z$ for $z>0$ and $\alpha(e^z - 1)$ for $z\leq0$, smooth for $\alpha = 1$ and with negative outputs
         bounded below by $-\alpha$ (Clevert, Unterthiner and Hochreiter, ICLR, 2016);
-  \item \emph{softplus} $\log(1 + e^z)$, a smooth ReLU: its derivative is $\sigma(z)$ and
+  \item \emph{softplus} $\log(1 + e^z)$, a smooth ReLU with derivative $\sigma(z)$; it satisfies
         $0<\mathrm{softplus}(z) - \mathrm{ReLU}(z)\leq\log2$.
 \end{itemize}
 

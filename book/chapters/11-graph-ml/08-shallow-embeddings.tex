@@ -1,4 +1,3 @@
-% Source: Graph_ML/Shallow_Graph_Embedding/shallow_graph_embedding.tex
 \begin{notechapter}
 % ---- chapter-local definitions ----
 \definecolor{node1color}{RGB}{66,133,244}
@@ -41,16 +40,16 @@ A \emph{shallow} embedding assigns to every node of a graph its own vector in $\
 
 Imagine you have a social network with millions of users. You want to:
 \begin{itemize}
-    \item Recommend new friends to users
-    \item Detect communities of similar people
-    \item Predict which users might interact in the future
-    \item Classify users by their interests
+    \item Recommend new friends to users.
+    \item Detect communities of similar people.
+    \item Predict which users might interact in the future.
+    \item Classify users by their interests.
 \end{itemize}
 
-The problem is that graphs are \textbf{irregular structures} --- unlike images (regular grids) or text (sequences), graphs have variable-size neighbourhoods and no natural ordering. Most machine learning algorithms expect input as fixed-length vectors.
+The problem is that graphs are \emph{irregular structures} --- unlike images (regular grids) or text (sequences), graphs have variable-size neighbourhoods and no natural ordering. Most machine learning algorithms expect input as fixed-length vectors.
 
 \begin{keyidea}
-\textbf{Graph embedding} solves this by mapping each node to a point in a low-dimensional space $\R^d$ (typically $d = 64$ to $256$), such that \textbf{similar nodes in the graph become nearby points in the embedding space}.
+\emph{Graph embedding} solves this by mapping each node to a point in a low-dimensional space $\R^d$ (typically $d = 64$ to $256$), such that \emph{similar nodes in the graph become nearby points in the embedding space}.
 
 Once we have these vectors, we can use any standard ML algorithm: logistic regression for classification, $k$-means for clustering, or even simple nearest-neighbour search for recommendations.
 \end{keyidea}
@@ -115,13 +114,13 @@ A good embedding should place nodes 1, 2, 3 close together (they are in the same
 \subsection{What makes a good embedding?}
 
 \begin{definition}[Graph embedding]
-A \textbf{graph embedding} is a mapping $\phi: V \to \R^d$ that assigns each node $v_i$ a vector $\vect{y}_i \in \R^d$. We can collect all embeddings into a matrix:
+A \emph{graph embedding} is a mapping $\phi: V \to \R^d$ that assigns each node $v_i$ a vector $\vect{y}_i \in \R^d$. We can collect all embeddings into a matrix:
 \[
 \embed = \begin{pmatrix} \text{---} & \vect{y}_1^\top & \text{---} \\ \text{---} & \vect{y}_2^\top & \text{---} \\ & \vdots & \\ \text{---} & \vect{y}_n^\top & \text{---} \end{pmatrix} \in \R^{n \times d}
 \]
 \end{definition}
 
-The key question is: \textbf{what does ``similar in the graph'' mean?} This leads us to different notions of proximity.
+The key question is: \emph{what does ``similar in the graph'' mean?} This leads us to different notions of proximity.
 
 % ============================================================================
 % SECTION 2: GRAPH CONCEPTS
@@ -139,14 +138,14 @@ the bridge nodes $2$ and $4$ have degree $3$, all others degree $2$. The random-
 Different embedding methods preserve different notions of similarity. Understanding these is crucial for choosing the right method.
 
 \begin{definition}[First-order proximity]
-Two nodes have high \textbf{first-order proximity} if they are directly connected:
+Two nodes have high \emph{first-order proximity} if they are directly connected:
 \[
 s^{(1)}_{ij} = A_{ij}
 \]
 \end{definition}
 
 \begin{definition}[Second-order proximity]
-Two nodes have high \textbf{second-order proximity} if they share many neighbours (even if not directly connected):
+Two nodes have high \emph{second-order proximity} if they share many neighbours (even if not directly connected):
 \[
 s^{(2)}_{ij} = \text{similarity of neighbourhood}(\vect{a}_i, \vect{a}_j)
 \]
@@ -156,17 +155,17 @@ where $\vect{a}_i$ is the $i$-th row of $\adj$.
 \begin{example}
 In our graph, consider nodes 1 and 4:
 \begin{itemize}
-    \item \textbf{First-order proximity}: $A_{14} = 0$ (not directly connected)
+    \item \textbf{First-order proximity}: $A_{14} = 0$ (not directly connected).
     \item \textbf{Second-order proximity}: Node 1's neighbours are $\{2, 3\}$. Node 4's neighbours are $\{2, 5, 6\}$. They share neighbour 2, so they have \emph{some} second-order proximity.
 \end{itemize}
 
 Now consider nodes 1 and 6:
 \begin{itemize}
-    \item First-order: $A_{16} = 0$
-    \item Second-order: Node 1's neighbours $\{2,3\}$ vs.\ node 6's neighbours $\{4,5\}$ --- no overlap! Very low second-order proximity.
+    \item First-order: $A_{16} = 0$.
+    \item Second-order: Node 1's neighbours $\{2,3\}$ vs.\ node 6's neighbours $\{4,5\}$ --- no overlap. Very low second-order proximity.
 \end{itemize}
 
-\textbf{Conclusion}: Even though both (1,4) and (1,6) are not directly connected, nodes 1 and 4 are ``more similar'' in the second-order sense.
+\emph{Conclusion}: Even though both (1,4) and (1,6) are not directly connected, nodes 1 and 4 are ``more similar'' in the second-order sense.
 \end{example}
 
 \begin{figure}[htbp]
@@ -199,7 +198,7 @@ Now consider nodes 1 and 6:
 \end{figure}
 
 \begin{definition}[$k$-th order proximity]
-The \textbf{$k$-th order proximity} captures indirect connections through paths of length $k$:
+The \emph{$k$-th order proximity} captures indirect connections through paths of length $k$:
 \[
 s^{(k)}_{ij} = (\adj^k)_{ij} = \text{number of paths of length } k \text{ from } i \text{ to } j
 \]
@@ -231,7 +230,7 @@ With $\beta = 0.1$, a path of length $k$ contributes $10^{-k}$. Other choices of
 
 \section{Matrix factorization methods}
 
-The idea is beautifully simple: if we can write the adjacency (or similarity) matrix as a product of low-rank matrices, those factors give us embeddings!
+The idea is beautifully simple: if we can write the adjacency (or similarity) matrix as a product of low-rank matrices, those factors give us embeddings.
 
 \subsection{The core idea}
 
@@ -244,7 +243,7 @@ Connected nodes ($A_{ij} = 1$) should have $\vect{y}_i^\top \vect{y}_j \approx 1
 \end{keyidea}
 
 \begin{pitfall}[The diagonal problem]
-There is an issue with the naive interpretation ``$\adj \approx \embed\embed^\top$''!
+There is an issue with the naive interpretation ``$\adj \approx \embed\embed^\top$''.
 
 The diagonal entries of $\embed \embed^\top$ are:
 \[
@@ -252,9 +251,9 @@ The diagonal entries of $\embed \embed^\top$ are:
 \]
 But for graphs without self-loops, the diagonal of the adjacency matrix is zero: $A_{ii} = 0$.
 
-So a true factorization $\adj = \embed\embed^\top$ would require $\|\vect{y}_i\|^2 = 0$ for all nodes --- meaning all embeddings are the zero vector! That is clearly useless.
+So a true factorization $\adj = \embed\embed^\top$ would require $\|\vect{y}_i\|^2 = 0$ for all nodes --- meaning all embeddings are the zero vector. That is clearly useless.
 
-\textbf{Solution}: We \textbf{only fit the off-diagonal entries}. The Graph Factorization loss sums over edges $(i,j) \in E$ where $i \neq j$, completely ignoring the diagonal. We are not truly factorizing $\adj$; we are finding embeddings whose inner products approximate the \emph{edge weights}.
+\emph{Solution}: We \emph{only fit the off-diagonal entries}. The Graph Factorization loss sums over edges $(i,j) \in E$ where $i \neq j$, completely ignoring the diagonal. We are not truly factorizing $\adj$; we are finding embeddings whose inner products approximate the \emph{edge weights}.
 \end{pitfall}
 
 \begin{figure}[htbp]
@@ -306,10 +305,10 @@ Find $\embed \in \R^{n \times d}$ minimizing:
 \end{definition}
 
 \begin{intuition}
-\textbf{Why only sum over edges?} Two reasons:
+\emph{Why only sum over edges?} Two reasons:
 \begin{enumerate}
-    \item \textbf{Efficiency}: Only $O(m)$ terms instead of $O(n^2)$
-    \item \textbf{Sparsity}: We observe edges; non-edges might be missing data, not true negatives
+    \item \textbf{Efficiency}: Only $O(m)$ terms instead of $O(n^2)$.
+    \item \textbf{Sparsity}: We observe edges; non-edges might be missing data, not true negatives.
 \end{enumerate}
 The regularization $\lambda \norm{\vect{y}_i}^2$ prevents embeddings from growing too large.
 \end{intuition}
@@ -340,7 +339,7 @@ The gradient update (with learning rate $\eta = 0.1$, $\lambda = 0.01$):
 &= (0.524, 0.337)
 \end{align*}
 
-The embedding $\vect{y}_1$ moved \emph{towards} $\vect{y}_2$ because they are connected!
+The embedding $\vect{y}_1$ moved \emph{towards} $\vect{y}_2$ because they are connected.
 \end{example}
 
 \begin{algorithm}
@@ -384,11 +383,11 @@ The embedding $\vect{y}_1$ moved \emph{towards} $\vect{y}_2$ because they are co
 \label{shallow-embeddings:fig:gf_embedding}
 \end{figure}
 
-\textbf{Limitations of GF}:
+\paragraph{Limitations of GF.}
 \begin{itemize}
-    \item Only uses first-order proximity (direct edges)
-    \item Ignores non-edges completely (might miss structural information)
-    \item Symmetric: cannot handle directed graphs naturally
+    \item Only uses first-order proximity (direct edges).
+    \item Ignores non-edges completely (might miss structural information).
+    \item Symmetric: cannot handle directed graphs naturally.
 \end{itemize}
 
 \subsection{HOPE: high-order proximity preserved embedding}
@@ -398,14 +397,14 @@ GF only looks at direct neighbours. But in many applications, we care about broa
 \end{intuition}
 
 \begin{definition}[HOPE objective]
-Given a high-order proximity matrix $\similarity$ (e.g.\ Katz index), find \textbf{source} embeddings $\embed_s$ and \textbf{target} embeddings $\embed_t$ minimizing:
+Given a high-order proximity matrix $\similarity$ (e.g.\ Katz index), find \emph{source} embeddings $\embed_s$ and \emph{target} embeddings $\embed_t$ minimizing:
 \[
 \mathcal{L}_{\text{HOPE}} = \frobnorm{\similarity - \embed_s \embed_t^\top}^2
 \]
 \end{definition}
 
 \begin{keyidea}
-\textbf{Why two embedding matrices?} For directed graphs, ``node $i$ influences node $j$'' is different from ``node $j$ influences node $i$.'' Having separate source and target embeddings captures this asymmetry:
+\emph{Why two embedding matrices?} For directed graphs, ``node $i$ influences node $j$'' is different from ``node $j$ influences node $i$''. Having separate source and target embeddings captures this asymmetry:
 \[
 S_{ij} \approx \vect{y}_{s,i}^\top \vect{y}_{t,j} \neq \vect{y}_{s,j}^\top \vect{y}_{t,i} \approx S_{ji}
 \]
@@ -441,7 +440,7 @@ Notice:
 The largest eigenvalue of $\adj$ is $1 + \sqrt2 \approx 2.414$, so $\beta = 0.1 < 1/2.414$ and the series converges. HOPE factorizes this matrix. Its singular values are $0.318, 0.209, 0.148, 0.091, 0.091, 0.040$, and the rank-$2$ factor $\embed_s = \mathbf U_2\mathbf\Sigma_2^{1/2}$ gives (to three decimals) $(-0.199, \mp0.203)$ for nodes $1, 3$ and $5, 6$, and $(-0.282, \mp0.149)$ for nodes $2$ and $4$, with the minus sign in community A. The first coordinate is the same sign for everybody (it reflects overall connectedness, larger for the two bridge nodes); the second separates the communities exactly.
 \end{example}
 
-\textbf{Solution via SVD}: The optimal solution uses the Singular Value Decomposition:
+\paragraph{Solution via SVD.} The optimal solution uses the Singular Value Decomposition:
 \[
 \similarity \approx \mathbf{U}_d \mathbf{\Sigma}_d \mathbf{V}_d^\top
 \]
@@ -457,9 +456,9 @@ GraRep learns \emph{separate embeddings for each scale} and concatenates them.
 \begin{definition}[GraRep]
 For each $k \in \{1, 2, \ldots, K\}$, GraRep:
 \begin{enumerate}
-    \item Computes the $k$-step transition probability matrix $\transition^k$
-    \item Applies a log-transformation to get $\mathbf{X}^{(k)}$
-    \item Factorizes $\mathbf{X}^{(k)}$ via SVD to get $d$-dimensional embeddings $\embed^{(k)} \in \R^{n \times d}$
+    \item Computes the $k$-step transition probability matrix $\transition^k$.
+    \item Applies a log-transformation to get $\mathbf{X}^{(k)}$.
+    \item Factorizes $\mathbf{X}^{(k)}$ via SVD to get $d$-dimensional embeddings $\embed^{(k)} \in \R^{n \times d}$.
 \end{enumerate}
 Final embedding: $\vect{y}_i = [\vect{y}_i^{(1)} | \vect{y}_i^{(2)} | \cdots | \vect{y}_i^{(K)}] \in \R^{Kd}$
 \end{definition}
@@ -467,7 +466,7 @@ Final embedding: $\vect{y}_i = [\vect{y}_i^{(1)} | \vect{y}_i^{(2)} | \cdots | \
 \subsubsection*{The log-transformation: why and what?}
 
 \begin{intuition}[Motivation]
-Why not just factorize $\transition^k$ directly? The issue is that transition probabilities are \textbf{not the right quantity to preserve}. GraRep draws inspiration from word2vec's skip-gram, which implicitly factorizes a \textbf{Pointwise Mutual Information (PMI)} matrix, not raw co-occurrence counts.
+Why not just factorize $\transition^k$ directly? The issue is that transition probabilities are \emph{not the right quantity to preserve}. GraRep draws inspiration from word2vec's skip-gram, which implicitly factorizes a \emph{Pointwise Mutual Information (PMI)} matrix, not raw co-occurrence counts.
 \end{intuition}
 
 The log-transformation converts transition probabilities into PMI-like quantities:
@@ -484,17 +483,17 @@ X^{(k)}_{ij} = \max\left( \log(n \cdot \tilde{P}^{(k)}_{ij}), \; 0 \right)
 \end{definition}
 
 \begin{intuition}
-\textbf{What does this formula mean?}
+\emph{What does this formula mean?}
 
 \begin{itemize}
-    \item $(\transition^k)_{ij}$ is the probability of reaching $j$ from $i$ in $k$ steps
-    \item The denominator $\sum_{\ell} (\transition^k)_{\ell j}$ measures how ``popular'' node $j$ is as a destination
+    \item $(\transition^k)_{ij}$ is the probability of reaching $j$ from $i$ in $k$ steps.
+    \item The denominator $\sum_{\ell} (\transition^k)_{\ell j}$ measures how ``popular'' node $j$ is as a destination.
     \item The ratio $\frac{(\transition^k)_{ij}}{\sum_{\ell} (\transition^k)_{\ell j}}$ asks: ``Is node $i$ \emph{unexpectedly} likely to reach $j$, compared to random?''
-    \item Taking $\log$ converts multiplicative relationships to additive (easier to factorize)
-    \item The $\max(\cdot, 0)$ clips negative values (like Positive PMI in NLP)
+    \item Taking $\log$ converts multiplicative relationships to additive (easier to factorize).
+    \item The $\max(\cdot, 0)$ clips negative values (like Positive PMI in NLP).
 \end{itemize}
 
-\textbf{Why is this better?} Raw probabilities favour high-degree nodes (everyone can reach popular nodes). The log-ratio corrects for this, emphasizing \emph{specific} relationships over generic popularity.
+\emph{Why is this better?} Raw probabilities favour high-degree nodes (everyone can reach popular nodes). The log-ratio corrects for this, emphasizing \emph{specific} relationships over generic popularity.
 \end{intuition}
 
 \begin{example}
@@ -506,17 +505,12 @@ X^{(2)}_{13} = \log(6\cdot0.167/0.86) \approx 0.15 .
 The log-ratio keeps the specific relation of node $1$ to its community and discards its two-step contact with the popular node $4$.
 \end{example}
 
-\subsubsection*{The concatenation: it is a big vector!}
+\subsubsection*{The concatenation: it is a big vector}
 
 \begin{keyidea}
-If we use:
-\begin{itemize}
-    \item $K$ scales (e.g.\ $K = 4$ for 1-hop, 2-hop, 3-hop, 4-hop)
-    \item $d$ dimensions per scale (e.g.\ $d = 64$)
-\end{itemize}
-Then each node's final embedding has dimension $K \times d = 4 \times 64 = 256$.
+With $K$ scales (e.g.\ $K = 4$ for 1-hop to 4-hop) and $d$ dimensions per scale (e.g.\ $d = 64$), each node's final embedding has dimension $K \times d = 4 \times 64 = 256$.
 
-\textbf{This is by design}: each scale captures different information, and we want to preserve all of it. The downstream ML algorithm can learn which scales matter for the specific task.
+\emph{This is by design}: each scale captures different information, and we want to preserve all of it. The downstream ML algorithm can learn which scales matter for the specific task.
 \end{keyidea}
 
 \begin{figure}[htbp]
@@ -567,7 +561,7 @@ Then each node's final embedding has dimension $K \times d = 4 \times 64 = 256$.
 \begin{example}
 For our graph, let us see what different values of $k$ capture.
 
-\textbf{$k=1$ (direct neighbours)}:
+\emph{$k=1$ (direct neighbours)}:
 \[
 \transition^1 = \degree^{-1}\adj = \begin{pmatrix}
 0 & 0.5 & 0.5 & 0 & 0 & 0 \\
@@ -579,7 +573,7 @@ For our graph, let us see what different values of $k$ capture.
 \end{pmatrix}
 \]
 
-\textbf{$k=2$ (two-hop neighbours)}:
+\emph{$k=2$ (two-hop neighbours)}:
 \[
 \transition^2 \approx \begin{pmatrix}
 0.42 & 0.25 & 0.17 & 0.17 & 0 & 0 \\
@@ -593,11 +587,11 @@ For our graph, let us see what different values of $k$ capture.
 
 Notice: at $k=2$, node 1 now has non-zero ``similarity'' to node 4 (via node 2), but zero to nodes 5 and 6 (too far away).
 
-\textbf{$k=3$ (three-hop)}:
+\emph{$k=3$ (three-hop)}:
 \[
 (\transition^3)_{15} = (\transition^3)_{16} = \tfrac1{18} \approx 0.056 > 0
 \]
-Now even nodes 1 and 5/6 are connected through paths!
+Now even nodes 1 and 5/6 are connected through paths.
 
 \begin{center}
 \begin{tikzpicture}
@@ -636,7 +630,7 @@ By concatenating embeddings from all scales, we get the best of both worlds.
 % ============================================================================
 \section{Skip-gram based methods}
 
-These methods borrow a brilliant idea from natural language processing: \emph{you can learn word meanings from context}. The same idea applies to graphs!
+These methods borrow a brilliant idea from natural language processing: \emph{you can learn word meanings from context}. The same idea applies to graphs.
 
 \subsection{From words to nodes: the key insight}
 
@@ -645,7 +639,7 @@ In a sentence, nearby words are related: ``The \underline{cat} sat on the \under
 
 In a graph, nodes visited consecutively during a random walk are related: if a random walk visits $3 \to 2 \to 4$, then nodes 2 and 3 are ``contextually similar'' (like neighbouring words).
 
-\textbf{Key idea}: Generate random walks on the graph, treat them as sentences, and use word embedding techniques!
+\emph{Key idea}: Generate random walks on the graph, treat them as sentences, and use word embedding techniques.
 \end{intuition}
 
 \begin{figure}[htbp]
@@ -695,7 +689,7 @@ Given a sequence of nodes (from random walks), the skip-gram model learns embedd
 \[
 \mathcal{L} = \sum_{\text{walks}} \sum_{t} \sum_{-c \leq j \leq c, j \neq 0} \log P(v_{t+j} \mid v_t)
 \]
-where $c$ is the \textbf{context window size}.
+where $c$ is the \emph{context window size}.
 \end{definition}
 
 \begin{example}
@@ -703,8 +697,8 @@ From the walk $[3, 1, 2, 4, 6]$ with window $c = 2$:
 
 For target node $v_t = 2$ (position 3 in the walk):
 \begin{itemize}
-    \item Context window: positions 1--2 and 4--5
-    \item Context nodes: $\{3, 1, 4, 6\}$
+    \item Context window: positions 1--2 and 4--5.
+    \item Context nodes: $\{3, 1, 4, 6\}$.
 \end{itemize}
 
 Training pairs generated: $(2, 3), (2, 1), (2, 4), (2, 6)$
@@ -714,7 +708,7 @@ The model learns: ``node 2 should predict nodes 1, 3, 4, 6 as context''
 
 \subsubsection*{How do we model $P(v_j \mid v_i)$?}
 
-The natural choice is a \textbf{softmax} over all nodes:
+The natural choice is a \emph{softmax} over all nodes:
 \[
 P(v_j \mid v_i) = \frac{\exp(\vect{y}_j^\top \vect{y}_i)}{\sum_{k=1}^{n} \exp(\vect{y}_k^\top \vect{y}_i)}
 \]
@@ -722,14 +716,14 @@ P(v_j \mid v_i) = \frac{\exp(\vect{y}_j^\top \vect{y}_i)}{\sum_{k=1}^{n} \exp(\v
 \begin{intuition}
 This formula says:
 \begin{itemize}
-    \item The numerator $\exp(\vect{y}_j^\top \vect{y}_i)$ is large when embeddings $\vect{y}_i$ and $\vect{y}_j$ are similar (high inner product)
-    \item The denominator normalizes over all possible context nodes
-    \item So $P(v_j \mid v_i)$ is high when $j$ is more similar to $i$ than other nodes are
+    \item The numerator $\exp(\vect{y}_j^\top \vect{y}_i)$ is large when embeddings $\vect{y}_i$ and $\vect{y}_j$ are similar (high inner product).
+    \item The denominator normalizes over all possible context nodes.
+    \item So $P(v_j \mid v_i)$ is high when $j$ is more similar to $i$ than other nodes are.
 \end{itemize}
 Training maximizes this probability for true (target, context) pairs from random walks.
 \end{intuition}
 
-\textbf{The problem}: The denominator sums over \emph{all $n$ nodes}. For each training pair, we need $O(n)$ operations. With millions of nodes and billions of training pairs, this is computationally infeasible.
+\paragraph{The problem.} The denominator sums over \emph{all $n$ nodes}. For each training pair, we need $O(n)$ operations. With millions of nodes and billions of training pairs, this is computationally infeasible.
 
 \subsubsection*{Negative sampling}
 
@@ -742,9 +736,9 @@ a Monte Carlo estimate of $\log\sigma(\vect y_j^\top\vect y_i) + K\,\E_{v\sim P_
 \begin{example}
 Continuing our example with target node 2 and true context node 1:
 
-\textbf{Positive pair}: $(2, 1)$ --- nodes that actually co-occur in the walk
+\emph{Positive pair}: $(2, 1)$ --- nodes that actually co-occur in the walk
 
-\textbf{Negative samples}: Randomly draw $K=5$ nodes, say $\{5, 6, 3, 5, 4\}$ (with replacement from $P_n$)
+\emph{Negative samples}: Randomly draw $K=5$ nodes, say $\{5, 6, 3, 5, 4\}$ (with replacement from $P_n$)
 
 The objective for this one positive pair becomes:
 \[
@@ -753,8 +747,8 @@ The objective for this one positive pair becomes:
 
 Maximizing $\mathcal{J}_{(2,1)}$ (or equivalently, minimizing the loss $\mathcal{L}_{(2,1)} = -\mathcal{J}_{(2,1)}$) will:
 \begin{itemize}
-    \item Pull $\vect{y}_2$ towards $\vect{y}_1$ (true context)
-    \item Push $\vect{y}_2$ away from $\vect{y}_5, \vect{y}_6$, etc.\ (random noise)
+    \item Pull $\vect{y}_2$ towards $\vect{y}_1$ (true context).
+    \item Push $\vect{y}_2$ away from $\vect{y}_5, \vect{y}_6$, etc.\ (random noise).
 \end{itemize}
 \end{example}
 
@@ -765,13 +759,13 @@ P_n(v) \propto d_v^{3/4}
 \]
 where $d_v$ is the degree of node $v$. The exponent $3/4$ (found empirically in word2vec) balances between:
 \begin{itemize}
-    \item Uniform sampling ($\propto 1$): Too many rare nodes as negatives
-    \item Degree sampling ($\propto d_v$): Too many hub nodes as negatives
+    \item Uniform sampling ($\propto 1$): Too many rare nodes as negatives.
+    \item Degree sampling ($\propto d_v$): Too many hub nodes as negatives.
 \end{itemize}
 \end{remark}
 
 \begin{remark}[How many negative samples?]
-Typical values are $K \in \{5, 10, 20\}$. More negatives give better gradient estimates but cost more computation. The cost per training pair is now $O(K)$ instead of $O(n)$ --- a huge improvement when $n$ is large!
+Typical values are $K \in \{5, 10, 20\}$. More negatives give better gradient estimates but cost more computation. The cost per training pair is now $O(K)$ instead of $O(n)$ --- a huge improvement when $n$ is large.
 \end{remark}
 
 \subsubsection*{Hierarchical softmax}
@@ -783,8 +777,8 @@ The original DeepWalk used the other classical remedy, the hierarchical softmax 
 \begin{definition}[DeepWalk]
 DeepWalk = Random Walks + Skip-Gram
 \begin{enumerate}
-    \item Generate $\gamma$ random walks of length $\ell$ starting from each node
-    \item Train a skip-gram model on the resulting ``corpus'' of walks
+    \item Generate $\gamma$ random walks of length $\ell$ starting from each node.
+    \item Train a skip-gram model on the resulting ``corpus'' of walks.
 \end{enumerate}
 \end{definition}
 
@@ -806,21 +800,21 @@ DeepWalk = Random Walks + Skip-Gram
 \begin{example}
 Let us trace DeepWalk on our graph.
 
-\textbf{Step 1: Generate random walks} (say, $\gamma=2$ walks per node, $\ell=4$)
+\emph{Step 1: Generate random walks} (say, $\gamma=2$ walks per node, $\ell=4$)
 
 Starting from node 1:
 \begin{itemize}
-    \item Walk 1: $1 \to 2 \to 3 \to 1 \to 2$ (randomly chose neighbours)
-    \item Walk 2: $1 \to 3 \to 2 \to 4 \to 5$
+    \item Walk 1: $1 \to 2 \to 3 \to 1 \to 2$ (randomly chose neighbours).
+    \item Walk 2: $1 \to 3 \to 2 \to 4 \to 5$.
 \end{itemize}
 
 Starting from node 4:
 \begin{itemize}
-    \item Walk 1: $4 \to 2 \to 1 \to 3 \to 2$
-    \item Walk 2: $4 \to 6 \to 5 \to 4 \to 2$
+    \item Walk 1: $4 \to 2 \to 1 \to 3 \to 2$.
+    \item Walk 2: $4 \to 6 \to 5 \to 4 \to 2$.
 \end{itemize}
 
-\textbf{Step 2: Extract training pairs} (window $c=1$)
+\emph{Step 2: Extract training pairs} (window $c=1$)
 
 From walk $[1, 2, 3, 1, 2]$:
 \begin{center}
@@ -837,21 +831,20 @@ Target & Context \\
 \end{tabular}
 \end{center}
 
-\textbf{Step 3: Train skip-gram}
-
+\emph{Step 3: train skip-gram.}
 For pair (target=2, context=3): increase $\vect{y}_2^\top \vect{y}_3$
 
 For negative sample (target=2, negative=6): decrease $\vect{y}_2^\top \vect{y}_6$
 
-After many iterations, nodes that frequently co-occur in walks will have similar embeddings!
+After many iterations, nodes that frequently co-occur in walks will have similar embeddings.
 \end{example}
 
-\subsubsection*{The deep connection: skip-gram is matrix factorization!}
+\subsubsection*{The deep connection: skip-gram is matrix factorization}
 
 At first glance, DeepWalk (random walks + skip-gram) seems completely different from the matrix factorization methods we saw earlier (GF, HOPE, GraRep). One uses neural network training with stochastic gradient descent; the other uses linear algebra (SVD).
 
 \begin{intuition}[Motivation]
-But here is a remarkable fact: \textbf{they are secretly doing the same thing!}
+But here is a remarkable fact: \emph{they are secretly doing the same thing}.
 
 A beautiful theoretical result shows that skip-gram with negative sampling implicitly factorizes a specific matrix. This explains why DeepWalk works so well --- it is not just a heuristic, it has solid mathematical foundations.
 \end{intuition}
@@ -863,10 +856,10 @@ Consider DeepWalk with skip-gram and $K$ negative samples, with target embedding
 \]
 Here:
 \begin{itemize}
-    \item $\transition = \degree^{-1}\adj$ is the random walk transition matrix
-    \item $c$ is the context window size
-    \item $K$ is the number of negative samples
-    \item $\text{vol}(G) = \sum_i d_i$ is the total degree (twice the number of edges)
+    \item $\transition = \degree^{-1}\adj$ is the random walk transition matrix.
+    \item $c$ is the context window size.
+    \item $K$ is the number of negative samples.
+    \item $\text{vol}(G) = \sum_i d_i$ is the total degree (twice the number of edges).
 \end{itemize}
 \end{theorem}
 
@@ -874,21 +867,21 @@ Here:
 Let us unpack what this matrix $\mathbf{M}$ captures:
 
 \begin{itemize}
-    \item $\transition^r$ is the $r$-step random walk probability matrix (we saw this in GraRep!)
-    \item $\sum_{r=1}^{c} \transition^r$ averages over all path lengths from 1 to $c$
-    \item The $\log$ transformation converts probabilities to PMI-like quantities (just like GraRep!)
-    \item The $\degree^{-1}$ term normalizes by node popularity
+    \item $\transition^r$ is the $r$-step random walk probability matrix (we saw this in GraRep).
+    \item $\sum_{r=1}^{c} \transition^r$ averages over all path lengths from 1 to $c$.
+    \item The $\log$ transformation converts probabilities to PMI-like quantities (just like GraRep).
+    \item The $\degree^{-1}$ term normalizes by node popularity.
 \end{itemize}
 
-\textbf{In other words}: DeepWalk is approximately factorizing a matrix that looks a lot like what GraRep explicitly constructs! The random walks and skip-gram training are just a clever, scalable way to achieve the same goal.
+\emph{In other words}: DeepWalk is approximately factorizing a matrix that looks a lot like what GraRep explicitly constructs. The random walks and skip-gram training are just a clever, scalable way to achieve the same goal.
 \end{intuition}
 
 \begin{keyidea}
 This theorem has profound implications:
 
 \begin{enumerate}
-    \item \textbf{Unification}: Skip-gram methods and matrix factorization methods are two sides of the same coin
-    \item \textbf{The Laplacian appears again}: Since $\transition = \identity - \lamark_{\text{rw}}$, DeepWalk implicitly encodes spectral information about the graph
+    \item \textbf{Unification}: Skip-gram methods and matrix factorization methods are two sides of the same coin.
+    \item \textbf{The Laplacian appears again}: Since $\transition = \identity - \lamark_{\text{rw}}$, DeepWalk implicitly encodes spectral information about the graph.
     \item \textbf{Design insights}: Want to capture longer-range structure? Increase window size $c$. Want sharper embeddings? Increase negative samples $K$.
 \end{enumerate}
 \end{keyidea}
@@ -898,10 +891,10 @@ This theorem has profound implications:
 \begin{intuition}[Motivation]
 DeepWalk uses uniform random walks. But sometimes we want more control:
 \begin{itemize}
-    \item \textbf{Homophily}: Nodes nearby in the graph should be similar (DFS-like exploration)
-    \item \textbf{Structural equivalence}: Nodes with similar roles should be similar (BFS-like, stay local)
+    \item \textbf{Homophily}: Nodes nearby in the graph should be similar (DFS-like exploration).
+    \item \textbf{Structural equivalence}: Nodes with similar roles should be similar (BFS-like, stay local).
 \end{itemize}
-Node2vec lets us interpolate between these!
+Node2vec lets us interpolate between these.
 \end{intuition}
 
 \begin{definition}[Biased random walk in node2vec]
@@ -977,41 +970,41 @@ From node 4, the neighbours are: $\mathcal{N}(4) = \{2, 5, 6\}$
 
 For each possible next node $x \in \mathcal{N}(4)$, we compute the unnormalized weight $\alpha_{pq}(t, x)$:
 \begin{itemize}
-    \item $x = 2$: This is returning to $t$, so $\alpha_{pq}(2, 2) = 1/p$
-    \item $x = 5$: Is $5 \in \mathcal{N}(2)$? Node 2's neighbours are $\{1, 3, 4\}$, so no. Thus $\alpha_{pq}(2, 5) = 1/q$
-    \item $x = 6$: Is $6 \in \mathcal{N}(2)$? No. Thus $\alpha_{pq}(2, 6) = 1/q$
+    \item $x = 2$: This is returning to $t$, so $\alpha_{pq}(2, 2) = 1/p$.
+    \item $x = 5$: Is $5 \in \mathcal{N}(2)$? Node 2's neighbours are $\{1, 3, 4\}$, so no. Thus $\alpha_{pq}(2, 5) = 1/q$.
+    \item $x = 6$: Is $6 \in \mathcal{N}(2)$? No. Thus $\alpha_{pq}(2, 6) = 1/q$.
 \end{itemize}
 
-\textbf{Case 1:} $p=1, q=2$ (encourage returning, discourage exploring)
+\emph{Case 1:} $p=1, q=2$ (encourage returning, discourage exploring)
 \begin{align*}
 \alpha_{pq}(2,2) &= 1/1 = 1, \quad \alpha_{pq}(2,5) = \alpha_{pq}(2,6) = 1/2 = 0.5 \\
 Z &= 1 + 0.5 + 0.5 = 2 \\
 P(4 \to 2) &= 1/2 = 0.5, \quad P(4 \to 5) = P(4 \to 6) = 0.5/2 = 0.25
 \end{align*}
 
-\textbf{Case 2:} $p=2, q=0.5$ (discourage returning, encourage exploring)
+\emph{Case 2:} $p=2, q=0.5$ (discourage returning, encourage exploring)
 \begin{align*}
 \alpha_{pq}(2,2) &= 1/2 = 0.5, \quad \alpha_{pq}(2,5) = \alpha_{pq}(2,6) = 1/0.5 = 2 \\
 Z &= 0.5 + 2 + 2 = 4.5 \\
 P(4 \to 2) &= 0.5/4.5 \approx 0.11, \quad P(4 \to 5) = P(4 \to 6) = 2/4.5 \approx 0.44
 \end{align*}
 
-The second setting pushes the walk deeper into community B (away from where it came from)!
+The second setting pushes the walk deeper into community B (away from where it came from).
 \end{example}
 
 \begin{keyidea}
-\textbf{Choosing $p$ and $q$}:
+\emph{Choosing $p$ and $q$}:
 \begin{itemize}
-    \item \textbf{Low $p$}: Encourage returning → very local exploration (BFS-like)
-    \item \textbf{High $p$}: Discourage returning → keep moving forward
-    \item \textbf{Low $q$}: Encourage moving to new areas → DFS-like, captures homophily
-    \item \textbf{High $q$}: Stay close to starting region → BFS-like, captures structural equivalence
+    \item \textbf{Low $p$}: Encourage returning → very local exploration (BFS-like).
+    \item \textbf{High $p$}: Discourage returning → keep moving forward.
+    \item \textbf{Low $q$}: Encourage moving to new areas → DFS-like, captures homophily.
+    \item \textbf{High $q$}: Stay close to starting region → BFS-like, captures structural equivalence.
 \end{itemize}
 
-\textbf{Rule of thumb}:
+\emph{Rule of thumb}:
 \begin{itemize}
-    \item For community detection: use low $q$ (explore communities deeply)
-    \item For role detection (hubs, bridges): use high $q$ (stay local, see structure)
+    \item For community detection: use low $q$ (explore communities deeply).
+    \item For role detection (hubs, bridges): use high $q$ (stay local, see structure).
 \end{itemize}
 \end{keyidea}
 
@@ -1050,32 +1043,32 @@ The second setting pushes the walk deeper into community B (away from where it c
 % ============================================================================
 \section{Multi-relational graphs and knowledge graph embeddings}
 
-So far, we have considered \textbf{simple graphs} where edges are homogeneous --- all edges represent the same type of relationship. However, many real-world graphs have \textbf{multiple types of relationships} between nodes. This section develops the theory of embedding such \emph{multi-relational graphs}, with a particular focus on \emph{knowledge graphs}.
+So far, we have considered \emph{simple graphs} where edges are homogeneous --- all edges represent the same type of relationship. However, many real-world graphs have \emph{multiple types of relationships} between nodes. This section develops the theory of embedding such \emph{multi-relational graphs}, with a particular focus on \emph{knowledge graphs}.
 
 \subsection{What are multi-relational graphs?}
 
 \begin{intuition}[Motivation]
 Consider these scenarios where a single edge type is insufficient:
 \begin{itemize}
-    \item \textbf{Social networks}: Alice can be Bob's ``friend,'' ``colleague,'' or ``spouse'' --- these are fundamentally different relationships
-    \item \textbf{Biomedical networks}: A drug can ``treat'' a disease, ``cause'' a side effect, or ``interact with'' another drug
-    \item \textbf{Knowledge bases}: We might know that (Einstein, \textsc{BornIn}, Germany), (Einstein, \textsc{WonAward}, NobelPrize), (Einstein, \textsc{WorkedAt}, Princeton)
+    \item \textbf{Social networks}: Alice can be Bob's ``friend'', ``colleague'', or ``spouse'' --- these are fundamentally different relationships.
+    \item \textbf{Biomedical networks}: A drug can ``treat'' a disease, ``cause'' a side effect, or ``interact with'' another drug.
+    \item \textbf{Knowledge bases}: We might know that (Einstein, \textsc{BornIn}, Germany), (Einstein, \textsc{WonAward}, NobelPrize), (Einstein, \textsc{WorkedAt}, Princeton).
 \end{itemize}
-A simple adjacency matrix $\adj$ cannot capture these distinctions!
+A simple adjacency matrix $\adj$ cannot capture these distinctions.
 \end{intuition}
 
 \begin{definition}[Multi-relational graph]
-A \textbf{multi-relational graph} is a tuple $\mathcal{G} = (V, E, \mathcal{R})$ where:
+A \emph{multi-relational graph} is a tuple $\mathcal{G} = (V, E, \mathcal{R})$ where:
 \begin{itemize}
-    \item $V = \{v_1, \ldots, v_n\}$ is the set of \textbf{nodes} (also called \emph{entities})
-    \item $\mathcal{R} = \{\tau_1, \ldots, \tau_R\}$ is the set of \textbf{relation types}
-    \item $E \subseteq V \times \mathcal{R} \times V$ is the set of \textbf{edges} (also called \emph{triples} or \emph{facts})
+    \item $V = \{v_1, \ldots, v_n\}$ is the set of \emph{nodes} (also called \emph{entities}).
+    \item $\mathcal{R} = \{\tau_1, \ldots, \tau_R\}$ is the set of \emph{relation types}.
+    \item $E \subseteq V \times \mathcal{R} \times V$ is the set of \emph{edges} (also called \emph{triples} or \emph{facts}).
 \end{itemize}
 Each edge is a triple $e = (u, \tau, v)$ indicating that relation $\tau$ holds from node $u$ to node $v$.
 \end{definition}
 
 \begin{intuition}
-We can think of a multi-relational graph as having $R$ different ``layers,'' one for each relation type. Alternatively, we can represent it as a 3D \textbf{adjacency tensor} $\mathcal{A} \in \{0,1\}^{n \times R \times n}$ where:
+We can think of a multi-relational graph as having $R$ different ``layers'', one for each relation type. Alternatively, we can represent it as a 3D \emph{adjacency tensor} $\mathcal{A} \in \{0,1\}^{n \times R \times n}$ where:
 \[
 \mathcal{A}[u, \tau, v] = \begin{cases} 1 & \text{if } (u, \tau, v) \in E \\ 0 & \text{otherwise} \end{cases}
 \]
@@ -1115,11 +1108,11 @@ We can think of a multi-relational graph as having $R$ different ``layers,'' one
 \end{figure}
 
 \begin{definition}[Knowledge graph]
-A \textbf{knowledge graph} is a multi-relational graph where:
+A \emph{knowledge graph} is a multi-relational graph where:
 \begin{itemize}
-    \item Nodes represent real-world \textbf{entities} (people, places, concepts, etc.)
-    \item Edges represent \textbf{facts} about relationships between entities
-    \item Each triple $(h, \tau, t)$ can be read as ``\emph{head} has relation $\tau$ to \emph{tail}''
+    \item Nodes represent real-world \emph{entities} (people, places, concepts, etc.)
+    \item Edges represent \emph{facts} about relationships between entities.
+    \item Each triple $(h, \tau, t)$ can be read as ``\emph{head} has relation $\tau$ to \emph{tail}''.
 \end{itemize}
 Common notation: $(h, r, t)$ for (head, relation, tail), emphasizing the directed nature.
 \end{definition}
@@ -1127,10 +1120,10 @@ Common notation: $(h, r, t)$ for (head, relation, tail), emphasizing the directe
 \begin{example}
 Some well-known knowledge graphs include:
 \begin{itemize}
-    \item \textbf{Freebase}: 1.9 billion triples about general knowledge
-    \item \textbf{WordNet}: Semantic relationships between English words
-    \item \textbf{YAGO}: Facts extracted from Wikipedia and WordNet
-    \item \textbf{Wikidata}: Collaborative knowledge base with 100M+ items
+    \item \textbf{Freebase}: 1.9 billion triples about general knowledge.
+    \item \textbf{WordNet}: Semantic relationships between English words.
+    \item \textbf{YAGO}: Facts extracted from Wikipedia and WordNet.
+    \item \textbf{Wikidata}: Collaborative knowledge base with 100M+ items.
 \end{itemize}
 A typical knowledge graph might have $n \sim 10^6$ entities, $R \sim 10^3$ relations, and $|E| \sim 10^8$ triples.
 \end{example}
@@ -1138,25 +1131,25 @@ A typical knowledge graph might have $n \sim 10^6$ entities, $R \sim 10^3$ relat
 \subsection{The knowledge graph completion problem}
 
 \begin{intuition}[Motivation]
-Knowledge graphs are inherently \textbf{incomplete} --- they contain only a fraction of all true facts. For example, Dong et al.\ (\emph{Knowledge Vault}, 2014) report that $71\%$ of the people in Freebase had no recorded place of birth and $75\%$ no recorded nationality. The task of \textbf{knowledge graph completion} (or \emph{link prediction}) is to predict missing edges.
+Knowledge graphs are inherently \emph{incomplete} --- they contain only a fraction of all true facts. For example, Dong et al.\ (\emph{Knowledge Vault}, 2014) report that $71\%$ of the people in Freebase had no recorded place of birth and $75\%$ no recorded nationality. The task of \emph{knowledge graph completion} (or \emph{link prediction}) is to predict missing edges.
 \end{intuition}
 
 \begin{definition}[Knowledge graph completion]
 Given a knowledge graph $\mathcal{G} = (V, E, \mathcal{R})$, the goal is to predict whether a candidate triple $(h, \tau, t) \notin E$ is likely to be a true fact.
 
-Formally, we want to learn a \textbf{scoring function} $f: V \times \mathcal{R} \times V \to \R$ such that:
+Formally, we want to learn a \emph{scoring function} $f: V \times \mathcal{R} \times V \to \R$ such that:
 \[
 f(h, \tau, t) > f(h', \tau', t') \quad \text{when } (h, \tau, t) \text{ is more likely to be true}
 \]
 \end{definition}
 
 \begin{intuition}
-This is exactly the link prediction problem, but now we must also predict the \emph{type} of link! The challenge is that different relation types have very different semantics:
+This is exactly the link prediction problem, but now we must also predict the \emph{type} of link. The challenge is that different relation types have very different semantics:
 \begin{itemize}
-    \item \textsc{BornIn} is many-to-one (many people born in one city)
-    \item \textsc{Spouse} is one-to-one (ideally!)
-    \item \textsc{HasCitizen} is one-to-many (one country, many citizens)
-    \item \textsc{Colleague} is symmetric; \textsc{Supervises} is antisymmetric
+    \item \textsc{BornIn} is many-to-one (many people born in one city).
+    \item \textsc{Spouse} is one-to-one (ideally).
+    \item \textsc{HasCitizen} is one-to-many (one country, many citizens).
+    \item \textsc{Colleague} is symmetric; \textsc{Supervises} is antisymmetric.
 \end{itemize}
 Our embedding methods must capture these diverse patterns.
 \end{intuition}
@@ -1172,7 +1165,7 @@ The encoder maps each entity $v \in V$ to an embedding vector:
 \]
 For shallow embeddings, this is simply a lookup: $\text{enc}(v) = \vect{Z}[v]$ where $\vect{Z} \in \R^{n \times d}$ is the embedding matrix.
 
-Additionally, we must encode the \textbf{relation types}. Different methods do this differently --- some use relation vectors $\vect{r}_\tau \in \R^d$, others use relation matrices $\vect{R}_\tau \in \R^{d \times d}$.
+Additionally, we must encode the \emph{relation types}. Different methods do this differently --- some use relation vectors $\vect{r}_\tau \in \R^d$, others use relation matrices $\vect{R}_\tau \in \R^{d \times d}$.
 \end{definition}
 
 \begin{definition}[Multi-relational decoder]
@@ -1184,11 +1177,11 @@ The score $f(h, \tau, t)$ should be high for true triples and low for false ones
 \end{definition}
 
 \begin{keyidea}
-The key distinction from simple graph embedding is that the decoder is now \textbf{relation-specific}. We cannot just use $\vect{z}_h^\top \vect{z}_t$ because:
+The key distinction from simple graph embedding is that the decoder is now \emph{relation-specific}. We cannot just use $\vect{z}_h^\top \vect{z}_t$ because:
 \begin{enumerate}
-    \item It ignores the relation type entirely
-    \item It is symmetric, but many relations are not
-    \item Different relations require different notions of ``similarity''
+    \item It ignores the relation type entirely.
+    \item It is symmetric, but many relations are not.
+    \item Different relations require different notions of ``similarity''.
 \end{enumerate}
 The art of knowledge graph embedding lies in designing decoders that capture the semantics of diverse relation types.
 \end{keyidea}
@@ -1205,21 +1198,21 @@ One might try to directly minimize reconstruction error over all possible triple
 \]
 
 \begin{intuition}[Motivation]
-This is computationally infeasible! The sum has $O(n^2 R)$ terms. For a knowledge graph with $n = 10^6$ entities and $R = 10^3$ relations, that is $10^{15}$ terms per gradient step. We need smarter approaches.
+This is computationally infeasible. The sum has $O(n^2 R)$ terms. For a knowledge graph with $n = 10^6$ entities and $R = 10^3$ relations, that is $10^{15}$ terms per gradient step. We need smarter approaches.
 \end{intuition}
 
 \subsubsection*{Cross-entropy loss with negative sampling}
 
-The most common approach uses \textbf{negative sampling}, similar to what we saw for DeepWalk:
+The most common approach uses \emph{negative sampling}, similar to what we saw for DeepWalk:
 
 \begin{definition}[Cross-entropy loss with negative sampling]
 For each true triple $(h, \tau, t) \in E$:
 \begin{enumerate}
-    \item Generate $K$ \textbf{negative samples} by corrupting either the head or tail:
+    \item Generate $K$ \emph{negative samples} by corrupting either the head or tail:
     \[
     (h', \tau, t) \text{ where } h' \sim P_n(V), \quad \text{or} \quad (h, \tau, t') \text{ where } t' \sim P_n(V)
     \]
-    \item Maximize the score gap between positive and negative triples
+    \item Maximize the score gap between positive and negative triples.
 \end{enumerate}
 
 The loss function is:
@@ -1236,16 +1229,16 @@ where $\sigma(x) = 1/(1+e^{-x})$ is the sigmoid function.
 \begin{intuition}
 This loss has three parts:
 \begin{enumerate}
-    \item \textbf{Positive term}: Push $\text{dec}(\vect{z}_h, \tau, \vect{z}_t)$ to be large (so $\sigma(\cdot) \approx 1$)
-    \item \textbf{Head corruption}: Push $\text{dec}(\vect{z}_{h'}, \tau, \vect{z}_t)$ to be small for random $h'$
-    \item \textbf{Tail corruption}: Push $\text{dec}(\vect{z}_h, \tau, \vect{z}_{t'})$ to be small for random $t'$
+    \item \textbf{Positive term}: Push $\text{dec}(\vect{z}_h, \tau, \vect{z}_t)$ to be large (so $\sigma(\cdot) \approx 1$).
+    \item \textbf{Head corruption}: Push $\text{dec}(\vect{z}_{h'}, \tau, \vect{z}_t)$ to be small for random $h'$.
+    \item \textbf{Tail corruption}: Push $\text{dec}(\vect{z}_h, \tau, \vect{z}_{t'})$ to be small for random $t'$.
 \end{enumerate}
-Complexity: $O(|E| \cdot K)$ per epoch, which is tractable!
+Complexity: $O(|E| \cdot K)$ per epoch, which is tractable.
 \end{intuition}
 
 \subsubsection*{Max-margin loss (hinge loss)}
 
-An alternative is the \textbf{margin-based ranking loss}:
+An alternative is the \emph{margin-based ranking loss}:
 
 \begin{definition}[Max-margin loss]
 \begin{equation}
@@ -1253,18 +1246,18 @@ An alternative is the \textbf{margin-based ranking loss}:
 \end{equation}
 where:
 \begin{itemize}
-    \item $\mathcal{N}_{h,\tau,t}$ is the set of negative samples for triple $(h, \tau, t)$
-    \item $\gamma > 0$ is the \textbf{margin} hyperparameter
+    \item $\mathcal{N}_{h,\tau,t}$ is the set of negative samples for triple $(h, \tau, t)$.
+    \item $\gamma > 0$ is the \emph{margin} hyperparameter.
 \end{itemize}
 \end{definition}
 
 \begin{intuition}
 The loss is zero when the true triple's score exceeds all negative samples' scores by at least $\gamma$. Otherwise, we incur a penalty proportional to the violation.
 
-\textbf{Comparison with cross-entropy}:
+\emph{Comparison with cross-entropy}:
 \begin{itemize}
-    \item Cross-entropy: Works with probabilities (via sigmoid), smoother gradients
-    \item Margin loss: Works with raw scores, focuses on ranking rather than calibration
+    \item Cross-entropy: Works with probabilities (via sigmoid), smoother gradients.
+    \item Margin loss: Works with raw scores, focuses on ranking rather than calibration.
 \end{itemize}
 Both are widely used; the choice often depends on the decoder.
 \end{intuition}
@@ -1273,9 +1266,9 @@ Both are widely used; the choice often depends on the decoder.
 The quality of negative samples significantly impacts learning:
 \begin{itemize}
     \item \textbf{Uniform}: Sample $h'$ or $t'$ uniformly from $V$. Simple but may produce ``easy'' negatives.
-    \item \textbf{Frequency-based}: Sample proportional to entity frequency, like $P_n(v) \propto (\text{freq}(v))^{3/4}$
-    \item \textbf{Type-constrained}: Only sample entities of the correct type (e.g.\ for \textsc{BornIn}, only sample locations as tails)
-    \item \textbf{Adversarial}: Use a separate model to generate hard negatives
+    \item \textbf{Frequency-based}: Sample proportional to entity frequency, like $P_n(v) \propto (\text{freq}(v))^{3/4}$.
+    \item \textbf{Type-constrained}: Only sample entities of the correct type (e.g.\ for \textsc{BornIn}, only sample locations as tails).
+    \item \textbf{Adversarial}: Use a separate model to generate hard negatives.
 \end{itemize}
 Filtering known positives from the negative sample set (``filtered'' setting) is important for evaluation.
 \end{remark}
@@ -1287,18 +1280,17 @@ We now present the main decoder architectures, organized by their underlying mat
 
 \subsubsection{Bilinear models: RESCAL and its descendants}
 
-The earliest and most general approach uses \textbf{bilinear forms} to model relation-specific interactions.
+The earliest and most general approach uses \emph{bilinear forms} to model relation-specific interactions.
 
 \begin{definition}[RESCAL decoder]
-Each relation $\tau$ is associated with a \textbf{relation matrix} $\vect{R}_\tau \in \R^{d \times d}$:
+Each relation $\tau$ is associated with a \emph{relation matrix} $\vect{R}_\tau \in \R^{d \times d}$:
 \begin{equation}
 f_{\text{RESCAL}}(h, \tau, t) = \vect{z}_h^\top \vect{R}_\tau \vect{z}_t = \sum_{i=1}^{d} \sum_{j=1}^{d} z_{h,i} \cdot R_{\tau,ij} \cdot z_{t,j}
 \end{equation}
 \end{definition}
 
 \begin{intuition}
-\textbf{Understanding the bilinear form}
-
+\emph{Understanding the bilinear form.}
 Let us unpack what $\vect{z}_h^\top \vect{R}_\tau \vect{z}_t$ computes. If we write out the matrix multiplication:
 \[
 \vect{z}_h^\top \vect{R}_\tau \vect{z}_t = \sum_{i=1}^{d} \sum_{j=1}^{d} z_{h,i} \cdot R_{\tau,ij} \cdot z_{t,j}
@@ -1306,11 +1298,11 @@ Let us unpack what $\vect{z}_h^\top \vect{R}_\tau \vect{z}_t$ computes. If we wr
 
 Each entry $R_{\tau,ij}$ controls how the $i$-th dimension of the head interacts with the $j$-th dimension of the tail \emph{for this specific relation}.
 
-\textbf{Special cases}:
+\emph{Special cases}:
 \begin{itemize}
-    \item If $\vect{R}_\tau = \vect{I}$ (identity), we recover the simple inner product $\vect{z}_h^\top \vect{z}_t$
-    \item If $\vect{R}_\tau = \diag(\vect{r}_\tau)$ is diagonal, we get DistMult (see below)
-    \item If $\vect{R}_\tau$ is symmetric, the decoder is symmetric: $f(h, \tau, t) = f(t, \tau, h)$
+    \item If $\vect{R}_\tau = \vect{I}$ (identity), we recover the simple inner product $\vect{z}_h^\top \vect{z}_t$.
+    \item If $\vect{R}_\tau = \diag(\vect{r}_\tau)$ is diagonal, we get DistMult (see below).
+    \item If $\vect{R}_\tau$ is symmetric, the decoder is symmetric: $f(h, \tau, t) = f(t, \tau, h)$.
 \end{itemize}
 \end{intuition}
 
@@ -1334,23 +1326,23 @@ f(\text{Einstein}, \textsc{BornIn}, \text{Germany}) &= \begin{pmatrix} 0.8 & 0.3
 &= 0.152 + 0.204 = 0.356
 \end{align*}
 
-Note: $f(\text{Germany}, \textsc{BornIn}, \text{Einstein}) = \vect z_{\text{Germany}}^\top\vect R_{\textsc{BornIn}}\vect z_{\text{Einstein}} = (0.2, 0.9)\cdot(0.43, 0.08) = 0.158 \neq 0.356$ because the relation matrix is not symmetric. This allows RESCAL to model asymmetric relations!
+Note: $f(\text{Germany}, \textsc{BornIn}, \text{Einstein}) = \vect z_{\text{Germany}}^\top\vect R_{\textsc{BornIn}}\vect z_{\text{Einstein}} = (0.2, 0.9)\cdot(0.43, 0.08) = 0.158 \neq 0.356$ because the relation matrix is not symmetric. This allows RESCAL to model asymmetric relations.
 \end{example}
 
 \begin{keyidea}
-\textbf{RESCAL's expressiveness vs.\ complexity trade-off}
+\emph{RESCAL's expressiveness vs.\ complexity trade-off.}
 
-\textbf{Pros}:
+\emph{Pros}:
 \begin{itemize}
-    \item Fully expressive: Can model any relation pattern
-    \item Captures complex interactions between embedding dimensions
+    \item Fully expressive: Can model any relation pattern.
+    \item Captures complex interactions between embedding dimensions.
 \end{itemize}
 
-\textbf{Cons}:
+\emph{Cons}:
 \begin{itemize}
-    \item $O(d^2)$ parameters \emph{per relation}: for $d = 200$ and $R = 1000$, that is $4\times10^7$ relation parameters, against $2\times10^5$ for a diagonal model
-    \item Prone to overfitting on rare relations
-    \item Quadratic computation per triple
+    \item $O(d^2)$ parameters \emph{per relation}: for $d = 200$ and $R = 1000$, that is $4\times10^7$ relation parameters, against $2\times10^5$ for a diagonal model.
+    \item Prone to overfitting on rare relations.
+    \item Quadratic computation per triple.
 \end{itemize}
 
 This motivates more efficient variants.
@@ -1369,8 +1361,7 @@ where $\odot$ denotes the Hadamard (elementwise) product.
 \end{definition}
 
 \begin{intuition}
-\textbf{Why diagonal restriction?}
-
+\emph{Why diagonal restriction?}
 With a diagonal relation matrix:
 \[
 \vect{z}_h^\top \diag(\vect{r}_\tau) \vect{z}_t = \sum_i z_{h,i} \cdot r_{\tau,i} \cdot z_{t,i}
@@ -1378,12 +1369,12 @@ With a diagonal relation matrix:
 
 Each dimension $i$ contributes $z_{h,i} \cdot z_{t,i}$, weighted by $r_{\tau,i}$:
 \begin{itemize}
-    \item If $r_{\tau,i} > 0$: Dimension $i$ should \emph{match} (positive contribution when $z_{h,i}$ and $z_{t,i}$ have same sign)
-    \item If $r_{\tau,i} < 0$: Dimension $i$ should \emph{differ}
-    \item If $r_{\tau,i} \approx 0$: Dimension $i$ is irrelevant for this relation
+    \item If $r_{\tau,i} > 0$: Dimension $i$ should \emph{match} (positive contribution when $z_{h,i}$ and $z_{t,i}$ have same sign).
+    \item If $r_{\tau,i} < 0$: Dimension $i$ should \emph{differ}.
+    \item If $r_{\tau,i} \approx 0$: Dimension $i$ is irrelevant for this relation.
 \end{itemize}
 
-The relation vector $\vect{r}_\tau$ thus acts as an \textbf{attention mask} over embedding dimensions.
+The relation vector $\vect{r}_\tau$ thus acts as an \emph{attention mask} over embedding dimensions.
 \end{intuition}
 
 \begin{proposition}[DistMult is symmetric]
@@ -1401,17 +1392,17 @@ since multiplication is commutative.
 \end{proof}
 
 \begin{keyidea}
-\textbf{DistMult's limitation}: It can \emph{only} model symmetric relations.
+\emph{DistMult's limitation}: It can \emph{only} model symmetric relations.
 
 For the triple (Alice, \textsc{Supervises}, Bob), DistMult gives the same score as (Bob, \textsc{Supervises}, Alice). This is clearly wrong for asymmetric relations like \textsc{Supervises}, \textsc{ParentOf}, \textsc{BornIn}, etc.
 
-\textbf{However}, DistMult is very efficient: only $O(d)$ parameters per relation, and $O(d)$ computation per triple. It works surprisingly well for symmetric or near-symmetric relations.
+\emph{However}, DistMult is very efficient: only $O(d)$ parameters per relation, and $O(d)$ computation per triple. It works surprisingly well for symmetric or near-symmetric relations.
 \end{keyidea}
 
 
 \subsubsection{Translational models: TransE and extensions}
 
-A fundamentally different approach represents relations as \textbf{translations} in embedding space.
+A fundamentally different approach represents relations as \emph{translations} in embedding space.
 
 \begin{definition}[TransE: translation-based embedding]
 Each relation $\tau$ is represented as a translation vector $\vect{r}_\tau \in \R^d$. The scoring function is:
@@ -1420,7 +1411,7 @@ f_{\text{TransE}}(h, \tau, t) = -\|\vect{z}_h + \vect{r}_\tau - \vect{z}_t\|_p
 \end{equation}
 where $\|\cdot\|_p$ is typically the $L_1$ or $L_2$ norm.
 
-\textbf{Intuition}: If $(h, \tau, t)$ is true, then $\vect{z}_h + \vect{r}_\tau \approx \vect{z}_t$. The relation ``translates'' the head embedding to the tail embedding.
+\emph{Intuition}: If $(h, \tau, t)$ is true, then $\vect{z}_h + \vect{r}_\tau \approx \vect{z}_t$. The relation ``translates'' the head embedding to the tail embedding.
 \end{definition}
 
 \begin{figure}[htbp]
@@ -1465,9 +1456,9 @@ where $\|\cdot\|_p$ is typically the $L_1$ or $L_2$ norm.
 \begin{example}
 Consider learning embeddings for:
 \begin{itemize}
-    \item (Paris, \textsc{CapitalOf}, France)
-    \item (Berlin, \textsc{CapitalOf}, Germany)
-    \item (Paris, \textsc{LocatedIn}, Europe)
+    \item (Paris, \textsc{CapitalOf}, France).
+    \item (Berlin, \textsc{CapitalOf}, Germany).
+    \item (Paris, \textsc{LocatedIn}, Europe).
 \end{itemize}
 
 TransE learns:
@@ -1477,11 +1468,11 @@ TransE learns:
 \vect{z}_{\text{Paris}} + \vect{r}_{\textsc{LocatedIn}} &\approx \vect{z}_{\text{Europe}}
 \end{align*}
 
-The same relation vector $\vect{r}_{\textsc{CapitalOf}}$ works for all capital-country pairs! This enables generalization: if we see a new city embedding $\vect{z}_{\text{Rome}}$, we can predict its country as the entity closest to $\vect{z}_{\text{Rome}} + \vect{r}_{\textsc{CapitalOf}}$.
+The same relation vector $\vect{r}_{\textsc{CapitalOf}}$ works for all capital-country pairs. This enables generalization: if we see a new city embedding $\vect{z}_{\text{Rome}}$, we can predict its country as the entity closest to $\vect{z}_{\text{Rome}} + \vect{r}_{\textsc{CapitalOf}}$.
 \end{example}
 
 \begin{proposition}[TransE and relation composition]
-TransE naturally models \textbf{compositional relations}. If:
+TransE naturally models \emph{compositional relations}. If:
 \[
 (h, \tau_1, y) \in E \quad \text{and} \quad (y, \tau_2, t) \in E
 \]
@@ -1507,22 +1498,21 @@ Comparing with $\vect{z}_h + \vect{r}_{\tau_3} \approx \vect{z}_t$, we get $\vec
 \begin{example}[Compositionality in action]
 Consider:
 \begin{itemize}
-    \item (Alice, \textsc{MotherOf}, Jane)
-    \item (Jane, \textsc{MotherOf}, Carol)
+    \item (Alice, \textsc{MotherOf}, Jane).
+    \item (Jane, \textsc{MotherOf}, Carol).
 \end{itemize}
 TransE can learn that $\vect{r}_{\textsc{GrandmotherOf}} \approx \vect{r}_{\textsc{MotherOf}} + \vect{r}_{\textsc{MotherOf}}$.
 
-This is powerful: even if we have never seen (Alice, \textsc{GrandmotherOf}, Carol) in training, we can infer it!
+This is powerful: even if we have never seen (Alice, \textsc{GrandmotherOf}, Carol) in training, we can infer it.
 \end{example}
 
 \begin{keyidea}
-\textbf{TransE's limitation: one-to-many and many-to-many relations}
-
+\emph{TransE's limitation: one-to-many and many-to-many relations.}
 Consider a one-to-many relation like \textsc{HasCitizen}:
 \begin{itemize}
-    \item (USA, \textsc{HasCitizen}, Alice)
-    \item (USA, \textsc{HasCitizen}, Jane)
-    \item (USA, \textsc{HasCitizen}, Carol)
+    \item (USA, \textsc{HasCitizen}, Alice).
+    \item (USA, \textsc{HasCitizen}, Jane).
+    \item (USA, \textsc{HasCitizen}, Carol).
 \end{itemize}
 
 TransE requires:
@@ -1530,7 +1520,7 @@ TransE requires:
 \vect{z}_{\text{USA}} + \vect{r}_{\textsc{HasCitizen}} \approx \vect{z}_{\text{Alice}} \approx \vect{z}_{\text{Jane}} \approx \vect{z}_{\text{Carol}}
 \]
 
-This forces all citizens of USA to have \emph{nearly identical} embeddings --- collapsing distinct entities! This is clearly undesirable.
+This forces all citizens of USA to have \emph{nearly identical} embeddings --- collapsing distinct entities. This is clearly undesirable.
 
 Similarly, for many-to-one (e.g.\ \textsc{BornIn}) and symmetric relations (e.g.\ \textsc{Spouse}), TransE struggles.
 \end{keyidea}
@@ -1538,7 +1528,7 @@ Similarly, for many-to-one (e.g.\ \textsc{BornIn}) and symmetric relations (e.g.
 \begin{definition}[TransE extensions (TransX family)]
 Several methods extend TransE to address its limitations:
 
-\textbf{TransH} (Hyperplane Translation): Project entities onto a relation-specific hyperplane before translation:
+\emph{TransH} (Hyperplane Translation): Project entities onto a relation-specific hyperplane before translation:
 \begin{equation}
 f_{\text{TransH}}(h, \tau, t) = - \|
 \underbrace{( \vect{z}_h - \underbrace{\vect{w}_\tau^\top \vect{z}_h \cdot
@@ -1549,7 +1539,7 @@ f_{\text{TransH}}(h, \tau, t) = - \|
 \end{equation}
 where $\vect{w}_\tau$ is the normal vector to the hyperplane.
 
-\textbf{TransR}: Use separate entity and relation spaces, with a projection matrix:
+\emph{TransR}: Use separate entity and relation spaces, with a projection matrix:
 \begin{equation}
 f_{\text{TransR}}(h, \tau, t) = -\|\vect{M}_\tau \vect{z}_h + \vect{r}_\tau - \vect{M}_\tau \vect{z}_t\|
 \end{equation}
@@ -1595,7 +1585,7 @@ where $\vect{M}_\tau \in \R^{k \times d}$ projects from entity space ($d$-dimens
 
 \subsubsection{Complex-valued embeddings: ComplEx and RotatE}
 
-To model asymmetric relations with only $O(d)$ parameters per relation, we can use \textbf{complex numbers}.
+To model asymmetric relations with only $O(d)$ parameters per relation, we can use \emph{complex numbers}.
 
 \begin{definition}[ComplEx: complex embeddings]
 Embed entities and relations in $\mathbb{C}^d$ (complex vector space). The scoring function uses a Hermitian inner product:
@@ -1606,8 +1596,7 @@ where $\bar{\vect{z}}_t$ denotes the complex conjugate of $\vect{z}_t$, and $\op
 \end{definition}
 
 \begin{intuition}
-\textbf{Why complex numbers enable asymmetry}
-
+\emph{Why complex numbers enable asymmetry.}
 In $\mathbb{C}$, let $z = a + bi$ where $a, b \in \R$. The conjugate is $\bar{z} = a - bi$.
 
 For two complex numbers $z_1 = a_1 + b_1 i$ and $z_2 = a_2 + b_2 i$:
@@ -1620,14 +1609,14 @@ If we swap $z_1$ and $z_2$:
 z_2 \cdot \bar{z}_1 = (a_1 a_2 + b_1 b_2) + (a_1 b_2 - b_1 a_2)i
 \]
 
-The \textbf{real parts are equal}, but the \textbf{imaginary parts differ by a sign}!
+The \emph{real parts are equal}, but the \emph{imaginary parts differ by a sign}.
 
 In ComplEx, using the relation embedding $r_\tau$ (also complex), we get:
 \[
 \operatorname{Re}(z_h \cdot r_\tau \cdot \bar{z}_t) \neq \operatorname{Re}(z_t \cdot r_\tau \cdot \bar{z}_h) \quad \text{in general}
 \]
 
-This asymmetry comes ``for free'' from the conjugate, without needing extra parameters!
+This asymmetry comes ``for free'' from the conjugate, without needing extra parameters.
 \end{intuition}
 
 \begin{proposition}[ComplEx asymmetry]
@@ -1648,7 +1637,7 @@ Let $d = 1$ with:
 z_h = 1 + 2i, \quad z_t = 2 + i, \quad r_\tau = 1 + 0.5i
 \]
 
-\textbf{Forward}: $(h, \tau, t)$
+\emph{Forward}: $(h, \tau, t)$
 \begin{align*}
 z_h \cdot r_\tau \cdot \bar{z}_t &= (1 + 2i)(1 + 0.5i)(2 - i) \\
 &= (1 + 0.5i + 2i + i^2)(2 - i) \\
@@ -1657,7 +1646,7 @@ z_h \cdot r_\tau \cdot \bar{z}_t &= (1 + 2i)(1 + 0.5i)(2 - i) \\
 f_{\text{ComplEx}}(h, \tau, t) &= \operatorname{Re}(2.5 + 5i) = 2.5
 \end{align*}
 
-\textbf{Backward}: $(t, \tau, h)$
+\emph{Backward}: $(t, \tau, h)$
 \begin{align*}
 z_t \cdot r_\tau \cdot \bar{z}_h &= (2 + i)(1 + 0.5i)(1 - 2i) \\
 &= (2 + i + i + 0.5i^2)(1 - 2i) \\
@@ -1669,7 +1658,7 @@ So $f(h, \tau, t) = 2.5 \neq 5.5 = f(t, \tau, h)$. The proposition predicts the 
 \end{example}
 
 \begin{definition}[RotatE: rotation-based embedding]
-Represent relations as \textbf{rotations} in complex space. Each component of the relation embedding has unit modulus: $|r_{\tau,i}| = 1$, so $r_{\tau,i} = e^{i\theta_{\tau,i}}$.
+Represent relations as \emph{rotations} in complex space. Each component of the relation embedding has unit modulus: $|r_{\tau,i}| = 1$, so $r_{\tau,i} = e^{i\theta_{\tau,i}}$.
 
 The scoring function is:
 \begin{equation}
@@ -1677,7 +1666,7 @@ f_{\text{RotatE}}(h, \tau, t) = -\|\vect{z}_h \circ \vect{r}_\tau - \vect{z}_t\|
 \end{equation}
 where $\circ$ denotes elementwise (Hadamard) product.
 
-\textbf{Intuition}: Each dimension of the head embedding is \emph{rotated} by angle $\theta_{\tau,i}$ to match the tail.
+\emph{Intuition}: Each dimension of the head embedding is \emph{rotated} by angle $\theta_{\tau,i}$ to match the tail.
 \end{definition}
 
 \begin{figure}[htbp]
@@ -1714,10 +1703,10 @@ where $\circ$ denotes elementwise (Hadamard) product.
 \begin{proposition}[RotatE and relation patterns]
 RotatE can model:
 \begin{enumerate}
-    \item \textbf{Symmetric relations}: Set $\theta_\tau = 0$ or $\theta_\tau = \pi$ (rotation by 0 or 180 degrees)
-    \item \textbf{Antisymmetric relations}: Any $\theta_\tau \neq 0, \pi$
-    \item \textbf{Inverse relations}: If $\tau_1$ is inverse of $\tau_2$, then $\theta_{\tau_1} = -\theta_{\tau_2}$
-    \item \textbf{Composition}: If $\tau_3 = \tau_1 \circ \tau_2$, then $\theta_{\tau_3} = \theta_{\tau_1} + \theta_{\tau_2}$
+    \item \textbf{Symmetric relations}: Set $\theta_\tau = 0$ or $\theta_\tau = \pi$ (rotation by 0 or 180 degrees).
+    \item \textbf{Antisymmetric relations}: Any $\theta_\tau \neq 0, \pi$.
+    \item \textbf{Inverse relations}: If $\tau_1$ is inverse of $\tau_2$, then $\theta_{\tau_1} = -\theta_{\tau_2}$.
+    \item \textbf{Composition}: If $\tau_3 = \tau_1 \circ \tau_2$, then $\theta_{\tau_3} = \theta_{\tau_1} + \theta_{\tau_2}$.
 \end{enumerate}
 \end{proposition}
 
@@ -1741,7 +1730,7 @@ Since $r_{\tau_1,i} \cdot r_{\tau_2,i} = e^{i\theta_{\tau_1,i}} \cdot e^{i\theta
 \caption{Comparison of multi-relational decoders}
 \begin{tabular}{@{}lcccccc@{}}
 \toprule
-\textbf{Model} & \textbf{Scoring function} & \textbf{Params/Rel} & \textbf{Symm.} & \textbf{Antisymm.} & \textbf{Inverse} & \textbf{Compos.} \\
+Model & Scoring function & Params/Rel & Symm. & Antisymm. & Inverse & Compos. \\
 \midrule
 RESCAL & $\vect{z}_h^\top \vect{R}_\tau \vect{z}_t$ & $O(d^2)$ & \checkmark & \checkmark & \checkmark & \checkmark \\
 DistMult & $\langle \vect{z}_h, \vect{r}_\tau, \vect{z}_t \rangle$ & $O(d)$ & \checkmark & $\times$ & $\times$ & $\times$ \\
@@ -1755,13 +1744,13 @@ RotatE & $-\|\vect{z}_h \circ \vect{r}_\tau - \vect{z}_t\|$ & $O(d)$ & \checkmar
 \end{table}
 
 \begin{keyidea}
-\textbf{Choosing a decoder}:
+\emph{Choosing a decoder}:
 \begin{itemize}
-    \item \textbf{Few relations, lots of data}: RESCAL (most expressive)
-    \item \textbf{Mostly symmetric relations}: DistMult (simplest, efficient)
-    \item \textbf{Strong compositional patterns}: TransE or RotatE
-    \item \textbf{Mixed symmetric/asymmetric}: ComplEx or RotatE
-    \item \textbf{General recommendation}: RotatE is often a good default --- it is efficient ($O(d)$ per relation) yet captures all common relation patterns
+    \item \textbf{Few relations, lots of data}: RESCAL (most expressive).
+    \item \textbf{Mostly symmetric relations}: DistMult (simplest, efficient).
+    \item \textbf{Strong compositional patterns}: TransE or RotatE.
+    \item \textbf{Mixed symmetric/asymmetric}: ComplEx or RotatE.
+    \item \textbf{General recommendation}: RotatE is often a good default --- it is efficient ($O(d)$ per relation) yet captures all common relation patterns.
 \end{itemize}
 \end{keyidea}
 
@@ -1790,21 +1779,20 @@ Triples: $\{(A, \tau_1, B), (B, \tau_2, C), (A, \tau_3, C)\}$
 
 Note: We expect $\tau_3$ to be the composition of $\tau_1$ and $\tau_2$.
 
-\textbf{Step 1: Initialize} (random)
+\emph{Step 1: Initialize} (random)
 \begin{align*}
 \vect{z}_A &= (1.0, 0.5), \quad \vect{z}_B = (0.3, 0.8), \quad \vect{z}_C = (-0.2, 0.9) \\
 \vect{r}_{\tau_1} &= (0.5, 0.2), \quad \vect{r}_{\tau_2} = (-0.3, 0.1), \quad \vect{r}_{\tau_3} = (0.1, 0.4)
 \end{align*}
 
-\textbf{Step 2: Compute TransE scores for positive triples}
+\emph{Step 2: compute TransE scores for positive triples.}
 \begin{align*}
 f(A, \tau_1, B) &= -\|(1.0, 0.5) + (0.5, 0.2) - (0.3, 0.8)\|_2 \\
 &= -\|(1.2, -0.1)\|_2 = -\sqrt{1.44 + 0.01} = -1.20
 \end{align*}
 (This is a poor score --- the translation does not match well.)
 
-\textbf{Step 3: Gradient update for $(A, \tau_1, B)$}
-
+\emph{Step 3: gradient update for $(A, \tau_1, B)$.}
 Let $\vect{e} = \vect{z}_A + \vect{r}_{\tau_1} - \vect{z}_B = (1.2, -0.1)$.
 
 Gradients (for $L_2$ norm):
@@ -1816,19 +1804,19 @@ Gradients (for $L_2$ norm):
 
 With learning rate $\eta = 0.1$, updates push $\vect{z}_A + \vect{r}_{\tau_1}$ closer to $\vect{z}_B$.
 
-\textbf{An exact solution.} Training drives the three residuals to zero; one configuration with zero residuals (the solution is not unique, since translating all entities by the same vector changes nothing) is
+\emph{An exact solution.} Training drives the three residuals to zero; one configuration with zero residuals (the solution is not unique, since translating all entities by the same vector changes nothing) is
 \begin{align*}
 \vect{z}_A &\approx (0.0, 0.0), \quad \vect{z}_B \approx (1.0, 0.0), \quad \vect{z}_C \approx (1.0, 1.0) \\
 \vect{r}_{\tau_1} &\approx (1.0, 0.0), \quad \vect{r}_{\tau_2} \approx (0.0, 1.0), \quad \vect{r}_{\tau_3} \approx (1.0, 1.0)
 \end{align*}
 
-\textbf{Verify compositionality}: $\vect{r}_{\tau_3} = (1.0, 1.0) = (1.0, 0.0) + (0.0, 1.0) = \vect{r}_{\tau_1} + \vect{r}_{\tau_2}$ \checkmark
+\emph{Verify compositionality}: $\vect{r}_{\tau_3} = (1.0, 1.0) = (1.0, 0.0) + (0.0, 1.0) = \vect{r}_{\tau_1} + \vect{r}_{\tau_2}$.
 
-\textbf{Link prediction}: Does $(A, \tau_2, C)$ hold?
+\emph{Link prediction}: Does $(A, \tau_2, C)$ hold?
 \[
 f(A, \tau_2, C) = -\|(0, 0) + (0, 1) - (1, 1)\| = -\|(-1, 0)\| = -1.0
 \]
-Score is poor ($-1.0$), so model predicts this triple is unlikely --- correct!
+Score is poor ($-1.0$), so model predicts this triple is unlikely --- correct.
 \end{example}
 
 \subsection{Practical considerations}
@@ -1836,10 +1824,10 @@ Score is poor ($-1.0$), so model predicts this triple is unlikely --- correct!
 \begin{remark}[Training strategies]
 \leavevmode
 \begin{enumerate}
-    \item \textbf{Mini-batch training}: Sample triples, generate negatives, compute loss
-    \item \textbf{Entity/relation normalization}: Often helpful to constrain $\|\vect{z}_v\| = 1$ or $\|\vect{r}_\tau\| = 1$
-    \item \textbf{Self-adversarial negative sampling}: Weight negatives by their current score (harder negatives count more)
-    \item \textbf{Type constraints}: Use entity types to filter invalid negatives
+    \item \textbf{Mini-batch training}: Sample triples, generate negatives, compute loss.
+    \item \textbf{Entity/relation normalization}: Often helpful to constrain $\|\vect{z}_v\| = 1$ or $\|\vect{r}_\tau\| = 1$.
+    \item \textbf{Self-adversarial negative sampling}: Weight negatives by their current score (harder negatives count more).
+    \item \textbf{Type constraints}: Use entity types to filter invalid negatives.
 \end{enumerate}
 \end{remark}
 
@@ -1847,21 +1835,21 @@ Score is poor ($-1.0$), so model predicts this triple is unlikely --- correct!
 \leavevmode
 Standard metrics for knowledge graph completion:
 \begin{itemize}
-    \item \textbf{Mean Rank (MR)}: Average rank of true triples among all candidates
-    \item \textbf{Mean Reciprocal Rank (MRR)}: Average of $1/\text{rank}$
-    \item \textbf{Hits@$k$}: Fraction of true triples ranked in top $k$
+    \item \textbf{Mean Rank (MR)}: Average rank of true triples among all candidates.
+    \item \textbf{Mean Reciprocal Rank (MRR)}: Average of $1/\text{rank}$.
+    \item \textbf{Hits@$k$}: Fraction of true triples ranked in top $k$.
 \end{itemize}
-Always use the \textbf{filtered} setting: remove other true triples from the candidate set.
+Always use the \emph{filtered} setting: remove other true triples from the candidate set.
 \end{remark}
 
 \begin{remark}[Limitations and future directions]
 Shallow knowledge graph embeddings have limitations similar to simple graph embeddings:
 \begin{itemize}
-    \item Cannot generalize to unseen entities (transductive)
-    \item Do not leverage entity features or descriptions
-    \item Limited reasoning capabilities (e.g.\ negation, counting)
+    \item Cannot generalize to unseen entities (transductive).
+    \item Do not leverage entity features or descriptions.
+    \item Limited reasoning capabilities (e.g.\ negation, counting).
 \end{itemize}
-\textbf{Graph neural networks} for multi-relational data (R-GCN, CompGCN) address some of these issues; GNN layers are introduced in \cref{ch:dft-to-gnn}.
+\emph{Graph neural networks} for multi-relational data (R-GCN, CompGCN) address some of these issues; GNN layers are introduced in \cref{ch:dft-to-gnn}.
 \end{remark}
 
 
@@ -1893,15 +1881,15 @@ Suppose $\vect{y}_2 = (0.8, 0.3)$ and $\vect{y}_4 = (0.2, 0.7)$ for the bridge e
 \text{L1}: & \quad \vect{e}_{24} = (0.6, 0.4)
 \end{align*}
 
-\textbf{Interpretation}:
+\emph{Interpretation}:
 \begin{itemize}
-    \item \textbf{Average}: The edge embedding is ``between'' the two nodes --- good for interpolation
-    \item \textbf{Hadamard}: Captures shared structure (both dimensions somewhat active)
-    \item \textbf{L1}: Captures how different the nodes are --- useful for predicting edge types
+    \item \textbf{Average}: The edge embedding is ``between'' the two nodes --- good for interpolation.
+    \item \textbf{Hadamard}: Captures shared structure (both dimensions somewhat active).
+    \item \textbf{L1}: Captures how different the nodes are --- useful for predicting edge types.
 \end{itemize}
 \end{example}
 
-\textbf{Use case}: Link prediction! Given an edge embedding, train a classifier to predict if the edge exists.
+\paragraph{Use case.} Link prediction: given an edge embedding, train a classifier to predict whether the edge exists.
 
 \subsection{Graph2Vec: embedding entire graphs}
 
@@ -1910,16 +1898,16 @@ Sometimes we want to compare entire graphs, not just nodes:
 \begin{itemize}
     \item Is this molecule similar to that molecule?
     \item Is this social network similar to that one?
-    \item Classify graphs by type (toxic vs.\ non-toxic compounds)
+    \item Classify graphs by type (toxic vs.\ non-toxic compounds).
 \end{itemize}
 \end{intuition}
 
 \begin{definition}[Graph2Vec]
-Idea: Treat a graph as a ``document'' and its subgraph patterns as ``words.''
+Idea: Treat a graph as a ``document'' and its subgraph patterns as ``words''.
 \begin{enumerate}
-    \item Extract rooted subgraph patterns around each node (using Weisfeiler--Lehman hashing)
-    \item Each graph becomes a ``bag of subgraphs''
-    \item Use Doc2Vec to learn graph embeddings
+    \item Extract rooted subgraph patterns around each node (using Weisfeiler--Lehman hashing).
+    \item Each graph becomes a ``bag of subgraphs''.
+    \item Use Doc2Vec to learn graph embeddings.
 \end{enumerate}
 \end{definition}
 
@@ -1965,7 +1953,7 @@ Idea: Treat a graph as a ``document'' and its subgraph patterns as ``words.''
     \node[font=\small] at (9, -0.5) {(``document'')};
 
 \end{tikzpicture}
-\caption{Graph2Vec: extract subgraph patterns as ``words,'' represent graph as document, learn embedding.}
+\caption{Graph2Vec: extract subgraph patterns as ``words'', represent graph as document, learn embedding.}
 \label{shallow-embeddings:fig:graph2vec}
 \end{figure}
 
@@ -1982,7 +1970,7 @@ Idea: Treat a graph as a ``document'' and its subgraph patterns as ``words.''
 \caption{Summary of shallow embedding methods}
 \begin{tabular}{@{}lccc@{}}
 \toprule
-\textbf{Method} & \textbf{Proximity type} & \textbf{Best for} & \textbf{Directed?} \\
+Method & Proximity type & Best for & Directed? \\
 \midrule
 GF & First-order & Simple, fast baseline & No \\
 HOPE & High-order (Katz, etc.) & Directed graphs, asymmetry & Yes \\
@@ -1991,7 +1979,7 @@ GraRep & Multi-scale & Need both local and global & Partial \\
 DeepWalk & Multi-hop (random walk) & General purpose & No \\
 node2vec & Tunable local/global & When you need control & No \\
 \midrule
-\multicolumn{4}{c}{\textit{Multi-relational / knowledge graph methods}} \\
+\multicolumn{4}{c}{\emph{Multi-relational / knowledge graph methods}} \\
 \midrule
 RESCAL & Bilinear & Rich relations, small KG & Yes \\
 DistMult & Diagonal bilinear & Symmetric relations & No \\

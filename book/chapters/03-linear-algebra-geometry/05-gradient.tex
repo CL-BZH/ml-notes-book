@@ -359,7 +359,7 @@ Three choices of $M$ are classical.
 \begin{itemize}
   \item \textbf{Diagonal rescaling}, $M = \diag(m_1,\dots,m_n)$: one learning rate per coordinate. Adaptive
         methods (AdaGrad, RMSProp, Adam) estimate such a diagonal from past gradients
-        (Part~VI).
+        (\cref{ch:optimizers}).
   \item \textbf{Newton's method}, $M = \nabla^2L(\theta)$ (when positive definite): the gradient for the metric
         defined by the local curvature.
   \item \textbf{Natural gradient}, $M = F(\theta)$, the Fisher information matrix of a probabilistic model:

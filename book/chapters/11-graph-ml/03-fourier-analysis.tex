@@ -1,4 +1,3 @@
-% Source: fourier_course.tex
 \begin{notechapter}
 % ---- chapter-local definitions ----
 \providecommand{\sinc}{\operatorname{sinc}}
@@ -9,7 +8,7 @@
 \chaptersubtitle{Series, transforms and the FFT}
 
 \begin{chapterintro}
-Spectral graph learning (Chapter~\ref{ch:graph-laplacians} and the next chapter) borrows its vocabulary from classical Fourier analysis: \emph{frequency}, \emph{filter}, \emph{convolution theorem}, \emph{low-pass}. This chapter supplies that vocabulary. We treat the four members of the Fourier family (Fourier series, the Fourier transform, the discrete-time Fourier transform and the discrete Fourier transform) and the fast algorithm that makes the last one practical. For each we state when it exists, derive its inversion formula, and prove the properties that are used later: Parseval's identity, the shift rules and, above all, the convolution theorem, which says that a transform \emph{diagonalizes} convolution. You will learn
+Spectral graph learning (\cref{ch:graph-laplacians} and the next chapter) borrows its vocabulary from classical Fourier analysis: \emph{frequency}, \emph{filter}, \emph{convolution theorem}, \emph{low-pass}. This chapter supplies that vocabulary. We treat the four members of the Fourier family (Fourier series, the Fourier transform, the discrete-time Fourier transform and the discrete Fourier transform) and the fast algorithm that makes the last one practical. For each we state when it exists, derive its inversion formula, and prove the properties that are used later: Parseval's identity, the shift rules and, above all, the convolution theorem, which says that a transform \emph{diagonalizes} convolution. You will learn
 \begin{itemize}[nosep]
   \item why the coefficients of a Fourier series are inner products with orthogonal exponentials, and in what sense the series converges;
   \item the Fourier transform as the limit of the series, with Riemann--Lebesgue, inversion and Plancherel;
@@ -27,7 +26,7 @@ Every member of the family represents a signal as a superposition of complex exp
 \begin{center}
 \begin{tabular}{lll}
 \toprule
-\textbf{Transform} & \textbf{Time domain} & \textbf{Frequency domain} \\
+Transform & Time domain & Frequency domain \\
 \midrule
 Fourier series (FS) & continuous, periodic & discrete \\
 Fourier transform (FT) & continuous, aperiodic & continuous \\
@@ -71,7 +70,7 @@ If $p, q \geq 1$ satisfy $\frac{1}{p} + \frac{1}{q} = 1$, then for $f \in L^p$ a
 \end{theorem}
 
 \begin{pitfall}[$L^1$ versus $L^2$]
-On a bounded interval, Cauchy--Schwarz (Hölder with $p=q=2$) gives $\int_0^T \abs{f} \le \sqrt{T}\,\norm{f}_{L^2([0,T])}$, so $L^2([0,T]) \subset L^1([0,T])$. On the whole line neither space contains the other: $f(t) = 1/(1+\abs{t})$ is in $L^2(\R)$ but not in $L^1(\R)$, while $f(t) = \abs{t}^{-1/2}\bbone[\abs{t}<1]$ is in $L^1(\R)$ but not in $L^2(\R)$. This is why the Fourier transform is defined first on $L^1$ and then extended to $L^2$ (Theorem~\ref{fourier-analysis:thm:plancherel}).
+On a bounded interval, Cauchy--Schwarz (Hölder with $p=q=2$) gives $\int_0^T \abs{f} \le \sqrt{T}\,\norm{f}_{L^2([0,T])}$, so $L^2([0,T]) \subset L^1([0,T])$. On the whole line neither space contains the other: $f(t) = 1/(1+\abs{t})$ is in $L^2(\R)$ but not in $L^1(\R)$, while $f(t) = \abs{t}^{-1/2}\bbone[\abs{t}<1]$ is in $L^1(\R)$ but not in $L^2(\R)$. This is why the Fourier transform is defined first on $L^1$ and then extended to $L^2$ (\cref{fourier-analysis:thm:plancherel}).
 \end{pitfall}
 
 \subsection{Periodic functions}
@@ -735,7 +734,7 @@ Index & Binary & Bit-reversed \\
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{|l|c|c|c|c|}
 \hline
-\textbf{Transform} & \textbf{Time} & \textbf{Frequency} & \textbf{Forward} & \textbf{Inverse} \\
+Transform & Time & Frequency & Forward & Inverse \\
 \hline
 Fourier & Cont., & Discrete, & $c_n = \frac{1}{T}\int_0^T f(t) e^{-i2\pi nt/T} dt$ & $f(t) = \sum_n c_n e^{i2\pi nt/T}$ \\
 Series (FS) & Periodic & Aperiodic & & \\
@@ -760,13 +759,13 @@ FFT & \multicolumn{4}{c|}{Efficient algorithm for computing DFT in $O(N \log N)$
 \begin{center}
 \begin{tabular}{|l|p{0.75\linewidth}|}
 \hline
-\textbf{FS} & $f \in L^2([0,T])$ for $L^2$ convergence; Dirichlet conditions for pointwise convergence \\
+FS & $f \in L^2([0,T])$ for $L^2$ convergence; Dirichlet conditions for pointwise convergence \\
 \hline
-\textbf{FT} & $f \in L^1(\R)$ for existence; $f \in L^2(\R)$ for Plancherel; additional smoothness for pointwise convergence \\
+FT & $f \in L^1(\R)$ for existence; $f \in L^2(\R)$ for Plancherel; additional smoothness for pointwise convergence \\
 \hline
-\textbf{DTFT} & $\sum_n \abs{x[n]} < \infty$ (absolutely summable sequences) \\
+DTFT & $\sum_n \abs{x[n]} < \infty$ (absolutely summable sequences) \\
 \hline
-\textbf{DFT} & Always exists for finite sequences \\
+DFT & Always exists for finite sequences \\
 \hline
 \end{tabular}
 \end{center}
@@ -838,10 +837,10 @@ When applying the DFT to a finite segment of a signal, we implicitly multiply by
 \begin{definition}[Window functions]
 Common windows include:
 \begin{itemize}
-\item \textbf{Rectangular}: $w[n] = 1$
-\item \textbf{Hamming}: $w[n] = 0.54 - 0.46\cos(2\pi n/(N-1))$
-\item \textbf{Hann}: $w[n] = 0.5(1 - \cos(2\pi n/(N-1)))$
-\item \textbf{Blackman}: $w[n] = 0.42 - 0.5\cos(2\pi n/(N-1)) + 0.08\cos(4\pi n/(N-1))$
+\item \textbf{Rectangular}: $w[n] = 1$.
+\item \textbf{Hamming}: $w[n] = 0.54 - 0.46\cos(2\pi n/(N-1))$.
+\item \textbf{Hann}: $w[n] = 0.5(1 - \cos(2\pi n/(N-1)))$.
+\item \textbf{Blackman}: $w[n] = 0.42 - 0.5\cos(2\pi n/(N-1)) + 0.08\cos(4\pi n/(N-1))$.
 \end{itemize}
 \end{definition}
 
@@ -880,7 +879,7 @@ The 2D FFT is computed by applying 1D FFTs along each dimension (row-column algo
 
 \subsection{Proof of Plancherel theorem}
 
-\begin{proof}[Proof of Theorem~\ref{fourier-analysis:thm:plancherel}]
+\begin{proof}[Proof of \cref{fourier-analysis:thm:plancherel}]
 Let $f \in L^1(\R) \cap L^2(\R)$; the extension to $L^2(\R)$ is then a density argument. Define $\tilde f(t) = \overline{f(-t)}$ and the autocorrelation
 \[
 g(t) = (f * \tilde f)(t) = \int f(s)\,\overline{f(s-t)}\,ds .

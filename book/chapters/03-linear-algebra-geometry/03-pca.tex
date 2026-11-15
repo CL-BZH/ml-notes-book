@@ -352,11 +352,11 @@ $\Tr(MV) = \Tr(N^\top N\mathbf X_c^\top W\mathbf X_c) = \Tr(N\mathbf X_c^\top W\
        & \vdots & \\
       \horzbar & w_n\mathbf y_n^\top & \horzbar
     \end{bmatrix}\right)
-  = \Tr\Bigl(\sum_{k=1}^nw_k\,\mathbf y_k\mathbf y_k^\top\Bigr)
-  = \sum_{k=1}^nw_k\Tr\bigl(\mathbf y_k\mathbf y_k^\top\bigr)\\
-  &= \sum_{k=1}^nw_k\Tr\bigl(\mathbf y_k^\top\mathbf y_k\bigr)
-  = \sum_{k=1}^nw_k\,\mathbf y_k^\top\mathbf y_k
-  = \sum_{k=1}^nw_k\,d_M^2(\mathbf e_k,\mathbf g) = \mathcal I_{\mathbf g}.
+  = \Tr\Bigl(\sum_{k=1}^nw_k\,\mathbf y_k\mathbf y_k^\top\Bigr)\\
+  &= \sum_{k=1}^nw_k\Tr\bigl(\mathbf y_k\mathbf y_k^\top\bigr)
+  = \sum_{k=1}^nw_k\Tr\bigl(\mathbf y_k^\top\mathbf y_k\bigr)
+  = \sum_{k=1}^nw_k\,\mathbf y_k^\top\mathbf y_k\\
+  &= \sum_{k=1}^nw_k\,d_M^2(\mathbf e_k,\mathbf g) = \mathcal I_{\mathbf g}.
 \end{align*}
 The product of the columns $\mathbf y_k$ by the rows $w_k\mathbf y_k^\top$ is a sum of outer
 products, and the trace of the outer product $\mathbf y_k\mathbf y_k^\top$ is the inner product
@@ -533,7 +533,11 @@ $\frac1n\sum_i\norm{\operatorname{proj}_{\mathbb W}\mathbf e_i}^2$ is at most $\
 
 \begin{proof}
 Let $\mathbf w_1,\dots,\mathbf w_k$ be an orthonormal basis of $\mathbb W$ and $Q = [\mathbf w_1,\dots,\mathbf w_k]$. By Pythagoras
-the error is $\frac1n\sum_i\norm{\mathbf e_i}^2 - \frac1n\sum_i\norm{Q^\top\mathbf e_i}^2 = \Tr S - \Tr(Q^\top SQ)$, since
+the error is
+\[
+  \frac1n\sum_i\norm{\mathbf e_i}^2 - \frac1n\sum_i\norm{Q^\top\mathbf e_i}^2 = \Tr S - \Tr(Q^\top SQ),
+\]
+since
 $\frac1n\sum_i\norm{Q^\top\mathbf e_i}^2 = \sum_j\mathbf w_j^\top\bigl(\frac1n\sum_i\mathbf e_i\mathbf e_i^\top\bigr)\mathbf w_j$. It remains to show
 $\Tr(Q^\top SQ)\leq\sum_{j\leq k}\lambda_j$. Write $\Tr(Q^\top SQ) = \sum_j\lambda_j\,a_j$ with
 $a_j = \norm{Q^\top\mathbf v_j}^2$. Each $a_j\in[0,1]$ (the norm of a projection of a unit vector), and
@@ -658,7 +662,7 @@ $\mathbf X_c\mathbf v_1 = \frac1{\sqrt{21}}(-52.5, 52.5)\propto\mathbf u_1$, as 
 When $n\ll p$ (few samples, many features, e.g.\ images or genes), it is cheaper to diagonalize the
 $n\times n$ matrix $G$ and map its eigenvectors back with $\mathbf X^\top$. The Gram matrix depends on the
 data only through inner products, which is the door to \emph{kernel PCA}: replace
-$\inner{\dot{\mathbf e}_i}{\dot{\mathbf e}_j}$ by a kernel $k(\mathbf e_i,\mathbf e_j)$ (Part~XI).
+$\inner{\dot{\mathbf e}_i}{\dot{\mathbf e}_j}$ by a kernel $k(\mathbf e_i,\mathbf e_j)$ (\cref{ch:rkhs}).
 
 \section{PCA is not regression}\label{pca-overview:sec:regression}
 

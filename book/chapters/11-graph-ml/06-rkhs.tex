@@ -1,4 +1,3 @@
-% Source: Graph_ML/RKHS/rkhs.tex
 \begin{notechapter}
 % ---- chapter-local definitions ----
 \definecolor{defblue}{RGB}{0,70,140}
@@ -45,20 +44,20 @@ A natural idea: \emph{optimize over a much richer class of functions}.
 But if we allow $f$ to be ``any function'' we immediately face two
 problems:
 
-\begin{enumerate}[label=\textbf{(\arabic*)}]
+\begin{enumerate}[label=\emph{(\arabic*)}]
   \item \textbf{Computational:} How do we search over a potentially
   infinite-dimensional space of functions?
-  \item \textbf{Statistical:} Without some notion of ``complexity,'' how
+  \item \textbf{Statistical:} Without some notion of ``complexity'', how
   do we avoid overfitting?
 \end{enumerate}
 
 The RKHS framework solves both problems simultaneously:
 \begin{itemize}
-  \item It provides an \textbf{infinite-dimensional} function space
+  \item It provides an \emph{infinite-dimensional} function space
   $\hk$ (rich enough to approximate very complex functions).
-  \item It equips $\hk$ with a \textbf{norm} $\norm{f}_{\hk}$ that
+  \item It equips $\hk$ with a \emph{norm} $\norm{f}_{\hk}$ that
   measures function ``complexity'' (enabling regularization).
-  \item The \textbf{representer theorem} guarantees that, despite the
+  \item The \emph{representer theorem} guarantees that, despite the
   infinite dimensionality, the optimal function can always be written as
   a finite linear combination --- making computation tractable.
 \end{itemize}
@@ -80,7 +79,7 @@ $\to$ Hilbert space.
 \label{rkhs:subsec:inner_product}
 
 \begin{definition}[Inner product]
-Let $V$ be a real vector space. An \textbf{inner product} is a function
+Let $V$ be a real vector space. An \emph{inner product} is a function
 $\inner{\cdot}{\cdot}: V \times V \to \R$ satisfying, for all $f, g, h
 \in V$ and $\alpha \in \R$:
 \begin{enumerate}[label=(\roman*)]
@@ -90,8 +89,8 @@ $\inner{\cdot}{\cdot}: V \times V \to \R$ satisfying, for all $f, g, h
   \item \textbf{Positive definiteness}: $\inner{f}{f} \geq 0$, with
   equality if and only if $f = 0$.
 \end{enumerate}
-An inner product induces a \textbf{norm}: $\norm{f} =
-\sqrt{\inner{f}{f}}$, and a \textbf{distance}: $d(f,g) = \norm{f - g}$.
+An inner product induces a \emph{norm}: $\norm{f} =
+\sqrt{\inner{f}{f}}$, and a \emph{distance}: $d(f,g) = \norm{f - g}$.
 \end{definition}
 
 \begin{example}[Euclidean inner product]
@@ -116,13 +115,13 @@ $f$.
 \label{rkhs:subsec:hilbert}
 
 \begin{definition}[Hilbert space]
-A \textbf{Hilbert space} is an inner product space that is
-\textbf{complete}: every Cauchy sequence converges within the space.
+A \emph{Hilbert space} is an inner product space that is
+\emph{complete}: every Cauchy sequence converges within the space.
 
 Informally: you can take limits freely without leaving the space.
 \end{definition}
 
-\textbf{Why completeness matters.} When we optimize $\min_{f \in \hilb}
+\paragraph{Why completeness matters.} When we optimize $\min_{f \in \hilb}
 J(f)$, we need the minimizing sequence to converge \emph{to an element
 of $\hilb$}. If the space were not complete, the limit might ``fall
 outside'' the space, and the minimum would not be attained. Completeness
@@ -145,7 +144,7 @@ A Hilbert space is a (possibly infinite-dimensional) vector space
 equipped with a ``generalized dot product'' where limits work properly.
 An RKHS will be a Hilbert space of \emph{functions} with one extra
 property: the reproducing property
-(Section~\ref{rkhs:sec:reproducing_property}).
+(\cref{rkhs:sec:reproducing_property}).
 \end{keyidea}
 
 % ────────────────────────────
@@ -158,7 +157,7 @@ the representer theorem:
 \begin{theorem}[Orthogonal decomposition]
 \label{rkhs:thm:ortho_decomp}
 Let $\hilb$ be a Hilbert space and $M \subseteq \hilb$ a closed
-subspace. Every $f \in \hilb$ has a \textbf{unique} decomposition:
+subspace. Every $f \in \hilb$ has a \emph{unique} decomposition:
 \[
 f = f_\parallel + f_\perp, \qquad f_\parallel \in M,\quad f_\perp \in M^\perp,
 \]
@@ -215,7 +214,7 @@ inputs $x$ and $x'$.
 
 \begin{definition}[Positive definite kernel]
 \label{rkhs:def:pd_kernel}
-A function $K: \X \times \X \to \R$ is a \textbf{positive definite
+A function $K: \X \times \X \to \R$ is a \emph{positive definite
 (p.d.) kernel} if:
 \begin{enumerate}[label=(\roman*)]
   \item \textbf{Symmetry}: $K(x, x') = K(x', x)$ for all $x, x' \in \X$.
@@ -228,12 +227,12 @@ A function $K: \X \times \X \to \R$ is a \textbf{positive definite
 \end{enumerate}
 \end{definition}
 
-\textbf{Why positive definiteness?} Condition~\eqref{rkhs:eq:pd_condition}
+\paragraph{Why positive definiteness?} Condition~\eqref{rkhs:eq:pd_condition}
 says that for \emph{any} finite collection of points, the matrix of
 pairwise kernel evaluations is positive semi-definite. This is exactly
 what we need to interpret $K(x,x')$ as an inner product in some
 (possibly high-dimensional) space --- as we will see in
-Section~\ref{rkhs:sec:feature_maps}.
+\cref{rkhs:sec:feature_maps}.
 
 In compact notation, condition~\eqref{rkhs:eq:pd_condition} states
 $\mat{c}^\top \mat{K} \mat{c} \geq 0$ where $\mat{K}_{ij} = K(x_i, x_j)$
@@ -242,7 +241,7 @@ and $\mat{c} = (c_1, \ldots, c_m)^\top$.
 \begin{definition}[Kernel matrix]
 \label{rkhs:def:gram_matrix}
 Given data $x_1, \ldots, x_n \in \X$ and a kernel $K$, the
-\textbf{kernel matrix} (or \textbf{Gram matrix}) is $\mat{K} \in \R^{n
+\emph{kernel matrix} (or \emph{Gram matrix}) is $\mat{K} \in \R^{n
 \times n}$ with entries:
 \[
 \mat{K}_{ij} = K(x_i, x_j).
@@ -263,12 +262,11 @@ vector in $\R^d$.
 \begin{example}[Linear kernel]
 $K(x,x') = x^\top x'$ for $x, x' \in \R^d$.
 
-\textbf{Verification of positive definiteness:}
+\emph{Verification of positive definiteness:}
 \[
 \sum_{i,j} c_i c_j\, x_i^\top x_j = \sum_{i,j} c_i c_j
 \sum_{k=1}^d x_{ik}\, x_{jk} = \sum_{k=1}^d
 \biggl(\sum_{i=1}^m c_i x_{ik}\biggr)^{\!2} \geq 0.
-\qquad\checkmark
 \]
 The Gram matrix is simply
 $\mat{K} = \mat{X}\mat{X}^\top$ where $\mat{X}$ stacks
@@ -279,7 +277,7 @@ the data points as rows.
 $K(x,x') = (x^\top x' + c)^p$ for $c \geq 0$,
 $p \in \N$.
 
-\textbf{Verification of positive definiteness} (quadratic
+\emph{Verification of positive definiteness} (quadratic
 case $p = 2$, $c = 0$, $x \in \R^2$). Expanding the
 square reveals a dot product structure:
 \begin{align*}
@@ -296,7 +294,7 @@ vectors in $\R^3$, the Gram matrix
 $\mat{K}_{ij} = K(x_i,x_j)$ is automatically PSD.
 This factorization will play a central role when we
 introduce \emph{feature maps} in
-Section~\ref{rkhs:sec:feature_maps}.
+\cref{rkhs:sec:feature_maps}.
 \end{example}
 
 \begin{example}[Gaussian (RBF) kernel]
@@ -316,8 +314,7 @@ Unlike the polynomial kernel, whose kernel value can be
 written as a finite-dimensional dot product (\cref{rkhs:ex:poly}),
 the Gaussian kernel requires an
 \emph{infinite-dimensional} inner product space --- we
-will see why in Sections~\ref{rkhs:sec:feature_maps}
-and~\ref{rkhs:sec:examples_rkhs}.
+will see why in \cref{rkhs:sec:feature_maps,rkhs:sec:examples_rkhs}.
 \end{example}
 
 \begin{figure}[ht]
@@ -358,10 +355,10 @@ to build complex kernels from simple ones:
 If $K_1$ and $K_2$ are p.d.\ kernels and $\alpha > 0$, then the
 following are also p.d.\ kernels:
 \begin{enumerate}[label=(\roman*)]
-  \item $\alpha K_1$ \quad (scaling)
-  \item $K_1 + K_2$ \quad (sum)
-  \item $K_1 \cdot K_2$ \quad (pointwise product --- Schur product theorem)
-  \item $\exp(K_1)$ \quad (exponentiation --- via power series)
+  \item $\alpha K_1$ \quad (scaling).
+  \item $K_1 + K_2$ \quad (sum).
+  \item $K_1 \cdot K_2$ \quad (pointwise product --- Schur product theorem).
+  \item $\exp(K_1)$ \quad (exponentiation --- via power series).
 \end{enumerate}
 \end{proposition}
 
@@ -473,7 +470,7 @@ input space $\X$ (left) corresponds to an inner product
 in some feature space $\mathcal{F}$ (right) via a
 feature map $\phi$. The only requirement is
 $K(x,x') = \inner{\phi(x)}{\phi(x')}_{\mathcal{F}}$
-(Definition~\ref{rkhs:def:feature_map}). The kernel trick
+(\cref{rkhs:def:feature_map}). The kernel trick
 exploits this: we compute $K(x,x')$ directly, without
 ever forming $\phi(x)$ explicitly.}
 \label{rkhs:fig:feature_map_concept}
@@ -484,9 +481,9 @@ ever forming $\phi(x)$ explicitly.}
 
 \begin{definition}[Feature map]
 \label{rkhs:def:feature_map}
-A \textbf{feature map} for a kernel $K$ is a mapping $\phi: \X \to
+A \emph{feature map} for a kernel $K$ is a mapping $\phi: \X \to
 \mathcal{F}$ into some inner product space $\mathcal{F}$ (the
-\textbf{feature space}) such that:
+\emph{feature space}) such that:
 \begin{equation}
 \label{rkhs:eq:feature_map}
 K(x, x') = \inner{\phi(x)}{\phi(x')}_{\mathcal{F}} \quad \text{for all } x, x' \in \X.
@@ -497,7 +494,7 @@ The feature map is \emph{not} unique. For a given kernel, many different
 $\phi$ and $\mathcal{F}$ satisfy~\eqref{rkhs:eq:feature_map}. The remarkable
 fact is that every p.d.\ kernel \emph{has} such a feature map --- this
 is guaranteed by the Moore--Aronszajn theorem
-(Section~\ref{rkhs:sec:rkhs_construction}).
+(\cref{rkhs:sec:rkhs_construction}).
 
 % ────────────────────────────
 \subsection{The kernel trick}
@@ -509,7 +506,7 @@ depend on the data \emph{only} through inner products
 $\inner{x_i}{x_j}$. If we replace each inner product with a kernel
 evaluation $K(x_i, x_j) = \inner{\phi(x_i)}{\phi(x_j)}$, we are
 implicitly running the algorithm in the (possibly infinite-dimensional)
-feature space $\mathcal{F}$, \textbf{without ever computing $\phi$
+feature space $\mathcal{F}$, \emph{without ever computing $\phi$
 explicitly}.
 \end{keyidea}
 
@@ -528,11 +525,11 @@ product in $\R^3$. Defining the feature map:
 we have
 $K(x,x') = \phi(x)^\top \phi(x')$.
 
-\textbf{Without the kernel trick}: Map each input to
+\emph{Without the kernel trick}: Map each input to
 $\R^3$ via $\phi$, then compute the inner product.
 Cost: $O(d^2)$ per pair.
 
-\textbf{With the kernel trick}: Compute $(x^\top x')^2$
+\emph{With the kernel trick}: Compute $(x^\top x')^2$
 directly. Cost: $O(d)$ per pair.
 
 For the degree-$p$ kernel $(x^\top x')^p$ on $\R^d$, the
@@ -646,13 +643,13 @@ obtained by ``freezing'' one argument of $K$. All
 the key identities follow directly from this:
 \begin{itemize}
   \item \textbf{Reproducing property}
-    (Section~\ref{rkhs:sec:reproducing_property}):
+    (\cref{rkhs:sec:reproducing_property}):
     $f(x) = \inner{f}{\phi_x}_{\hk}$.
   \item \textbf{Kernel reproduces itself}:
     $K(x,x') = \inner{\phi_x}{\phi_{x'}}_{\hk}$.
 \end{itemize}
 
-\textbf{Why is this natural?} Because we can define an
+\paragraph{Why is this natural?} Because we can define an
 inner product directly:
 \[
 \inner{K_x}{K_{x'}}_{\hk} := K(x, x').
@@ -734,7 +731,7 @@ as required by~\eqref{rkhs:eq:feature_map}.
 
 \end{tikzpicture}
 \caption{The \emph{canonical} feature map (compare with
-the general feature map in Figure~\ref{rkhs:fig:feature_map_concept}).
+the general feature map in \cref{rkhs:fig:feature_map_concept}).
 Here the feature space is specifically the RKHS $\hk$:
 each point $x \in \X$ is mapped to the \emph{function}
 $\phi_x = K(\cdot, x) \in \hk$. The inner product in
@@ -745,8 +742,8 @@ $K(x,x') = \inner{\phi_x}{\phi_{x'}}_{\hk}$.}
 
 \begin{intuition}[Multiple feature maps: the linear kernel]
 The canonical feature map produces \emph{functions}.
-But recall from Section~\ref{rkhs:sec:feature_maps} that
-Definition~\ref{rkhs:def:feature_map} only requires
+But recall from \cref{rkhs:sec:feature_maps} that
+\cref{rkhs:def:feature_map} only requires
 $K(x,x') = \inner{\phi(x)}{\phi(x')}_{\mathcal{F}}$
 --- it says nothing about $\phi(x)$ being a function.
 Indeed, a kernel can admit other feature maps that
@@ -754,16 +751,16 @@ produce \emph{vectors}. Let us compare the two for
 the linear and polynomial kernels.
 
 \medskip
-\textbf{Linear kernel}
+\emph{Linear kernel.}
 ($K(x,x') = x^\top x'$ on $\R^d$).
 \begin{enumerate}
   \item \textbf{Explicit feature map}:
     $\phi^{\mathrm{ex}}(x) = x \in \R^d$.
     This maps a point to a \emph{vector} and satisfies
     $K(x,x') = \phi^{\mathrm{ex}}(x)^\top
-    \phi^{\mathrm{ex}}(x')$. \checkmark
+    \phi^{\mathrm{ex}}(x')$.
   \item \textbf{Canonical feature map}
-    (Definition~\ref{rkhs:def:canonical_feature}):
+    (\cref{rkhs:def:canonical_feature}):
     $\phi_x^{\mathrm{can}}(\cdot) = K(\cdot,x)$,
     i.e.\ the \emph{function}
     $z \mapsto z^\top x$.
@@ -801,7 +798,7 @@ The same phenomenon occurs for the quadratic kernel,
 but the isomorphism is richer.
 
 \medskip
-\textbf{Quadratic kernel}
+\emph{Quadratic kernel.}
 ($K(x,x') = (x^\top x')^2$ on $\R^2$).
 \begin{enumerate}
   \item \textbf{Explicit feature map}
@@ -831,7 +828,7 @@ a\,z_1^2 + \tfrac{b}{\sqrt{2}}\,(2z_1 z_2)
 + c\,z_2^2.
 \]
 
-\textbf{Verification that
+\emph{Verification that
 $T \circ \phi^{\mathrm{ex}} = \phi^{\mathrm{can}}$.}
 Apply $T$ to $\phi^{\mathrm{ex}}(x) =
 (x_1^2,\, \sqrt{2}\,x_1 x_2,\, x_2^2)^\top$:
@@ -843,10 +840,9 @@ T\!\bigl(\phi^{\mathrm{ex}}(x)\bigr)(z)
 &= x_1^2 z_1^2 + 2x_1 x_2\, z_1 z_2
 + x_2^2 z_2^2
 = (z^\top x)^2 = \phi_x^{\mathrm{can}}(z).
-\quad\checkmark
 \end{align*}
 
-\textbf{Verification that $\inner{u}{v}_{\R^3} =
+\emph{Verification that $\inner{u}{v}_{\R^3} =
 \inner{Tu}{Tv}_{\hk}$.} It suffices to check that $T$
 maps the standard basis $\{e_1, e_2, e_3\}$ of $\R^3$
 to an orthonormal set in $\hk$. The images are:
@@ -918,14 +914,13 @@ $\hk$, and by bilinearity:
     =\,\delta_{ij}}
 = \sum_i u_i v_i
 = \inner{u}{v}_{\R^3}.
-\quad\checkmark
 \]
 \end{intuition}
 
 \begin{intuition}[The canonical feature map is universal]
-\textbf{The general principle.} Every feature map is related to the canonical one by an isometry. If $\phi: \X \to \mathcal F$ is any feature map, the map $T: \mathcal F \to \hk$, $T(w) = \bigl(x \mapsto \inner{w}{\phi(x)}_{\mathcal F}\bigr)$, sends $\phi(x)$ to $K(\cdot, x)$, and it is an isometry from the closed span of $\phi(\X)$ onto $\hk$ (it kills the orthogonal complement of that span). In this sense the canonical feature map is ``universal'': every other feature map is a concrete coordinate system for it.
+\emph{The general principle.} Every feature map is related to the canonical one by an isometry. If $\phi: \X \to \mathcal F$ is any feature map, the map $T: \mathcal F \to \hk$, $T(w) = \bigl(x \mapsto \inner{w}{\phi(x)}_{\mathcal F}\bigr)$, sends $\phi(x)$ to $K(\cdot, x)$, and it is an isometry from the closed span of $\phi(\X)$ onto $\hk$ (it kills the orthogonal complement of that span). In this sense the canonical feature map is ``universal'': every other feature map is a concrete coordinate system for it.
 
-\textbf{Why does this matter?} When $\hk$ is
+\emph{Why does this matter?} When $\hk$ is
 finite-dimensional (linear or polynomial kernel), we
 can choose the explicit vector representation
 $\phi^{\mathrm{ex}}$ and never think about functions;
@@ -944,13 +939,13 @@ us a complete Hilbert space with a well-defined inner
 product. The goal of this subsection is to construct
 $\hk$ rigorously from $K$ alone, culminating in the
 Moore--Aronszajn theorem which guarantees that this
-construction yields a \textbf{unique} RKHS. The
+construction yields a \emph{unique} RKHS. The
 construction proceeds in four stages:
 
-\textbf{Step 1: Start with kernel sections.} For each $x \in \X$, we
+\paragraph{Step 1: start with kernel sections.} For each $x \in \X$, we
 have the function $K_x = K(\cdot, x)$ in our space.
 
-\textbf{Step 2: Take finite linear combinations.} Define:
+\paragraph{Step 2: take finite linear combinations.} Define:
 \[
 \hilb_0 := \Bigl\{ f = \sum_{i=1}^m \alpha_i\, K_{x_i} \;\Big|\; m \in
 \N,\; \alpha_i \in \R,\; x_i \in \X \Bigr\}.
@@ -958,7 +953,7 @@ have the function $K_x = K(\cdot, x)$ in our space.
 These are functions of the form $f(\cdot) = \sum_{i=1}^m \alpha_i
 K(\cdot, x_i)$.
 
-\textbf{Step 3: Define the inner product.} For $f = \sum_i \alpha_i
+\paragraph{Step 3: define the inner product.} For $f = \sum_i \alpha_i
 K_{x_i}$ and $g = \sum_j \beta_j K_{x_j'}$:
 \begin{equation}
 \label{rkhs:eq:inner_product_h0}
@@ -973,7 +968,7 @@ satisfies all inner product axioms.
 \end{lemma}
 
 \begin{proof}
-\textbf{Well-definedness.} Suppose $f$ has two
+\emph{Well-definedness.} Suppose $f$ has two
 representations:
 $f = \sum_{i=1}^m \alpha_i K_{x_i}
    = \sum_{k=1}^{m'} \gamma_k K_{y_k}$.
@@ -1019,18 +1014,17 @@ conclude by linearity:
 \inner{h}{g}
 = \sum_j \beta_j \inner{h}{K_{x_j'}}
 = \sum_j \beta_j \cdot 0 = 0.
-\qquad\checkmark
 \]
 
 \medskip
-\textbf{Positive semi-definiteness}
+\emph{Positive semi-definiteness.}
 ($\inner{f}{f} \geq 0$) follows directly from the
 positive definiteness of $K$:
 $\inner{f}{f} = \sum_{i,j} \alpha_i \alpha_j
 K(x_i, x_j) \geq 0$.
 
 \medskip
-\textbf{Positive definiteness}
+\emph{Positive definiteness.}
 ($\inner{f}{f} = 0 \implies f = 0$): note that
 $\inner{f}{K_x} = f(x)$ by the computation above.
 So if $\inner{f}{f} = 0$, then by Cauchy--Schwarz
@@ -1039,22 +1033,22 @@ $|f(x)|^2 = |\inner{f}{K_x}|^2
 for all $x$, giving $f \equiv 0$.
 \end{proof}
 
-\textbf{Step 4: Complete the space.} The space $\hilb_0$ with this inner
-product may not be complete. We form the \textbf{completion} $\hk =
+\paragraph{Step 4: complete the space.} The space $\hilb_0$ with this inner
+product may not be complete. We form the \emph{completion} $\hk =
 \overline{\hilb_0}$ by including all limits of Cauchy sequences from
 $\hilb_0$. The resulting space $\hk$ is a Hilbert space.
 
 \begin{theorem}[Moore--Aronszajn theorem]
 \label{rkhs:thm:moore_aronszajn}
 For every positive definite kernel $K$ on $\X \times \X$, there exists a
-\textbf{unique} Hilbert space $\hk$ of functions $f: \X \to \R$ such
+\emph{unique} Hilbert space $\hk$ of functions $f: \X \to \R$ such
 that:
 \begin{enumerate}[label=(\roman*)]
   \item $K(\cdot, x) \in \hk$ for every $x \in \X$.
   \item $f(x) = \inner{f}{K(\cdot, x)}_{\hk}$ for every $f \in \hk$ and
   every $x \in \X$.
 \end{enumerate}
-This space $\hk$ is called the \textbf{Reproducing Kernel Hilbert Space} of $K$.
+This space $\hk$ is called the \emph{Reproducing Kernel Hilbert Space} of $K$.
 \end{theorem}
 
 Property (ii) is the \emph{reproducing property}, the defining
@@ -1084,12 +1078,12 @@ In the RKHS $\hk$ constructed above, for every $f \in \hk$ and every $x \in \X$:
 \label{rkhs:eq:reproducing}
 \boxed{f(x) = \inner{f}{K(\cdot, x)}_{\hk}}
 \end{equation}
-That is: \textbf{evaluation at $x$} equals \textbf{inner product with
+That is: \emph{evaluation at $x$} equals \emph{inner product with
 $K(\cdot, x)$}.
 \end{proposition}
 
 \begin{proof}
-\textbf{Step 1:} For ``kernel sections'', i.e.\ functions of the form
+\emph{Step 1:} For ``kernel sections'', i.e.\ functions of the form
 $K_y = K(\cdot, y)$:
 \[
 \inner{K_y}{K_x}_{\hk} = K(y, x) = K_y(x).
@@ -1098,7 +1092,7 @@ The first equality is by definition of the inner
 product~\eqref{rkhs:eq:inner_product_h0}. The second is by definition of
 $K_y$. So the reproducing property holds for $f = K_y$.
 
-\textbf{Step 2:} For finite linear combinations
+\emph{Step 2:} For finite linear combinations
 $f = \sum_{i=1}^m \alpha_i K_{x_i} \in \hilb_0$, we
 use the linearity of the inner product (in the first
 argument) and the result of Step~1:
@@ -1121,7 +1115,7 @@ argument) and the result of Step~1:
    = \textstyle\sum_i \alpha_i K(x, x_i)$)}
 \end{align*}
 
-\textbf{Step 3:} For general $f \in \hk$. Since $\hk$
+\emph{Step 3:} For general $f \in \hk$. Since $\hk$
 is the completion of $\hilb_0$, there exists a
 sequence $(f_n)$ in $\hilb_0$ with
 $f_n \to f$ in $\hk$-norm, i.e.\
@@ -1131,7 +1125,7 @@ We pass to the limit on both sides.
 
 \emph{Right-hand side:}
 $\inner{f_n}{K_x}_{\hk} \to \inner{f}{K_x}_{\hk}$.
-This follows from the \textbf{Cauchy--Schwarz
+This follows from the \emph{Cauchy--Schwarz
 inequality} $|\inner{u}{v}| \leq \norm{u}\,\norm{v}$,
 which holds in any inner product space. Applying it
 with $u = f_n - f$ and $v = K_x$:
@@ -1165,7 +1159,7 @@ Combining: $f(x) = \lim_{n} f_n(x)
 = \inner{f}{K_x}_{\hk}$.
 \end{proof}
 
-\textbf{Reading the reproducing property.} There are three equivalent
+\paragraph{Reading the reproducing property.} There are three equivalent
 ways to read equation~\eqref{rkhs:eq:reproducing}:
 \begin{enumerate}[label=(\alph*)]
   \item \textbf{Evaluation as inner product}: To evaluate $f$ at $x$,
@@ -1266,9 +1260,9 @@ ways to read equation~\eqref{rkhs:eq:reproducing}:
 \end{tikzpicture}
 \caption{Geometric view of the reproducing property
 (compare with
-Figure~\ref{rkhs:fig:canonical_feature_map}).
+\cref{rkhs:fig:canonical_feature_map}).
 In the RKHS $\hk$, both $f$ and
-$\phi_x = K(\cdot, x)$ live as ``vectors.'' The
+$\phi_x = K(\cdot, x)$ live as ``vectors''. The
 reproducing property says that \emph{evaluating} $f$
 at a point $x \in \X$ equals the \emph{inner product}
 $\inner{f}{\phi_x}_{\hk}$: geometrically, $f(x)$ is
@@ -1337,7 +1331,7 @@ $L^2$ norm. In formal terms, elements of $L^2$ are
 \emph{equivalence classes} of functions, not functions
 in the classical sense, so ``$f(x)$'' is ambiguous.
 
-In an RKHS, Proposition~\ref{rkhs:prop:eval_continuous}
+In an RKHS, \cref{rkhs:prop:eval_continuous}
 rules this out: if $\norm{f - g}_{\hk} = 0$, then
 $|f(x) - g(x)| \leq \sqrt{K(x,x)}
 \cdot \norm{f - g}_{\hk} = 0$ for every $x$, so
@@ -1363,7 +1357,7 @@ Let $\X = \{a, b\}$ (a two-point domain) with kernel:
 K(a,a) = 2, \quad K(a,b) = K(b,a) = 1, \quad K(b,b) = 2.
 \]
 The Gram matrix $\mat{K} = \begin{psmallmatrix} 2 & 1 \\ 1 & 2
-\end{psmallmatrix}$ is PSD (eigenvalues $3$ and $1$). \checkmark
+\end{psmallmatrix}$ is PSD (eigenvalues $3$ and $1$).
 
 The RKHS $\hk$ consists of functions $f: \{a,b\} \to \R$, which are just
 pairs $(f(a), f(b)) \in \R^2$.
@@ -1377,20 +1371,19 @@ b): \quad K_b(a) = 1,\; K_b(b) = 2.
 Consider $f = 3K_a - K_b$, i.e.\ $f(a) = 3 \cdot 2 - 1 \cdot 1 = 5$ and
 $f(b) = 3 \cdot 1 - 1 \cdot 2 = 1$.
 
-\textbf{Verify the reproducing property at $x = a$}:
+\emph{Verify the reproducing property at $x = a$}:
 \[
 \inner{f}{K_a}_{\hk} = \inner{3K_a - K_b}{K_a}_{\hk} =
 3\underbrace{K(a,a)}_{=2} - \underbrace{K(b,a)}_{=1} = 6 - 1 = 5 = f(a).
-\quad\checkmark
 \]
 
-\textbf{Verify at $x = b$}:
+\emph{Verify at $x = b$}:
 \[
 \inner{f}{K_b}_{\hk} = 3\underbrace{K(a,b)}_{=1} -
-\underbrace{K(b,b)}_{=2} = 3 - 2 = 1 = f(b). \quad\checkmark
+\underbrace{K(b,b)}_{=2} = 3 - 2 = 1 = f(b).
 \]
 
-\textbf{Compute the RKHS norm}:
+\emph{Compute the RKHS norm}:
 \[
 \begin{aligned}
 \norm{f}_{\hk}^2 &= \inner{3K_a - K_b}{3K_a - K_b}_{\hk}\\ &= 9K(a,a) -
@@ -1398,11 +1391,11 @@ $f(b) = 3 \cdot 1 - 1 \cdot 2 = 1$.
 \end{aligned}
 \]
 
-\textbf{Remark on ``similarity.''}
+\emph{Remark on ``similarity''.}
 Note that $K(a,b) = 1$ while $K(a,a) = K(b,b) = 2$:
 the off-diagonal values are smaller than the diagonal
 ones, but they are not zero. In many presentations,
-kernels are described as ``similarity measures.''
+kernels are described as ``similarity measures''.
 This example shows the picture is more nuanced:
 $K(x,x')$ is an \emph{inner product} in the feature
 space, and while inner products do encode geometric
@@ -1450,7 +1443,7 @@ where $\ell: \R \times \R \to \R$ is any loss function and $\lambda >
 
 The complexity penalty is the squared RKHS norm; by Mercer's theorem (\cref{rkhs:sec:mercer}) $\norm{f}_{\hk}^2 = \sum_k a_k^2/\lambda_k$, which penalizes heavily the components of $f$ along eigenfunctions with small eigenvalues, the ``high-frequency'' ones. A minimizer exists, for example, when $\ell$ is convex and continuous in its first argument, since the objective is then continuous, strictly convex and coercive on $\hk$; the theorem itself only describes minimizers.
 
-\textbf{Interpretation.} Despite searching over the entire
+\paragraph{Interpretation.} Despite searching over the entire
 infinite-dimensional space $\hk$, the optimal function is determined by
 just $n$ real numbers $\alpha_1, \ldots, \alpha_n$.
 
@@ -1458,13 +1451,13 @@ just $n$ real numbers $\alpha_1, \ldots, \alpha_n$.
 \subsection{Complete proof}
 
 \begin{proof}
-The proof uses the orthogonal decomposition from Theorem~\ref{rkhs:thm:ortho_decomp}.
+The proof uses the orthogonal decomposition from \cref{rkhs:thm:ortho_decomp}.
 
-\textbf{Step 1: Define the subspace.} Let $M = \spn\{K(\cdot, x_1),
+\emph{Step 1: define the subspace.} Let $M = \spn\{K(\cdot, x_1),
 \ldots, K(\cdot, x_n)\} \subseteq \hk$. This is a finite-dimensional
 (hence closed) subspace.
 
-\textbf{Step 2: Decompose.} Any $f \in \hk$ decomposes uniquely as $f =
+\emph{Step 2: decompose.} Any $f \in \hk$ decomposes uniquely as $f =
 f_\parallel + f_\perp$ with $f_\parallel \in M$ and $f_\perp \in
 M^\perp$. Concretely:
 \[
@@ -1472,7 +1465,7 @@ f_\parallel = \sum_{i=1}^n \alpha_i K(\cdot, x_i), \qquad
 \inner{f_\perp}{K(\cdot, x_j)}_{\hk} = 0 \text{ for all } j.
 \]
 
-\textbf{Step 3: $f_\perp$ is invisible to the loss.} By the reproducing
+\emph{Step 3: $f_\perp$ is invisible to the loss.} By the reproducing
 property:
 \[
 f(x_j) = \inner{f}{K(\cdot, x_j)}_{\hk} = \inner{f_\parallel}{K(\cdot,
@@ -1482,7 +1475,7 @@ f_\parallel(x_j).
 So $f(x_j) = f_\parallel(x_j)$ for all $j = 1, \ldots, n$. The loss
 $\sum_i \ell(f(x_i), y_i)$ depends only on $f_\parallel$.
 
-\textbf{Step 4: $f_\perp$ only increases the regularizer.} By the
+\emph{Step 4: $f_\perp$ only increases the regularizer.} By the
 Pythagorean theorem:
 \[
 \norm{f}_{\hk}^2 = \norm{f_\parallel}_{\hk}^2 + \norm{f_\perp}_{\hk}^2
@@ -1490,7 +1483,7 @@ Pythagorean theorem:
 \]
 with equality if and only if $f_\perp = 0$.
 
-\textbf{Step 5: Conclude.} The objective is:
+\emph{Step 5: conclude.} The objective is:
 \[
 J(f) = \underbrace{\sum_{i=1}^n \ell(f(x_i), y_i)}_{\text{depends only
 on } f_\parallel} + \lambda\bigl(\norm{f_\parallel}^2 +
@@ -1551,14 +1544,14 @@ optimization~\eqref{rkhs:eq:representer_problem} to a finite-dimensional
 problem over $\vect{\alpha} = (\alpha_1, \ldots, \alpha_n)^\top \in
 \R^n$. Let us work out the details.
 
-\textbf{Loss term.} Substituting $f^*(x) = \sum_j \alpha_j K(x, x_j)$:
+\paragraph{Loss term.} Substituting $f^*(x) = \sum_j \alpha_j K(x, x_j)$:
 \[
 f^*(x_i) = \sum_{j=1}^n \alpha_j K(x_i, x_j) = (\mat{K}\vect{\alpha})_i,
 \]
 where $\mat{K}$ is the $n \times n$ Gram matrix with $\mat{K}_{ij} =
 K(x_i, x_j)$.
 
-\textbf{Regularizer.} Using the reproducing property twice:
+\paragraph{Regularizer.} Using the reproducing property twice:
 
 \begin{align*}
 \norm{f^*}_{\hk}^2 &=
@@ -1572,7 +1565,7 @@ K(x_i, x_j)$.
 \vect{\alpha}^\top \mat{K}\, \vect{\alpha}. \label{rkhs:eq:rkhs_norm_alpha}
 \end{align*}
 
-\textbf{Full kernelized problem:}
+\paragraph{Full kernelized problem.}
 \begin{equation}
 \label{rkhs:eq:kernelized}
 \boxed{\min_{\vect{\alpha} \in \R^n}\; \sum_{i=1}^n \ell\bigl((\mat{K}\vect{\alpha})_i,\; y_i\bigr) + \lambda\, \vect{\alpha}^\top \mat{K}\, \vect{\alpha}}
@@ -1628,18 +1621,18 @@ are strictly positive, which implies the matrix is invertible
 (its determinant is the product of positive eigenvalues).
 
 \smallskip
-\textbf{Intuition:} Regularization $\lambda\mat{I}$ ``shifts'' the entire
+\emph{Intuition:} Regularization $\lambda\mat{I}$ ``shifts'' the entire
 spectrum of $\mat{K}$ upward by $\lambda$, turning any zero eigenvalues
 into $\lambda > 0$. This guarantees invertibility --- exactly why ridge
 regression fixes the non-invertibility problem in ordinary least squares.
 \end{intuition}
 
 \begin{example}[Complete numerical walkthrough]
-\textbf{Setup}: $n = 3$ data points in $\R^1$: $x_1 = 0,\; x_2 = 1,\;
+\emph{Setup}: $n = 3$ data points in $\R^1$: $x_1 = 0,\; x_2 = 1,\;
 x_3 = 3$, with labels $y_1 = 1,\; y_2 = 2,\; y_3 = 0$. Use the Gaussian
 kernel with $\sigma = 1$ and regularization $\lambda = 0.1$.
 
-\textbf{Step 1: Compute the Gram matrix.}
+\emph{Step 1: compute the Gram matrix.}
 \[
 K(x_i, x_j) = \exp\!\bigl(-(x_i - x_j)^2/2\bigr).
 \]
@@ -1656,14 +1649,14 @@ e^{-9/2} & e^{-2} & 1
 \end{pmatrix}.
 \]
 
-\textbf{Step 2: Solve for $\vect{\alpha}$.}
+\emph{Step 2: solve for $\vect{\alpha}$.}
 \[
 \vect{\alpha}^* = (\mat{K} + 0.1\,\mat{I})^{-1}\mat{y} = (\mat{K} +
 0.1\,\mat{I})^{-1}\begin{pmatrix}1\\2\\0\end{pmatrix}.
 \]
 Numerically, $\vect{\alpha}^* \approx (-0.154,\; 1.932,\; -0.236)^\top$, and the fitted values are $\mat K\vect\alpha^* \approx (1.015,\; 1.807,\; 0.024)$: the regularization pulls the fit at $x_2 = 1$ down from $2$, while the other two points are fitted almost exactly. The squared RKHS norm is $\vect\alpha^{*\top}\mat K\vect\alpha^* \approx 3.33$. Note that $\alpha_1 < 0$ although $y_1 > 0$: the large bump at $x_2 = 1$ already overshoots at $x_1 = 0$ ($1.932\,e^{-1/2} \approx 1.17 > 1$), and the small negative weight corrects it.
 
-\textbf{Step 3: The learned function.}
+\emph{Step 3: the learned function.}
 \[
 f^*(x) = -0.154\,e^{-x^2/2} + 1.932\,e^{-(x-1)^2/2} - 0.236\,e^{-(x-3)^2/2}.
 \]
@@ -1722,7 +1715,7 @@ This section gives concrete characterizations.
 For $K(x,x') = x^\top x'$ on $\R^d$:
 
 The canonical feature map
-(Definition~\ref{rkhs:def:canonical_feature}) sends each
+(\cref{rkhs:def:canonical_feature}) sends each
 point $x \in \R^d$ to the linear functional
 $K(\cdot, x): z \mapsto z^\top x$. With the
 identification $w \leftrightarrow f_w$, where
@@ -1738,7 +1731,7 @@ $f_w(z) = z^\top w$:
   \item \textbf{Reproducing property check}:
     $\inner{f_w}{K(\cdot,x)}_{\hk}
     = \inner{f_w}{f_x}_{\hk} = w^\top x
-    = f_w(x)$. \checkmark
+    = f_w(x)$.
   \item The representer theorem says
     $w^* = \sum_i \alpha_i x_i$ (the optimal weight
     vector lies in the span of the data).
@@ -1751,7 +1744,7 @@ ridge regression.
 \subsection{Polynomial kernel}
 
 For $K(x,x') = (x^\top x')^p$ on $\R^d$, the RKHS is
-\textbf{finite-dimensional}:
+\emph{finite-dimensional}:
 \begin{itemize}
   \item $\hk$ consists of \emph{homogeneous polynomials
     of degree $p$} in $d$ variables. The dimension is
@@ -1772,7 +1765,7 @@ For $K(x,x') = (x^\top x')^p$ on $\R^d$, the RKHS is
     on the cross-term in the quadratic case).
 \end{itemize}
 
-\textbf{Key contrast with the Gaussian kernel.}
+\paragraph{Key contrast with the Gaussian kernel.}
 For the linear and polynomial kernels $\hk$ is finite-dimensional, so we can
 write $\phi_x$ as a vector of finitely many coordinates. For the
 Gaussian kernel below, the RKHS is
@@ -1783,7 +1776,7 @@ infinite-dimensional: coordinates, when used, are infinite sequences.
 
 For $K(x,x') = \exp(-\norm{x-x'}^2/2\sigma^2)$ on $\R^d$:
 \begin{itemize}
-  \item The RKHS is \textbf{infinite-dimensional} and contains very
+  \item The RKHS is \emph{infinite-dimensional} and contains very
   smooth functions.
   \item Functions in $\hk$ are infinitely differentiable ($C^\infty$)
   and analytic.
@@ -1805,7 +1798,7 @@ K(x,x') &= e^{-\norm{x}^2/2\sigma^2}\; e^{x^\top x'/\sigma^2}\; e^{-\norm{x'}^2/
 \end{align*}
 Each term $(x^\top x')^k$ is a polynomial kernel of degree $k$,
 contributing a finite-dimensional feature space. Summing over all $k$
-yields an \textbf{infinite-dimensional} feature space.
+yields an \emph{infinite-dimensional} feature space.
 
 This means: the Gaussian kernel implicitly includes polynomial features
 of \emph{every} degree.
@@ -1822,7 +1815,7 @@ The following table summarizes how the key concepts relate to each other:
 \renewcommand{\arraystretch}{1.4}
 \begin{tabular}{@{}p{4cm}p{9.5cm}@{}}
 \toprule
-\textbf{Concept} & \textbf{Role in the RKHS framework} \\
+Concept & Role in the RKHS framework \\
 \midrule
 P.D.\ kernel $K$ & Measures similarity; determines the RKHS uniquely
 (Moore--Aronszajn) \\
@@ -1850,7 +1843,7 @@ Kernelized problem & $\min_{\vect{\alpha}}
 % ══════════════════════════════════════════════════════════════
 
 The RKHS framework becomes particularly powerful in
-\textbf{semi-supervised learning}, where we have few labelled
+\emph{semi-supervised learning}, where we have few labelled
 examples but many unlabelled ones. This is the rule, not the
 exception, in real-world applications: labelling requires human
 effort, but unlabelled data is abundant.
@@ -1860,11 +1853,11 @@ How can unlabelled data possibly help? If we only have inputs
 $x_1,\ldots,x_n$ without labels, what additional information do
 they provide about the function $f$ we want to learn?
 
-\textbf{Key idea:} The unlabelled data reveal the \emph{geometry}
+\emph{Key idea:} The unlabelled data reveal the \emph{geometry}
 of the data distribution. If two points $x_i$ and $x_j$ are
 connected by a high-density path in input space (high-weight edges),
 their predictions $f(x_i)$ and $f(x_j)$ should be similar. This is the
-\textbf{manifold assumption}: data lie near a low-dimensional
+\emph{manifold assumption}: data lie near a low-dimensional
 manifold, and the target function varies smoothly along it.
 \end{intuition}
 
@@ -1996,9 +1989,9 @@ manifold, and the target function varies smoothly along it.
   \node[font=\small] at (0.8, -2.5) {With manifold regularization};
 \end{scope}
 \end{tikzpicture}
-\caption{Why unlabelled data matter. \textbf{Left:} Only four labelled
-points on a Swiss roll manifold. \textbf{Middle:} A pure supervised
-method overfits. \textbf{Right:} Manifold regularization uses graph
+\caption{Why unlabelled data matter. Left: Only four labelled
+points on a Swiss roll manifold. Middle: A pure supervised
+method overfits. Right: Manifold regularization uses graph
 connections (grey edges) to enforce smoothness along the manifold.}
 \label{rkhs:fig:manifold_motivation}
 \end{figure}
@@ -2019,7 +2012,7 @@ The quadratic form is small when $f$ varies little across heavy edges, that is, 
 
 We now combine two sources of information:
 
-\begin{enumerate}[label=\textbf{(\roman*)}]
+\begin{enumerate}[label=\emph{(\roman*)}]
   \item \textbf{Labelled data:} Supervised loss $\sum_{i=1}^l \ell(f(x_i), y_i)$.
   \item \textbf{Unlabelled data geometry:} Graph smoothness penalty
     $\mat{f}^\top \mat{L} \mat{f}$.
@@ -2054,7 +2047,7 @@ The two penalty terms encode complementary inductive biases:
 \begin{itemize}
   \item \textbf{Ambient regularizer} ($\gamma_A\norm{f}_{\hk}^2$): \\
   Forces $f$ to be smooth in the \emph{ambient space} $\R^d$. This is
-  the standard RKHS penalty from Section~\ref{rkhs:sec:representer}.
+  the standard RKHS penalty from \cref{rkhs:sec:representer}.
 
   \item \textbf{Intrinsic regularizer} ($\gamma_I \mat{f}^\top \mat{L} \mat{f}$): \\
   Forces $f$ to be smooth along the \emph{data manifold}. Two points
@@ -2072,7 +2065,7 @@ $\gamma_I = 0$, we recover standard supervised kernel methods.
 \label{rkhs:subsec:manifold_representer_proof}
 
 Why does the solution still have the form $\sum_{i=1}^n \alpha_i
-K(\cdot, x_i)$, now using \textbf{all} $n$ points? The proof is an
+K(\cdot, x_i)$, now using \emph{all} $n$ points? The proof is an
 elegant extension of the classical representer theorem.
 
 \begin{proof}[Proof sketch]
@@ -2081,7 +2074,7 @@ Any $f \in \hk$ decomposes as $f = f_\parallel + f_\perp$ with
 $f_\parallel \in M$ and $f_\perp \in M^\perp$.
 
 \smallskip
-\textbf{Step 1: The loss and intrinsic regularizer see only $f_\parallel$.}
+\emph{Step 1: the loss and intrinsic regularizer see only $f_\parallel$.}
 \begin{itemize}
   \item By the reproducing property, $f(x_i) = \inner{f}{K(\cdot, x_i)}
     = f_\parallel(x_i)$ for each $i = 1,\ldots,n$. Hence the supervised
@@ -2091,12 +2084,12 @@ $f_\parallel \in M$ and $f_\perp \in M^\perp$.
     depends only on $f_\parallel$.
 \end{itemize}
 
-\textbf{Step 2: The ambient regularizer penalizes $f_\perp$ without
+\emph{Step 2: The ambient regularizer penalizes $f_\perp$ without
 contributing to the other terms.}
 By orthogonality, $\norm{f}_{\hk}^2 = \norm{f_\parallel}_{\hk}^2
 + \norm{f_\perp}_{\hk}^2 \geq \norm{f_\parallel}_{\hk}^2$.
 
-\textbf{Step 3: Conclude.}
+\emph{Step 3: conclude.}
 For any $f$, the objective $J(f) \geq J(f_\parallel)$ with equality
 iff $f_\perp = 0$. Therefore the minimizer must lie in $M$, i.e.\
 $f^* = \sum_{i=1}^n \alpha_i K(\cdot, x_i)$.
@@ -2105,7 +2098,7 @@ $f^* = \sum_{i=1}^n \alpha_i K(\cdot, x_i)$.
 \begin{remark}
 The crucial difference from the classical representer theorem: the
 intrinsic regularizer involves \emph{evaluations} $f(x_i)$ at
-\textbf{all} $n$ points, not just the labelled ones. This is why the
+\emph{all} $n$ points, not just the labelled ones. This is why the
 expansion now includes \emph{every} data point.
 \end{remark}
 
@@ -2113,7 +2106,7 @@ expansion now includes \emph{every} data point.
 \subsection{Kernelization: the manifold regularization algorithm}
 \label{rkhs:subsec:manifold_kernelization}
 
-As in Section~\ref{rkhs:sec:representer}, substitute
+As in \cref{rkhs:sec:representer}, substitute
 $f(x) = \sum_{j=1}^n \alpha_j K(x, x_j)$ into the objective.
 
 \begin{align*}
@@ -2193,14 +2186,14 @@ With $\gamma_I = 0$ the problem is kernel ridge regression on four points: the d
 \node[font=\scriptsize, anchor=south east] at (axis cs:2.35,-0.78) {accuracy 100.0\%};
 \end{axis}
 \end{tikzpicture}
-\caption{Manifold regularization on the two moons (computed). Points are coloured by the sign of the learned $f^*$; the four labelled points are drawn as large squares ($+1$) and triangles ($-1$). \textbf{Left:} without the intrinsic penalty the boundary ignores the shape of the data. \textbf{Right:} with it the two moons are separated exactly.}
+\caption{Manifold regularization on the two moons (computed). Points are coloured by the sign of the learned $f^*$; the four labelled points are drawn as large squares ($+1$) and triangles ($-1$). Left: without the intrinsic penalty the boundary ignores the shape of the data. Right: with it the two moons are separated exactly.}
 \label{rkhs:fig:two_moons}
 \end{figure}
 
 \subsection{Practical considerations}
 \label{rkhs:subsec:manifold_practical}
 
-\begin{enumerate}[label=\textbf{\arabic*.}]
+\begin{enumerate}[label=\emph{\arabic*.}]
   \item \textbf{Choosing the graph.}
   \begin{itemize}
     \item $k$-NN graph: common choices $k = 5$--$20$.
@@ -2236,10 +2229,10 @@ With $\gamma_I = 0$ the problem is kernel ridge regression on four points: the d
 The two regularizers can be understood through Mercer's theorem:
 
 \begin{itemize}
-  \item The \textbf{ambient regularizer} $\gamma_A \norm{f}_{\hk}^2
+  \item The \emph{ambient regularizer} $\gamma_A \norm{f}_{\hk}^2
     = \gamma_A \sum_k a_k^2/\lambda_k$ penalizes high-frequency
     components in the eigenbasis of $K$.
-  \item The \textbf{intrinsic regularizer} $\gamma_I \mat{f}^\top
+  \item The \emph{intrinsic regularizer} $\gamma_I \mat{f}^\top
     \mat{L} \mat{f}$ penalizes variations along the data manifold.
 \end{itemize}
 
@@ -2263,8 +2256,8 @@ The two penalties are measured in different spectral bases: that of the integral
 The magic: unlabelled data enter through:
 \begin{enumerate}[label=(\alph*)]
   \item The representation $f(x) = \sum_{i=1}^n \alpha_i K(x, x_i)$
-    includes \textbf{all} points.
-  \item The graph Laplacian $\mat{L}$ is constructed from \textbf{all}
+    includes \emph{all} points.
+  \item The graph Laplacian $\mat{L}$ is constructed from \emph{all}
     points.
 \end{enumerate}
 \end{keyidea}
@@ -2276,23 +2269,23 @@ The magic: unlabelled data enter through:
 \label{rkhs:sec:faq}
 % ══════════════════════════════════════════════════════════════
 
-\begin{enumerate}[label=\textbf{Q\arabic*.}, leftmargin=*, itemsep=10pt]
+\begin{enumerate}[label=\emph{Q\arabic*.}, leftmargin=*, itemsep=10pt]
 
 \item \textbf{Is every Hilbert space of functions an RKHS?}
 
 No. A Hilbert space of functions is an RKHS if and only
 if point evaluation is a continuous linear functional
-(Proposition~\ref{rkhs:prop:eval_continuous}). In $L^2$,
+(\cref{rkhs:prop:eval_continuous}). In $L^2$,
 elements are equivalence classes of functions that
 agree almost everywhere, so two ``different'' functions
 can represent the same $L^2$ element --- evaluation at
 a single point depends on which representative you
 choose (see the discussion in
-Section~\ref{rkhs:sec:reproducing_property}).
+\cref{rkhs:sec:reproducing_property}).
 
 \item \textbf{Is the RKHS unique for a given kernel?}
 
-Yes. The Moore--Aronszajn theorem (Theorem~\ref{rkhs:thm:moore_aronszajn})
+Yes. The Moore--Aronszajn theorem (\cref{rkhs:thm:moore_aronszajn})
 guarantees that each p.d.\ kernel determines exactly one RKHS, and conversely the RKHS determines its kernel, since $K(x,x') = \inner{K(\cdot,x)}{K(\cdot,x')}$. Two different kernels can still give the same \emph{set} of functions with different norms: $K$ and $2K$ have the same functions, with $\norm{f}_{\mathcal H_{2K}}^2 = \frac12\norm{f}_{\hk}^2$.
 
 \item \textbf{What if I do not regularize ($\lambda = 0$)?}
@@ -2359,7 +2352,7 @@ K(x,x') = \sum_{k=1}^\infty \lambda_k\, e_k(x)\, e_k(x'),
 where the convergence is absolute and uniform.
 \end{theorem}
 
-\textbf{Connection to the RKHS.} Mercer's theorem reveals that:
+\paragraph{Connection to the RKHS.} Mercer's theorem reveals that:
 \begin{itemize}
   \item The \emph{feature map} is $\phi(x) =
   \bigl(\sqrt{\lambda_1}\,e_1(x),\; \sqrt{\lambda_2}\,e_2(x),\;
@@ -2385,7 +2378,7 @@ For the Gaussian kernel with $\sigma = 0.3$ on $[0,1]$ (with the uniform measure
   high-frequency components $e_k$ for large $k$ are heavily penalized by
   $1/\lambda_k$).
   \item A good finite-dimensional approximation is possible: keeping the
-  first $K$ eigenfunctions captures most of the kernel's ``energy.''
+  first $K$ eigenfunctions captures most of the kernel's ``energy''.
 \end{enumerate}
 \end{example}
 
@@ -2393,11 +2386,11 @@ For the Gaussian kernel with $\sigma = 0.3$ on $[0,1]$ (with the uniform measure
 The RKHS norm $\norm{f}_{\hk}^2 = \sum_k a_k^2/\lambda_k$ has a
 transparent interpretation:
 \begin{itemize}
-  \item Components along eigenfunctions with \textbf{large} $\lambda_k$
-  are penalized \textbf{less} (they correspond to ``smooth'' or
+  \item Components along eigenfunctions with \emph{large} $\lambda_k$
+  are penalized \emph{less} (they correspond to ``smooth'' or
   ``low-frequency'' directions that the kernel ``likes'').
-  \item Components along eigenfunctions with \textbf{small} $\lambda_k$
-  are penalized \textbf{heavily} (they correspond to ``rough'' or
+  \item Components along eigenfunctions with \emph{small} $\lambda_k$
+  are penalized \emph{heavily} (they correspond to ``rough'' or
   ``high-frequency'' directions).
 \end{itemize}
 So $\norm{f}_{\hk}$ measures the ``roughness'' of $f$ relative to the

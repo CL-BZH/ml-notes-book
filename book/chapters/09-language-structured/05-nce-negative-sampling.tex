@@ -131,7 +131,7 @@ vector.
 
 \begin{pitfall}[Signs]
 The objective $J_{\mathrm{NS}}$ is maximized, the loss $-J_{\mathrm{NS}}$ minimized. Writing the gradient of $J_{\mathrm{NS}}$,
-$(1 - \sigma(s_+))u_c - \sum_i\sigma(s_i)u_{c_i}$, and then updating with $v\leftarrow v - \eta\nabla$, as the original version of this chapter did,
+$(1 - \sigma(s_+))u_c - \sum_i\sigma(s_i)u_{c_i}$, and then updating with $v\leftarrow v - \eta\nabla$
 moves every vector in the wrong direction. Gradient \emph{ascent} on $J_{\mathrm{NS}}$ and gradient \emph{descent} on $-J_{\mathrm{NS}}$
 are the same update; mixing the two is not.
 \end{pitfall}
