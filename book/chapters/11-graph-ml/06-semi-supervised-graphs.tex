@@ -6,6 +6,9 @@
 \definecolor{correctcolor}{RGB}{200,230,201}
 \definecolor{smoothcolor}{RGB}{187,222,251}
 \definecolor{maskcolor}{RGB}{255,204,204}
+\definecolor{manifoldblue}{RGB}{0,70,140}
+\definecolor{manifoldred}{RGB}{140,30,30}
+\definecolor{manifoldgreen}{RGB}{0,100,50}
 \forgetcs\mask\newcommand{\mask}{\mathcal{M}}
 \forgetcs\corr\newcommand{\corr}{\text{corr}}
 \forgetcs\smooth\newcommand{\smooth}{\text{smooth}}
@@ -20,10 +23,10 @@ In node classification only a few nodes of a graph carry labels, and the task is
 \begin{itemize}[nosep]
   \item the closed forms of label propagation and label spreading, why the iterations converge, and the harmonic and variational characterizations;
   \item the two stages of correct and smooth and the optimization problems they solve, on a computed example;
-  \item how the Laplacian penalty enters regularized training, and how unlabelled nodes enter GNN training;
+  \item how the Laplacian penalty enters regularized training, with manifold regularization and its representer theorem on a computed two-moons example, and how unlabelled nodes enter GNN training;
   \item masked pretraining for GNNs, and how to choose among the methods.
 \end{itemize}
-\prerequisites{\cref{ch:harmonic-functions} (harmonic functions, Dirichlet problem), \cref{ch:graph-laplacians} (Laplacians), \cref{ch:dft-to-gnn} (GCN, GraphSAGE, GAT) and \cref{ch:rkhs} (manifold regularization).}
+\prerequisites{\cref{ch:harmonic-functions} (harmonic functions, Dirichlet problem), \cref{ch:graph-laplacians} (Laplacians), \cref{ch:dft-to-gnn} (GCN, GraphSAGE, GAT) and \cref{ch:rkhs} (kernels, representer theorem).}
 \end{chapterintro}
 
 \section{Introduction}
@@ -1260,15 +1263,402 @@ The further the scores deviate across edges, the larger the penalty.
 \subsection{Manifold regularization (LapSVM)}
 \label{semi-supervised-graphs:subsec:manifold_reg}
 
-Manifold regularization (Belkin, Niyogi and Sindhwani, \emph{Manifold Regularization: A Geometric Framework for Learning from Labeled and Unlabeled Examples}, 2006) instantiates the framework with a model from a reproducing kernel Hilbert space. It is developed in \cref{rkhs:sec:applications}; we recall the result and place it among the graph methods. For binary classification one seeks a single scalar \emph{decision function} $f: \mathcal X \to \R$, predicting the class by the sign of $f(x_i)$; the magnitude $\abs{f(x_i)}$ is the (unnormalized) margin, as for an SVM. The vector $\mathbf f = (f(x_1), \ldots, f(x_n))^\top$ is a single column of the matrix $F$ above, and for $C > 2$ classes one trains $C$ such functions one-vs-rest. The objective is
+Manifold regularization (Belkin, Niyogi and Sindhwani, \emph{Manifold Regularization: A Geometric Framework for Learning from Labeled and Unlabeled Examples}, 2006) instantiates the framework with a model from a reproducing kernel Hilbert space $\mathcal H_K$ (\cref{ch:rkhs}). For binary classification one seeks a single scalar \emph{decision function} $f: \mathcal X \to \R$, predicting the class by the sign of $f(x_i)$; the magnitude $\abs{f(x_i)}$ is the (unnormalized) margin, as for an SVM. The vector $\mathbf f = (f(x_1), \ldots, f(x_n))^\top$ is a single column of the matrix $F$ above, and for $C > 2$ classes one trains $C$ such functions one-vs-rest. The graph need not be given: when the data are points $x_i \in \R^d$ without edges, it is built from the points themselves, and it then describes the shape of the data.
+
+\begin{intuition}[The fundamental challenge]
+How can unlabelled data possibly help? If we only have inputs
+$x_1,\ldots,x_n$ without labels, what additional information do
+they provide about the function $f$ we want to learn?
+
+\emph{Key idea:} The unlabelled data reveal the \emph{geometry}
+of the data distribution. If two points $x_i$ and $x_j$ are
+connected by a high-density path in input space (high-weight edges),
+their predictions $f(x_i)$ and $f(x_j)$ should be similar. This is the
+\emph{manifold assumption}: data lie near a low-dimensional
+manifold, and the target function varies smoothly along it.
+\end{intuition}
+
+\Cref{semi-supervised-graphs:fig:manifold_motivation} illustrates the idea.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=1.0]
+% Left: Swiss roll with labeled points only
+\begin{scope}[xshift=-4cm]
+  \draw[thick, gray!50, fill=blue!5]
+    plot[domain=0:4.5, smooth]
+    ({cos(deg(2*pi*\x/8))*(0.8+0.2*\x)},
+     {sin(deg(2*pi*\x/8))*(0.8+0.2*\x)});
+  \draw[thick, gray!50, fill=blue!5]
+    plot[domain=0:4.5, smooth]
+    ({cos(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)},
+     {sin(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)});
+
+  % Labeled points (few)
+  \fill[manifoldred]
+    ({cos(deg(2*pi*1/8))*(0.8+0.2*1)},
+     {sin(deg(2*pi*1/8))*(0.8+0.2*1)})
+    circle (3pt) node[right, black] {$+1$};
+  \fill[manifoldblue]
+    ({cos(deg(2*pi*3/8))*(0.8+0.2*3)},
+     {sin(deg(2*pi*3/8))*(0.8+0.2*3)})
+    circle (3pt) node[left, black] {$-1$};
+  \fill[manifoldred]
+    ({cos(deg(2*pi*5/8))*(0.8+0.2*5)},
+     {sin(deg(2*pi*5/8))*(0.8+0.2*5)})
+    circle (3pt) node[above right, black] {$+1$};
+  \fill[manifoldblue]
+    ({cos(deg(2*pi*7/8))*(0.8+0.2*7)},
+     {sin(deg(2*pi*7/8))*(0.8+0.2*7)})
+    circle (3pt) node[below left, black] {$-1$};
+
+  % Unlabeled points (many, gray)
+  \foreach \t in {0.2,0.6,1.4,1.8,2.2,2.6,3.4,3.8,4.2,4.4} {
+    \fill[gray!70]
+      ({cos(deg(2*pi*\t/8))*(0.8+0.2*\t)},
+       {sin(deg(2*pi*\t/8))*(0.8+0.2*\t)})
+      circle (1.5pt);
+  }
+
+  \node[font=\small] at (0, -2.5) {Only labelled points};
+  \node[font=\small] at (0, -3.1) {Decision boundary?};
+\end{scope}
+
+% Middle: Pure supervised decision boundary
+\begin{scope}[xshift=1.5cm]
+  \draw[thick, gray!50, fill=blue!5]
+    plot[domain=0:4.5, smooth]
+    ({cos(deg(2*pi*\x/8))*(0.8+0.2*\x)},
+     {sin(deg(2*pi*\x/8))*(0.8+0.2*\x)});
+  \draw[thick, gray!50, fill=blue!5]
+    plot[domain=0:4.5, smooth]
+    ({cos(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)},
+     {sin(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)});
+
+  % Same labeled points
+  \fill[manifoldred]
+    ({cos(deg(2*pi*1/8))*(0.8+0.2*1)},
+     {sin(deg(2*pi*1/8))*(0.8+0.2*1)}) circle (3pt);
+  \fill[manifoldblue]
+    ({cos(deg(2*pi*3/8))*(0.8+0.2*3)},
+     {sin(deg(2*pi*3/8))*(0.8+0.2*3)}) circle (3pt);
+  \fill[manifoldred]
+    ({cos(deg(2*pi*5/8))*(0.8+0.2*5)},
+     {sin(deg(2*pi*5/8))*(0.8+0.2*5)}) circle (3pt);
+  \fill[manifoldblue]
+    ({cos(deg(2*pi*7/8))*(0.8+0.2*7)},
+     {sin(deg(2*pi*7/8))*(0.8+0.2*7)}) circle (3pt);
+
+  % Supervised decision boundary (wiggly, overfitted)
+  \draw[manifoldred, thick, dashed]
+    plot[domain=0.2:4.3, smooth]
+    ({cos(deg(2*pi*\x/8+0.2))*(0.8+0.2*\x+0.1*sin(deg(10*\x)))},
+     {sin(deg(2*pi*\x/8+0.2))*(0.8+0.2*\x+0.1*sin(deg(10*\x)))});
+  \node[font=\small, manifoldred] at (1.9, 0.75) {Overfitted};
+
+  \node[font=\small] at (0, -2.5) {Supervised learning only};
+\end{scope}
+
+% Right: Manifold regularization
+\begin{scope}[xshift=7cm]
+  \draw[thick, gray!50, fill=blue!5]
+    plot[domain=0:4.5, smooth]
+    ({cos(deg(2*pi*\x/8))*(0.8+0.2*\x)},
+     {sin(deg(2*pi*\x/8))*(0.8+0.2*\x)});
+  \draw[thick, gray!50, fill=blue!5]
+    plot[domain=0:4.5, smooth]
+    ({cos(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)},
+     {sin(deg(2*pi*\x/8+0.8))*(0.8+0.2*\x)});
+
+  % Same labeled points
+  \fill[manifoldred]
+    ({cos(deg(2*pi*1/8))*(0.8+0.2*1)},
+     {sin(deg(2*pi*1/8))*(0.8+0.2*1)}) circle (3pt);
+  \fill[manifoldblue]
+    ({cos(deg(2*pi*3/8))*(0.8+0.2*3)},
+     {sin(deg(2*pi*3/8))*(0.8+0.2*3)}) circle (3pt);
+  \fill[manifoldred]
+    ({cos(deg(2*pi*5/8))*(0.8+0.2*5)},
+     {sin(deg(2*pi*5/8))*(0.8+0.2*5)}) circle (3pt);
+  \fill[manifoldblue]
+    ({cos(deg(2*pi*7/8))*(0.8+0.2*7)},
+     {sin(deg(2*pi*7/8))*(0.8+0.2*7)}) circle (3pt);
+
+  % Graph edges connecting nearby points along the manifold
+  \foreach \t in {0.2,0.6,1.0,1.4,1.8,2.2,2.6,3.0,3.4,3.8,4.2} {
+    \pgfmathsetmacro{\next}{\t+0.4}
+    \draw[gray!40, thin]
+      ({cos(deg(2*pi*\t/8))*(0.8+0.2*\t)},
+       {sin(deg(2*pi*\t/8))*(0.8+0.2*\t)}) --
+      ({cos(deg(2*pi*\next/8))*(0.8+0.2*\next)},
+       {sin(deg(2*pi*\next/8))*(0.8+0.2*\next)});
+  }
+
+  % Manifold-aware decision boundary
+  \draw[manifoldgreen, thick]
+    plot[domain=0.2:4.3, smooth]
+    ({cos(deg(2*pi*\x/8+0.3))*(0.8+0.2*\x)},
+     {sin(deg(2*pi*\x/8+0.3))*(0.8+0.2*\x)});
+  \node[font=\small, manifoldgreen] at (1.2, -0.3) {Smooth along manifold};
+
+  \node[font=\small] at (0.8, -2.5) {With manifold regularization};
+\end{scope}
+\end{tikzpicture}
+\caption{Why unlabelled data matter. Left: Only four labelled
+points on a Swiss roll manifold. Middle: A pure supervised
+method overfits. Right: Manifold regularization uses graph
+connections (grey edges) to enforce smoothness along the manifold.}
+\label{semi-supervised-graphs:fig:manifold_motivation}
+\end{figure}
+
+To encode the geometry of the data we build a \emph{similarity graph} on all $n$ points: nodes are the points, edges join points that are close (the $k$ nearest neighbours, or all points within distance $\varepsilon$), and an edge carries a weight $A_{ij} > 0$, either $1$ or a Gaussian $\exp(-\norm{x_i - x_j}^2/2\sigma_g^2)$. By \cref{semi-supervised-graphs:thm:laplacian_quadratic}, the Laplacian $L = D - A$ of this graph satisfies, for the vector $\mathbf f$ of values of $f$ at the data points,
+\[
+\mathbf{f}^\top L \mathbf{f} = \frac{1}{2} \sum_{i,j=1}^n A_{ij}\bigl(f(x_i) - f(x_j)\bigr)^2 .
+\]
+The quadratic form is small when $f$ varies little across heavy edges, that is, along the data manifold as sampled by the graph.
+
+\subsubsection*{The objective and the extended representer theorem}
+
+We now combine two sources of information:
+
+\begin{enumerate}[label=\emph{(\roman*)}]
+  \item \textbf{Labelled data:} Supervised loss $\sum_{i=1}^l \ell(f(x_i), y_i)$.
+  \item \textbf{Unlabelled data geometry:} Graph smoothness penalty
+    $\mathbf{f}^\top L \mathbf{f}$.
+\end{enumerate}
+
+\begin{theorem}[Extended representer theorem]
+\label{semi-supervised-graphs:thm:manifold_reg}
+Let $\mathcal{H}_K$ be an RKHS with kernel $K$, and let $x_1,\ldots,x_n \in \mathcal{X}$
+be all available data points, of which the first $l$ are labelled with
+targets $y_1,\ldots,y_l \in \R$. Construct a graph over all $n$ points
+with Laplacian $L$. Consider:
 \begin{equation}
 \label{semi-supervised-graphs:eq:manifold_reg}
 \min_{f \in \mathcal{H}_K}\;
-\underbrace{\frac{1}{l}\sum_{i \in \mathcal{V}_L}\ell(f(x_i), y_i)}_{\text{supervised loss}}
-+ \underbrace{\gamma_A\|f\|_{\mathcal{H}_K}^2}_{\text{ambient}}
-+ \underbrace{\frac{\gamma_I}{n^2}\mathbf{f}^\top L\mathbf{f}}_{\text{intrinsic}} .
+\underbrace{\frac{1}{l}\sum_{i=1}^{l}\ell(f(x_i), y_i)}_{\text{supervised loss}}
++ \underbrace{\gamma_A\norm{f}_{\mathcal{H}_K}^2}_{\text{ambient}}
++ \underbrace{\frac{\gamma_I}{n^2}\,\mathbf{f}^\top L\,\mathbf{f}}_{\text{intrinsic}}
 \end{equation}
-The ambient penalty controls the complexity of $f$ in the RKHS (for the linear kernel it is $\norm{w}^2$, as in ridge regression or the SVM); the intrinsic penalty is $\frac{\gamma_I}{n^2}\sum_{\{i,j\}\in E}A_{ij}(f(x_i) - f(x_j))^2$ and involves all $n$ nodes. By the extended representer theorem (\cref{rkhs:thm:manifold_reg}) the minimizer is $f^* = \sum_{i=1}^n\alpha_iK(\cdot, x_i)$, an expansion over \emph{all} nodes, and $\boldsymbol\alpha$ solves the finite-dimensional problem \eqref{rkhs:eq:manifold_kernelized}. With the hinge loss this is the Laplacian SVM (LapSVM), with the squared loss Laplacian regularized least squares (LapRLS), whose linear system and a computed two-moons example are in \cref{rkhs:subsec:manifold_example}. Unlike label propagation, the result is a function on the whole input space, so it applies to new points (it is inductive).
+where $\mathbf{f} = (f(x_1), \ldots, f(x_n))^\top$ and
+$\gamma_A, \gamma_I > 0$ are regularization parameters.
+
+Then the minimizer admits the following representation:
+\begin{equation}
+\label{semi-supervised-graphs:eq:manifold_solution}
+\boxed{f^*(x) = \sum_{i=1}^n \alpha_i^* K(x, x_i)
+\quad \text{for some } \boldsymbol{\alpha}^* \in \R^n}
+\end{equation}
+\end{theorem}
+
+\begin{intuition}[Two regularizers, two types of smoothness]
+The two penalty terms encode complementary inductive biases:
+
+\begin{itemize}
+  \item \textbf{Ambient regularizer} ($\gamma_A\norm{f}_{\mathcal{H}_K}^2$): \\
+  Forces $f$ to be smooth in the \emph{ambient space} $\R^d$. This is
+  the standard RKHS penalty from \cref{rkhs:sec:representer}; for the linear
+  kernel it is $\norm{w}^2$, as in ridge regression or the SVM.
+
+  \item \textbf{Intrinsic regularizer} ($\gamma_I \mathbf{f}^\top L \mathbf{f}$): \\
+  Forces $f$ to be smooth along the \emph{data manifold}. Two points
+  connected by a high-weight edge are encouraged to have similar
+  predictions, regardless of their Euclidean distance.
+\end{itemize}
+
+The ratio $\gamma_I / \gamma_A$ controls how much we trust the
+unlabelled data geometry versus the supervised signal. When
+$\gamma_I = 0$, we recover standard supervised kernel methods.
+\end{intuition}
+
+Why does the solution still have the form $\sum_{i=1}^n \alpha_i
+K(\cdot, x_i)$, now using \emph{all} $n$ points? The proof is an
+elegant extension of the classical representer theorem
+(\cref{rkhs:thm:representer}).
+
+\begin{proof}[Proof sketch]
+Let $M = \operatorname{span}\{K(\cdot, x_1), \ldots, K(\cdot, x_n)\} \subseteq \mathcal{H}_K$.
+Any $f \in \mathcal{H}_K$ decomposes as $f = f_\parallel + f_\perp$ with
+$f_\parallel \in M$ and $f_\perp \in M^\perp$.
+
+\smallskip
+\emph{Step 1: the loss and intrinsic regularizer see only $f_\parallel$.}
+\begin{itemize}
+  \item By the reproducing property, $f(x_i) = \inner{f}{K(\cdot, x_i)}
+    = f_\parallel(x_i)$ for each $i = 1,\ldots,n$. Hence the supervised
+    loss depends only on $f_\parallel$.
+  \item The vector $\mathbf{f} = (f(x_1),\ldots,f(x_n))^\top$ is determined
+    entirely by $f_\parallel$, so $\mathbf{f}^\top L \mathbf{f}$ also
+    depends only on $f_\parallel$.
+\end{itemize}
+
+\emph{Step 2: the ambient regularizer penalizes $f_\perp$ without
+contributing to the other terms.}
+By orthogonality, $\norm{f}_{\mathcal{H}_K}^2 = \norm{f_\parallel}_{\mathcal{H}_K}^2
++ \norm{f_\perp}_{\mathcal{H}_K}^2 \geq \norm{f_\parallel}_{\mathcal{H}_K}^2$.
+
+\emph{Step 3: conclude.}
+For any $f$, the objective $J(f) \geq J(f_\parallel)$ with equality
+iff $f_\perp = 0$. Therefore the minimizer must lie in $M$, i.e.\
+$f^* = \sum_{i=1}^n \alpha_i K(\cdot, x_i)$.
+\end{proof}
+
+\begin{remark}
+The crucial difference from the classical representer theorem: the
+intrinsic regularizer involves \emph{evaluations} $f(x_i)$ at
+\emph{all} $n$ points, not just the labelled ones. This is why the
+expansion now includes \emph{every} data point.
+\end{remark}
+
+\subsubsection*{Kernelization: the manifold regularization algorithm}
+
+As in \cref{rkhs:sec:representer}, substitute
+$f(x) = \sum_{j=1}^n \alpha_j K(x, x_j)$ into the objective.
+
+\begin{align*}
+\text{Prediction vector:} &\quad \mathbf{f} = \mathbf{K} \boldsymbol{\alpha}, \\
+\text{Ambient regularizer:} &\quad \norm{f}_{\mathcal{H}_K}^2
+  = \boldsymbol{\alpha}^\top \mathbf{K} \boldsymbol{\alpha}, \\
+\text{Intrinsic regularizer:} &\quad \mathbf{f}^\top L \mathbf{f}
+  = \boldsymbol{\alpha}^\top \mathbf{K} L \mathbf{K} \boldsymbol{\alpha}.
+\end{align*}
+
+\begin{theorem}[Kernelized manifold regularization]
+\label{semi-supervised-graphs:thm:manifold_kernelized}
+The manifold regularization problem~\eqref{semi-supervised-graphs:eq:manifold_reg} reduces to:
+\begin{equation}
+\label{semi-supervised-graphs:eq:manifold_kernelized}
+\boxed{\min_{\boldsymbol{\alpha} \in \R^n}\;
+\frac{1}{l}\sum_{i=1}^{l} \ell\bigl((\mathbf{K}\boldsymbol{\alpha})_i,\; y_i\bigr)
++ \gamma_A\,\boldsymbol{\alpha}^\top\mathbf{K}\boldsymbol{\alpha}
++ \frac{\gamma_I}{n^2}\,\boldsymbol{\alpha}^\top \mathbf{K}L\mathbf{K}\boldsymbol{\alpha}}
+\end{equation}
+This is convex for convex loss functions $\ell$ (e.g.\ squared loss,
+hinge loss, logistic loss).
+\end{theorem}
+
+With the hinge loss this is the Laplacian SVM (LapSVM), with the squared loss Laplacian regularized least squares (LapRLS). Unlike label propagation, the result is a function on the whole input space, so it applies to new points (it is inductive).
+
+\subsubsection*{Concrete example: two moons dataset}
+
+For the squared loss, the kernelized problem \eqref{semi-supervised-graphs:eq:manifold_kernelized} is a quadratic in $\boldsymbol\alpha$. Let $\mathbf K_l$ be the $l\times n$ matrix of the rows of $\mathbf K$ that belong to labelled points, so that $(f(x_1), \ldots, f(x_l))^\top = \mathbf K_l\boldsymbol\alpha$. Setting the gradient of
+\[
+\frac{1}{l} \|\mathbf{K}_l \boldsymbol{\alpha} - \mathbf{y}\|^2
++ \gamma_A \boldsymbol{\alpha}^\top \mathbf{K} \boldsymbol{\alpha}
++ \frac{\gamma_I}{n^2} \boldsymbol{\alpha}^\top \mathbf{K}L\mathbf{K} \boldsymbol{\alpha}
+\]
+to zero gives the linear system of \emph{Laplacian regularized least squares} (LapRLS):
+\begin{equation}
+\left( \frac{1}{l} \mathbf{K}_l^\top \mathbf{K}_l + \gamma_A \mathbf{K}
++ \frac{\gamma_I}{n^2} \mathbf{K}L\mathbf{K} \right) \boldsymbol{\alpha}
+= \frac{1}{l} \mathbf{K}_l^\top \mathbf{y}.
+\label{semi-supervised-graphs:eq:laprls}
+\end{equation}
+
+\begin{example}[Two moons]
+\label{semi-supervised-graphs:ex:manifold_two_moons}
+We draw $n = 200$ points from the ``two moons'' distribution ($100$ per moon, Gaussian noise of standard deviation $0.08$; \texttt{make\_moons} of scikit-learn with seed $0$) and reveal the labels of only $l = 4$ points, two per moon. We use the Gaussian kernel with $\sigma = 0.5$, $\gamma_A = 0.01$, and a symmetrized $10$-nearest-neighbour graph with Gaussian weights ($\sigma_g = 0.5$). Solving \eqref{semi-supervised-graphs:eq:laprls} and classifying every point by the sign of $f^*$ gives the following accuracies on all $200$ points:
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+$\gamma_I$ & $0$ & $1$ & $10^2$ & $10^4$ \\
+\midrule
+accuracy & $80.5\%$ & $81.0\%$ & $97.0\%$ & $100\%$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+With $\gamma_I = 0$ the problem is kernel ridge regression on four points: the decision boundary is determined by distances in the plane and cuts through both moons (\cref{semi-supervised-graphs:fig:two_moons}, left). As $\gamma_I$ grows, the intrinsic penalty forces $f$ to be nearly constant along each moon, where the graph has many heavy edges, and the boundary moves into the low-density gap between them (right). The factor $1/n^2$ makes the intrinsic term small at this sample size; what matters is the effective weight $\gamma_I/n^2$, here $0.25$ for $\gamma_I = 10^4$.
+\end{example}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[name=left,
+  width=0.5\linewidth, height=4.8cm, title={$\gamma_I = 0$ (kernel ridge on 4 labels)}, title style={font=\small},
+  xmin=-1.4, xmax=2.4, ymin=-0.8, ymax=1.3, xtick=\empty, ytick=\empty]
+\addplot[only marks, mark=*, mark size=1pt, blue!70] coordinates {(1.63,-0.43) (-0.05,0.27) (1.77,-0.19) (1.90,-0.06) (0.89,-0.49) (1.14,-0.56) (-0.37,0.76) (0.22,-0.25) (1.81,-0.17) (1.26,-0.36) (-0.82,0.69) (0.30,-0.29) (-0.82,0.89) (1.96,0.01) (0.86,-0.47) (1.29,-0.32) (-0.25,1.07) (0.23,-0.02) (1.88,-0.10) (1.87,0.03) (0.12,-0.05) (0.12,0.84) (-0.26,0.75) (0.96,-0.44) (0.03,0.22) (1.89,0.23) (0.46,-0.19) (-0.08,0.39) (0.57,-0.45) (-0.40,0.86) (0.11,0.05) (1.55,-0.34) (-0.35,0.98) (-0.72,0.63) (0.16,-0.15) (0.91,-0.45) (-0.74,0.82) (0.36,-0.20) (2.04,0.04) (1.08,-0.50) (1.19,-0.49) (0.22,0.93) (-0.21,1.00) (0.29,-0.27) (1.75,-0.17) (1.09,-0.45) (-0.17,1.03) (1.50,-0.36) (0.08,0.97) (0.65,-0.48) (0.37,-0.49) (-0.21,0.56) (0.81,-0.39) (0.06,0.17) (0.73,-0.32) (2.01,0.12) (-0.10,0.97) (0.64,-0.54) (2.02,0.49) (0.02,0.24) (-0.34,1.09) (-0.36,0.97) (0.61,-0.39) (1.99,0.37) (1.99,0.22) (-0.67,0.78) (2.01,0.34) (1.78,-0.11) (1.74,-0.25) (0.46,-0.27) (0.06,0.05) (1.32,-0.65) (1.98,0.34) (0.06,1.13) (0.10,0.35) (-0.49,1.00) (1.56,-0.35) (0.21,0.86) (-0.59,0.80) (0.05,1.04) (-0.06,1.11) (1.48,-0.54) (1.96,0.16) (0.59,-0.40) (-0.67,0.55) (-0.05,0.31) (-0.00,0.99) (-0.10,0.38) (-0.82,0.69) (0.21,0.06) (1.29,-0.39) (1.97,0.53) (-0.54,0.72) (0.25,-0.18) (1.24,-0.36) (1.58,-0.12) (1.13,-0.36) (2.03,0.51) (0.06,0.02) (-0.02,0.49) (-0.43,0.99) (-0.42,0.89) (0.25,0.07) (1.33,-0.46) (-0.02,0.19) (0.48,-0.38) (1.68,-0.42) (0.64,-0.34) (-0.22,0.95) (1.27,-0.48) (0.32,-0.12) (0.19,0.03) (1.15,-0.51) (1.47,-0.30) (0.43,-0.44) (1.63,-0.05) (0.67,-0.39) (1.55,-0.37) (0.95,-0.62) (-0.71,0.47) (0.17,0.02) (0.94,-0.42) (-0.68,0.65) (-0.72,0.57) (1.48,-0.37) (1.92,0.20) (1.84,-0.31) (1.95,0.29) (-0.11,0.85) (0.81,-0.56) (-0.64,0.79) (-0.03,0.35) (-0.54,0.87) (1.83,0.22) (0.20,-0.00) (0.15,1.01) (1.60,-0.20)};
+\addplot[only marks, mark=*, mark size=1pt, red!70] coordinates {(0.80,0.51) (-1.04,-0.14) (0.97,0.24) (0.88,0.36) (0.98,0.20) (0.57,0.90) (0.33,0.87) (0.23,1.00) (0.90,0.54) (0.76,0.69) (0.94,0.08) (-0.83,0.55) (0.64,0.70) (1.05,0.16) (-0.85,0.05) (0.77,0.64) (0.53,0.69) (-1.03,0.20) (0.90,0.51) (-1.13,0.25) (-0.95,0.49) (-1.01,0.48) (-0.95,0.42) (0.94,0.40) (0.58,0.80) (0.93,0.03) (0.41,0.91) (1.02,0.37) (-1.05,0.28) (1.05,-0.04) (-0.85,0.40) (-0.99,0.09) (-0.82,0.38) (0.93,0.36) (0.52,0.66) (0.71,0.46) (0.86,0.59) (0.88,0.01) (1.01,0.32) (-1.06,0.48) (-1.03,0.20) (0.86,0.42) (0.45,0.98) (1.02,0.09) (0.27,1.05) (0.84,0.42) (0.33,0.89) (0.56,0.99) (0.65,0.78) (0.63,0.84) (0.44,0.86) (0.62,0.86) (-1.11,0.04) (-0.95,0.53) (1.76,0.46) (0.54,0.73) (-0.92,0.49) (0.34,1.00) (-0.86,0.38) (-0.93,0.40) (0.43,0.95) (0.82,0.49) (0.93,0.26)};
+\addplot[only marks, mark=square*, mark size=3pt, blue!70!black] coordinates {(1.63,-0.43) (-0.05,0.27)};
+\addplot[only marks, mark=triangle*, mark size=3.5pt, red!70!black] coordinates {(0.80,0.51) (-1.04,-0.14)};
+\node[font=\scriptsize, anchor=south west] at (axis cs:-1.35,-0.78) {accuracy 80.5\%};
+\end{axis}
+\begin{axis}[name=right,at={(left.east)}, anchor=west, xshift=0.8cm,
+  width=0.5\linewidth, height=4.8cm, title={$\gamma_I = 10^4$ (manifold regularization)}, title style={font=\small},
+  xmin=-1.4, xmax=2.4, ymin=-0.8, ymax=1.3, xtick=\empty, ytick=\empty]
+\addplot[only marks, mark=*, mark size=1pt, blue!70] coordinates {(1.63,-0.43) (-0.05,0.27) (1.77,-0.19) (1.90,-0.06) (0.89,-0.49) (1.14,-0.56) (0.22,-0.25) (1.81,-0.17) (1.26,-0.36) (0.30,-0.29) (1.96,0.01) (0.86,-0.47) (1.29,-0.32) (0.23,-0.02) (1.88,-0.10) (1.87,0.03) (0.12,-0.05) (0.96,-0.44) (0.03,0.22) (1.89,0.23) (0.46,-0.19) (-0.08,0.39) (0.57,-0.45) (0.11,0.05) (1.55,-0.34) (0.16,-0.15) (0.91,-0.45) (0.36,-0.20) (2.04,0.04) (1.08,-0.50) (1.19,-0.49) (0.29,-0.27) (1.75,-0.17) (1.09,-0.45) (1.50,-0.36) (0.65,-0.48) (0.37,-0.49) (-0.21,0.56) (0.81,-0.39) (0.06,0.17) (0.73,-0.32) (2.01,0.12) (0.64,-0.54) (2.02,0.49) (0.02,0.24) (0.61,-0.39) (1.99,0.37) (1.99,0.22) (2.01,0.34) (1.78,-0.11) (1.74,-0.25) (0.46,-0.27) (0.06,0.05) (1.32,-0.65) (1.98,0.34) (0.10,0.35) (1.56,-0.35) (1.48,-0.54) (1.96,0.16) (0.59,-0.40) (-0.05,0.31) (-0.10,0.38) (0.21,0.06) (1.29,-0.39) (1.97,0.53) (0.25,-0.18) (1.24,-0.36) (1.58,-0.12) (1.13,-0.36) (2.03,0.51) (0.06,0.02) (-0.02,0.49) (0.25,0.07) (1.33,-0.46) (-0.02,0.19) (0.48,-0.38) (1.68,-0.42) (0.64,-0.34) (1.27,-0.48) (0.32,-0.12) (0.19,0.03) (1.15,-0.51) (1.47,-0.30) (0.43,-0.44) (1.63,-0.05) (0.67,-0.39) (1.55,-0.37) (0.95,-0.62) (0.17,0.02) (0.94,-0.42) (1.76,0.46) (1.48,-0.37) (1.92,0.20) (1.84,-0.31) (1.95,0.29) (0.81,-0.56) (-0.03,0.35) (1.83,0.22) (0.20,-0.00) (1.60,-0.20)};
+\addplot[only marks, mark=*, mark size=1pt, red!70] coordinates {(0.80,0.51) (-1.04,-0.14) (0.97,0.24) (0.88,0.36) (-0.37,0.76) (-0.82,0.69) (0.98,0.20) (0.57,0.90) (0.33,0.87) (-0.82,0.89) (0.23,1.00) (-0.25,1.07) (0.12,0.84) (0.90,0.54) (-0.26,0.75) (0.76,0.69) (0.94,0.08) (-0.83,0.55) (-0.40,0.86) (0.64,0.70) (-0.35,0.98) (1.05,0.16) (-0.72,0.63) (-0.74,0.82) (-0.85,0.05) (0.77,0.64) (0.53,0.69) (0.22,0.93) (-0.21,1.00) (-1.03,0.20) (0.90,0.51) (-1.13,0.25) (-0.17,1.03) (0.08,0.97) (-0.95,0.49) (-1.01,0.48) (-0.95,0.42) (0.94,0.40) (0.58,0.80) (-0.10,0.97) (-0.34,1.09) (0.93,0.03) (-0.36,0.97) (0.41,0.91) (1.02,0.37) (-0.67,0.78) (-1.05,0.28) (0.06,1.13) (1.05,-0.04) (-0.85,0.40) (-0.99,0.09) (-0.49,1.00) (0.21,0.86) (-0.59,0.80) (0.05,1.04) (-0.06,1.11) (-0.82,0.38) (0.93,0.36) (0.52,0.66) (0.71,0.46) (0.86,0.59) (-0.67,0.55) (-0.00,0.99) (-0.82,0.69) (0.88,0.01) (1.01,0.32) (-0.54,0.72) (-1.06,0.48) (-1.03,0.20) (0.86,0.42) (0.45,0.98) (-0.43,0.99) (-0.42,0.89) (1.02,0.09) (0.27,1.05) (0.84,0.42) (0.33,0.89) (-0.22,0.95) (0.56,0.99) (0.65,0.78) (0.63,0.84) (0.44,0.86) (0.62,0.86) (-1.11,0.04) (-0.95,0.53) (-0.71,0.47) (-0.68,0.65) (-0.72,0.57) (0.54,0.73) (-0.92,0.49) (0.34,1.00) (-0.11,0.85) (-0.86,0.38) (-0.64,0.79) (-0.93,0.40) (0.43,0.95) (0.82,0.49) (0.93,0.26) (-0.54,0.87) (0.15,1.01)};
+\addplot[only marks, mark=square*, mark size=3pt, blue!70!black] coordinates {(1.63,-0.43) (-0.05,0.27)};
+\addplot[only marks, mark=triangle*, mark size=3.5pt, red!70!black] coordinates {(0.80,0.51) (-1.04,-0.14)};
+\node[font=\scriptsize, anchor=south west] at (axis cs:-1.35,-0.78) {accuracy 100.0\%};
+\end{axis}
+\end{tikzpicture}
+\caption{Manifold regularization on the two moons (computed). Points are coloured by the sign of the learned $f^*$; the four labelled points are drawn as large squares ($+1$) and triangles ($-1$). Left: without the intrinsic penalty the boundary ignores the shape of the data. Right: with it the two moons are separated exactly.}
+\label{semi-supervised-graphs:fig:two_moons}
+\end{figure}
+
+\subsubsection*{Practical considerations}
+
+\begin{enumerate}[label=\emph{\arabic*.}]
+  \item \textbf{Choosing the graph.}
+  \begin{itemize}
+    \item $k$-NN graph: common choices $k = 5$--$20$.
+    \item $\varepsilon$-ball graph: connect points within distance $\varepsilon$.
+    \item Edge weights: binary, Gaussian, or cosine similarity.
+  \end{itemize}
+
+  \item \textbf{Normalization.} The factor $1/n^2$ ensures consistent
+    scaling as $n$ grows. Often $L$ is replaced by the normalized
+    Laplacian $\mathcal L_{\mathrm{sym}} = I - D^{-1/2}AD^{-1/2}$.
+
+  \item \textbf{Computational cost.}
+  \begin{itemize}
+    \item Computing $\mathbf{K}$ is $O(n^2 d)$, constructing the $k$-NN graph
+      is $O(n^2 d)$.
+    \item Solving the linear system is $O(n^3)$ --- the main bottleneck.
+    \item For large $n$, use Nystr\"om approximation or iterative solvers.
+  \end{itemize}
+
+  \item \textbf{Relation to other methods.} Neural graph learning
+    (\cref{semi-supervised-graphs:subsec:neural_graph}) applies the same penalty
+    to a neural network; graph neural networks (\cref{semi-supervised-graphs:sec:gnn})
+    are the modern deep learning analogue.
+\end{enumerate}
+
+\subsubsection*{Connection to Mercer's theorem}
+
+The two regularizers can be understood through Mercer's theorem (\cref{rkhs:thm:mercer}), which writes $f = \sum_k a_k e_k$ in the eigenfunctions $e_k$ of the kernel, with eigenvalues $\lambda_k$:
+
+\begin{itemize}
+  \item The \emph{ambient regularizer} $\gamma_A \norm{f}_{\mathcal{H}_K}^2
+    = \gamma_A \sum_k a_k^2/\lambda_k$ penalizes high-frequency
+    components in the eigenbasis of $K$.
+  \item The \emph{intrinsic regularizer} $\gamma_I \mathbf{f}^\top
+    L \mathbf{f}$ penalizes variations along the data manifold.
+\end{itemize}
+
+The two penalties are measured in different spectral bases: that of the integral operator of $K$ on the ambient space, and that of $L$ on the sample. They agree only when the kernel already reflects the manifold, for instance when $K$ is itself built from the graph (as for the diffusion kernel $e^{-tL}$).
+
+\subsubsection*{Summary: why manifold regularization works}
+
+\begin{keyidea}[The manifold regularization recipe]
+\begin{enumerate}
+  \item \textbf{Start with a kernel} $K$ that encodes ambient smoothness.
+  \item \textbf{Build a graph} from \emph{all} data points to capture
+    manifold geometry.
+  \item \textbf{Add the graph Laplacian penalty} $\mathbf{f}^\top L
+    \mathbf{f}$ to enforce smoothness along the manifold.
+  \item \textbf{Solve} the kernelized problem ($\boldsymbol{\alpha} \in \R^n$).
+  \item \textbf{Predict} using $f(x) = \sum_{i=1}^n \alpha_i K(x, x_i)$.
+\end{enumerate}
+
+The magic: unlabelled data enter through:
+\begin{enumerate}[label=(\alph*)]
+  \item The representation $f(x) = \sum_{i=1}^n \alpha_i K(x, x_i)$
+    includes \emph{all} points.
+  \item The graph Laplacian $L$ is constructed from \emph{all}
+    points.
+\end{enumerate}
+\end{keyidea}
 
 \subsection{Neural graph learning}
 \label{semi-supervised-graphs:subsec:neural_graph}
@@ -1792,7 +2182,7 @@ explicitly leverage unlabelled nodes in the loss/optimization.
 \item Label propagation iterates $Y_U \leftarrow P_{UL}Y_L + P_{UU}Y_U$ and converges to $Y_U^* = (I - P_{UU})^{-1}P_{UL}Y_L$, because $\rho(P_{UU}) < 1$ on a connected graph with a labelled node; $Y_U^*$ is the harmonic extension of the labels (Dirichlet problem) and the absorption probabilities of a random walk.
 \item Label spreading $Y \leftarrow \alpha SY + (1-\alpha)Y^{(0)}$ converges to $(1-\alpha)(I - \alpha S)^{-1}Y^{(0)}$, the minimizer of a normalized smoothness term plus $\frac{1-\alpha}{\alpha}\norm{F - Y^{(0)}}^2$; labelled nodes are softly clamped.
 \item Correct and smooth spreads the residuals of a base model and then its corrected predictions, two label-spreading problems $\min\norm{F - B}^2 + \mu\tr(F^\top\mathcal L_{\mathrm{sym}}F)$ with solution $(1-\alpha)(I - \alpha S)^{-1}B$, $\alpha = \mu/(1+\mu)$.
-\item Graph regularization adds $\lambda\tr(F^\top LF)$ to a supervised loss on the labelled nodes; with an RKHS model this is manifold regularization (LapSVM, LapRLS), with a neural network and penalties on all layers it is neural graph learning. The graph is used in the loss only, so prediction needs no graph.
+\item Graph regularization adds $\lambda\tr(F^\top LF)$ to a supervised loss on the labelled nodes; with an RKHS model this is manifold regularization (LapSVM, LapRLS), whose minimizer is a kernel expansion over all $n$ points and, for the squared loss, the solution of a linear system; with a neural network and penalties on all layers it is neural graph learning. The graph is used in the loss only, so prediction needs no graph.
 \item GNNs use the graph in the forward pass and are trained on labelled nodes only; unlabelled nodes enter through aggregation. Deep stacks over-smooth. Masked feature (and edge) prediction gives a label-free pretraining task.
 \end{itemize}
 \end{chaptersummary}
@@ -2043,7 +2433,7 @@ for i in range(5):
 
 \section*{Further reading}
 \addcontentsline{toc}{section}{Further reading}
-Label propagation is due to Zhu and Ghahramani (2002) and, in its harmonic-function form, to Zhu, Ghahramani and Lafferty (\emph{Semi-Supervised Learning Using Gaussian Fields and Harmonic Functions}, 2003); label spreading to Zhou et al.\ (2004); correct and smooth to Huang et al.\ (2021). Zhu's thesis (\emph{Semi-Supervised Learning with Graphs}, 2005) and the book of Chapelle, Schölkopf and Zien (\emph{Semi-Supervised Learning}, 2006) survey the classical methods; Hamilton (\emph{Graph Representation Learning}, 2020) covers GNNs for node classification. Over-smoothing was analysed by Li, Han and Wu (2018); remedies include jumping-knowledge networks (Xu et al., 2018), DropEdge (Rong et al., 2020), PairNorm (Zhao and Akoglu, 2020) and graph transformers (Ying et al., 2021). Heterophilous graphs are studied by Zhu et al.\ (2020) and Lim et al.\ (2021).
+Label propagation is due to Zhu and Ghahramani (2002) and, in its harmonic-function form, to Zhu, Ghahramani and Lafferty (\emph{Semi-Supervised Learning Using Gaussian Fields and Harmonic Functions}, 2003); label spreading to Zhou et al.\ (2004); correct and smooth to Huang et al.\ (2021); manifold regularization to Belkin, Niyogi and Sindhwani (2006). Zhu's thesis (\emph{Semi-Supervised Learning with Graphs}, 2005) and the book of Chapelle, Schölkopf and Zien (\emph{Semi-Supervised Learning}, 2006) survey the classical methods; Hamilton (\emph{Graph Representation Learning}, 2020) covers GNNs for node classification. Over-smoothing was analysed by Li, Han and Wu (2018); remedies include jumping-knowledge networks (Xu et al., 2018), DropEdge (Rong et al., 2020), PairNorm (Zhao and Akoglu, 2020) and graph transformers (Ying et al., 2021). Heterophilous graphs are studied by Zhu et al.\ (2020) and Lim et al.\ (2021).
 
 \section*{Exercises}
 \addcontentsline{toc}{section}{Exercises}
@@ -2072,6 +2462,11 @@ Show that on a $k$-regular graph $S = P = A/k$, so that label spreading and the 
 \begin{exercise}\label{semi-supervised-graphs:exr:5}
 Show that for the graph-regularized objective with squared loss and a linear model on fixed features, $F = XW$, $\mathcal L(W) = \norm{M(XW - Y)}_F^2 + \lambda\tr(W^\top X^\top LXW)$, where $M$ is the diagonal $0/1$ matrix selecting labelled nodes, the minimizer solves $(X^\top MX + \lambda X^\top LX)W = X^\top MY$. Why does the second term let unlabelled nodes influence $W$?
 \solutionlink{semi-supervised-graphs:exr:5}
+\end{exercise}
+
+\begin{exercise}\label{semi-supervised-graphs:exr:6}
+Show that for a convex loss the kernelized manifold regularization problem \eqref{semi-supervised-graphs:eq:manifold_kernelized} is convex in $\boldsymbol\alpha$, and that the system \eqref{semi-supervised-graphs:eq:laprls} has a unique solution when $\mathbf K$ is positive definite.
+\solutionlink{semi-supervised-graphs:exr:6}
 \end{exercise}
 
 \end{notechapter}
