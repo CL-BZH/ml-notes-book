@@ -104,14 +104,14 @@ All numbers are rounded to four digits.
   z = W_2^\top h + b_2 = \begin{bmatrix}0.7\cdot0.1974 + 1.0\cdot0.3799 + 0.3\\ 0.8\cdot0.1974 + 1.1\cdot0.3799 + 0.4\\ 0.9\cdot0.1974 + 1.2\cdot0.3799 + 0.5\end{bmatrix}
   = \begin{bmatrix}0.8181\\ 0.9758\\ 1.1336\end{bmatrix} .
 \]
-Then $e^z = (2.2661, 2.6533, 3.1069)$, whose sum is $8.0263$, so $p = (0.2823, 0.3306, 0.3871)$ and $\ell = -\log0.3306 = 1.1069$.
+Then $e^z = (2.2662, 2.6534, 3.1067)$, whose sum is $8.0264$, so $p = (0.2823, 0.3306, 0.3871)$ and $\ell = -\log0.3306 = 1.1069$.
 
 \emph{Backward.} $\bar z = p - e_2 = (0.2823, -0.6694, 0.3871)$, and
 \[
   \nabla_{W_2}\ell = h\,\bar z^\top = \begin{bmatrix}0.0557 & -0.1321 & 0.0764\\ 0.1073 & -0.2543 & 0.1471\end{bmatrix},\qquad \nabla_{b_2}\ell = \bar z .
 \]
 The gradient reaching the hidden layer is
-$\bar h = W_2\bar z = (0.1976 - 0.5355 + 0.3484,\ 0.2823 - 0.7363 + 0.4645) = (0.0105,\ 0.0105)$. With $1 - h\odot h = (0.9610,\ 0.8556)$,
+$\bar h = W_2\bar z = (0.1976 - 0.5355 + 0.3484,\ 0.2823 - 0.7364 + 0.4645) = (0.0105,\ 0.0105)$. With $1 - h\odot h = (0.9610,\ 0.8556)$,
 $\bar a = (0.0101,\ 0.0090)$, and
 \[
   \nabla_{W_1}\ell = x\,\bar a^\top = \begin{bmatrix}0.0101 & 0.0090\\ 0 & 0\\ 0 & 0\end{bmatrix},\qquad\nabla_{b_1}\ell = \bar a .

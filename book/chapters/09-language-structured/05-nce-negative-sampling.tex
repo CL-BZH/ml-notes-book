@@ -154,7 +154,7 @@ renormalized,
 \[
   P_n(c) = \frac{\operatorname{count}(c)^{3/4}}{\sum_{c'}\operatorname{count}(c')^{3/4}},
 \]
-a choice that Mikolov et al.\ report to work better than both the unigram ($\alpha = 1$) and the uniform
+a choice that Mikolov et al.\ report to work better than both the unigram (exponent $\alpha = 1$) and the uniform
 ($\alpha = 0$) distributions. The exponent flattens the distribution: a ratio of counts of $10^4$ between ``the'' and a
 rare word becomes $10^3$. For four words with counts $1000$, $100$, $10$, $1$, the unigram probabilities $(0.900,
 0.090, 0.009, 0.0009)$ become $(0.823, 0.146, 0.026, 0.0046)$: the rare words are drawn about five times more
