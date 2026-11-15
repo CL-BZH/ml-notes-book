@@ -258,7 +258,7 @@ degree less than $m$.
 For $m = 0$ there is no condition (the only polynomial of degree less than $0$ is the zero
 polynomial), and CPD of order $0$ is positive semi-definite. For $m = 1$ the condition is
 $\sum_ic_i = 0$, the one the SVM dual provides; CPD kernels of order $1$ can therefore be used in an
-SVM with a bias term (Schölkopf, \emph{The Kernel Trick for Distances}, NIPS 2000). Examples:
+SVM with a bias term (Schölkopf, \emph{The Kernel Trick for Distances}, NeurIPS, 2000). Examples:
 $-\norm{x - z}^\beta$ for $0<\beta\leq2$ and the negative multiquadric $-\sqrt{\norm{x - z}^2 + c^2}$ are CPD of order $1$;
 the thin-plate spline $\norm{x - z}^2\log\norm{x - z}$ is CPD of order $2$ in $\R^2$. Order $2$ requires the
 coefficients to annihilate affine functions as well, which the SVM dual does not

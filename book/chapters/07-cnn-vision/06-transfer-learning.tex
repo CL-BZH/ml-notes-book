@@ -181,8 +181,8 @@ opt = torch.optim.AdamW([
 \end{lstlisting}
 
 \paragraph{Which layers.} The less data, and the closer the new task to ImageNet, the fewer
-layers should be trained. Typical choices: only the head (linear probing) for very small data
-sets; the last stage and the head for small ones; everything for large ones. Above, $8.4$ of the
+layers should be trained. Typical choices: only the head (linear probing) for very small
+datasets; the last stage and the head for small ones; everything for large ones. Above, $8.4$ of the
 $11.2$ million parameters are trainable.
 
 \paragraph{Learning rates.} Pretrained layers need small steps, or the first updates, driven

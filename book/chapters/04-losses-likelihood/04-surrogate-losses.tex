@@ -256,7 +256,7 @@ probabilities match observed frequencies --- among predictions of $0.8$, are $80
 correct? --- is measured on held-out data, for instance by the \emph{expected
 calibration error} (Naeini et al., 2015), the average gap between confidence and accuracy
 over bins of confidence. A simple fix is \emph{temperature scaling} (Guo, Pleiss, Sun and
-Weinberger, \emph{On Calibration of Modern Neural Networks}, ICML 2017): divide all
+Weinberger, \emph{On Calibration of Modern Neural Networks}, ICML, 2017): divide all
 logits by one scalar $T>0$ fitted by minimizing the cross-entropy on a validation set.
 It changes the probabilities but not their ranking, hence not the predicted class.
 
@@ -288,7 +288,7 @@ decision threshold, which is the cost-sensitive Bayes classifier of
 \cref{bayes-decision-theory:thm:costs} with costs proportional to the weights. The output is no
 longer an estimate of $\eta$, but it can be corrected by inverting the formula.
 
-\paragraph{Focal loss.} The focal loss (Lin, Goyal, Girshick, He and Doll\'ar, \emph{Focal Loss for Dense Object Detection}, ICCV 2017) multiplies the cross-entropy of
+\paragraph{Focal loss.} The focal loss (Lin, Goyal, Girshick, He and Doll\'ar, \emph{Focal Loss for Dense Object Detection}, ICCV, 2017) multiplies the cross-entropy of
 the true class by $(1 - p_y)^\gamma$, $\gamma\geq0$, to reduce the weight of examples that are already
 well classified. It is not proper for $\gamma>0$. In the binary case, minimizing
 $-\eta(1 - q)^\gamma\log q - (1 - \eta)q^\gamma\log(1 - q)$ numerically for $\eta = 0.9$ gives $q^* = 0.774$ for $\gamma = 1$,

@@ -70,7 +70,7 @@ cumulative costs $D(i, j)$ are
 For instance $D(2, 3) = C(2, 3) + \min(D(1, 3), D(2, 2), D(1, 2)) = 1 + \min(10, 1, 1) = 2$. The cost is $D(4, 5) = 2$ and
 $\mathrm{DTW}_2 = \sqrt2$. Walking back along the bold entries gives the path
 $(1,1), (2,2), (3,3), (3,4), (4,5)$: $x_3 = 4$ is matched with both $y_3 = 4$ and $y_4 = 3$, and the total
-cost $0 + 1 + 0 + 1 + 0 = 2$ comes from the pairs $(3, 2)$ and $(4, 3)$. The Euclidean distance is not even
+cost $0 + 1 + 0 + 1 + 0 = 2$ comes from the pairs of values $(3, 2)$ and $(4, 3)$. The Euclidean distance is not even
 defined here, since the lengths differ.
 \end{example}
 
@@ -133,7 +133,7 @@ $\mathrm{DTW}(b, c) = 0$ and $\mathrm{DTW}(a, c) = 2>1 + 0$. Algorithms that rel
 The DTW cost is a minimum over paths, hence piecewise smooth and not differentiable
 where two paths tie. To use it as a loss (to train a network to output sequences, or to
 average sequences), Cuturi and Blondel (\emph{Soft-DTW: a Differentiable Loss Function for
-Time-Series}, ICML 2017) replace the minimum by a smooth one.
+Time-Series}, ICML, 2017) replace the minimum by a smooth one.
 
 \begin{definition}[Soft minimum, soft-DTW]
 For $\gamma>0$,
@@ -163,7 +163,7 @@ $\mathrm{sDTW}_\gamma(x, x)$ is not $0$; it can be negative, since every path, n
 contributes to the sum. Minimizing $\mathrm{sDTW}_\gamma(x, y)$ over $y$ therefore need not return $y = x$.
 Blondel, Mensch and Vert (2021) proposed the \emph{soft-DTW divergence}
 $\mathrm{sDTW}_\gamma(x, y) - \frac12\mathrm{sDTW}_\gamma(x, x) - \frac12\mathrm{sDTW}_\gamma(y, y)$ (\emph{Differentiable Divergences
-Between Time Series}, AISTATS 2021). They prove it non-negative and zero iff $x = y$ for
+Between Time Series}, AISTATS, 2021). They prove it non-negative and zero iff $x = y$ for
 two modified costs (a log-augmented squared Euclidean cost, and the absolute value in
 dimension~$1$); for the plain squared Euclidean cost they only conjecture it, with
 numerical support.

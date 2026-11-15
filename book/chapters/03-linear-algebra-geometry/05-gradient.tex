@@ -331,7 +331,7 @@ the formula contains a modelling choice --- the centre of the prior --- that the
 For a network trained from scratch, decaying towards the zero weights is a reasonable prior. For a
 network fine-tuned from pretrained weights $\theta_0$, decaying towards $\theta_0$, i.e.\ replacing $\lambda\theta$ by
 $\lambda(\theta - \theta_0)$, is often the better one. This is the ``L2-SP'' regularizer (Li, Grandvalet and
-Davoine, \emph{Explicit Inductive Bias for Transfer Learning with Convolutional Networks}, ICML
+Davoine, \emph{Explicit Inductive Bias for Transfer Learning with Convolutional Networks}, ICML,
 2018), $\frac\alpha2\norm{w_S - w_S^0}^2 + \frac\beta2\norm{w_{\bar S}}^2$: the layers $S$ shared with the source model are pulled
 towards their pretrained values $w_S^0$, while the new layers $\bar S$, which have no such values,
 keep the zero weights as their centre. One regularizer, two chosen origins.

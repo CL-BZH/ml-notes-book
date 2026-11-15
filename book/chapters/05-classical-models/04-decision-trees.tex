@@ -128,7 +128,7 @@ by the entropy of the split itself,
 \]
 which is large for splits into many children of similar size. For a node of $10$ points, $5$
 of each class, split into $(4, 2)$ and $(1, 3)$: $\mathrm{IG} = 1 - (0.6\times0.918 + 0.4\times0.811)\approx0.125$ bits,
-$\mathrm{SplitInfo} = -(0.6\log_20.6 + 0.4\log_20.4)\approx0.971$, and $\mathrm{GainRatio}\approx0.129$. (C4.5 only
+$\mathrm{SplitInfo} = -(0.6\log_20.6 + 0.4\log_20.4)\approx0.971$, and $\mathrm{GainRatio}\approx0.128$. (C4.5 only
 considers splits whose gain is at least the average gain, since the ratio is unstable
 when $\mathrm{SplitInfo}$ is close to $0$.)
 
