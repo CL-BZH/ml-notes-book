@@ -53,7 +53,7 @@ Recall that $\bA^i[u,v]$ is the number of walks of length $i$ from $u$ to $v$ (w
 
 \section{Counting paths: the Katz index}
 
-\begin{definition}[Katz Index]\label{node-similarity:def:katz}
+\begin{definition}[Katz index]\label{node-similarity:def:katz}
 Let $\lambda_1$ be the largest eigenvalue of the adjacency matrix $\bA$ of an undirected graph. For $0 < \beta < 1/\lambda_1$, the \textbf{Katz index} of nodes $u$ and $v$ is
 \begin{equation}
 S_{\text{Katz}}[u,v] = \sum_{i=1}^{\infty} \beta^i \bA^i[u,v].
@@ -79,9 +79,9 @@ The question to ask is therefore not ``how many paths join $u$ and $v$?'' but ``
 
 \subsection{The configuration model}
 
-A \emph{null model} is a random graph that represents ``nothing special going on''. Leicht, Holme and Newman (\emph{Vertex Similarity in Networks}, 2006) use one that keeps the degrees of the observed graph and randomises everything else.
+A \emph{null model} is a random graph that represents ``nothing special going on''. Leicht, Holme and Newman (\emph{Vertex Similarity in Networks}, 2006) use one that keeps the degrees of the observed graph and randomizes everything else.
 
-\begin{definition}[Configuration Model]\label{node-similarity:def:configuration}
+\begin{definition}[Configuration model]\label{node-similarity:def:configuration}
 Given a degree sequence $(d_1, \ldots, d_n)$ with $\sum_u d_u = 2m$, the \textbf{configuration model} generates a random multigraph as follows: give each node $u$ exactly $d_u$ \emph{stubs} (half-edges), then pair the $2m$ stubs uniformly at random, each pair forming an edge.
 \end{definition}
 
@@ -272,10 +272,10 @@ Degree effect & favours hubs & divides by $d_ud_v$ & divides by $d_u$, keeps $d_
 \end{center}
 
 \begin{keyidea}
-All three measures are resolvents, inverses of $\bI - \gamma\bM$ for a suitably normalised $\bM$, and hence weighted sums over paths of all lengths. They differ in how they normalise by degree: Katz not at all, personalized PageRank by the degree of the node the walk leaves, and LHN by the degrees of both endpoints together with the growth rate $\lambda_1$.
+All three measures are resolvents, inverses of $\bI - \gamma\bM$ for a suitably normalized $\bM$, and hence weighted sums over paths of all lengths. They differ in how they normalize by degree: Katz not at all, personalized PageRank by the degree of the node the walk leaves, and LHN by the degrees of both endpoints together with the growth rate $\lambda_1$.
 \end{keyidea}
 
-\paragraph{Computation.} Each measure requires a linear solve per source node: $O(n^3)$ for all pairs by dense inversion, and for one source a sparse iterative solve, power iteration (which converges at rate $c$ for personalized PageRank by \cref{node-similarity:prop:ppr-closed}), or a local ``push'' algorithm that only touches nodes with non-negligible scores. LHN also needs $\lambda_1$, which power iteration on $\bA$ provides in $O(\abs{E})$ per iteration. The choice of measure depends on whether degree is informative: Katz when popularity itself predicts links, LHN or the degree-normalised random-walk score when one looks for structural similarity between nodes of different degrees.
+\paragraph{Computation.} Each measure requires a linear solve per source node: $O(n^3)$ for all pairs by dense inversion, and for one source a sparse iterative solve, power iteration (which converges at rate $c$ for personalized PageRank by \cref{node-similarity:prop:ppr-closed}), or a local ``push'' algorithm that only touches nodes with non-negligible scores. LHN also needs $\lambda_1$, which power iteration on $\bA$ provides in $O(\abs{E})$ per iteration. The choice of measure depends on whether degree is informative: Katz when popularity itself predicts links, LHN or the degree-normalized random-walk score when one looks for structural similarity between nodes of different degrees.
 
 \begin{chaptersummary}
 \begin{itemize}
@@ -283,7 +283,7 @@ All three measures are resolvents, inverses of $\bI - \gamma\bM$ for a suitably 
 \item Under the configuration model (random pairing of stubs, degrees fixed), $\E[\bA_{G'}[u,v]] = d_ud_v/(2m-1)$ and $\E[\bA_{G'}^2[u,v]] \approx d_ud_v\sum_wd_w(d_w-1)/(2m)^2$; longer paths are approximated by $d_ud_v\lambda_1^{i-1}/2m$, using the growth rate $\lambda_1$ of path counts on a connected non-bipartite graph.
 \item The LHN index divides observed by expected counts; its closed form is $2m\lambda_1\bD^{-1}(\bI - \frac{\beta}{\lambda_1}\bA)^{-1}\bD^{-1}$, convergent for $\beta < 1$. It removes the hub bias, and can overcorrect towards low-degree nodes for $\beta$ near $1$.
 \item Personalized PageRank $\bq_u = (1-c)(\bI - c\bP)^{-1}\be_u$, with $\bP = \bA\bD^{-1}$, is the position of a random walk after a geometric number of steps. The Neumann series converges in the $1$-norm, in which $\norm{\bP}_1 = 1$; the spectral norm of $\bP$ can exceed $1$.
-\item On undirected graphs $\bq_u[v]/d_v$ is symmetric in $u, v$: personalized PageRank normalises the source degree but keeps the target degree, so $S_{\text{RW}} = \bq_u[v] + \bq_v[u]$ still favours hubs.
+\item On undirected graphs $\bq_u[v]/d_v$ is symmetric in $u, v$: personalized PageRank normalizes the source degree but keeps the target degree, so $S_{\text{RW}} = \bq_u[v] + \bq_v[u]$ still favours hubs.
 \end{itemize}
 \end{chaptersummary}
 
@@ -295,7 +295,7 @@ All three measures are resolvents, inverses of $\bI - \gamma\bM$ for a suitably 
 For a square matrix $\bM$, the norm induced by a vector norm $\norm\cdot$ is $\norm{\bM} = \max_{\bx\ne0}\norm{\bM\bx}/\norm{\bx}$. For the $1$-norm this is the maximal column sum, $\norm{\bM}_1 = \max_j\sum_i\abs{\bM_{ij}}$; for the Euclidean norm it is the largest singular value $\sigma_{\max}(\bM)$, which equals $\max_i\abs{\lambda_i}$ when $\bM$ is symmetric. Induced norms are submultiplicative: $\norm{\bM\bM'} \le \norm{\bM}\,\norm{\bM'}$.
 \end{definition}
 
-The column-sum formula follows from $\norm{\bM\bx}_1 \le \sum_i\sum_j\abs{\bM_{ij}}\abs{x_j} \le \max_j(\sum_i\abs{\bM_{ij}})\norm{\bx}_1$, with equality for $\bx = \be_j$ at the maximising column. In particular a column-stochastic $\bP$ has $\norm{\bP}_1 = 1$.
+The column-sum formula follows from $\norm{\bM\bx}_1 \le \sum_i\sum_j\abs{\bM_{ij}}\abs{x_j} \le \max_j(\sum_i\abs{\bM_{ij}})\norm{\bx}_1$, with equality for $\bx = \be_j$ at the maximizing column. In particular a column-stochastic $\bP$ has $\norm{\bP}_1 = 1$.
 
 \begin{proposition}[Eigenvalues of stochastic matrices]\label{node-similarity:prop:eigenvalue-bound}
 Every eigenvalue $\lambda$ of a column-stochastic matrix $\bP$ satisfies $\abs{\lambda} \le 1$.

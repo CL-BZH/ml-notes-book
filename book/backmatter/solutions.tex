@@ -159,7 +159,7 @@ $\hat P(M{=}1\mid\text{ham}) = \hat P(F{=}1\mid\text{ham}) = \frac{1+1}{6+2} = \
 (priors unchanged). For $(M,F) = (1,1)$: spam $0.4\times\frac49\approx0.178$, ham
 $0.6\times\frac1{16} = 0.0375$, posterior $\approx0.83$ (was $0.93$). For
 $(0,0)$: spam $0.4\times\frac19\approx0.044$, ham $0.6\times\frac9{16}\approx0.338$,
-posterior $\approx0.12$ (was $0.06$). Smoothing pulls the estimates toward
+posterior $\approx0.12$ (was $0.06$). Smoothing pulls the estimates towards
 $\frac12$ and makes the posteriors less extreme.
 
 \solution{generative-discriminative:exr:2}
@@ -379,7 +379,7 @@ posterior is Gaussian with precision $\frac n{\sigma^2} + \frac1{\tau^2}$ and me
 \[
   \E[\mu\mid y] = \frac{n\bar y/\sigma^2}{n/\sigma^2 + 1/\tau^2} = \frac{n\tau^2}{n\tau^2 + \sigma^2}\,\bar y .
 \]
-The sample mean is shrunk toward the prior mean $0$, more strongly when $n$ is small
+The sample mean is shrunk towards the prior mean $0$, more strongly when $n$ is small
 or $\tau$ small: the one-dimensional version of ridge regression.
 
 \solution{bayesian-reasoning:exr:4}
@@ -574,7 +574,7 @@ only the subspace they span.
 The terms involving $b_i = b_i^{\text{user}}$ are $\frac12\sum_{j\in\mathcal J_i}(r_{ij} - \mu - b_i - b_j^{\text{item}} - \mathbf p_i^\top\mathbf q_j)^2 + \frac\lambda2b_i^2$.
 Setting the derivative to zero,
 $b_i = \dfrac{\sum_{j\in\mathcal J_i}(r_{ij} - \mu - b_j^{\text{item}} - \mathbf p_i^\top\mathbf q_j)}{\abs{\mathcal J_i} + \lambda}$: the mean residual
-of the user, shrunk toward $0$ when the user has few ratings.
+of the user, shrunk towards $0$ when the user has few ratings.
 
 \solution{matrix-factorization:exr:3}
 $q_3 = \dfrac{2.55\times2 + 1\times1}{2.55^2 + 1^2 + 0.1} = \dfrac{6.1}{7.6025}\approx0.80$.
@@ -1992,10 +1992,10 @@ $(\mathbf K\boldsymbol\alpha)_i$ is linear in $\boldsymbol\alpha$, and a convex 
 $\mathcal V_U = \{1, 2\}$, $\mathcal V_L = \{0, 3\}$. Each interior node has degree $2$, so $P_{UU} = \bigl(\begin{smallmatrix}0&1/2\\1/2&0\end{smallmatrix}\bigr)$ and $P_{UL}Y_L = (\frac12\cdot1, \frac12\cdot0)^\top = (\frac12, 0)^\top$. Then $(I - P_{UU})^{-1} = \frac43\bigl(\begin{smallmatrix}1&1/2\\1/2&1\end{smallmatrix}\bigr)$ and $Y_U^* = \frac43(\frac12, \frac14)^\top = (\frac23, \frac13)^\top$: the values $1, \frac23, \frac13, 0$ along the path are linear, and each interior value is the average of its two neighbours, as harmonicity requires.
 
 \solution{semi-supervised-graphs:exr:2}
-With $d = (1,2,2,1)$, $S_{01} = S_{23} = 1/\sqrt2$ and $S_{12} = \frac12$. By the antisymmetry of the data, $F = (a, b, -b, -a)$, and the first two equations of $(I - \frac12S)F = \frac12Y^{(0)}$ are $a - \frac{b}{2\sqrt2} = \frac12$ and $b - \frac{a}{2\sqrt2} + \frac b4 = 0$. The second gives $b = \frac{\sqrt2}{5}a$, then $a(1 - \frac1{10}) = \frac12$: $a = \frac59 \approx 0.556$, $b = \frac{\sqrt2}{9} \approx 0.157$. So $F \approx (0.556, 0.157, -0.157, -0.556)$. The labeled nodes are no longer clamped: their scores shrink from $\pm1$ to $\pm0.556$, pulled towards their neighbours. The signs of all nodes still give the expected classes; label propagation would keep $\pm1$ at the labeled nodes and give the linear values $\pm\frac13$ in between.
+With $d = (1,2,2,1)$, $S_{01} = S_{23} = 1/\sqrt2$ and $S_{12} = \frac12$. By the antisymmetry of the data, $F = (a, b, -b, -a)$, and the first two equations of $(I - \frac12S)F = \frac12Y^{(0)}$ are $a - \frac{b}{2\sqrt2} = \frac12$ and $b - \frac{a}{2\sqrt2} + \frac b4 = 0$. The second gives $b = \frac{\sqrt2}{5}a$, then $a(1 - \frac1{10}) = \frac12$: $a = \frac59 \approx 0.556$, $b = \frac{\sqrt2}{9} \approx 0.157$. So $F \approx (0.556, 0.157, -0.157, -0.556)$. The labelled nodes are no longer clamped: their scores shrink from $\pm1$ to $\pm0.556$, pulled towards their neighbours. The signs of all nodes still give the expected classes; label propagation would keep $\pm1$ at the labelled nodes and give the linear values $\pm\frac13$ in between.
 
 \solution{semi-supervised-graphs:exr:3}
-Take the path $u_1 - u_2 - \ell - u_3$ with $\ell$ the only labeled node. Unlabeled node $u_3$ is reachable from $u_1$ only through $\ell$, so $P_{UU}$ (order $u_1, u_2, u_3$) is block diagonal: $\bigl(\begin{smallmatrix}0&1\\1/2&0\end{smallmatrix}\bigr) \oplus (0)$, reducible. The first block has eigenvalues $\pm1/\sqrt2$, the second $0$, so $\rho(P_{UU}) = 1/\sqrt2 < 1$, in accordance with the component-by-component argument of the appendix.
+Take the path $u_1 - u_2 - \ell - u_3$ with $\ell$ the only labelled node. Unlabelled node $u_3$ is reachable from $u_1$ only through $\ell$, so $P_{UU}$ (order $u_1, u_2, u_3$) is block diagonal: $\bigl(\begin{smallmatrix}0&1\\1/2&0\end{smallmatrix}\bigr) \oplus (0)$, reducible. The first block has eigenvalues $\pm1/\sqrt2$, the second $0$, so $\rho(P_{UU}) = 1/\sqrt2 < 1$, in accordance with the component-by-component argument of the appendix.
 
 \solution{semi-supervised-graphs:exr:4}
 If $D = kI$ then $S = k^{-1/2}Ak^{-1/2} = A/k = D^{-1}A = P$, and $S\mathbf 1 = \mathbf 1$. For any $Y$ whose rows sum to $1$, $SY\mathbf 1 = S\mathbf 1 = \mathbf 1$ and $(1-\alpha)Y^{(0)}\mathbf 1 + \alpha SY\mathbf 1 = \mathbf 1$, so every iterate (and the limit) has rows summing to $1$. In the 5-node example the degrees are $2, 2, 2, 3, 1$, so $S$ is not stochastic; for instance row $5$ of $S$ has the single entry $S_{52} = 1/\sqrt{1\cdot2} \approx 0.707$, and the smoothed scores of the example have row sums different from $1$ (for $v_4$, $0.622 + 0.523 = 1.145$).
@@ -2008,7 +2008,7 @@ With $F = XW$, the gradients of the two terms with respect to $W$ are (using $M^
 Setting their sum to zero gives
 \[
 (X^\top MX + \lambda X^\top LX)W = X^\top MY;
-\] both matrices on the left are positive semidefinite, and the solution is unique when their sum is invertible. The matrix $X^\top MX$ involves only the features of labeled nodes, but $X^\top LX = \sum_{\{i,j\}\in E}A_{ij}(x_i - x_j)(x_i - x_j)^\top$ involves the features of all nodes: directions in feature space along which neighbouring nodes differ are penalized, and this is where the unlabeled nodes act on $W$.
+\] both matrices on the left are positive semidefinite, and the solution is unique when their sum is invertible. The matrix $X^\top MX$ involves only the features of labelled nodes, but $X^\top LX = \sum_{\{i,j\}\in E}A_{ij}(x_i - x_j)(x_i - x_j)^\top$ involves the features of all nodes: directions in feature space along which neighbouring nodes differ are penalized, and this is where the unlabelled nodes act on $W$.
 
 \section{\nameref*{ch:shallow-embeddings}}
 

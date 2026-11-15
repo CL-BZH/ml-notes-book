@@ -39,7 +39,7 @@ point stops changing. What determines this equilibrium temperature?
 The answer, known since the work of Laplace in the 18th century, is that the
 steady-state temperature is a \textbf{harmonic function}: at every interior
 point, the temperature equals the average of the temperatures in a small
-neighborhood around it. There are no ``hot spots'' or ``cold spots'' in the
+neighbourhood around it. There are no ``hot spots'' or ``cold spots'' in the
 interior---only a smooth interpolation between the boundary temperatures.
 
 This same principle appears throughout mathematics and physics:
@@ -55,7 +55,7 @@ This same principle appears throughout mathematics and physics:
 Perhaps surprisingly, the same concept appears in \textbf{graph-based
 machine learning}. When we run a label propagation algorithm on a
 graph---assigning labels to unknown nodes based on the labels of their
-neighbors---we are solving the \emph{discrete} analogue of the boundary
+neighbours---we are solving the \emph{discrete} analogue of the boundary
 value problem that governs heat flow.
 
 This chapter makes the connection precise. We start with the simplest
@@ -65,14 +65,14 @@ how every key idea has an exact discrete counterpart on graphs.
 
 
 % ====================================================================
-\section{Warm-Up: The One-Dimensional Case}
+\section{Warm-up: the one-dimensional case}
 \label{harmonic-functions:sec:1d}
 % ====================================================================
 
 Before tackling multiple dimensions, let us start with the case every
 calculus student knows.
 
-\subsection{Harmonic Functions on \texorpdfstring{$\R$}{R}}
+\subsection{Harmonic functions on \texorpdfstring{$\R$}{R}}
 
 In one dimension, the Laplacian of a twice-differentiable function
 $f : \R \to \R$ is simply its second derivative:
@@ -84,9 +84,9 @@ all $x \in (a,b)$. Integrating twice, this means $f(x) = \alpha x + \beta$
 for some constants $\alpha, \beta$: \emph{harmonic functions in one dimension
 are exactly the linear functions.}
 
-\subsection{The Mean Value Property in 1D}
+\subsection{The mean value property in 1D}
 
-Why do we say harmonic functions ``equal the average of their neighbors''?
+Why do we say harmonic functions ``equal the average of their neighbours''?
 In one dimension, the ``sphere of radius $r$ around $x$'' consists of just
 two points: $x - r$ and $x + r$. The average over this sphere is:
 \begin{equation}
@@ -102,10 +102,10 @@ If $f$ is linear, say $f(x) = \alpha x + \beta$, then:
 So a linear function equals the average of its values at $x \pm r$ for
 \emph{every} $r$. This is the mean value property.
 
-\subsection{The Laplacian Measures Deviation from the Average}
+\subsection{The Laplacian measures deviation from the average}
 
 What if $f$ is \emph{not} harmonic? The second derivative measures exactly
-how much $f(x)$ deviates from the average of its neighbors. To see this,
+how much $f(x)$ deviates from the average of its neighbours. To see this,
 start from the Taylor expansions of $f(x+r)$ and $f(x-r)$ around $x$:
 \begin{align}
 f(x+r) &= f(x) + r\,f'(x) + \frac{r^2}{2}\,f''(x) + O(r^3) \\
@@ -122,22 +122,22 @@ Rearranging and dividing by $r^2$:
 \label{harmonic-functions:eq:1d_laplacian_avg}
 f''(x) = \lim_{r \to 0} \frac{f(x-r) - 2f(x) + f(x+r)}{r^2}
 = \lim_{r \to 0} \frac{2}{r^2}\left(
-  \underbrace{\frac{f(x-r) + f(x+r)}{2}}_{\text{average of neighbors}}
+  \underbrace{\frac{f(x-r) + f(x+r)}{2}}_{\text{average of neighbours}}
   - f(x)\right)
 \end{equation}
 
-This is the \textbf{centered finite difference} formula for $f''(x)$.
+This is the \textbf{centred finite difference} formula for $f''(x)$.
 It says:
 \begin{itemize}
     \item $f''(x) > 0$: $f(x)$ is \emph{below} the average of its
-          neighbors---the function is locally convex (like a valley).
+          neighbours---the function is locally convex (like a valley).
     \item $f''(x) < 0$: $f(x)$ is \emph{above} the average of its
-          neighbors---the function is locally concave (like a hilltop).
+          neighbours---the function is locally concave (like a hilltop).
     \item $f''(x) = 0$: $f(x)$ \emph{equals} the average of its
-          neighbors---the function is locally linear (harmonic).
+          neighbours---the function is locally linear (harmonic).
 \end{itemize}
 
-\begin{example}[The 1D Boundary Value Problem]
+\begin{example}[The 1D boundary value problem]
 Consider a rod of length $L$ with temperature $T = 100^\circ$C at $x = 0$
 and $T = 0^\circ$C at $x = L$. The steady-state temperature satisfies
 $T''(x) = 0$ with boundary conditions $T(0) = 100$ and $T(L) = 0$. The
@@ -147,7 +147,7 @@ T(x) = 100\left(1 - \frac{x}{L}\right)
 \]
 A linear interpolation between the boundary values---exactly as the mean
 value property predicts. At every interior point, the temperature equals
-the average of its two neighbors.
+the average of its two neighbours.
 \end{example}
 
 \begin{intuition}
@@ -155,18 +155,18 @@ Formula~\eqref{harmonic-functions:eq:1d_laplacian_avg} is the key insight of thi
 $\R^d$ (Section~\ref{harmonic-functions:sec:continuous}), and from $\R^d$ to graphs
 (Section~\ref{harmonic-functions:sec:graph_laplacian}). In every case, the Laplacian
 measures the deviation of a function's value from the average of its
-neighborhood.
+neighbourhood.
 \end{intuition}
 
 
 % ====================================================================
-\section{The Laplacian and Mean Value Property in \texorpdfstring{$\R^d$}{Rd}}
+\section{The Laplacian and mean value property in \texorpdfstring{$\R^d$}{Rd}}
 \label{harmonic-functions:sec:continuous}
 % ====================================================================
 
 We now generalize the one-dimensional picture to higher dimensions.
 
-\subsection{The Laplacian in Higher Dimensions}
+\subsection{The Laplacian in higher dimensions}
 
 \begin{definition}[Laplacian in $\R^d$]
 \label{harmonic-functions:def:cont_laplacian}
@@ -189,13 +189,13 @@ $\Delta f = f_{xx} + f_{yy}$. Each term $\frac{\partial^2 f}{\partial x_k^2}$
 measures the concavity of $f$ along the $x_k$-axis, and the Laplacian sums
 these concavities over all coordinate directions.
 
-\begin{definition}[Harmonic Function]
+\begin{definition}[Harmonic function]
 \label{harmonic-functions:def:harmonic_cont}
 A function $f: \R^d \to \R$ is \textbf{harmonic} on a domain
 $\Omega \subset \R^d$ if $\Delta f(x) = 0$ for all $x \in \Omega$.
 \end{definition}
 
-\begin{example}[Harmonic Functions]
+\begin{example}[Harmonic functions]
 \label{harmonic-functions:ex:harmonic_examples}
 \leavevmode
 \begin{itemize}
@@ -211,11 +211,11 @@ $\Omega \subset \R^d$ if $\Delta f(x) = 0$ for all $x \in \Omega$.
 \end{itemize}
 \end{example}
 
-\subsection{The Laplacian Measures Deviation from Local Averages}
+\subsection{The Laplacian measures deviation from local averages}
 
 In 1D, we saw that $f''(x)$ measures how much $f(x)$ deviates from the
 average of $f(x-r)$ and $f(x+r)$. The same principle holds in any
-dimension---but now the ``two neighbors at distance $r$'' are replaced by
+dimension---but now the ``two neighbours at distance $r$'' are replaced by
 the entire \emph{sphere} of radius $r$ around $x$.
 
 We write $S^{d-1} = \{\mathbf{u} \in \R^d : \|\mathbf{u}\| = 1\}$ for the
@@ -223,13 +223,13 @@ unit sphere in $\R^d$ (it is $(d{-}1)$-dimensional: $S^0 = \{-1,+1\}$ in
 $\R^1$, $S^1$ is the unit circle in $\R^2$, $S^2$ is the familiar sphere in
 $\R^3$). For a point $x \in \R^d$ and radius $r > 0$, we write
 $\partial B(x,r) = \{y \in \R^d : \|y - x\| = r\}$ for the sphere of
-radius $r$ centered at $x$, and $\omega_{d-1} = \Area(S^{d-1})$ for the
+radius $r$ centred at $x$, and $\omega_{d-1} = \Area(S^{d-1})$ for the
 surface area of the unit sphere.
 
-\begin{definition}[Spherical Mean]
+\begin{definition}[Spherical mean]
 \label{harmonic-functions:def:spherical_mean}
 For a function $f : \R^d \to \R$, the \textbf{spherical mean} of $f$ at
-center $x$ with radius $r > 0$ is the average of $f$ over the sphere
+centre $x$ with radius $r > 0$ is the average of $f$ over the sphere
 $\partial B(x,r)$:
 \begin{equation}
 M_f(x, r) = \frac{1}{\omega_{d-1}\,r^{d-1}}
@@ -242,11 +242,11 @@ surface area of the sphere of radius $r$.
 
 In 1D, $\partial B(x,r) = \{x-r,\, x+r\}$ and
 $M_f(x,r) = \frac{f(x-r) + f(x+r)}{2}$: the spherical mean reduces to
-the average of the two neighbors, recovering the formula from
+the average of the two neighbours, recovering the formula from
 Section~\ref{harmonic-functions:sec:1d}. In 2D, it is the average of $f$ around a circle; in
 3D, the average over a sphere.
 
-\begin{theorem}[Laplacian as Deviation from Spherical Mean]
+\begin{theorem}[Laplacian as deviation from spherical mean]
 \label{harmonic-functions:thm:laplacian_average}
 For a smooth function $f: \R^d \to \R$:
 \begin{equation}
@@ -297,7 +297,7 @@ the contributions cancel in pairs:
   \mathbf{u}^\top H_f(x)\,\mathbf{u}\,dS(\mathbf{u})
 \]
 
-\begin{lemma}[Spherical Average of a Quadratic Form]
+\begin{lemma}[Spherical average of a quadratic form]
 \label{harmonic-functions:lem:sphere_average_quadratic}
 For any symmetric matrix $H \in \R^{d \times d}$:
 \begin{equation}
@@ -311,7 +311,7 @@ over all directions $\mathbf{u}$ on the unit sphere, you get $\tr(H)/d$
 regardless of the off-diagonal structure of $H$. Only the diagonal (the
 trace) survives the averaging---all directional biases wash out.
 
-\begin{proof}[Proof of Lemma]
+\begin{proof}
 The proof has three steps.
 
 \textbf{Step 1: Expand using the eigenbasis.} Since $H$ is a real symmetric
@@ -393,7 +393,7 @@ So:
 Dividing both sides by $\Area(S^{d-1})$ gives the result.
 \end{proof}
 
-\begin{example}[Verifying the Lemma in 2D]
+\begin{example}[Verifying the lemma in 2D]
 In $\R^2$, the unit sphere $S^1$ is the unit circle, parametrized by
 $\mathbf{u} = (\cos\theta, \sin\theta)$ for $\theta \in [0, 2\pi)$, with
 $\Area(S^1) = 2\pi$.
@@ -425,7 +425,7 @@ contributed $\frac{3+5}{2} = 4 = \tr(H)/d$. This is the general
 phenomenon: averaging over all directions kills everything except the trace.
 \end{example}
 
-\begin{example}[Verifying the Lemma in 3D]
+\begin{example}[Verifying the lemma in 3D]
 In $\R^3$, we use a diagonal matrix for simplicity. Take
 $H = \diag(2, 5, 8)$, so $\tr(H) = 15$. The lemma predicts:
 \[
@@ -507,7 +507,7 @@ Rearranging:
 Taking $r \to 0$ yields the result.
 \end{proof}
 
-\subsection{The Mean Value Property}
+\subsection{The mean value property}
 
 Let us recall what the spherical mean expansion~\eqref{harmonic-functions:eq:spherical_mean_expansion} tells us for a smooth function:
 \[
@@ -521,7 +521,7 @@ remainder also vanish, or is there still a discrepancy at finite radius?
 The answer is striking: \emph{the equality is exact for every radius}, with
 no error term at all.
 
-\begin{theorem}[Mean Value Property]
+\begin{theorem}[Mean value property]
 \label{harmonic-functions:thm:mean_value}
 If $f$ is harmonic on a domain $\Omega \subset \R^d$, then for any point
 $x \in \Omega$ and any radius $r > 0$ such that the closed ball
@@ -529,7 +529,7 @@ $\overline{B(x,r)} \subset \Omega$:
 \begin{equation}
 M_f(x,r) = f(x)
 \end{equation}
-The value of $f$ at the center equals the spherical mean for every
+The value of $f$ at the centre equals the spherical mean for every
 radius---with no error term and no limit.
 \end{theorem}
 
@@ -572,7 +572,7 @@ graphs (Section~\ref{harmonic-functions:sec:graph_laplacian}).
 \end{itemize}
 \end{intuition}
 
-\begin{example}[Verifying the Mean Value Property in 2D]
+\begin{example}[Verifying the mean value property in 2D]
 Consider $f(x,y) = x^2 - y^2$, which is harmonic ($\Delta f = 2 - 2 = 0$).
 Take the point $(0,0)$ where $f(0,0) = 0$. On the circle of radius $r$,
 parametrize as $(x,y) = (r\cos\theta,\, r\sin\theta)$:
@@ -581,17 +581,17 @@ parametrize as $(x,y) = (r\cos\theta,\, r\sin\theta)$:
 = \frac{r^2}{2\pi} \int_0^{2\pi} (\cos^2\theta - \sin^2\theta)\,d\theta
 = \frac{r^2}{2\pi} \int_0^{2\pi} \cos 2\theta\,d\theta = 0 = f(0,0)
 \]
-The average over the circle equals the value at the center, as predicted.
+The average over the circle equals the value at the centre, as predicted.
 \end{example}
 
 
 % ====================================================================
-\section{Discrete Analogue: The Graph Laplacian}
+\section{Discrete analogue: the graph Laplacian}
 \label{harmonic-functions:sec:graph_laplacian}
 % ====================================================================
 
 We now move from continuous domains to graphs. The transition is guided by a
-single principle: \emph{replace the spherical average with the neighborhood
+single principle: \emph{replace the spherical average with the neighbourhood
 average}.
 
 Consider a \textbf{connected} undirected weighted graph $G = (V, E, A)$ with
@@ -602,14 +602,14 @@ by some path---the graph analogue of a connected domain $\Omega$ in the
 continuous setting. A function on the graph is simply a vector
 $f \in \R^n$, with $f_i$ being the value at node $v_i$.
 
-\subsection{From Continuous to Discrete: The Key Substitution}
+\subsection{From continuous to discrete: the key substitution}
 
 In the continuous world, the Laplacian measures the deviation of $f(x)$ from
 its spherical average. On a graph, the ``sphere around node $v_i$'' is
-naturally replaced by the \textbf{neighborhood} $\mathcal{N}(i)$, and the
-spherical average becomes the \textbf{weighted average over neighbors}:
+naturally replaced by the \textbf{neighbourhood} $\mathcal{N}(i)$, and the
+spherical average becomes the \textbf{weighted average over neighbours}:
 \begin{equation}
-\text{Average over neighbors of } v_i
+\text{Average over neighbours of } v_i
 = \frac{1}{d_i}\sum_{j} A_{ij}\,f_j
 = \sum_j P_{ij}\,f_j
 \end{equation}
@@ -619,9 +619,9 @@ $v_j$).
 
 This substitution leads directly to the graph Laplacian.
 
-\subsection{The Random Walk Laplacian}
+\subsection{The random walk Laplacian}
 
-\begin{definition}[Random Walk Laplacian]
+\begin{definition}[Random walk Laplacian]
 \label{harmonic-functions:def:rw_laplacian}
 The \textbf{random walk Laplacian} is $\mathcal{L}_{\mathrm{rw}} = I - P
 = I - D^{-1}A$. Its action on a function $f$ is:
@@ -631,31 +631,31 @@ The \textbf{random walk Laplacian} is $\mathcal{L}_{\mathrm{rw}} = I - P
 = \underbrace{f_i\vphantom{\sum_j}}_{\mathclap{\substack{\text{value}\\
   \text{at node}}}}
   - \quad \underbrace{\sum_j P_{ij}\,f_j}_{\mathclap{\substack{
-  \text{weighted average}\\ \text{of neighbors}}}}
+  \text{weighted average}\\ \text{of neighbours}}}}
 \end{equation}
 \end{definition}
 
 This is the \emph{exact discrete counterpart} of the continuous Laplacian
 formula from Theorem~\ref{harmonic-functions:thm:laplacian_average}: the value at a point minus
-the average over its neighborhood. Compare:
+the average over its neighbourhood. Compare:
 \begin{align}
 \text{Continuous:} &\quad \Delta f(x) \propto
   \bigl(\text{average of $f$ on sphere}\bigr) - f(x) \\
 \text{Graph:} &\quad (\mathcal{L}_{\mathrm{rw}} f)_i
-  = f_i - \bigl(\text{average of $f$ over neighbors}\bigr)
+  = f_i - \bigl(\text{average of $f$ over neighbours}\bigr)
 \end{align}
 
 \begin{pitfall}[Sign convention]
 Note the sign convention: in the continuous case, $\Delta f > 0$ means $f$
 is below its local average, while $(\mathcal{L}_{\mathrm{rw}} f)_i > 0$
-means $f_i$ is \emph{above} its neighbor average. This is because the graph
+means $f_i$ is \emph{above} its neighbour average. This is because the graph
 Laplacian is conventionally defined as $f_i - \text{avg}$ rather than
 $\text{avg} - f_i$. Both conventions appear in the literature; the discrete
 convention $\mathcal{L}_{\mathrm{rw}} = I - P$ is standard in graph
 theory.
 \end{pitfall}
 
-\begin{definition}[Harmonic Function on a Graph]
+\begin{definition}[Harmonic function on a graph]
 \label{harmonic-functions:def:harmonic_graph}
 A function $f: V \to \R$ is \textbf{harmonic at node $v_i$} if:
 \begin{equation}
@@ -667,9 +667,9 @@ on a set $S \subset V$ if it is harmonic at every node in $S$.
 
 Just as in the continuous case, a harmonic function on a graph has no local
 extrema on the interior: no node's value can be strictly larger (or smaller)
-than all its neighbors'. Every value is a weighted average---a compromise.
+than all its neighbours'. Every value is a weighted average---a compromise.
 
-\subsection{The Unnormalized Laplacian}
+\subsection{The unnormalized Laplacian}
 
 There is a second, closely related graph Laplacian that is important in
 spectral graph theory.
@@ -688,7 +688,7 @@ The unnormalized Laplacian is simply the random walk Laplacian scaled by the
 degree: $(Lf)_i = d_i \cdot (\mathcal{L}_{\mathrm{rw}} f)_i$. The degree
 $d_i$ plays the role of the factor $2d/r^2$ in the continuous
 formula~\eqref{harmonic-functions:eq:laplacian_avg}---it accounts for the ``size'' of the
-neighborhood.
+neighbourhood.
 
 The unnormalized Laplacian has a beautiful quadratic form that measures
 the total variation of $f$ across edges:
@@ -701,9 +701,9 @@ $\int_\Omega \|\nabla f\|^2\,dV$ from continuous PDE theory. Both measure
 how much $f$ varies: a constant function has zero energy, and a rapidly
 oscillating function has high energy.
 
-\subsection{Worked Example: Harmonicity on a Small Graph}
+\subsection{Worked example: harmonicity on a small graph}
 
-\begin{example}[A Weighted Triangle]
+\begin{example}[A weighted triangle]
 Consider a triangle with nodes $a$, $b$, $u$ and edge weights
 $A_{au} = 1$, $A_{bu} = 2$, $A_{ab} = 3$. Fix $f_a = 1$ and
 $f_b = 0$ (boundary). What value of $f_u$ makes $f$ harmonic at~$u$?
@@ -716,15 +716,15 @@ f_u = P_{ua}\,f_a + P_{ub}\,f_b = \frac{1}{3}(1) + \frac{2}{3}(0)
 \]
 
 The stronger edge to $b$ (weight 2) pulls $u$'s value closer to $f_b = 0$
-than the weaker edge to $a$ (weight 1) pulls it toward $f_a = 1$.
+than the weaker edge to $a$ (weight 1) pulls it towards $f_a = 1$.
 
 We can verify: $(\mathcal{L}_{\mathrm{rw}} f)_u = f_u - (P_{ua}f_a +
 P_{ub}f_b) = 1/3 - 1/3 = 0$ \checkmark.
 \end{example}
 
-\begin{example}[The Path Graph (Discrete Rod)]
+\begin{example}[The path graph (discrete rod)]
 Consider the path $v_1 - v_2 - v_3 - v_4 - v_5$ with $f_1 = 1$ and
-$f_5 = 0$ (boundary nodes). Each interior node has two neighbors with
+$f_5 = 0$ (boundary nodes). Each interior node has two neighbours with
 equal weight, so the harmonic condition becomes:
 \begin{align}
 f_2 &= \tfrac{1}{2}(f_1 + f_3) = \tfrac{1}{2}(1 + f_3) \\
@@ -757,15 +757,15 @@ boundary values---exactly the discrete analogue of the continuous 1D
 harmonic function $T(x) = 1 - x/L$ from Section~\ref{harmonic-functions:sec:1d} (red dashed).
 \end{example}
 
-\subsection{Summary of the Analogy}
+\subsection{Summary of the analogy}
 
-\begin{keyidea}[Continuous $\longleftrightarrow$ Discrete]
+\begin{keyidea}[Continuous $\longleftrightarrow$ discrete]
 \begin{center}
 \begin{tabular}{lll}
 \toprule
 \textbf{Continuous} & \textbf{Discrete (graph)} & \textbf{Interpretation} \\
 \midrule
-Sphere of radius $r$ & Neighborhood $\mathcal{N}(i)$ & Local region \\[3pt]
+Sphere of radius $r$ & Neighbourhood $\mathcal{N}(i)$ & Local region \\[3pt]
 $\displaystyle\frac{1}{|\partial B|}
   \int_{\partial B}\!f\,dS$ &
 $\displaystyle\frac{1}{d_i}\sum_j A_{ij}f_j$ & Local average \\[6pt]
@@ -782,7 +782,7 @@ Dirichlet problem & Label propagation & Boundary value problem \\
 
 
 % ====================================================================
-\section{The Dirichlet Problem: Continuous and Discrete}
+\section{The Dirichlet problem: continuous and discrete}
 \label{harmonic-functions:sec:dirichlet}
 % ====================================================================
 
@@ -790,9 +790,9 @@ The connection becomes most powerful when we consider boundary value
 problems---finding a function that is harmonic in the interior and matches
 prescribed values on the boundary.
 
-\subsection{The Continuous Dirichlet Problem}
+\subsection{The continuous Dirichlet problem}
 
-\begin{definition}[Continuous Dirichlet Problem]
+\begin{definition}[Continuous Dirichlet problem]
 \label{harmonic-functions:def:cont_dirichlet}
 Given a domain $\Omega \subset \R^d$ with boundary $\partial\Omega$, and a
 function $g : \partial\Omega \to \R$ specifying boundary values, find
@@ -819,9 +819,9 @@ equivalent characterizations:
           (Section~\ref{harmonic-functions:sec:random_walks}).
 \end{enumerate}
 
-\subsection{The Discrete Dirichlet Problem (Label Propagation)}
+\subsection{The discrete Dirichlet problem (label propagation)}
 
-\begin{definition}[Discrete Dirichlet Problem on a Graph]
+\begin{definition}[Discrete Dirichlet problem on a graph]
 \label{harmonic-functions:def:graph_dirichlet}
 Given a connected graph $G = (V, E, A)$, a set of \textbf{boundary nodes}
 $\mathcal{V}_L \subset V$ with prescribed values $f_i = y_i$ for
@@ -835,7 +835,7 @@ f_i &= y_i \quad \text{for } i \in \mathcal{V}_L
 \end{align}
 \end{definition}
 
-\begin{theorem}[Solution of the Discrete Dirichlet Problem]
+\begin{theorem}[Solution of the discrete Dirichlet problem]
 \label{harmonic-functions:thm:discrete_dirichlet}
 Let $G$ be connected with at least one boundary node. Then the discrete
 Dirichlet problem has a unique solution given by:
@@ -866,17 +866,17 @@ full argument is given in Appendix~\ref{harmonic-functions:app:proof_dirichlet}.
 \end{proof}
 
 This is \emph{exactly} the label propagation algorithm: iteratively replace
-each unlabeled node's value by the average of its neighbors' values (while
+each unlabelled node's value by the average of its neighbours' values (while
 keeping boundary values fixed) until convergence. The iterative process
 converges to the unique discrete harmonic function.
 
-\subsection{Energy Minimization: The Discrete Dirichlet Energy}
+\subsection{Energy minimization: the discrete Dirichlet energy}
 
 Just as the continuous Dirichlet problem minimizes
 $\int_\Omega \|\nabla f\|^2\,dV$, the discrete problem minimizes the graph
 energy:
 
-\begin{proposition}[Discrete Energy Minimization]
+\begin{proposition}[Discrete energy minimization]
 \label{harmonic-functions:prop:energy_min}
 Among all functions $f : V \to \R$ that match the boundary values $y_i$
 on $\mathcal{V}_L$, the discrete harmonic function uniquely minimizes:
@@ -894,8 +894,8 @@ derivation is in Appendix~\ref{harmonic-functions:app:proof_energy}.
 \end{proof}
 
 This gives a second way to understand label propagation: it finds the
-\textbf{smoothest possible} assignment of values to unlabeled nodes, where
-``smooth'' means that neighboring nodes have similar values. The boundary
+\textbf{smoothest possible} assignment of values to unlabelled nodes, where
+``smooth'' means that neighbouring nodes have similar values. The boundary
 values act as constraints, and the solution is the gentlest interpolation
 through the graph.
 
@@ -914,7 +914,7 @@ Optimality: $(\mathcal{L}_{\mathrm{rw}} f)_i = 0$ on interior \\
 
 
 % ====================================================================
-\section{Random Walk Interpretation}
+\section{Random walk interpretation}
 \label{harmonic-functions:sec:random_walks}
 % ====================================================================
 
@@ -923,7 +923,7 @@ comes through probability. In both settings, the harmonic function at a
 point equals the \emph{expected boundary value} seen by a random process
 starting at that point.
 
-\subsection{Continuous: Brownian Motion}
+\subsection{Continuous: Brownian motion}
 
 \begin{theorem}[Kakutani, 1944]
 \label{harmonic-functions:thm:kakutani}
@@ -943,7 +943,7 @@ diffusion from point $x$. It wanders until it hits the boundary, where it
 average of all boundary values the particle could encounter, weighted by
 the probability of hitting each boundary point.
 
-\begin{example}[Brownian Motion on the 1D Rod]
+\begin{example}[Brownian motion on the 1D rod]
 Consider the interval $[0, L]$ with boundary values $g(0) = 100$ and
 $g(L) = 0$. We compute the hitting probabilities from scratch using a
 key property of Brownian motion.
@@ -998,7 +998,7 @@ This matches the harmonic solution from Section~\ref{harmonic-functions:sec:1d}.
 probabilistic and analytic approaches give the same answer, as they must.
 \end{example}
 
-\subsection{Discrete: Random Walk on the Graph}
+\subsection{Discrete: random walk on the graph}
 
 The graph analogue replaces Brownian motion with a random walk, and leads to
 a probabilistic interpretation of the Dirichlet problem from
@@ -1012,7 +1012,7 @@ $f_U = (I - P_{UU})^{-1}P_{UL}f_L$ by solving a linear system. The
 following theorem gives a completely different way to compute the same
 solution---using random walks.
 
-\begin{theorem}[Random Walk Interpretation]
+\begin{theorem}[Random walk interpretation]
 \label{harmonic-functions:thm:rw_label_prop}
 Consider a random walk $X_0, X_1, X_2, \ldots$ on $G$ with transition
 matrix $P = D^{-1}A$. Start at an interior node $X_0 = i \in \mathcal{V}_U$
@@ -1053,7 +1053,7 @@ and $X_\tau = i$. Therefore $h_i = y_i$. \checkmark
 
 \textbf{Harmonic condition.} If $i \in \mathcal{V}_U$ (an interior node),
 the walk must take at least one step before reaching the boundary. The
-first step goes to neighbor $j$ with probability $P_{ij}$. After arriving
+first step goes to neighbour $j$ with probability $P_{ij}$. After arriving
 at $j$, the walk ``starts fresh'' (by the Markov property: the future path
 depends only on the current node, not on how we got there). So the expected
 boundary value from $j$ onward is simply $h_j$. Averaging over all possible
@@ -1080,7 +1080,7 @@ conclude $h = f$: the Dirichlet solution and the random walk expectation
 are one and the same.
 \end{proof}
 
-\begin{example}[Random Walk on the Path Graph]
+\begin{example}[Random walk on the path graph]
 On the path $v_1 - v_2 - v_3 - v_4 - v_5$ with boundary values
 $y_1 = 1$ and $y_5 = 0$, let us compute $f_i$ for each interior node
 using random walks.
@@ -1109,7 +1109,7 @@ So $f_k$ is simply the probability of reaching $v_1$ before $v_5$.
 v_1 \text{ first} \mid \text{start at } v_k)$. The boundary conditions are
 $p_1 = 1$ and $p_5 = 0$. For an interior node $v_k$, the walker moves to
 $v_{k-1}$ or $v_{k+1}$ with equal probability, so the expected boundary
-value after one step is the average of the values at the two neighbors.
+value after one step is the average of the values at the two neighbours.
 By the harmonic condition (which the proof above established):
 \[
 p_k = \tfrac{1}{2}\,p_{k-1} + \tfrac{1}{2}\,p_{k+1}
@@ -1144,7 +1144,7 @@ $v_4$ & $1/4$ & $3/4$ & $\frac{1}{4}\cdot 1 + \frac{3}{4}\cdot 0$ &
 \end{center}
 
 These match the harmonic solution from Section~\ref{harmonic-functions:sec:graph_laplacian}.
-The closer a node is to $v_1$ (labeled~$1$), the more likely the walk is to
+The closer a node is to $v_1$ (labelled~$1$), the more likely the walk is to
 reach $v_1$ first, and the higher its value. At the midpoint $v_3$, the
 walk is equally likely to reach either boundary---just as symmetry demands.
 
@@ -1155,7 +1155,7 @@ $\{1, \ldots, 5\}$ hits $v_1$ with probability $(5 - k)/4$. Both are
 linear interpolations between the boundaries.
 \end{example}
 
-\begin{keyidea}[The Complete Duality]
+\begin{keyidea}[The complete duality]
 \begin{center}
 \begin{tabular}{ll}
 \toprule
@@ -1176,15 +1176,15 @@ interior point equals the expected value after one infinitesimal step
 
 
 % ====================================================================
-\section{Summary: The Unifying Principle}
+\section{Summary: the unifying principle}
 \label{harmonic-functions:sec:summary}
 % ====================================================================
 
 The fundamental insight that unifies everything in this chapter is:
 
-\begin{intuition}[The Unifying Principle]
+\begin{intuition}[The unifying principle]
 \textbf{A function is harmonic if and only if its value at every interior
-point equals the average of its values in a local neighborhood.}
+point equals the average of its values in a local neighbourhood.}
 
 The Laplacian---whether continuous or discrete---measures the deviation
 from this averaging property:
@@ -1193,7 +1193,7 @@ from this averaging property:
   = \lim_{r \to 0} \frac{2d}{r^2}
     \bigl(\text{avg on sphere} - f(x)\bigr) \\
 \text{Discrete:}\quad & (\mathcal{L}_{\mathrm{rw}} f)_i
-  = f_i - \text{avg over neighbors}
+  = f_i - \text{avg over neighbours}
 \end{align}
 Setting the Laplacian to zero (the harmonic condition) yields boundary value
 problems, which are solved by energy minimization and computed via random
@@ -1232,7 +1232,7 @@ temperatures, electric potentials, and diffusion equilibria.
 \newpage
 \chapterappendix
 
-\section{Full Proof of Theorem~\ref{harmonic-functions:thm:discrete_dirichlet}}
+\section{Full proof of Theorem~\ref{harmonic-functions:thm:discrete_dirichlet}}
 \label{harmonic-functions:app:proof_dirichlet}
 
 We prove that the discrete Dirichlet problem on a connected graph with at
@@ -1242,7 +1242,7 @@ $f_U = (I - P_{UU})^{-1}P_{UL}f_L$. The proof has three steps.
 \textbf{Step 1: Deriving the linear system.} The harmonic condition
 $f_i = \sum_j P_{ij}f_j$ at each interior node $i \in \mathcal{V}_U$,
 combined with the fixed boundary values $f_j = y_j$ for
-$j \in \mathcal{V}_L$, can be split according to whether neighbor $j$ is
+$j \in \mathcal{V}_L$, can be split according to whether neighbour $j$ is
 interior or boundary:
 \[
 f_i = \sum_{j \in \mathcal{V}_U} P_{ij}\,f_j
@@ -1264,7 +1264,7 @@ interior node $i \in \mathcal{V}_U$, this row sum splits as:
 + \underbrace{\sum_{j \in \mathcal{V}_L} P_{ij}}_{\geq\, 0} = 1
 \]
 So every row of $P_{UU}$ sums to at most~$1$. Moreover, if interior node
-$i$ has at least one boundary neighbor $j \in \mathcal{V}_L$, then
+$i$ has at least one boundary neighbour $j \in \mathcal{V}_L$, then
 $P_{ij} > 0$, and the row sum of $P_{UU}$ is \emph{strictly} less than~$1$.
 A non-negative matrix with all row sums $\leq 1$ and at least one row sum
 strictly less than~$1$ is called \textbf{sub-stochastic}.
@@ -1294,7 +1294,7 @@ $\|P_{UU}^k\|_\infty < 1$. Since $\rho(P_{UU})^k \leq \|P_{UU}^k\|_\infty
 Therefore $I - P_{UU}$ is invertible, and the unique solution is
 $f_U = (I - P_{UU})^{-1}P_{UL}f_L$. \qed
 
-\section{Full Proof of Proposition~\ref{harmonic-functions:prop:energy_min}}
+\section{Full proof of Proposition~\ref{harmonic-functions:prop:energy_min}}
 \label{harmonic-functions:app:proof_energy}
 
 We prove that the discrete harmonic function minimizes the Dirichlet energy
@@ -1359,7 +1359,7 @@ $L_{UU} = D_{UU}^{1/2}\bigl(I - D_{UU}^{-1/2}A_{UU}D_{UU}^{-1/2}\bigr)D_{UU}^{1/
 function is the unique energy minimizer. \qed
 
 \newpage
-\section{Why $\E[B_\tau \mid B_0 = x] = x$: Martingales and Fair Games}
+\section{Why $\E[B_\tau \mid B_0 = x] = x$: martingales and fair games}
 \label{harmonic-functions:app:martingale}
 
 The formula $\E[B_\tau \mid B_0 = x] = x$ used in
@@ -1381,7 +1381,7 @@ The key question is: what is your expected wealth when you walk out?
 Since every individual bet is fair, your expected wealth after one bet equals
 your current wealth. After two bets, your expected wealth still equals your
 starting wealth. After $n$ bets---still $x$. The game never drifts in your
-favor or against you. A process with this property (expected future value
+favour or against you. A process with this property (expected future value
 $=$ current value) is called a \textbf{martingale}.
 
 Now, you might think: ``I am choosing a \emph{clever} time to stop---I stop
@@ -1444,7 +1444,7 @@ expected outcome is exactly what you started with.
 There is a vivid physical picture. Think of the interval $[0, L]$ as a
 lever with a fulcrum at position $x$. Place a weight of $p$ at position $0$
 and a weight of $(1-p)$ at position $L$. For the lever to balance, the
-center of mass must lie at the fulcrum:
+centre of mass must lie at the fulcrum:
 \[
 p \cdot 0 + (1-p) \cdot L = x
 \]

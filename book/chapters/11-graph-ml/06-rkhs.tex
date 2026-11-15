@@ -21,7 +21,7 @@
 \chaptersubtitle{Kernels, the reproducing property and the representer theorem}
 
 \begin{chapterintro}
-Reproducing kernel Hilbert spaces (RKHS) are the function spaces behind kernel methods: support vector machines, kernel ridge regression, Gaussian processes and, on graphs, manifold regularization. They answer two questions at once. How can we search over an infinite-dimensional space of functions? And how do we measure the complexity of a function so as to regularise it? This chapter builds the theory from inner product spaces upward, constructs the RKHS of a positive definite kernel, proves the reproducing property and the representer theorem, and applies them to kernel ridge regression and to manifold regularization, where a graph Laplacian built from unlabeled data adds a second penalty. You will learn
+Reproducing kernel Hilbert spaces (RKHS) are the function spaces behind kernel methods: support vector machines, kernel ridge regression, Gaussian processes and, on graphs, manifold regularization. They answer two questions at once. How can we search over an infinite-dimensional space of functions? And how do we measure the complexity of a function so as to regularize it? This chapter builds the theory from inner product spaces upward, constructs the RKHS of a positive definite kernel, proves the reproducing property and the representer theorem, and applies them to kernel ridge regression and to manifold regularization, where a graph Laplacian built from unlabelled data adds a second penalty. You will learn
 \begin{itemize}[nosep]
   \item what positive definite kernels are, how to build new ones, and how they define feature maps;
   \item how the RKHS of a kernel is constructed (Moore--Aronszajn) and why point evaluation is continuous in it;
@@ -32,7 +32,7 @@ Reproducing kernel Hilbert spaces (RKHS) are the function spaces behind kernel m
 \prerequisites{linear algebra (positive semidefinite matrices, orthogonal projection); the graph Laplacian and its quadratic form (\cref{ch:graph-laplacians}) for the last section; regularized regression (\cref{ch:svm} and \cref{ch:gradient-boosting} use this chapter).}
 \end{chapterintro}
 
-\section{Motivation: Why Do We Need RKHS?}
+\section{Motivation: why do we need RKHS?}
 \label{rkhs:sec:motivation}
 % ══════════════════════════════════════════════════════════════
 
@@ -67,7 +67,7 @@ The RKHS framework solves both problems simultaneously:
 
 
 % ══════════════════════════════════════════════════════════════
-\section{Prerequisites: Inner Product Spaces and Hilbert Spaces}
+\section{Prerequisites: inner product spaces and Hilbert spaces}
 \label{rkhs:sec:prereq}
 % ══════════════════════════════════════════════════════════════
 
@@ -76,10 +76,10 @@ build up to it in three steps: vector space $\to$ inner product space
 $\to$ Hilbert space.
 
 % ────────────────────────────
-\subsection{Inner Product Spaces}
+\subsection{Inner product spaces}
 \label{rkhs:subsec:inner_product}
 
-\begin{definition}[Inner Product]
+\begin{definition}[Inner product]
 Let $V$ be a real vector space. An \textbf{inner product} is a function
 $\inner{\cdot}{\cdot}: V \times V \to \R$ satisfying, for all $f, g, h
 \in V$ and $\alpha \in \R$:
@@ -94,13 +94,13 @@ An inner product induces a \textbf{norm}: $\norm{f} =
 \sqrt{\inner{f}{f}}$, and a \textbf{distance}: $d(f,g) = \norm{f - g}$.
 \end{definition}
 
-\begin{example}[Euclidean Inner Product]
+\begin{example}[Euclidean inner product]
 On $V = \R^n$, the standard inner product is $\inner{x}{y} =
 \sum_{i=1}^n x_i y_i = x^\top y$. This gives the Euclidean norm
 $\norm{x} = \sqrt{\sum_i x_i^2}$.
 \end{example}
 
-\begin{example}[$L^2$ Inner Product on Functions]
+\begin{example}[$L^2$ inner product on functions]
 On $V = \{f:[0,1] \to \R \mid \int_0^1 f(x)^2\,dx < \infty\}$, the $L^2$
 inner product is:
 \[
@@ -112,10 +112,10 @@ $f$.
 \end{example}
 
 % ────────────────────────────
-\subsection{Hilbert Spaces}
+\subsection{Hilbert spaces}
 \label{rkhs:subsec:hilbert}
 
-\begin{definition}[Hilbert Space]
+\begin{definition}[Hilbert space]
 A \textbf{Hilbert space} is an inner product space that is
 \textbf{complete}: every Cauchy sequence converges within the space.
 
@@ -128,7 +128,7 @@ of $\hilb$}. If the space were not complete, the limit might ``fall
 outside'' the space, and the minimum would not be attained. Completeness
 guarantees that optimization problems are well-posed.
 
-\begin{example}[Familiar Hilbert Spaces]
+\begin{example}[Familiar Hilbert spaces]
 \begin{itemize}
   \item $\R^n$ with the Euclidean inner product is a Hilbert space
   (finite-dimensional, hence automatically complete).
@@ -149,13 +149,13 @@ property: the reproducing property
 \end{keyidea}
 
 % ────────────────────────────
-\subsection{Orthogonal Decomposition}
+\subsection{Orthogonal decomposition}
 \label{rkhs:subsec:orthogonal}
 
 One crucial property of Hilbert spaces that we will use in the proof of
 the Representer Theorem:
 
-\begin{theorem}[Orthogonal Decomposition]
+\begin{theorem}[Orthogonal decomposition]
 \label{rkhs:thm:ortho_decomp}
 Let $\hilb$ be a Hilbert space and $M \subseteq \hilb$ a closed
 subspace. Every $f \in \hilb$ has a \textbf{unique} decomposition:
@@ -201,7 +201,7 @@ theorem, $\norm{f}^2 = \norm{f_\parallel}^2 + \norm{f_\perp}^2$.}
 
 
 % ══════════════════════════════════════════════════════════════
-\section{Positive Definite Kernels}
+\section{Positive definite kernels}
 \label{rkhs:sec:kernels}
 % ══════════════════════════════════════════════════════════════
 
@@ -210,10 +210,10 @@ Intuitively, a kernel $K(x,x')$ measures the ``similarity'' between two
 inputs $x$ and $x'$.
 
 % ────────────────────────────
-\subsection{Definition and Basic Properties}
+\subsection{Definition and basic properties}
 \label{rkhs:subsec:kernel_def}
 
-\begin{definition}[Positive Definite Kernel]
+\begin{definition}[Positive definite kernel]
 \label{rkhs:def:pd_kernel}
 A function $K: \X \times \X \to \R$ is a \textbf{positive definite
 (p.d.) kernel} if:
@@ -239,7 +239,7 @@ In compact notation, condition~\eqref{rkhs:eq:pd_condition} states
 $\mat{c}^\top \mat{K} \mat{c} \geq 0$ where $\mat{K}_{ij} = K(x_i, x_j)$
 and $\mat{c} = (c_1, \ldots, c_m)^\top$.
 
-\begin{definition}[Kernel Matrix]
+\begin{definition}[Kernel matrix]
 \label{rkhs:def:gram_matrix}
 Given data $x_1, \ldots, x_n \in \X$ and a kernel $K$, the
 \textbf{kernel matrix} (or \textbf{Gram matrix}) is $\mat{K} \in \R^{n
@@ -252,7 +252,7 @@ and positive semi-definite (PSD).
 \end{definition}
 
 % ────────────────────────────
-\subsection{Common Kernels}
+\subsection{Common kernels}
 \label{rkhs:subsec:common_kernels}
 
 In the definition above, the input set $\X$ can be any
@@ -260,7 +260,7 @@ set. For all three kernels below, $\X = \R^d$ (or a
 subset of it), so each ``point'' $x \in \X$ is a
 vector in $\R^d$.
 
-\begin{example}[Linear Kernel]
+\begin{example}[Linear kernel]
 $K(x,x') = x^\top x'$ for $x, x' \in \R^d$.
 
 \textbf{Verification of positive definiteness:}
@@ -275,7 +275,7 @@ $\mat{K} = \mat{X}\mat{X}^\top$ where $\mat{X}$ stacks
 the data points as rows.
 \end{example}
 
-\begin{example}[Polynomial Kernel]\label{rkhs:ex:poly}
+\begin{example}[Polynomial kernel]\label{rkhs:ex:poly}
 $K(x,x') = (x^\top x' + c)^p$ for $c \geq 0$,
 $p \in \N$.
 
@@ -299,7 +299,7 @@ introduce \emph{feature maps} in
 Section~\ref{rkhs:sec:feature_maps}.
 \end{example}
 
-\begin{example}[Gaussian (RBF) Kernel]
+\begin{example}[Gaussian (RBF) kernel]
 $K(x,x') = \exp\!\bigl(-\norm{x - x'}^2 /
 (2\sigma^2)\bigr)$ for bandwidth $\sigma > 0$.
 
@@ -347,13 +347,13 @@ means faster decay: only very nearby points have high similarity.}
 \end{figure}
 
 % ────────────────────────────
-\subsection{Closure Properties}
+\subsection{Closure properties}
 \label{rkhs:subsec:closure}
 
 Positive definite kernels enjoy useful closure properties that allow us
 to build complex kernels from simple ones:
 
-\begin{proposition}[Closure Properties]
+\begin{proposition}[Closure properties]
 \label{rkhs:prop:closure}
 If $K_1$ and $K_2$ are p.d.\ kernels and $\alpha > 0$, then the
 following are also p.d.\ kernels:
@@ -376,7 +376,7 @@ x_j)}_{\geq\, 0} \;\geq\; 0.
 \]
 \end{proof}
 
-\begin{intuition}[Why Closure Matters]
+\begin{intuition}[Why closure matters]
 Property (iv) is particularly important: the Gaussian kernel can be
 derived from the linear kernel via:
 \[
@@ -391,7 +391,7 @@ on single arguments.
 
 
 % ══════════════════════════════════════════════════════════════
-\section{Feature Maps and the Kernel Trick}
+\section{Feature maps and the kernel trick}
 \label{rkhs:sec:feature_maps}
 % ══════════════════════════════════════════════════════════════
 
@@ -480,9 +480,9 @@ ever forming $\phi(x)$ explicitly.}
 \end{figure}
 
 % ────────────────────────────
-\subsection{From Kernels to Feature Maps}
+\subsection{From kernels to feature maps}
 
-\begin{definition}[Feature Map]
+\begin{definition}[Feature map]
 \label{rkhs:def:feature_map}
 A \textbf{feature map} for a kernel $K$ is a mapping $\phi: \X \to
 \mathcal{F}$ into some inner product space $\mathcal{F}$ (the
@@ -500,7 +500,7 @@ is guaranteed by the Moore--Aronszajn theorem
 (Section~\ref{rkhs:sec:rkhs_construction}).
 
 % ────────────────────────────
-\subsection{The Kernel Trick}
+\subsection{The kernel trick}
 \label{rkhs:subsec:kernel_trick}
 
 \begin{keyidea}[The kernel trick]
@@ -515,7 +515,7 @@ explicitly}.
 
 Let us see this concretely.
 
-\begin{example}[Kernel Trick for the Polynomial Kernel]\label{rkhs:ex:kernel-trick}
+\begin{example}[Kernel trick for the polynomial kernel]\label{rkhs:ex:kernel-trick}
 Consider data in $\R^2$: $x = (x_1, x_2)$. We saw in
 \cref{rkhs:ex:poly} that the quadratic kernel
 $K(x,x') = (x^\top x')^2$ can be written as a dot
@@ -616,12 +616,12 @@ definite kernel $K$ generates a \emph{unique} Hilbert space of functions
 --- the RKHS $\hk$.
 
 % ────────────────────────────
-\subsection{The Canonical Feature Map}
+\subsection{The canonical feature map}
 \label{rkhs:subsec:canonical_feature_map}
 
 Among all possible feature maps for $K$, there is a particularly natural one:
 
-\begin{definition}[Canonical Feature Map]
+\begin{definition}[Canonical feature map]
 \label{rkhs:def:canonical_feature}
 For each $x \in \X$, define the function
 $K_x: \X \to \R$ by:
@@ -921,7 +921,7 @@ $\hk$, and by bilinearity:
 \]
 \end{intuition}
 
-\begin{intuition}[The Canonical Feature Map is Universal]
+\begin{intuition}[The canonical feature map is universal]
 \textbf{The general principle.} Every feature map is related to the canonical one by an isometry. If $\phi: \X \to \mathcal F$ is any feature map, the map $T: \mathcal F \to \hk$, $T(w) = \bigl(x \mapsto \inner{w}{\phi(x)}_{\mathcal F}\bigr)$, sends $\phi(x)$ to $K(\cdot, x)$, and it is an isometry from the closed span of $\phi(\X)$ onto $\hk$ (it kills the orthogonal complement of that span). In this sense the canonical feature map is ``universal'': every other feature map is a concrete coordinate system for it.
 
 \textbf{Why does this matter?} When $\hk$ is
@@ -933,7 +933,7 @@ infinite-dimensional (Gaussian kernel), no feature map into a \emph{finite}-dime
 \end{intuition}
 
 % ────────────────────────────
-\subsection{Building the Space Step by Step}
+\subsection{Building the space step by step}
 \label{rkhs:subsec:building_space}
 
 The canonical feature map tells us \emph{what} the
@@ -1043,7 +1043,7 @@ product may not be complete. We form the \textbf{completion} $\hk =
 \overline{\hilb_0}$ by including all limits of Cauchy sequences from
 $\hilb_0$. The resulting space $\hk$ is a Hilbert space.
 
-\begin{theorem}[Moore--Aronszajn Theorem]
+\begin{theorem}[Moore--Aronszajn theorem]
 \label{rkhs:thm:moore_aronszajn}
 For every positive definite kernel $K$ on $\X \times \X$, there exists a
 \textbf{unique} Hilbert space $\hk$ of functions $f: \X \to \R$ such
@@ -1065,7 +1065,7 @@ The completion of an inner product space is, a priori, a space of equivalence cl
 
 
 % ══════════════════════════════════════════════════════════════
-\section{The Reproducing Property}
+\section{The reproducing property}
 \label{rkhs:sec:reproducing_property}
 % ══════════════════════════════════════════════════════════════
 
@@ -1074,9 +1074,9 @@ of an RKHS. Let us state it carefully, prove it, and explore its
 consequences.
 
 % ────────────────────────────
-\subsection{Statement and Proof}
+\subsection{Statement and proof}
 
-\begin{proposition}[Reproducing Property]
+\begin{proposition}[Reproducing property]
 \label{rkhs:prop:reproducing}
 In the RKHS $\hk$ constructed above, for every $f \in \hk$ and every $x \in \X$:
 \begin{equation}
@@ -1286,7 +1286,7 @@ the Gaussian kernel), so ``scaled'' accounts for the
 general case.}
 
 % ────────────────────────────
-\subsection{Continuity of Evaluation}
+\subsection{Continuity of evaluation}
 
 The reproducing property has a powerful consequence.
 In machine learning, we care about predicting
@@ -1296,7 +1296,7 @@ This requires point evaluation to be a
 (in the RKHS norm) should produce small changes in
 $f(x)$. The reproducing property guarantees this.
 
-\begin{proposition}[Evaluation is Continuous]
+\begin{proposition}[Evaluation is continuous]
 \label{rkhs:prop:eval_continuous}
 In an RKHS, point evaluation is a bounded (continuous)
 linear functional. Specifically:
@@ -1324,7 +1324,7 @@ By the reproducing property and Cauchy--Schwarz:
 \end{align*}
 \end{proof}
 
-\begin{intuition}[Why This Matters: RKHS vs.\ $L^2$]
+\begin{intuition}[Why this matters: RKHS vs.\ $L^2$]
 Not all function spaces enjoy this property.
 In the space $L^2([0,1])$, two functions $f$ and $g$
 are considered \emph{the same} if they differ only on
@@ -1354,9 +1354,9 @@ regularizer.
 \end{intuition}
 
 % ────────────────────────────
-\subsection{Concrete Numerical Example}
+\subsection{Concrete numerical example}
 
-\begin{example}[Reproducing Property in Action]\label{rkhs:ex:two-point}
+\begin{example}[Reproducing property in action]\label{rkhs:ex:two-point}
 Let $\X = \{a, b\}$ (a two-point domain) with kernel:
 \[
 K(a,a) = 2, \quad K(a,b) = K(b,a) = 1, \quad K(b,b) = 2.
@@ -1416,7 +1416,7 @@ happens to behave like a similarity measure.
 
 
 % ══════════════════════════════════════════════════════════════
-\section{The Representer Theorem}
+\section{The representer theorem}
 \label{rkhs:sec:representer}
 % ══════════════════════════════════════════════════════════════
 
@@ -1428,7 +1428,7 @@ linear combination of kernel evaluations at the data points.}
 % ────────────────────────────
 \subsection{Statement}
 
-\begin{theorem}[Representer Theorem]
+\begin{theorem}[Representer theorem]
 \label{rkhs:thm:representer}
 Let $\hk$ be an RKHS with kernel $K$, and let $x_1, \ldots, x_n \in \X$
 be data points. Consider any optimization problem of the form:
@@ -1454,7 +1454,7 @@ infinite-dimensional space $\hk$, the optimal function is determined by
 just $n$ real numbers $\alpha_1, \ldots, \alpha_n$.
 
 % ────────────────────────────
-\subsection{Complete Proof}
+\subsection{Complete proof}
 
 \begin{proof}
 The proof uses the orthogonal decomposition from Theorem~\ref{rkhs:thm:ortho_decomp}.
@@ -1543,7 +1543,7 @@ optimal $f^*$ has $f_\perp = 0$.}
 \end{figure}
 
 % ────────────────────────────
-\subsection{Kernelization: From Infinite to Finite Dimensions}
+\subsection{Kernelization: from infinite to finite dimensions}
 
 The Representer Theorem reduces the infinite-dimensional
 optimization~\eqref{rkhs:eq:representer_problem} to a finite-dimensional
@@ -1580,7 +1580,7 @@ K(x_i, x_j)$.
 This is a standard finite-dimensional optimization problem involving
 only the computable Gram matrix $\mat{K}$.
 
-\begin{example}[Kernel Ridge Regression]
+\begin{example}[Kernel ridge regression]
 With squared loss $\ell(p, y) = (p - y)^2$, the kernelized
 problem~\eqref{rkhs:eq:kernelized} becomes:
 \[
@@ -1606,7 +1606,7 @@ f^*(x_*) = \sum_{i=1}^n \alpha_i^* K(x_*, x_i) = \mat{k}_*^\top (\mat{K}
 where $\mat{k}_* = (K(x_*, x_1), \ldots, K(x_*, x_n))^\top$.
 \end{example}
 
-\begin{intuition}[Why Is $(\mat{K} + \lambda\mat{I})$ Invertible?]
+\begin{intuition}[Why is $(\mat{K} + \lambda\mat{I})$ invertible?]
 The kernel (Gram) matrix $\mat{K}$ is symmetric positive semi-definite (PSD).
 Let $\mu$ be any eigenvalue of $\mat{K}$ with eigenvector $\vect{v} \neq \vect{0}$:
 \[
@@ -1633,7 +1633,7 @@ into $\lambda > 0$. This guarantees invertibility — exactly why ridge
 regression fixes the non-invertibility problem in ordinary least squares.
 \end{intuition}
 
-\begin{example}[Complete Numerical Walkthrough]
+\begin{example}[Complete numerical walkthrough]
 \textbf{Setup}: $n = 3$ data points in $\R^1$: $x_1 = 0,\; x_2 = 1,\;
 x_3 = 3$, with labels $y_1 = 1,\; y_2 = 2,\; y_3 = 0$. Use the Gaussian
 kernel with $\sigma = 1$ and regularization $\lambda = 0.1$.
@@ -1667,7 +1667,7 @@ Numerically, $\vect{\alpha}^* \approx (-0.154,\; 1.932,\; -0.236)^\top$, and the
 f^*(x) = -0.154\,e^{-x^2/2} + 1.932\,e^{-(x-1)^2/2} - 0.236\,e^{-(x-3)^2/2}.
 \]
 
-This is a weighted sum of Gaussian ``bumps'' centered at the data
+This is a weighted sum of Gaussian ``bumps'' centred at the data
 points, with weights determined by the labels and the regularization.
 \end{example}
 
@@ -1701,14 +1701,14 @@ points, with weights determined by the labels and the regularization.
 \end{tikzpicture}
 \caption{Kernel ridge regression with the Gaussian kernel ($\sigma=1$,
 $\lambda=0.1$). The learned function $f^*$ (solid blue) is a weighted
-sum of Gaussian bumps centered at the data points. The individual
-weighted bumps are shown as dashed/dotted gray curves. The red dots are
+sum of Gaussian bumps centred at the data points. The individual
+weighted bumps are shown as dashed/dotted grey curves. The red dots are
 the training data $(x_i, y_i)$.}
 \label{rkhs:fig:kernel_ridge}
 \end{figure}
 
 % ══════════════════════════════════════════════════════════════
-\section{Concrete RKHS for Common Kernels}
+\section{Concrete RKHS for common kernels}
 \label{rkhs:sec:examples_rkhs}
 % ══════════════════════════════════════════════════════════════
 
@@ -1716,7 +1716,7 @@ What do the functions in $\hk$ actually look like for specific kernels?
 This section gives concrete characterizations.
 
 % ────────────────────────────
-\subsection{Linear Kernel}
+\subsection{Linear kernel}
 
 For $K(x,x') = x^\top x'$ on $\R^d$:
 
@@ -1747,7 +1747,7 @@ So kernel ridge regression with the linear kernel recovers ordinary
 ridge regression.
 
 % ────────────────────────────
-\subsection{Polynomial Kernel}
+\subsection{Polynomial kernel}
 
 For $K(x,x') = (x^\top x')^p$ on $\R^d$, the RKHS is
 \textbf{finite-dimensional}:
@@ -1778,7 +1778,7 @@ Gaussian kernel below, the RKHS is
 infinite-dimensional: coordinates, when used, are infinite sequences.
 
 % ────────────────────────────
-\subsection{Gaussian (RBF) Kernel}
+\subsection{Gaussian (RBF) kernel}
 
 For $K(x,x') = \exp(-\norm{x-x'}^2/2\sigma^2)$ on $\R^d$:
 \begin{itemize}
@@ -1787,7 +1787,7 @@ For $K(x,x') = \exp(-\norm{x-x'}^2/2\sigma^2)$ on $\R^d$:
   \item Functions in $\hk$ are infinitely differentiable ($C^\infty$)
   and analytic.
   \item Intuitively, $\hk$ contains functions that can be represented as
-  weighted sums of Gaussian ``bumps'' centered at arbitrary locations:
+  weighted sums of Gaussian ``bumps'' centred at arbitrary locations:
   $f(x) = \int \alpha(t)\,\exp(-\norm{x-t}^2/2\sigma^2)\,dt$.
   \item The RKHS norm penalizes ``roughness'': rapidly oscillating
   functions have large $\norm{f}_{\hk}$.
@@ -1811,7 +1811,7 @@ of \emph{every} degree.
 \end{intuition}
 
 % ══════════════════════════════════════════════════════════════
-\section{Summary of Key Relationships}
+\section{Summary of key relationships}
 \label{rkhs:sec:summary}
 % ══════════════════════════════════════════════════════════════
 
@@ -1844,22 +1844,22 @@ Kernelized problem & $\min_{\vect{\alpha}}
 \end{center}
 
 % ══════════════════════════════════════════════════════════════
-\section{Application: Manifold Regularization}
+\section{Application: manifold regularization}
 \label{rkhs:sec:applications}
 % ══════════════════════════════════════════════════════════════
 
 The RKHS framework becomes particularly powerful in
-\textbf{semi-supervised learning}, where we have few labeled
-examples but many unlabeled ones. This is the rule, not the
-exception, in real-world applications: labeling requires human
-effort, but unlabeled data is abundant.
+\textbf{semi-supervised learning}, where we have few labelled
+examples but many unlabelled ones. This is the rule, not the
+exception, in real-world applications: labelling requires human
+effort, but unlabelled data is abundant.
 
-\begin{intuition}[The Fundamental Challenge]
-How can unlabeled data possibly help? If we only have inputs
+\begin{intuition}[The fundamental challenge]
+How can unlabelled data possibly help? If we only have inputs
 $x_1,\ldots,x_n$ without labels, what additional information do
 they provide about the function $f$ we want to learn?
 
-\textbf{Key idea:} The unlabeled data reveal the \emph{geometry}
+\textbf{Key idea:} The unlabelled data reveal the \emph{geometry}
 of the data distribution. If two points $x_i$ and $x_j$ are
 connected by a high-density path in input space (high-weight edges),
 their predictions $f(x_i)$ and $f(x_j)$ should be similar. This is the
@@ -1868,7 +1868,7 @@ manifold, and the target function varies smoothly along it.
 \end{intuition}
 
 % ────────────────────────────
-\subsection{The Manifold Assumption in Pictures}
+\subsection{The manifold assumption in pictures}
 \label{rkhs:subsec:manifold_intuition}
 
 \begin{figure}[ht]
@@ -1995,10 +1995,10 @@ manifold, and the target function varies smoothly along it.
   \node[font=\small] at (0.8, -2.5) {With manifold regularization};
 \end{scope}
 \end{tikzpicture}
-\caption{Why unlabeled data matter. \textbf{Left:} Only four labeled
+\caption{Why unlabelled data matter. \textbf{Left:} Only four labelled
 points on a Swiss roll manifold. \textbf{Middle:} A pure supervised
 method overfits. \textbf{Right:} Manifold regularization uses graph
-connections (gray edges) to enforce smoothness along the manifold.}
+connections (grey edges) to enforce smoothness along the manifold.}
 \label{rkhs:fig:manifold_motivation}
 \end{figure}
 
@@ -2013,21 +2013,21 @@ To encode the geometry of the data we build a \emph{similarity graph} on all $n$
 \end{equation}
 The quadratic form is small when $f$ varies little across heavy edges, that is, along the data manifold as sampled by the graph.
 
-\subsection{The Manifold Regularization Objective}
+\subsection{The manifold regularization objective}
 \label{rkhs:subsec:manifold_objective}
 
 We now combine two sources of information:
 
 \begin{enumerate}[label=\textbf{(\roman*)}]
-  \item \textbf{Labeled data:} Supervised loss $\sum_{i=1}^l \ell(f(x_i), y_i)$.
-  \item \textbf{Unlabeled data geometry:} Graph smoothness penalty
+  \item \textbf{Labelled data:} Supervised loss $\sum_{i=1}^l \ell(f(x_i), y_i)$.
+  \item \textbf{Unlabelled data geometry:} Graph smoothness penalty
     $\mat{f}^\top \mat{L} \mat{f}$.
 \end{enumerate}
 
-\begin{theorem}[Manifold Regularization]
+\begin{theorem}[Manifold regularization]
 \label{rkhs:thm:manifold_reg}
 Let $\hk$ be an RKHS with kernel $K$, and let $x_1,\ldots,x_n \in \X$
-be all available data points, of which the first $l$ are labeled with
+be all available data points, of which the first $l$ are labelled with
 targets $y_1,\ldots,y_l \in \R$. Construct a graph over all $n$ points
 with Laplacian $\mat{L}$. Consider:
 \begin{equation}
@@ -2047,7 +2047,7 @@ Then the minimizer admits the following representation:
 \end{equation}
 \end{theorem}
 
-\begin{intuition}[Two Regularizers, Two Types of Smoothness]
+\begin{intuition}[Two regularizers, two types of smoothness]
 The two penalty terms encode complementary inductive biases:
 
 \begin{itemize}
@@ -2062,19 +2062,19 @@ The two penalty terms encode complementary inductive biases:
 \end{itemize}
 
 The ratio $\gamma_I / \gamma_A$ controls how much we trust the
-unlabeled data geometry versus the supervised signal. When
+unlabelled data geometry versus the supervised signal. When
 $\gamma_I = 0$, we recover standard supervised kernel methods.
 \end{intuition}
 
 % ────────────────────────────
-\subsection{Proof of the Extended Representer Theorem}
+\subsection{Proof of the extended representer theorem}
 \label{rkhs:subsec:manifold_representer_proof}
 
 Why does the solution still have the form $\sum_{i=1}^n \alpha_i
 K(\cdot, x_i)$, now using \textbf{all} $n$ points? The proof is an
 elegant extension of the classical Representer Theorem.
 
-\begin{proof}[Proof Sketch]
+\begin{proof}[Proof sketch]
 Let $M = \spn\{K(\cdot, x_1), \ldots, K(\cdot, x_n)\} \subseteq \hk$.
 Any $f \in \hk$ decomposes as $f = f_\parallel + f_\perp$ with
 $f_\parallel \in M$ and $f_\perp \in M^\perp$.
@@ -2104,12 +2104,12 @@ $f^* = \sum_{i=1}^n \alpha_i K(\cdot, x_i)$.
 \begin{remark}
 The crucial difference from the classical Representer Theorem: the
 intrinsic regularizer involves \emph{evaluations} $f(x_i)$ at
-\textbf{all} $n$ points, not just the labeled ones. This is why the
+\textbf{all} $n$ points, not just the labelled ones. This is why the
 expansion now includes \emph{every} data point.
 \end{remark}
 
 % ────────────────────────────
-\subsection{Kernelization: The Manifold Regularization Algorithm}
+\subsection{Kernelization: the manifold regularization algorithm}
 \label{rkhs:subsec:manifold_kernelization}
 
 As in Section~\ref{rkhs:sec:representer}, substitute
@@ -2123,7 +2123,7 @@ $f(x) = \sum_{j=1}^n \alpha_j K(x, x_j)$ into the objective.
   = \vect{\alpha}^\top \mat{K} \mat{L} \mat{K} \vect{\alpha}.
 \end{align*}
 
-\begin{theorem}[Kernelized Manifold Regularization]
+\begin{theorem}[Kernelized manifold regularization]
 \label{rkhs:thm:manifold_kernelized}
 The manifold regularization problem~\eqref{rkhs:eq:manifold_reg} reduces to:
 \begin{equation}
@@ -2138,10 +2138,10 @@ hinge loss, logistic loss).
 \end{theorem}
 
 % ────────────────────────────
-\subsection{Concrete Example: Two Moons Dataset}
+\subsection{Concrete example: two moons dataset}
 \label{rkhs:subsec:manifold_example}
 
-For the squared loss, the kernelized problem \eqref{rkhs:eq:manifold_kernelized} is a quadratic in $\vect\alpha$. Let $\mat K_l$ be the $l\times n$ matrix of the rows of $\mat K$ that belong to labeled points, so that $(f(x_1), \ldots, f(x_l))^\top = \mat K_l\vect\alpha$. Setting the gradient of
+For the squared loss, the kernelized problem \eqref{rkhs:eq:manifold_kernelized} is a quadratic in $\vect\alpha$. Let $\mat K_l$ be the $l\times n$ matrix of the rows of $\mat K$ that belong to labelled points, so that $(f(x_1), \ldots, f(x_l))^\top = \mat K_l\vect\alpha$. Setting the gradient of
 \[
 \frac{1}{l} \|\mat{K}_l \vect{\alpha} - \mat{y}\|^2
 + \gamma_A \vect{\alpha}^\top \mat{K} \vect{\alpha}
@@ -2192,11 +2192,11 @@ With $\gamma_I = 0$ the problem is kernel ridge regression on four points: the d
 \node[font=\scriptsize, anchor=south east] at (axis cs:2.35,-0.78) {accuracy 100.0\%};
 \end{axis}
 \end{tikzpicture}
-\caption{Manifold regularization on the two moons (computed). Points are colored by the sign of the learned $f^*$; the four labeled points are drawn as large squares ($+1$) and triangles ($-1$). \textbf{Left:} without the intrinsic penalty the boundary ignores the shape of the data. \textbf{Right:} with it the two moons are separated exactly.}
+\caption{Manifold regularization on the two moons (computed). Points are coloured by the sign of the learned $f^*$; the four labelled points are drawn as large squares ($+1$) and triangles ($-1$). \textbf{Left:} without the intrinsic penalty the boundary ignores the shape of the data. \textbf{Right:} with it the two moons are separated exactly.}
 \label{rkhs:fig:two_moons}
 \end{figure}
 
-\subsection{Practical Considerations}
+\subsection{Practical considerations}
 \label{rkhs:subsec:manifold_practical}
 
 \begin{enumerate}[label=\textbf{\arabic*.}]
@@ -2229,7 +2229,7 @@ With $\gamma_I = 0$ the problem is kernel ridge regression on four points: the d
 \end{enumerate}
 
 % ────────────────────────────
-\subsection{Connection to Mercer's Theorem}
+\subsection{Connection to Mercer's theorem}
 \label{rkhs:subsec:manifold_mercer}
 
 The two regularizers can be understood through Mercer's theorem:
@@ -2245,7 +2245,7 @@ The two regularizers can be understood through Mercer's theorem:
 The two penalties are measured in different spectral bases: that of the integral operator of $K$ on the ambient space, and that of $\mat L$ on the sample. They agree only when the kernel already reflects the manifold, for instance when $K$ is itself built from the graph (as for the diffusion kernel $e^{-t\mat L}$).
 
 % ────────────────────────────
-\subsection{Summary: Why Manifold Regularization Works}
+\subsection{Summary: why manifold regularization works}
 \label{rkhs:subsec:manifold_summary}
 
 \begin{keyidea}[The manifold regularization recipe]
@@ -2259,7 +2259,7 @@ The two penalties are measured in different spectral bases: that of the integral
   \item \textbf{Predict} using $f(x) = \sum_{i=1}^n \alpha_i K(x, x_i)$.
 \end{enumerate}
 
-The magic: unlabeled data enter through:
+The magic: unlabelled data enter through:
 \begin{enumerate}[label=(\alph*)]
   \item The representation $f(x) = \sum_{i=1}^n \alpha_i K(x, x_i)$
     includes \textbf{all} points.
@@ -2271,7 +2271,7 @@ The magic: unlabeled data enter through:
 
 % ══════════════════════════════════════════════════════════════
 % ══════════════════════════════════════════════════════════════
-\section{Frequently Asked Questions}
+\section{Frequently asked questions}
 \label{rkhs:sec:faq}
 % ══════════════════════════════════════════════════════════════
 
@@ -2331,13 +2331,13 @@ eigenvalues) is the RKHS infinite-dimensional.
 \item The RKHS $\hk$ is the completion of the span of the functions $K(\cdot, x)$ under $\inner{K(\cdot,x)}{K(\cdot,x')} = K(x,x')$. It is the unique Hilbert space of functions with the reproducing property $f(x) = \inner{f}{K(\cdot,x)}$ (Moore--Aronszajn), and in it $\abs{f(x)} \le \sqrt{K(x,x)}\norm{f}_{\hk}$.
 \item Representer theorem: a minimizer of $\sum_i\ell(f(x_i),y_i) + \lambda\norm{f}_{\hk}^2$ is $\sum_i\alpha_iK(\cdot,x_i)$, because the component orthogonal to the span of the $K(\cdot,x_i)$ does not change the loss and increases the penalty. The problem becomes $\min_{\vect\alpha}\sum_i\ell((\mat K\vect\alpha)_i,y_i) + \lambda\vect\alpha^\top\mat K\vect\alpha$; for the squared loss, $\vect\alpha = (\mat K + \lambda\mat I)^{-1}\mat y$.
 \item Linear and polynomial kernels have finite-dimensional RKHSs (linear functions, polynomials); the Gaussian kernel has an infinite-dimensional RKHS of smooth functions. By Mercer's theorem $\norm{f}_{\hk}^2 = \sum_ka_k^2/\lambda_k$, a penalty on high-frequency components.
-\item Manifold regularization adds the graph penalty $\mat f^\top\mat L\mat f$ built from labeled and unlabeled points; the minimizer is still a kernel expansion, now over all $n$ points, and for the squared loss it solves a linear system (LapRLS).
+\item Manifold regularization adds the graph penalty $\mat f^\top\mat L\mat f$ built from labelled and unlabelled points; the minimizer is still a kernel expansion, now over all $n$ points, and for the squared loss it solves a linear system (LapRLS).
 \end{itemize}
 \end{chaptersummary}
 
 \chapterappendix
 
-\section{Appendix: Mercer's Theorem (Spectral Characterization)}
+\section{Appendix: Mercer's theorem (spectral characterization)}
 \label{rkhs:sec:mercer}
 % ══════════════════════════════════════════════════════════════
 
@@ -2345,7 +2345,7 @@ For continuous kernels on compact domains, Mercer's theorem provides a
 spectral decomposition that connects the kernel to the RKHS in an
 illuminating way.
 
-\begin{theorem}[Mercer's Theorem]
+\begin{theorem}[Mercer's theorem]
 \label{rkhs:thm:mercer}
 Let $\X$ be a compact subset of $\R^d$ and $K: \X \times \X \to \R$ a
 continuous positive definite kernel. Then there exist eigenvalues
@@ -2375,7 +2375,7 @@ where the convergence is absolute and uniform.
   by the RKHS norm.
 \end{itemize}
 
-\begin{example}[Mercer Expansion of the Gaussian Kernel
+\begin{example}[Mercer expansion of the Gaussian kernel
 on {$[0,1]$}]
 For the Gaussian kernel with $\sigma = 0.3$ on $[0,1]$ (with the uniform measure), the eigenvalues, computed numerically and divided by the largest, are $1,\ 0.49,\ 0.16,\ 0.036,\ 0.0063,\ 8.8\times10^{-4},\ 1.0\times10^{-4},\ 10^{-5}$. The ratio of consecutive eigenvalues itself decreases ($0.49, 0.32, 0.23, 0.17, \ldots$), so the decay is faster than geometric; for analytic kernels such as the Gaussian this super-geometric decay is the general rule. This rapid decay means:
 
@@ -2388,7 +2388,7 @@ For the Gaussian kernel with $\sigma = 0.3$ on $[0,1]$ (with the uniform measure
 \end{enumerate}
 \end{example}
 
-\begin{intuition}[Mercer's Theorem Demystifies the RKHS Norm]
+\begin{intuition}[Mercer's theorem demystifies the RKHS norm]
 The RKHS norm $\norm{f}_{\hk}^2 = \sum_k a_k^2/\lambda_k$ has a
 transparent interpretation:
 \begin{itemize}

@@ -139,7 +139,7 @@ has never seen.
 \begin{pitfall}[Missing is not zero]
 If every entry were observed, all items could be updated at once:
 $Q = R^\top P(P^\top P + \lambda I)^{-1}$. Applying this formula to a matrix whose missing entries are
-filled with zeros treats them as observed ratings of $0$, which biases the factors toward
+filled with zeros treats them as observed ratings of $0$, which biases the factors towards
 predicting low ratings. That is the right model only for \emph{implicit feedback}, where a zero
 genuinely means ``no interaction'' (and then usually with confidence weights). With explicit
 ratings, each user and each item has its own matrix $Q_{\mathcal J_i}^\top Q_{\mathcal J_i} + \lambda I$.

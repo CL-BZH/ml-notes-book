@@ -17,11 +17,11 @@
 \chaptersubtitle{Label propagation, correct and smooth, graph regularization and GNNs}
 
 \begin{chapterintro}
-In node classification only a few nodes of a graph carry labels, and the task is to label the rest. Unlabeled nodes help because of \emph{homophily}: connected nodes tend to share labels, so the graph tells us where labels should be similar. This chapter develops the main families of methods that exploit this, from the oldest to the most recent: label propagation and label spreading, which diffuse labels through the graph and solve a Dirichlet problem or a regularized least-squares problem; correct and smooth, which diffuses the errors and the predictions of a base model; graph regularization (including manifold regularization and neural graph learning), which adds the Laplacian quadratic form to a training loss; graph neural networks trained on the labeled nodes only; and self-supervised pretraining by masked prediction. All of them minimize, exactly or approximately, the variation of a signal across edges. You will learn
+In node classification only a few nodes of a graph carry labels, and the task is to label the rest. Unlabelled nodes help because of \emph{homophily}: connected nodes tend to share labels, so the graph tells us where labels should be similar. This chapter develops the main families of methods that exploit this, from the oldest to the most recent: label propagation and label spreading, which diffuse labels through the graph and solve a Dirichlet problem or a regularized least-squares problem; correct and smooth, which diffuses the errors and the predictions of a base model; graph regularization (including manifold regularization and neural graph learning), which adds the Laplacian quadratic form to a training loss; graph neural networks trained on the labelled nodes only; and self-supervised pretraining by masked prediction. All of them minimize, exactly or approximately, the variation of a signal across edges. You will learn
 \begin{itemize}[nosep]
   \item the closed forms of label propagation and label spreading, why the iterations converge, and the harmonic and variational characterizations;
   \item the two stages of correct and smooth and the optimization problems they solve, on a computed example;
-  \item how the Laplacian penalty enters regularized training, and how unlabeled nodes enter GNN training;
+  \item how the Laplacian penalty enters regularized training, and how unlabelled nodes enter GNN training;
   \item masked pretraining for GNNs, and how to choose among the methods.
 \end{itemize}
 \prerequisites{\cref{ch:harmonic-functions} (harmonic functions, Dirichlet problem), \cref{ch:graph-laplacians} (Laplacians), \cref{ch:dft-to-gnn} (GCN, GraphSAGE, GAT) and \cref{ch:rkhs} (manifold regularization).}
@@ -29,9 +29,9 @@ In node classification only a few nodes of a graph carry labels, and the task is
 
 \section{Introduction}
 
-\subsection{The Semi-Supervised Learning Paradigm}
+\subsection{The semi-supervised learning paradigm}
 
-\begin{definition}[Learning Paradigms]
+\begin{definition}[Learning paradigms]
 \label{semi-supervised-graphs:def:paradigms}
 \leavevmode
 \begin{enumerate}
@@ -39,8 +39,8 @@ In node classification only a few nodes of a graph carry labels, and the task is
       with all labels known, learn $f: \mathcal{X} \to \mathcal{Y}$.
     \item \textbf{Unsupervised Learning}: Given $\mathcal{D} = \{x_i\}_{i=1}^n$
       with no labels, discover structure (clusters, manifolds, etc.).
-    \item \textbf{Semi-Supervised Learning}: Given labeled set
-      $\mathcal{D}_L = \{(x_i, y_i)\}_{i=1}^l$ and unlabeled set
+    \item \textbf{Semi-Supervised Learning}: Given labelled set
+      $\mathcal{D}_L = \{(x_i, y_i)\}_{i=1}^l$ and unlabelled set
       $\mathcal{D}_U = \{x_i\}_{i=l+1}^{l+u}$ where typically $u \gg l$,
       exploit both to improve over using $\mathcal{D}_L$ alone.
 \end{enumerate}
@@ -50,13 +50,13 @@ In node classification only a few nodes of a graph carry labels, and the task is
 \textbf{Why Semi-Supervised Learning Matters:}
 In many domains, obtaining labels is expensive (medical diagnosis requires
 expert annotations, web-page classification faces billions of pages with few
-labeled), while unlabeled data is abundant and encodes the underlying data
+labelled), while unlabelled data is abundant and encodes the underlying data
 distribution.
 \end{intuition}
 
-\subsection{Semi-Supervised Learning on Graphs}
+\subsection{Semi-supervised learning on graphs}
 
-\begin{definition}[Semi-Supervised Graph Setting]
+\begin{definition}[Semi-supervised graph setting]
 \label{semi-supervised-graphs:def:ssl_graph}
 Let $G = (V, E, A, X, Y_L)$ where:
 \begin{itemize}
@@ -73,13 +73,13 @@ Goal: predict $\hat{y}_i \in \mathcal{Y}$ for every $i \in \mathcal{V}_U =
 V \setminus \mathcal{V}_L$.
 \end{definition}
 
-\begin{assumption}[Graph Smoothness / Homophily]
+\begin{assumption}[Graph smoothness / homophily]
 \label{semi-supervised-graphs:ass:smoothness}
 Connected nodes tend to share the same label: if $\{v_i, v_j\} \in E$ with
 weight $A_{ij}$, the probability that $y_i = y_j$ increases with $A_{ij}$.
 \end{assumption}
 
-\begin{remark}[Homophily vs.\ Heterophily]
+\begin{remark}[Homophily vs.\ heterophily]
 \label{semi-supervised-graphs:rem:heterophily}
 Assumption~\ref{semi-supervised-graphs:ass:smoothness} is the \emph{homophily} regime. In
 \emph{heterophilic} graphs (e.g., dating networks, protein interactions),
@@ -87,32 +87,32 @@ connected nodes tend to have \emph{different} labels. Standard methods (label
 propagation, GCN) degrade under heterophily; see Zhu et al.\ (\emph{Beyond Homophily in Graph Neural Networks}, 2020) and Lim et al.\ (\emph{Large Scale Learning on Non-Homophilous Graphs}, 2021) for dedicated architectures.
 \end{remark}
 
-\subsection{Transductive vs.\ Inductive Learning}
+\subsection{Transductive vs.\ inductive learning}
 
-\begin{definition}[Transductive Learning]
-The unlabeled set $\mathcal{V}_U$ is known at training time. The model
+\begin{definition}[Transductive learning]
+The unlabelled set $\mathcal{V}_U$ is known at training time. The model
 predicts labels for \emph{these specific nodes} and cannot handle unseen nodes.
 \end{definition}
 
-\begin{definition}[Inductive Learning]
+\begin{definition}[Inductive learning]
 We learn a parametric function $f_\theta$ applicable to \emph{any} node
 (including those unseen during training), given its features and local graph
 structure.
 \end{definition}
 
-\section{Notation and Preliminaries}
+\section{Notation and preliminaries}
 \label{semi-supervised-graphs:sec:prelim}
 
 We use the graph notation of \cref{ch:graph-laplacians}, with plain capitals for matrices. A graph $G = (V, E, A)$ has nodes $V = \{v_1, \ldots, v_n\}$ and a nonnegative symmetric adjacency (weight) matrix $A$; $d_i = \sum_jA_{ij}$ is the degree, $D = \diag(d_1, \ldots, d_n)$, and $L = D - A$ is the Laplacian.
 
-\begin{definition}[Standing Assumptions]
+\begin{definition}[Standing assumptions]
 \label{semi-supervised-graphs:def:standing}
 Unless stated otherwise, every graph is undirected ($A = A^\top$), simple ($A_{ii} = 0$), connected, and nonnegatively weighted ($A_{ij} \ge 0$). In particular $d_i > 0$ for every node. A graph is \emph{$r$-regular} if $d_i = r$ for all $i$.
 \end{definition}
 
 Directed graphs (citation networks, the web) give an asymmetric $A$; the usual remedies are symmetrization $\frac12(A + A^\top)$ or a magnetic Laplacian (Zhang et al., \emph{MagNet: A Neural Network for Directed Graphs}, 2021), and \cref{ch:dft-to-gnn} discusses what goes wrong without them.
 
-\begin{theorem}[Laplacian Quadratic Form]
+\begin{theorem}[Laplacian quadratic form]
 \label{semi-supervised-graphs:thm:laplacian_quadratic}
 For an undirected graph and every $f \in \R^n$,
 \begin{equation}
@@ -143,26 +143,26 @@ For a connected undirected graph:
 (1) and (2) are direct. (3): $I - S = D^{-1/2}LD^{-1/2} \succeq 0$ gives eigenvalues $\le 1$. Similarly $I + S = D^{-1/2}(D + A)D^{-1/2}$, and $D + A \succeq 0$ because $x^\top(D + A)x = \sum_{\{i,j\}\in E}A_{ij}(x_i + x_j)^2 \ge 0$; this gives eigenvalues $\ge -1$. Finally $SD^{1/2}\mathbf 1 = D^{-1/2}A\mathbf 1 = D^{-1/2}D\mathbf 1 = D^{1/2}\mathbf 1$. (4) follows from (2) and (3).
 \end{proof}
 
-\begin{remark}[Row Sums of $S$]
+\begin{remark}[Row sums of $S$]
 \label{semi-supervised-graphs:rem:row_sums}
 Unlike $P$, the matrix $S$ is not stochastic: $\sum_jS_{ij} = d_i^{-1/2}\sum_jA_{ij}d_j^{-1/2}$, which equals $1$ for every $i$ only when the graph is regular. So diffusions with $S$ do not preserve the row sums of a label matrix; their outputs are scores, which can be renormalized if probabilities are wanted.
 \end{remark}
 
-\subsection{Random Walks on Graphs}
+\subsection{Random walks on graphs}
 \label{semi-supervised-graphs:subsec:random_walks}
 
-A random walk on $G$ moves from $v_i$ to $v_j$ with probability $P_{ij} = A_{ij}/d_i$. Its link with label propagation is the one of \cref{ch:harmonic-functions}: start a walk at an unlabeled node and stop it at the first labeled node it hits; the probability that it stops at a node of class $c$ is the label propagation score of class $c$ (\cref{semi-supervised-graphs:subsec:harmonic}). The iteration $Y^{(t)} = PY^{(t-1)}$ below advances such walks by one step, and nodes far from all labels converge slowly because walks from them take long to be absorbed.
+A random walk on $G$ moves from $v_i$ to $v_j$ with probability $P_{ij} = A_{ij}/d_i$. Its link with label propagation is the one of \cref{ch:harmonic-functions}: start a walk at an unlabelled node and stop it at the first labelled node it hits; the probability that it stops at a node of class $c$ is the label propagation score of class $c$ (\cref{semi-supervised-graphs:subsec:harmonic}). The iteration $Y^{(t)} = PY^{(t-1)}$ below advances such walks by one step, and nodes far from all labels converge slowly because walks from them take long to be absorbed.
 
 \paragraph{Kernels.} Manifold regularization (\cref{semi-supervised-graphs:subsec:manifold_reg}) works in the reproducing kernel Hilbert space $\mathcal H_K$ of a positive definite kernel $K$ with Gram matrix $\mathbf K_{ij} = K(x_i, x_j)$. We use the representer theorem and its kernelized form from \cref{ch:rkhs} (\cref{rkhs:thm:representer}).
 
-\subsection{The Spectral Radius}
+\subsection{The spectral radius}
 \label{semi-supervised-graphs:subsec:spectral_radius}
 
 Every iterative algorithm in this chapter (label propagation, label spreading,
 correct \& smooth) converges because a certain matrix has spectral radius less
 than 1. We define this concept here so it is ready when we need it.
 
-\begin{definition}[Spectral Radius]
+\begin{definition}[Spectral radius]
 \label{semi-supervised-graphs:def:spectral_radius}
 Let $M \in \R^{n \times n}$. A scalar $\lambda \in \mathbb{C}$ is an
 \textbf{eigenvalue} of $M$ if there exists a nonzero vector $v$ with
@@ -176,7 +176,7 @@ eigenvalue magnitude:
 The spectral radius tells us whether repeatedly multiplying by $M$ amplifies
 or dampens:
 
-\begin{proposition}[Powers and the Spectral Radius]
+\begin{proposition}[Powers and the spectral radius]
 \label{semi-supervised-graphs:prop:spectral_powers}
 $M^t \to 0$ as $t \to \infty$ if and only if $\rho(M) < 1$.
 \end{proposition}
@@ -185,7 +185,7 @@ $M^t \to 0$ as $t \to \infty$ if and only if $\rho(M) < 1$.
 See Appendix~\ref{semi-supervised-graphs:app:spectral_radius}.
 \end{proof}
 
-\begin{example}[Spectral Radius]
+\begin{example}[Spectral radius]
 For $M = \begin{psmallmatrix} 0 & 1/2 \\ 1/2 & 0 \end{psmallmatrix}$,
 eigenvalues are $\pm 1/2$, so $\rho(M) = 1/2 < 1$. Indeed:
 $M^2 = \frac{1}{4}I$, $M^4 = \frac{1}{16}I$, $M^t \to 0$.
@@ -195,20 +195,20 @@ eigenvalues are $\pm 1$, so $\rho(M) = 1$, and $M^t$ oscillates without
 converging to 0.
 \end{example}
 
-\subsection{Label Matrix and Partitioning}
+\subsection{Label matrix and partitioning}
 
-\begin{definition}[Label Matrix]
+\begin{definition}[Label matrix]
 \label{semi-supervised-graphs:def:label_matrix}
 For $C$-class classification, the \textbf{label matrix} $Y \in \R^{n \times C}$
 encodes class assignments: $Y_{ic} = 1$ if node $v_i$ has label $c$, and
-$Y_{ic} = 0$ otherwise. For labeled nodes, row $Y_i$ is a one-hot vector;
-for unlabeled nodes, $Y_i = \mathbf{0}^\top$ (all zeros).
+$Y_{ic} = 0$ otherwise. For labelled nodes, row $Y_i$ is a one-hot vector;
+for unlabelled nodes, $Y_i = \mathbf{0}^\top$ (all zeros).
 \end{definition}
 
-\begin{definition}[Block Partitioning]
+\begin{definition}[Block partitioning]
 \label{semi-supervised-graphs:def:partitioning}
-Reorder nodes so that the $l$ labeled nodes come first, followed by the $u$
-unlabeled nodes ($l + u = n$). This induces a $2\times 2$ block structure on
+Reorder nodes so that the $l$ labelled nodes come first, followed by the $u$
+unlabelled nodes ($l + u = n$). This induces a $2\times 2$ block structure on
 every $n \times n$ matrix:
 \[
 Y = \begin{pmatrix} Y_L \\ Y_U \end{pmatrix}, \quad
@@ -217,12 +217,12 @@ P = \begin{pmatrix} P_{LL} & P_{LU} \\ P_{UL} & P_{UU} \end{pmatrix}
 \]
 where $Y_L \in \R^{l \times C}$ contains the known labels,
 $Y_U \in \R^{u \times C}$ is initially zero,
-$A_{LU} \in \R^{l \times u}$ encodes edges \emph{between} labeled and
-unlabeled nodes, etc.
+$A_{LU} \in \R^{l \times u}$ encodes edges \emph{between} labelled and
+unlabelled nodes, etc.
 \end{definition}
 
-\begin{example}[Label Matrix and Partitioning on a 6-Node Graph]
-Consider a graph with 6 nodes, 2 classes (Red $=1$, Green $=2$), and 2 labeled
+\begin{example}[Label matrix and partitioning on a 6-node graph]
+Consider a graph with 6 nodes, 2 classes (Red $=1$, Green $=2$), and 2 labelled
 nodes ($v_1$: Red, $v_2$: Green):
 
 \begin{center}
@@ -262,8 +262,8 @@ nodes ($v_1$: Red, $v_2$: Green):
 \end{tikzpicture}
 \end{center}
 
-\textbf{Labeled set:} $\mathcal{V}_L = \{v_1, v_2\}$ (nodes come first after
-reordering). \textbf{Unlabeled set:} $\mathcal{V}_U = \{v_3, v_4, v_5, v_6\}$.
+\textbf{Labelled set:} $\mathcal{V}_L = \{v_1, v_2\}$ (nodes come first after
+reordering). \textbf{Unlabelled set:} $\mathcal{V}_U = \{v_3, v_4, v_5, v_6\}$.
 
 \textbf{Label matrix} ($C = 2$ classes):
 \[
@@ -290,9 +290,9 @@ A = \left(\begin{array}{cc|cccc}
 \]
 
 Reading the blocks: $A_{LU} = \bigl(\begin{smallmatrix} 1&1&0&0 \\ 0&1&1&0
-\end{smallmatrix}\bigr)$ encodes which unlabeled nodes are neighbors of each
-labeled node (e.g., $v_1$ connects to $v_3, v_4$). $A_{UU}$ encodes edges
-among unlabeled nodes only.
+\end{smallmatrix}\bigr)$ encodes which unlabelled nodes are neighbours of each
+labelled node (e.g., $v_1$ connects to $v_3, v_4$). $A_{UU}$ encodes edges
+among unlabelled nodes only.
 
 \textbf{Transition matrix} $P = D^{-1}A$ with $D = \diag(2, 2, 3, 4, 2, 3)$:
 \[
@@ -303,52 +303,52 @@ P_{UU} = \begin{pmatrix} 0 & 1/3 & 0 & 1/3 \\ 1/4 & 0 & 0 & 1/4 \\
 \]
 
 \textbf{Interpretation:} $P_{UL}$ tells us how much ``label information'' each
-unlabeled node receives directly from labeled nodes. For instance, $v_4$ gets
+unlabelled node receives directly from labelled nodes. For instance, $v_4$ gets
 $1/4$ of its weight from $v_1$ (Red) and $1/4$ from $v_2$ (Green). Node $v_6$
 has $P_{v_6, L} = (0, 0)$: it receives \emph{no direct label information}---
 it can only be classified through multi-hop propagation via $P_{UU}$.
 \end{example}
 
 
-\section{Label Propagation Algorithms}
+\section{Label propagation algorithms}
 \label{semi-supervised-graphs:sec:lp}
 
 We now turn to the central question of this chapter: given a graph with a
-few labeled nodes and many unlabeled ones, how do we predict the labels of the
-unlabeled nodes using only the graph structure (no node features)?
+few labelled nodes and many unlabelled ones, how do we predict the labels of the
+unlabelled nodes using only the graph structure (no node features)?
 
 The core idea is remarkably intuitive: \emph{let each node adopt the
-consensus of its neighbors}. If we repeat this averaging process---while
-keeping the labeled nodes fixed---the label information gradually diffuses
+consensus of its neighbours}. If we repeat this averaging process---while
+keeping the labelled nodes fixed---the label information gradually diffuses
 through the graph until every node has a prediction. This is
 \textbf{label propagation}.
 
 \begin{intuition}
 \textbf{Diffusion analogy.} Think of the graph as a network of pipes
-connecting containers of water. Labeled nodes are faucets held at fixed
+connecting containers of water. Labelled nodes are faucets held at fixed
 temperatures: class $A =$ ``hot,'' class $B =$ ``cold.'' At each time step,
-every container equilibrates with its neighbors. Over time, the temperature
+every container equilibrates with its neighbours. Over time, the temperature
 field reaches a smooth interpolation---hot near class~$A$ sources, cold near
 class~$B$, and tepid in between. Label propagation formalizes this process
 using the transition matrix $P = D^{-1}A$ from
 Section~\ref{semi-supervised-graphs:subsec:random_walks}.
 \end{intuition}
 
-\subsection{Label Propagation (Zhu \& Ghahramani, 2002)}
+\subsection{Label propagation (Zhu \& Ghahramani, 2002)}
 \label{semi-supervised-graphs:subsec:lp_algo}
 
 \begin{algorithm}[H]
 \caption{Label Propagation (Zhu and Ghahramani, 2002)}
 \label{semi-supervised-graphs:alg:label_prop}
 \begin{algorithmic}[1]
-\State \textbf{Input:} Graph $G$, labeled set $\mathcal{V}_L$, labels $Y_L$,
+\State \textbf{Input:} Graph $G$, labelled set $\mathcal{V}_L$, labels $Y_L$,
         max iterations $T$, tolerance $\epsilon$
 \State \textbf{Initialize:} $Y_U^{(0)} = \mathbf{0}$
 \State Compute $P = D^{-1}A$
 \For{$t = 1, 2, \ldots, T$}
     \State $Y^{(t)} = P \, Y^{(t-1)}$
-      \Comment{Diffuse: each node averages its neighbors}
-    \State $Y_L^{(t)} = Y_L$ \Comment{Clamp: reset labeled nodes}
+      \Comment{Diffuse: each node averages its neighbours}
+    \State $Y_L^{(t)} = Y_L$ \Comment{Clamp: reset labelled nodes}
     \If{$\|Y^{(t)} - Y^{(t-1)}\|_F < \epsilon$} \textbf{break} \EndIf
 \EndFor
 \State \textbf{Output:} $\hat{y}_i = \argmax_c Y_{ic}^{(T)}$ for
@@ -357,50 +357,50 @@ Section~\ref{semi-supervised-graphs:subsec:random_walks}.
 \end{algorithm}
 
 The algorithm alternates two operations. \textbf{Diffuse} (step~5): every
-node---labeled and unlabeled---replaces its current label distribution by the
-weighted average of its neighbors' distributions. This is simply
+node---labelled and unlabelled---replaces its current label distribution by the
+weighted average of its neighbours' distributions. This is simply
 multiplication by the transition matrix $P$. \textbf{Clamp} (step~6): the
-labeled nodes are reset to their known labels, undoing any change the
+labelled nodes are reset to their known labels, undoing any change the
 diffusion made to them.
 
 Why is clamping necessary? Without it, the original labels would be diluted
 and eventually lost---every node would converge to the same global average.
-Clamping ensures that labeled nodes act as permanent ``anchors'' that
+Clamping ensures that labelled nodes act as permanent ``anchors'' that
 continually inject label information into the graph.
 
 In the block-partitioned form (Definition~\ref{semi-supervised-graphs:def:partitioning}), clamping
-means the update for unlabeled nodes is:
+means the update for unlabelled nodes is:
 \begin{equation}
 \label{semi-supervised-graphs:eq:lp_update}
 Y_U^{(t)} = P_{UL}\,Y_L + P_{UU}\,Y_U^{(t-1)}
 \end{equation}
-The first term $P_{UL}Y_L$ is the direct contribution from labeled neighbors
+The first term $P_{UL}Y_L$ is the direct contribution from labelled neighbours
 (constant across iterations, thanks to clamping). The second term
-$P_{UU}Y_U^{(t-1)}$ is the contribution from other unlabeled neighbors,
+$P_{UU}Y_U^{(t-1)}$ is the contribution from other unlabelled neighbours,
 which evolves over time.
 
-\subsection{Convergence and Closed-Form Solution}
+\subsection{Convergence and closed-form solution}
 
 Does the iteration~\eqref{semi-supervised-graphs:eq:lp_update} converge? If so, to what?
 
-\begin{theorem}[Closed-Form Solution and Convergence]
+\begin{theorem}[Closed-form solution and convergence]
 \label{semi-supervised-graphs:thm:lp_closed}
 Let $G$ be a connected graph (Standing Assumption~\ref{semi-supervised-graphs:def:standing}) with at
-least one labeled node. Then label propagation converges to
+least one labelled node. Then label propagation converges to
 $Y_U^* = (I - P_{UU})^{-1}P_{UL}Y_L$.
 \end{theorem}
 
 \begin{pitfall}
 \textbf{Connectivity is essential.} This is the first place in the chapter
 where connectivity is genuinely used. If $G$ is disconnected, consider an
-unlabeled node $v_i$ in a connected component that contains \emph{no} labeled
-nodes. Every neighbor of $v_i$ is also unlabeled, so
+unlabelled node $v_i$ in a connected component that contains \emph{no} labelled
+nodes. Every neighbour of $v_i$ is also unlabelled, so
 $\sum_{j \in \mathcal{V}_U}(P_{UU})_{ij} = \sum_j P_{ij} = 1$: no
-probability leaks to labeled nodes. On such a component, $P_{UU}$ is
+probability leaks to labelled nodes. On such a component, $P_{UU}$ is
 (fully) stochastic, $\rho(P_{UU}) = 1$, and the iteration does not converge.
 In practice, if a graph has multiple connected components, label propagation
 must be applied to each component separately, and any component without
-labeled nodes cannot be classified by this method.
+labelled nodes cannot be classified by this method.
 \end{pitfall}
 
 \begin{proof}
@@ -417,7 +417,7 @@ row sums:
 where $\ell_i \geq 0$ is the \textbf{one-step escape probability} at $v_i$:
 the probability that a random walker at $v_i$ jumps directly into
 $\mathcal{V}_L$ in one step. Since $G$ is connected and has at least one
-labeled node, every unlabeled node $v_i$ adjacent to a labeled node satisfies
+labelled node, every unlabelled node $v_i$ adjacent to a labelled node satisfies
 $\ell_i > 0$, giving a strictly sub-unit row sum. A non-negative matrix whose
 row sums are all $\leq 1$ with at least one strictly $< 1$ is called
 \textbf{sub-stochastic}. We show in Appendix~\ref{semi-supervised-graphs:app:substochastic} that
@@ -456,7 +456,7 @@ e^{(t)} &= Y_U^{(t)} - Y_U^* \notag\\
  - \bigl(P_{UL}Y_L + P_{UU}Y_U^*\bigr) \notag\\
 &= P_{UU}\bigl(Y_U^{(t-1)} - Y_U^*\bigr) = P_{UU}\,e^{(t-1)}.
 \end{align}
-The $P_{UL}Y_L$ terms cancel because clamping keeps the labeled contribution
+The $P_{UL}Y_L$ terms cancel because clamping keeps the labelled contribution
 identical at every step. Applying the recurrence:
 $e^{(t)} = P_{UU}^t\,e^{(0)}$.
 Since $\rho(P_{UU}) < 1$, Proposition~\ref{semi-supervised-graphs:prop:spectral_powers} gives
@@ -467,14 +467,14 @@ $P_{UU}^t \to 0$, hence $e^{(t)} \to 0$ and $Y_U^{(t)} \to Y_U^*$.
 \label{semi-supervised-graphs:rem:why_iterative}
 The closed-form $Y_U^* = (I - P_{UU})^{-1}P_{UL}Y_L$ is elegant but
 requires inverting a $u \times u$ matrix ($O(u^3)$ operations). For
-$u = 10^6$ unlabeled nodes, this is intractable. By contrast, each iteration
+$u = 10^6$ unlabelled nodes, this is intractable. By contrast, each iteration
 of~\eqref{semi-supervised-graphs:eq:lp_update} costs only $O(|E| \cdot C)$---one sparse
 matrix-vector product per class---and convergence typically takes 10--50
 iterations. The iterative form is therefore the practical choice for large
 graphs.
 \end{remark}
 
-\subsection{The Harmonic Property}
+\subsection{The harmonic property}
 \label{semi-supervised-graphs:subsec:harmonic}
 
 The closed-form solution has an elegant mathematical characterization that
@@ -487,12 +487,12 @@ is the unique solution to a well-posed mathematical problem.
 
 In everyday language, a function is ``harmonic'' at a point if its value there
 equals the average of its values nearby. On a graph, ``nearby'' means
-``neighbors'':
+``neighbours'':
 
-\begin{definition}[Harmonic Function on a Graph]
+\begin{definition}[Harmonic function on a graph]
 \label{semi-supervised-graphs:def:harmonic}
 A function $f: V \to \R$ is \textbf{harmonic at node $v_i$} if its value
-equals the weighted average of $f$ over the neighbors of $v_i$:
+equals the weighted average of $f$ over the neighbours of $v_i$:
 \begin{equation}
 \label{semi-supervised-graphs:eq:harmonic_condition}
 f(v_i) = \sum_{j \in \mathcal{N}(i)} \frac{A_{ij}}{d_i}\,f(v_j)
@@ -504,10 +504,10 @@ every node in $S$.
 
 In other words, a harmonic function has \emph{no local extrema} on the
 interior: no node can have a value strictly larger (or smaller) than all its
-neighbors. Its value is always a compromise between its neighbors' values.
+neighbours. Its value is always a compromise between its neighbours' values.
 This is exactly what the diffusion process in label propagation produces---the
-iteration keeps averaging until every unlabeled node is at the ``consensus''
-of its neighborhood.
+iteration keeps averaging until every unlabelled node is at the ``consensus''
+of its neighbourhood.
 
 This is the graph version of the mean-value property of harmonic functions of \cref{ch:harmonic-functions}: equivalently, $(\mathcal L_{\mathrm{rw}}f)_i = f_i - \sum_jP_{ij}f_j = 0$, so harmonic at $v_i$ means in the kernel of the random-walk Laplacian at that node.
 
@@ -519,7 +519,7 @@ the temperature on the walls of a room and want to find the steady-state
 temperature at every point inside. This is a \emph{Dirichlet boundary value
 problem}.
 
-\begin{definition}[Dirichlet Boundary Value Problem on a Graph]
+\begin{definition}[Dirichlet boundary value problem on a graph]
 \label{semi-supervised-graphs:def:dirichlet}
 Given a graph $G$, a set of \textbf{boundary nodes} $\mathcal{V}_L$ with
 prescribed values $f(v_i) = y_i$ for $i \in \mathcal{V}_L$, find a function
@@ -529,13 +529,13 @@ values.
 \end{definition}
 
 The parallel to semi-supervised learning is immediate: the boundary
-nodes are the labeled nodes, the boundary values are the labels, and the
-interior is the set of unlabeled nodes whose values we seek. Label
+nodes are the labelled nodes, the boundary values are the labels, and the
+interior is the set of unlabelled nodes whose values we seek. Label
 propagation is literally solving a boundary value problem on the graph.
 
 \subsubsection*{Label propagation solves the Dirichlet problem}
 
-\begin{proposition}[Harmonic Property of Label Propagation]
+\begin{proposition}[Harmonic property of label propagation]
 \label{semi-supervised-graphs:prop:harmonic}
 The label propagation solution $Y_U^*$ is harmonic on $\mathcal{V}_U$ with
 Dirichlet boundary conditions $Y_L$. That is, label propagation solves the
@@ -544,7 +544,7 @@ discrete Dirichlet boundary value problem.
 
 \begin{proof}
 The proof is immediate from the fixed-point equation. At convergence, for
-each unlabeled node $i \in \mathcal{V}_U$:
+each unlabelled node $i \in \mathcal{V}_U$:
 \[
 Y_i^* = \sum_j P_{ij}\,Y_j^*
 \]
@@ -581,9 +581,9 @@ every condition by hand.
     \node[above=0.2cm, draw=none, font=\footnotesize, text=blue!70!black]
       at (U) {$Y_u^* = \;?$};
 \end{tikzpicture}
-\caption{Triangle graph with two labeled boundary nodes ($a$, $b$) and one
-  unlabeled interior node ($u$). Edge weights are shown. The harmonic solution
-  at $u$ must equal the weighted average of its neighbors' values.}
+\caption{Triangle graph with two labelled boundary nodes ($a$, $b$) and one
+  unlabelled interior node ($u$). Edge weights are shown. The harmonic solution
+  at $u$ must equal the weighted average of its neighbours' values.}
 \label{semi-supervised-graphs:fig:harmonic_triangle}
 \end{figure}
 
@@ -596,7 +596,7 @@ Y_u^* = P_{ua}\,y_a + P_{ub}\,y_b
 \]
 Node $u$ is predicted as class $B$ (Green) with probability $2/3$---reflecting
 the fact that its edge to $b$ is twice as strong as its edge to $a$. The
-stronger connection ``pulls'' $u$ toward $b$'s label, just as a heavier pipe
+stronger connection ``pulls'' $u$ towards $b$'s label, just as a heavier pipe
 carries more heat from a heat source.
 
 This is the unique harmonic function on $\{u\}$ with boundary values
@@ -607,7 +607,7 @@ averaging property.
 \textbf{Resistor network interpretation.} The connection between harmonic
 functions and electrical circuits is classical. Each edge with weight $A_{ij}$
 acts as a conductor with conductance $A_{ij}$ (resistance $1/A_{ij}$). The
-labeled nodes are connected to batteries at fixed voltages (class
+labelled nodes are connected to batteries at fixed voltages (class
 $A = 1\text{V}$, class $B = 0\text{V}$). By Kirchhoff's current law, the
 current flowing into any interior node must equal the current flowing out;
 this balance condition is precisely the harmonic
@@ -617,17 +617,17 @@ equilibrium voltages.
 In the triangle above, node $u$ is connected to the $1$V source (node $a$)
 by a conductor of conductance~$1$ and to the $0$V source (node $b$) by a
 conductor of conductance~$2$. More current flows from $b$ (higher
-conductance), pulling $u$'s voltage toward $0$V. The result,
+conductance), pulling $u$'s voltage towards $0$V. The result,
 $V_u = 1/3 \approx 0.33\text{V}$, is consistent with $Y_u^*[A] = 1/3$.
 \end{intuition}
 
-\subsection{Numerical Example}
+\subsection{Numerical example}
 \label{semi-supervised-graphs:subsec:lp_example}
 
-\begin{example}[Label Propagation on a Path Graph]
+\begin{example}[Label propagation on a path graph]
 \label{semi-supervised-graphs:ex:lp_path}
 Consider the simplest interesting case: a path graph with five nodes, where
-only the two endpoints are labeled.
+only the two endpoints are labelled.
 
 \begin{center}
 \begin{tikzpicture}[scale=1.5,
@@ -643,16 +643,16 @@ only the two endpoints are labeled.
 \end{tikzpicture}
 \end{center}
 
-The interior nodes $1, 2, 3$ are unlabeled. Since each interior node has
-exactly two neighbors, the transition matrix gives equal weight $1/2$ to each:
+The interior nodes $1, 2, 3$ are unlabelled. Since each interior node has
+exactly two neighbours, the transition matrix gives equal weight $1/2$ to each:
 
 $P_{UU} = \begin{psmallmatrix} 0 & 1/2 & 0 \\ 1/2 & 0 & 1/2 \\
 0 & 1/2 & 0 \end{psmallmatrix}$, \;
 $P_{UL} = \begin{psmallmatrix} 1/2 & 0 \\ 0 & 0 \\ 0 & 1/2 \end{psmallmatrix}$.
 
 \noindent Note that $P_{UU}$ is sub-stochastic: the rows of nodes 1 and 3 sum
-to $1/2$ (they each have a labeled neighbor), while node~2's row sums to~1
-(both neighbors are unlabeled). Nonetheless, since node~2 can reach a labeled
+to $1/2$ (they each have a labelled neighbour), while node~2's row sums to~1
+(both neighbours are unlabelled). Nonetheless, since node~2 can reach a labelled
 node in two steps, the walk eventually escapes, and $\rho(P_{UU}) < 1$.
 
 Solving $(I - P_{UU})Y_U^* = P_{UL}I_2$:
@@ -685,14 +685,14 @@ applies: a walk starting at node~1 reaches node~0 (class $A$) before node~4
 (class $B$) with probability $3/4$.
 \end{example}
 
-\subsection{Label Spreading (Zhou et al., 2004)}
+\subsection{Label spreading (Zhou et al., 2004)}
 \label{semi-supervised-graphs:subsec:ls}
 
-Label propagation's hard clamping means that if a labeled node has an
+Label propagation's hard clamping means that if a labelled node has an
 \emph{incorrect} label (noise), this error propagates permanently through the
 graph. Label spreading (Zhou et al., \emph{Learning with Local and Global Consistency}, 2004) introduces \textbf{soft clamping}:
-labeled nodes can be updated by the diffusion, but a ``spring'' force pulls
-them back toward their initial values:
+labelled nodes can be updated by the diffusion, but a ``spring'' force pulls
+them back towards their initial values:
 
 \begin{algorithm}[H]
 \caption{Label Spreading (Zhou et al., 2004)}
@@ -712,12 +712,12 @@ them back toward their initial values:
 \begin{itemize}
     \item Uses $S = D^{-1/2}AD^{-1/2}$ (symmetric, degree-normalized)
     instead of $P = D^{-1}A$ (row-stochastic)
-    \item Even labeled nodes are updated; the term $(1{-}\alpha)Y^{(0)}$
-    pulls them back toward initial values. Parameter $\alpha \to 1$:
+    \item Even labelled nodes are updated; the term $(1{-}\alpha)Y^{(0)}$
+    pulls them back towards initial values. Parameter $\alpha \to 1$:
     trust graph more; $\alpha \to 0$: trust labels more
 \end{itemize}
 
-\begin{theorem}[Label Spreading: Closed Form and Convergence]
+\begin{theorem}[Label spreading: closed form and convergence]
 \label{semi-supervised-graphs:thm:ls_closed}
 Label spreading converges to $Y^* = (1-\alpha)(I - \alpha S)^{-1}Y^{(0)}$, and
 the inverse exists for all $\alpha \in (0,1)$.
@@ -772,7 +772,7 @@ recurrence: $e^{(t)} = (\alpha S)^t\,e^{(0)}$. Since $\rho(\alpha S) \leq
 hence $e^{(t)} \to 0$ and $Y^{(t)} \to Y^*$.
 \end{proof}
 
-\begin{theorem}[Variational Formulation]
+\begin{theorem}[Variational formulation]
 \label{semi-supervised-graphs:thm:ls_energy}
 Label spreading minimizes a well-defined energy function that balances two
 competing objectives:
@@ -800,7 +800,7 @@ the initial labels.
 See Appendix~\ref{semi-supervised-graphs:app:ls_energy}.
 \end{proof}
 
-\section{Correct and Smooth}
+\section{Correct and smooth}
 \label{semi-supervised-graphs:sec:cs}
 
 Label propagation and label spreading operate directly on the label matrix
@@ -816,17 +816,17 @@ substantial improvements at near-zero additional cost.
 
 \begin{intuition}
 \textbf{Core idea:} Base model predictions contain systematic errors that are
-\emph{correlated along graph edges}. If node $v$ misclassifies, its neighbors
-likely make similar mistakes. We can estimate these errors from labeled nodes
-and propagate them to correct unlabeled nodes. Then we smooth the corrected
+\emph{correlated along graph edges}. If node $v$ misclassifies, its neighbours
+likely make similar mistakes. We can estimate these errors from labelled nodes
+and propagate them to correct unlabelled nodes. Then we smooth the corrected
 predictions to enforce local consistency.
 \end{intuition}
 
-\subsection{Intuition: Errors Are Contagious}
+\subsection{Intuition: errors are contagious}
 
 Consider a simple binary classification problem on a graph with high homophily.
 A base model (e.g., a multilayer perceptron trained only on node features)
-produces predictions $\hat{y}_i \in [0,1]$ for each node. On labeled nodes, we
+produces predictions $\hat{y}_i \in [0,1]$ for each node. On labelled nodes, we
 can compute the \textbf{training error}:
 \begin{equation}
 E_i = y_i - \hat{y}_i \quad \text{for } i \in \mathcal{V}_L
@@ -834,11 +834,11 @@ E_i = y_i - \hat{y}_i \quad \text{for } i \in \mathcal{V}_L
 
 These errors are not random noise---they reflect systematic biases in the base
 model. Crucially, due to homophily, if the base model under-predicts the
-probability of class $A$ for a labeled node, it likely under-predicts for that
-node's neighbors as well. Therefore, we can \textbf{propagate} these errors
-from labeled to unlabeled nodes to correct their predictions.
+probability of class $A$ for a labelled node, it likely under-predicts for that
+node's neighbours as well. Therefore, we can \textbf{propagate} these errors
+from labelled to unlabelled nodes to correct their predictions.
 
-\subsection{Stage 1: Correcting Predictions}
+\subsection{Stage 1: correcting predictions}
 
 Let $\hat{Y} \in \R^{n \times C}$ be the base model's soft predictions
 (typically logits or probabilities). Define the \textbf{error matrix}
@@ -870,7 +870,7 @@ The corrected predictions are:
 \end{keyidea}
 
 The hyperparameter $\alpha \in (0,1)$ controls how much error information flows
-from labeled nodes. Higher $\alpha$ means longer-range propagation. In practice,
+from labelled nodes. Higher $\alpha$ means longer-range propagation. In practice,
 $k$ is often set to a small integer (e.g., 5--10) rather than iterating to
 convergence.
 
@@ -881,7 +881,7 @@ its \emph{residuals}. This is analogous to boosting: we fit a model to the
 errors of a base learner.
 \end{remark}
 
-\subsection{Stage 2: Smoothing Predictions}
+\subsection{Stage 2: smoothing predictions}
 
 After correction, the predictions $\hat{Y}^{\text{corr}}$ may still be noisy
 and not locally consistent. The smoothing stage applies another round of
@@ -899,19 +899,19 @@ Z^* = (1-\beta)(I - \beta S)^{-1} \hat{Y}^{\text{corr}}
 \end{keyidea}
 
 Why smooth after correcting? The correction step adds a propagated error signal
-that may be noisy, especially for nodes far from labeled examples. Smoothing
-enforces that neighboring nodes have similar predictions, leveraging the graph
+that may be noisy, especially for nodes far from labelled examples. Smoothing
+enforces that neighbouring nodes have similar predictions, leveraging the graph
 homophily assumption.
 
 \begin{pitfall}
 \textbf{Critical:} Smoothing uses $\hat{Y}^{\text{corr}}$ as the ``base''
 predictions, not $\hat{Y}$. The term $(1-\beta)\hat{Y}^{\text{corr}}$ in each
-iteration pulls the smoothed predictions back toward the \emph{corrected} values,
+iteration pulls the smoothed predictions back towards the \emph{corrected} values,
 not the original noisy predictions. This prevents the smoothing step from
 undoing the correction.
 \end{pitfall}
 
-\subsection{Mathematical Justification}
+\subsection{Mathematical justification}
 
 C\&S can be understood as solving two separate graph-regularized optimization
 problems, each of the same form as label spreading
@@ -932,7 +932,7 @@ Both stages minimize an objective of the form
 \end{equation}
 for a ``target'' matrix $B$ and a trade-off parameter $\mu > 0$, the sum running over edges (each counted once). Its unique minimizer is $(I + \mu\,\mathcal{L}_{\mathrm{sym}})^{-1}B$, which equals the label-spreading form $(1-\alpha)(I - \alpha S)^{-1}B$ for $\alpha = \mu/(1+\mu)$, that is $\mu = \alpha/(1-\alpha)$ (proof in \cref{semi-supervised-graphs:app:cs_opt}). The two stages of C\&S are instances of this template with different targets $B$.
 
-\begin{theorem}[Correct Step as Optimization]
+\begin{theorem}[Correct step as optimization]
 \label{semi-supervised-graphs:thm:cs_correct_opt}
 The error propagation $E^* = (1-\alpha)(I - \alpha S)^{-1}E$ is the unique
 minimizer of:
@@ -943,11 +943,11 @@ minimizer of:
 \end{equation}
 That is, $E^*$ is the smoothest signal (in the normalized-Laplacian sense) that
 remains close to the observed error matrix $E$. Since $E$ is nonzero only on
-labeled nodes, the optimization spreads these errors to unlabeled nodes via the
+labelled nodes, the optimization spreads these errors to unlabelled nodes via the
 graph structure.
 \end{theorem}
 
-\begin{theorem}[Smooth Step as Optimization]
+\begin{theorem}[Smooth step as optimization]
 \label{semi-supervised-graphs:thm:cs_smooth_opt}
 The smoothed predictions $Z^* = (1-\beta)(I - \beta S)^{-1}\hat{Y}^{\text{corr}}$
 are the unique minimizer of:
@@ -972,11 +972,11 @@ not arbitrary damping parameters but control the trade-off between fidelity to
 the input ($\|F - B\|_F^2$) and graph smoothness. A large $\alpha$ (close to
 1) makes the smoothness term cheap relative to fidelity, allowing the error
 signal to spread far across the graph; a small $\alpha$ confines corrections to
-nodes near labeled examples. The two stages are therefore interpretable as
+nodes near labelled examples. The two stages are therefore interpretable as
 independent regularized least-squares problems with a shared graph prior.
 \end{intuition}
 
-\subsection{Numerical Example}
+\subsection{Numerical example}
 \begin{figure}[ht]
 \centering
 \begin{tikzpicture}[scale=1.2,
@@ -1021,50 +1021,50 @@ trained on node features produces predictions $\hat{Y}$ (shown). We apply
 C\&S with $\alpha = \beta = 0.7$.
 \vspace{0.5em}
 
-\textbf{Step 1: Correct.} The error matrix $E$ is nonzero only on labeled
+\textbf{Step 1: Correct.} The error matrix $E$ is nonzero only on labelled
 nodes: $E_1 = [+0.3, -0.3]$ (base model under-predicts Red for $v_1$),
 $E_2 = [-0.4, +0.4]$ (under-predicts Green for $v_2$). Error propagation
 via $E^{(t+1)} = 0.3\,E + 0.7\,S\,E^{(t)}$ spreads these errors through
 the graph. To understand how, consider the first iteration. The product
-$S\,E$ gives the error that each unlabeled node receives from its neighbors:
+$S\,E$ gives the error that each unlabelled node receives from its neighbours:
 \begin{itemize}
-    \item $v_3$ (neighbors: $v_1, v_4$) receives $[+0.15, -0.15]$---mainly
+    \item $v_3$ (neighbours: $v_1, v_4$) receives $[+0.15, -0.15]$---mainly
           from $v_1$'s positive Red error. Since $v_4$ has no error yet,
           only $v_1$ contributes.
-    \item $v_4$ (neighbors: $v_1, v_2, v_3$) receives $[{-0.04}, {+0.04}]$.
+    \item $v_4$ (neighbours: $v_1, v_2, v_3$) receives $[{-0.04}, {+0.04}]$.
           This small value arises because $v_1$'s error
           $S_{41}\!\cdot\![+0.3,-0.3] = [+0.12, -0.12]$ and $v_2$'s error
           $S_{42}\!\cdot\![-0.4,+0.4] = [-0.16, +0.16]$ \textbf{partially
-          cancel}. Node $v_4$ sits between the two labeled nodes, so the
+          cancel}. Node $v_4$ sits between the two labelled nodes, so the
           opposing corrections nearly neutralize.
-    \item $v_5$ (neighbor: $v_2$ only) receives $[-0.28, +0.28]$---a strong
-          correction toward Green, because $v_5$ is connected only to $v_2$.
+    \item $v_5$ (neighbour: $v_2$ only) receives $[-0.28, +0.28]$---a strong
+          correction towards Green, because $v_5$ is connected only to $v_2$.
 \end{itemize}
 After convergence, the propagated errors $E^*$ are added to $\hat{Y}$
-and labeled nodes are clamped to their true labels.
+and labelled nodes are clamped to their true labels.
 \vspace{0.5em}
 
 \textbf{Step 2: Smooth.} Smoothing via
 $Z^{(t+1)} = 0.3\,\hat{Y}^{\text{corr}} + 0.7\,S\,Z^{(t)}$ averages
-each node's prediction with its neighbors' corrected predictions:
+each node's prediction with its neighbours' corrected predictions:
 \begin{itemize}
-    \item $v_1$ (neighbors: $v_3, v_4$): pulled from $[1.00, 0.00]$
-          (clamped) toward the average of $v_3$ and $v_4$'s corrected
+    \item $v_1$ (neighbours: $v_3, v_4$): pulled from $[1.00, 0.00]$
+          (clamped) towards the average of $v_3$ and $v_4$'s corrected
           predictions $([0.63 + 0.54]/2 \approx 0.59$), yielding
           $[0.72, 0.28]$. Still Red, but the extreme clamped value is
           softened.
-    \item $v_2$ (neighbors: $v_4, v_5$): pulled from $[0.00, 1.00]$
-          (clamped) toward $v_4$ and $v_5$'s corrected values, yielding
+    \item $v_2$ (neighbours: $v_4, v_5$): pulled from $[0.00, 1.00]$
+          (clamped) towards $v_4$ and $v_5$'s corrected values, yielding
           $[0.30, 0.70]$.
-    \item $v_3$ (neighbors: $v_1, v_4$): its corrected prediction
-          $[0.63, 0.37]$ already agrees well with its neighbors
+    \item $v_3$ (neighbours: $v_1, v_4$): its corrected prediction
+          $[0.63, 0.37]$ already agrees well with its neighbours
           ($v_1$~is~Red, $v_4$~is~mixed), so smoothing barely changes it:
           $[0.63, 0.37]$.
-    \item $v_4$ (neighbors: $v_1, v_2, v_3$): neighbor average is
+    \item $v_4$ (neighbours: $v_1, v_2, v_3$): neighbour average is
           $[0.54, 0.46]$, close to $v_4$'s corrected prediction. Smoothing
           leaves it at $[0.54, 0.46]$---balanced between the two classes,
-          reflecting its position between the two labeled nodes.
-    \item $v_5$ (neighbor: $v_2$ only): pulled further toward Green,
+          reflecting its position between the two labelled nodes.
+    \item $v_5$ (neighbour: $v_2$ only): pulled further towards Green,
           from $[0.37, 0.63] \to [0.33, 0.67]$. Smoothing reinforces the
           correction.
 \end{itemize}
@@ -1095,14 +1095,14 @@ $v_5$ & ? & [.45,\,.55] & [0,\,0] & [$-$.08,+.08]
 \end{center}
 (Smoothed values are row-normalized. Bold marks the predicted class.)
 
-The key observations: $v_5$'s initial weak lean toward Green ($[0.45, 0.55]$)
+The key observations: $v_5$'s initial weak lean towards Green ($[0.45, 0.55]$)
 has been strengthened to a confident $[0.33, 0.67]$ through both correction and
-smoothing. Node $v_4$, sitting between the two labeled nodes, receives almost
+smoothing. Node $v_4$, sitting between the two labelled nodes, receives almost
 no net correction ($E^* \approx 0$) because the opposing errors cancel---and
 smoothing confirms this balanced position. Node $v_3$, connected to $v_1$ (Red)
-but not $v_2$, is pulled toward Red by both stages.
+but not $v_2$, is pulled towards Red by both stages.
 
-\subsection{Why C\&S Works So Well}
+\subsection{Why C\&S works so well}
 
 C\&S achieves state-of-the-art results on many benchmarks with a simple linear
 base model. Why?
@@ -1131,7 +1131,7 @@ features are informative and the graph is moderately homophilic.
 \end{intuition}
 
 
-\section{Graph Regularization Methods}
+\section{Graph regularization methods}
 \label{semi-supervised-graphs:sec:reg}
 
 The label propagation methods of Section~\ref{semi-supervised-graphs:sec:lp} and the post-processing
@@ -1143,14 +1143,14 @@ each node. How can we combine features with graph structure in a single
 end-to-end training objective?
 
 The idea is natural: train a parametric model $f_\theta$ (neural network, SVM,
-etc.) on the labeled data as usual, but add a penalty term that discourages
+etc.) on the labelled data as usual, but add a penalty term that discourages
 $f_\theta$ from assigning different predictions to connected nodes. This
 penalty is the Laplacian quadratic form from Theorem~\ref{semi-supervised-graphs:thm:laplacian_quadratic},
 which we already know measures how much a signal varies across edges.
 
-\subsection{General Framework}
+\subsection{General framework}
 
-\begin{definition}[Graph-Regularized Objective]
+\begin{definition}[Graph-regularized objective]
 \label{semi-supervised-graphs:def:graph_reg}
 For a parametric model $f_\theta: \R^d \to \R^C$ mapping node features to
 class scores:
@@ -1160,17 +1160,17 @@ class scores:
 \underbrace{
     \sum_{i \in \mathcal{V}_L}\ell(f_\theta(x_i), y_i)}_{
         \mathclap{\substack{\text{supervised loss} \\
-        \text{(labeled nodes only)}}}} \; + \;
+        \text{(labelled nodes only)}}}} \; + \;
 \lambda\underbrace{\frac{1}{2}\sum_{i,j}A_{ij}\|f_\theta(x_i) -
 f_\theta(x_j)\|^2}_{\mathclap{\substack{\text{graph smoothness} \\
-\text{(all nodes, labeled and unlabeled)}}}}
+\text{(all nodes, labelled and unlabelled)}}}}
 \end{equation}
 where $\lambda > 0$ controls the regularization strength.
 \end{definition}
 
 The first term is standard supervised learning. The second term involves
-\emph{all} nodes (labeled and unlabeled)---this is how unlabeled data enters
-the training. Minimizing it pushes the model toward predictions that are smooth
+\emph{all} nodes (labelled and unlabelled)---this is how unlabelled data enters
+the training. Minimizing it pushes the model towards predictions that are smooth
 over the graph. We now make precise the connection to the Laplacian.
 
 \begin{remark}[Graph regularizer as a trace form]
@@ -1254,7 +1254,7 @@ the graph structure and assigns identical scores to all three nodes
 The further the scores deviate across edges, the larger the penalty.
 \end{example}
 
-\subsection{Manifold Regularization (LapSVM)}
+\subsection{Manifold regularization (LapSVM)}
 \label{semi-supervised-graphs:subsec:manifold_reg}
 
 Manifold regularization (Belkin, Niyogi and Sindhwani, \emph{Manifold Regularization: A Geometric Framework for Learning from Labeled and Unlabeled Examples}, 2006) instantiates the framework with a model from a reproducing kernel Hilbert space. It is developed in \cref{rkhs:sec:applications}; we recall the result and place it among the graph methods. For binary classification one seeks a single scalar \emph{decision function} $f: \mathcal X \to \R$, predicting the class by the sign of $f(x_i)$; the magnitude $\abs{f(x_i)}$ is the (unnormalized) margin, as for an SVM. The vector $\mathbf f = (f(x_1), \ldots, f(x_n))^\top$ is a single column of the matrix $F$ above, and for $C > 2$ classes one trains $C$ such functions one-vs-rest. The objective is
@@ -1267,7 +1267,7 @@ Manifold regularization (Belkin, Niyogi and Sindhwani, \emph{Manifold Regulariza
 \end{equation}
 The ambient penalty controls the complexity of $f$ in the RKHS (for the linear kernel it is $\norm{w}^2$, as in ridge regression or the SVM); the intrinsic penalty is $\frac{\gamma_I}{n^2}\sum_{\{i,j\}\in E}A_{ij}(f(x_i) - f(x_j))^2$ and involves all $n$ nodes. By the extended representer theorem (\cref{rkhs:thm:manifold_reg}) the minimizer is $f^* = \sum_{i=1}^n\alpha_iK(\cdot, x_i)$, an expansion over \emph{all} nodes, and $\boldsymbol\alpha$ solves the finite-dimensional problem \eqref{rkhs:eq:manifold_kernelized}. With the hinge loss this is the Laplacian SVM (LapSVM), with the squared loss Laplacian regularized least squares (LapRLS), whose linear system and a computed two-moons example are in \cref{rkhs:subsec:manifold_example}. Unlike label propagation, the result is a function on the whole input space, so it applies to new points (it is inductive).
 
-\subsection{Neural Graph Learning}
+\subsection{Neural graph learning}
 \label{semi-supervised-graphs:subsec:neural_graph}
 
 LapSVM searches over a rich kernel space but ultimately produces a linear
@@ -1304,9 +1304,9 @@ Penalizing only the output layer (as in Definition~\ref{semi-supervised-graphs:d
 that the final predictions are smooth, but intermediate representations may
 still be arbitrarily rough. Regularizing every hidden layer encourages the
 network to build \emph{graph-consistent internal representations}: nodes that
-are connected and should share a label are nudged toward similar activations at
+are connected and should share a label are nudged towards similar activations at
 every depth. This acts as a form of deep data augmentation using the graph
-structure, and empirically leads to better generalization when labeled data is
+structure, and empirically leads to better generalization when labelled data is
 scarce.
 
 The per-layer weights $\lambda_k$ offer flexibility: setting $\lambda_k = 0$
@@ -1327,7 +1327,7 @@ where $\partial H^{(k)}/\partial \theta$ is computed by the chain rule through
 layers $1, \ldots, k$. Concretely, the ``signal'' backpropagated from the
 smoothness term at layer $k$ is $2L H^{(k)} \in \R^{n \times d_k}$: it is the
 Laplacian applied to the layer-$k$ representations, pushing each node's
-representation toward the weighted average of its neighbors'.
+representation towards the weighted average of its neighbours'.
 
 \subsubsection*{Key distinction from GNNs}
 
@@ -1339,7 +1339,7 @@ $f_\theta(x_{\text{new}})$ alone, with no knowledge of the graph required.
 
 Graph Neural Networks (Section~\ref{semi-supervised-graphs:sec:gnn}), by contrast, build graph
 aggregation directly into the \emph{architecture}: the forward pass itself
-mixes information across neighbors, so the graph must be available at inference
+mixes information across neighbours, so the graph must be available at inference
 time. This distinction has practical consequences summarized in the table below.
 \end{pitfall}
 
@@ -1360,14 +1360,14 @@ Representational power    & Limited (no graph aggregation) & High \\
 }
 \end{center}
 
-\section{Semi-Supervised Graph Neural Networks}
+\section{Semi-supervised graph neural networks}
 \label{semi-supervised-graphs:sec:gnn}
 
 Graph regularization (Section~\ref{semi-supervised-graphs:sec:reg}) uses the graph in the
 \emph{loss function} but not in the model itself: each node is processed
 independently by $f_\theta$. Graph Neural Networks (GNNs) go further---they
 build graph structure directly into the \emph{architecture}, allowing each
-node to aggregate information from its neighbors as part of the forward pass.
+node to aggregate information from its neighbours as part of the forward pass.
 
 \subsection{GNN layers}
 
@@ -1378,7 +1378,7 @@ GNN layers are instances of message passing (Gilmer et al., \emph{Neural Message
 \item \textbf{GAT} (Veličković et al., \emph{Graph Attention Networks}, 2018) replaces the fixed GCN weights $(\tilde d_v\tilde d_u)^{-1/2}$, which depend only on degrees, by attention coefficients $\alpha_{vu}$ computed from the features of both endpoints, with several heads in parallel.
 \end{itemize}
 
-\begin{example}[One GCN Layer on a Triangle]
+\begin{example}[One GCN layer on a triangle]
 Triangle ($K_3$) with $H^{(0)} = \bigl(\begin{smallmatrix}1&0\\0&1\\1&1
 \end{smallmatrix}\bigr)$. All $\tilde{d}_i = 3$, so $\hat{A} = \frac{1}{3}
 \mathbf{1}\mathbf{1}^\top$. With $W^{(0)}=I$:
@@ -1389,36 +1389,36 @@ $(2/3,2/3)$---\textbf{over-smoothing} in a single layer.
 
 \subsection{Semi-supervised training}
 
-The training loss is computed only on labeled nodes:
+The training loss is computed only on labelled nodes:
 $\mathcal{L} = -\sum_{i \in \mathcal{V}_L}\sum_c Y_{ic}\log Z_{ic}$
 where $Z = \softmax(\hat{A}\,\text{ReLU}(\hat{A}XW^{(1)})\,W^{(2)})$
 (a 2-layer GCN).
 
-How do unlabeled nodes help, if the loss only involves labeled ones? The
+How do unlabelled nodes help, if the loss only involves labelled ones? The
 answer lies in the forward pass: $\hat{A}H^{(k)}$ averages each node's features
-with its neighbors'. When computing the representation of a labeled node $v_i$,
-the GCN aggregates features from $v_i$'s unlabeled neighbors. So unlabeled
-nodes contribute their feature information to the labeled nodes' representations,
-and the gradients from labeled nodes propagate back through these aggregation
+with its neighbours'. When computing the representation of a labelled node $v_i$,
+the GCN aggregates features from $v_i$'s unlabelled neighbours. So unlabelled
+nodes contribute their feature information to the labelled nodes' representations,
+and the gradients from labelled nodes propagate back through these aggregation
 steps to update the shared weights $W^{(k)}$. This is a form of
-\emph{transductive} semi-supervised learning: the unlabeled nodes are known at
+\emph{transductive} semi-supervised learning: the unlabelled nodes are known at
 training time and participate in every forward pass.
 
 \begin{keyidea}
-\textbf{How unlabeled nodes get labeled: Two distinct phases.}
+\textbf{How unlabelled nodes get labelled: Two distinct phases.}
 
 \textbf{Training phase:}
 \begin{itemize}
-    \item Loss computed ONLY on labeled nodes:
+    \item Loss computed ONLY on labelled nodes:
           $\mathcal{L} = -\sum_{i \in \mathcal{V}_L}\sum_c Y_{ic}\log Z_{ic}$
-    \item Unlabeled nodes appear in the \textbf{forward pass} because
-          $\hat{A}H^{(k)}$ aggregates each node's features with its neighbors'.
-    \item When computing $Z_i$ for a \textbf{labeled} node $i$, we aggregate
-          features from its \textbf{unlabeled} neighbors.
-    \item Gradients from labeled nodes flow \textbf{through} these unlabeled
+    \item Unlabelled nodes appear in the \textbf{forward pass} because
+          $\hat{A}H^{(k)}$ aggregates each node's features with its neighbours'.
+    \item When computing $Z_i$ for a \textbf{labelled} node $i$, we aggregate
+          features from its \textbf{unlabelled} neighbours.
+    \item Gradients from labelled nodes flow \textbf{through} these unlabelled
           nodes' features during backpropagation, updating the shared weight
           matrices $W^{(k)}$.
-    \item Unlabeled nodes themselves receive \textbf{no direct gradient signal}
+    \item Unlabelled nodes themselves receive \textbf{no direct gradient signal}
           and no loss is computed on their predictions during training.
 \end{itemize}
 
@@ -1426,22 +1426,22 @@ training time and participate in every forward pass.
 \begin{itemize}
     \item After training completes, perform ONE additional forward pass on
           \textbf{all nodes} using the learned weights.
-    \item For each unlabeled node $i \in \mathcal{V}_U$, take
+    \item For each unlabelled node $i \in \mathcal{V}_U$, take
           $\hat{y}_i = \argmax_c Z_{ic}$.
-    \item \textbf{This is the first and only time unlabeled nodes receive
+    \item \textbf{This is the first and only time unlabelled nodes receive
           predicted labels.}
 \end{itemize}
 
-Thus, unlabeled nodes are \textbf{never labeled during training}. They serve as
-``bridges'' that propagate information between labeled nodes and help learn
+Thus, unlabelled nodes are \textbf{never labelled during training}. They serve as
+``bridges'' that propagate information between labelled nodes and help learn
 better feature extractors.
 \end{keyidea}
 
 \begin{pitfall}
-\textbf{Common misconception:} "GCNs are trained to predict labels for unlabeled
-nodes." This is false. GCNs are trained to predict labels for \textbf{labeled}
-nodes. Unlabeled nodes are only used to compute better representations of
-labeled nodes. The unlabeled node predictions are a \textbf{byproduct} of this
+\textbf{Common misconception:} ``GCNs are trained to predict labels for unlabelled
+nodes.'' This is false. GCNs are trained to predict labels for \textbf{labelled}
+nodes. Unlabelled nodes are only used to compute better representations of
+labelled nodes. The unlabelled node predictions are a \textbf{byproduct} of this
 process, not the training objective.
 \end{pitfall}
 
@@ -1457,11 +1457,11 @@ PairNorm (Zhao and Akoglu, 2020), or graph transformers (Ying et al., 2021).
 
 
 %---------------------------------------------------------------------
-\section{Self-Supervised Pretraining for GNNs}
+\section{Self-supervised pretraining for GNNs}
 \label{semi-supervised-graphs:sec:mlp}
 
 The GNNs of Section~\ref{semi-supervised-graphs:sec:gnn} are trained \emph{end-to-end} on the
-semi-supervised task: they minimize a loss on the few labeled nodes while using
+semi-supervised task: they minimize a loss on the few labelled nodes while using
 graph structure in their forward pass. But training from a random initialization
 with only a handful of labels can be brittle---the model may overfit to the few
 labels or learn poor representations of the graph structure.
@@ -1469,7 +1469,7 @@ labels or learn poor representations of the graph structure.
 \textbf{Self-supervised pretraining} addresses this by first training the GNN
 on an auxiliary task that requires \emph{no labels at all}, then fine-tuning
 on the downstream semi-supervised task. The idea, borrowed from masked language
-modeling in NLP (BERT), is to hide part of the input and train the model to
+modelling in NLP (BERT), is to hide part of the input and train the model to
 reconstruct it from the remaining context.
 
 \begin{keyidea}[Masked prediction pretraining]
@@ -1484,15 +1484,15 @@ reconstruct it from the remaining context.
 \end{enumerate}
 \end{keyidea}
 
-\subsection{What Can Be Masked?}
+\subsection{What can be masked?}
 
 Three types of information can be masked during pretraining, each providing a
 different learning signal.
 
 \textbf{Feature masking} (requires no labels). Replace feature vectors $x_i$
 with a zero or learnable \texttt{[MASK]} vector for $i \in \mathcal{M}$, and
-train the GNN to reconstruct $x_i$ from the unmasked neighbors. This teaches
-the model to aggregate neighborhood information---exactly the skill needed for
+train the GNN to reconstruct $x_i$ from the unmasked neighbours. This teaches
+the model to aggregate neighbourhood information---exactly the skill needed for
 message passing. Feature masking is the most widely applicable variant because
 it requires no labels at all.
 
@@ -1500,7 +1500,7 @@ it requires no labels at all.
 to predict which edges exist (link prediction). This teaches the model the
 graph's topology.
 
-\textbf{Label masking} (requires a large labeled dataset). Hide known labels
+\textbf{Label masking} (requires a large labelled dataset). Hide known labels
 and predict them from the graph context. This provides the strongest signal
 because it directly trains the model to propagate class information. However,
 it requires that labels are available for \emph{most} nodes during
@@ -1511,13 +1511,13 @@ setting.
 \textbf{When does label masking apply?} In the standard semi-supervised
 setting, we have very few labels ($l \ll n$). Masking some of these
 would further reduce supervision. Label masking is most useful when:
-(a) a large fully-labeled auxiliary graph is available (e.g., pretrain on a
+(a) a large fully-labelled auxiliary graph is available (e.g., pretrain on a
 large annotated citation network, then fine-tune on a smaller one), or
 (b) labels come from a cheap proxy (e.g., automatically extracted
 categories). Feature masking, by contrast, applies in \emph{any} setting.
 \end{pitfall}
 
-\subsection{Illustration: Feature Masking vs.\ Label Masking}
+\subsection{Illustration: feature masking vs.\ label masking}
 
 \begin{figure}[ht]
 \centering
@@ -1571,12 +1571,12 @@ categories). Feature masking, by contrast, applies in \emph{any} setting.
 \caption{Two variants of masked pretraining. Left: feature masking hides
   $x_1, x_4$ and trains the GNN to reconstruct them (no labels needed).
   Right: label masking hides $y_1, y_4$ and trains the GNN to predict them
-  (requires a fully-labeled graph for pretraining). Gray dashed nodes are
+  (requires a fully-labelled graph for pretraining). Grey dashed nodes are
   masked; the model must predict the ``?'' values from the remaining context.}
 \label{semi-supervised-graphs:fig:masked_pretraining}
 \end{figure}
 
-\subsection{Mathematical Formulation}
+\subsection{Mathematical formulation}
 
 Let $\mathcal{M} \subset V$ be a random mask with ratio
 $p = |\mathcal{M}|/n$ (typically $0.15$--$0.30$).
@@ -1590,9 +1590,9 @@ $\tilde{X}_i = X_i$ otherwise. The pretraining loss is:
   \|f_\theta(G, \tilde{X})_i - X_i\|^2
 \end{equation}
 To predict $X_i$, the GNN must aggregate information from $v_i$'s unmasked
-neighbors via message passing---exactly the skill needed for downstream tasks.
+neighbours via message passing---exactly the skill needed for downstream tasks.
 
-\textbf{Label masking objective} (when a fully-labeled pretraining graph is
+\textbf{Label masking objective} (when a fully-labelled pretraining graph is
 available). Define $\tilde{Y}$ with $\tilde{Y}_i = \mathbf{0}$ for
 $i \in \mathcal{M}$ and $\tilde{Y}_i = Y_i$ otherwise. The GNN receives
 both features $X$ and unmasked labels $\tilde{Y}$ as input:
@@ -1605,7 +1605,7 @@ The unmasked labels are provided as input because we want the model to learn
 how to \emph{propagate} label information across the graph---given some labels,
 predict the rest. This directly simulates the semi-supervised scenario.
 
-\subsection{The GPT-GNN Framework}
+\subsection{The GPT-GNN framework}
 
 GPT-GNN (Hu et al., \emph{GPT-GNN: Generative Pre-Training of Graph Neural Networks}, 2020) pretrains by generating masked node attributes and edges, which are the first two objectives below; label masking is used instead in methods that feed partial labels to the network, such as the unified message-passing model of Shi et al.\ (\emph{Masked Label Prediction}, 2021). A combined objective reads
 \begin{equation}
@@ -1616,10 +1616,10 @@ GPT-GNN (Hu et al., \emph{GPT-GNN: Generative Pre-Training of Graph Neural Netwo
 \end{equation}
 with weights chosen by validation ($\lambda = 0$ when no pretraining labels exist). Each objective teaches a different skill: feature reconstruction teaches neighbourhood aggregation, edge prediction teaches the topology, and label prediction teaches class propagation.
 
-\subsection{Why Pretraining Helps: Intuition}
+\subsection{Why pretraining helps: intuition}
 
 A randomly initialized GNN must simultaneously learn two things from the few
-labeled nodes: (i) \emph{how} to aggregate neighborhood information
+labelled nodes: (i) \emph{how} to aggregate neighbourhood information
 (the ``mechanics'' of message passing), and (ii) \emph{which} aggregated
 patterns correspond to which classes. Pretraining separates these: the model
 first learns (i) from the self-supervised task (which uses no labels), then
@@ -1628,7 +1628,7 @@ because the representation is already informative.
 
 This argument is heuristic: whether pretraining helps depends on how well the pretext task matches the downstream one, and negative transfer is observed when it does not.
 
-\subsection{Practical Implementation}
+\subsection{Practical implementation}
 
 \begin{algorithm}[H]
 \caption{Masked Feature Pretraining + Fine-tuning}
@@ -1649,7 +1649,7 @@ This argument is heuristic: whether pretraining helps depends on how well the pr
 \State \textbf{Fine-tuning} (using the few available labels):
 \State Initialize $f_\theta$ with pretrained weights
 \State Replace reconstruction head with classification head
-\State Train on labeled nodes with small learning rate (e.g., $10^{-3}$)
+\State Train on labelled nodes with small learning rate (e.g., $10^{-3}$)
 \end{algorithmic}
 \end{algorithm}
 
@@ -1668,7 +1668,7 @@ This argument is heuristic: whether pretraining helps depends on how well the pr
 \end{itemize}
 \end{pitfall}
 
-\subsection{Connection to Other Methods}
+\subsection{Connection to other methods}
 
 Self-supervised pretraining completes the progression of methods in this
 document:
@@ -1678,13 +1678,13 @@ document:
 \textbf{Graph regularization} adds graph smoothness as a training penalty.
 \textbf{GNNs} learn to propagate and transform features end-to-end.
 \textbf{Masked pretraining} teaches the GNN \emph{how} to aggregate
-neighborhood information \emph{before} any labels are seen, providing a
+neighbourhood information \emph{before} any labels are seen, providing a
 better initialization for all GNN-based methods.
 
 Self-supervised pretraining is not an alternative to GNNs---it is a way to
 initialize them so that fine-tuning with few labels is more effective.
 
-\section{Comparative Analysis and Guidelines}
+\section{Comparative analysis and guidelines}
 \label{semi-supervised-graphs:sec:compare}
 
 We have now seen five families of methods. They differ along several axes,
@@ -1711,7 +1711,7 @@ Masked Pretraining & Yes & Yes & Medium & Yes & Moderate \\
 \label{semi-supervised-graphs:tab:comparison}
 \end{table}
 
-\subsection{When to Use What}
+\subsection{When to use what}
 
 \textbf{No node features available:}
 Label propagation or label spreading. They require only the graph structure.
@@ -1723,7 +1723,7 @@ If you have a strong feature-based model (e.g., XGBoost on node features),
 apply Correct \& Smooth to its predictions for a quick boost.
 
 \textbf{Large graph ($n > 10^6$):}
-GraphSAGE with neighbor sampling, or Cluster-GCN (Chiang et al., 2019), which trains on subgraphs. Full-batch GCN needs the whole graph in memory and becomes impractical.
+GraphSAGE with neighbour sampling, or Cluster-GCN (Chiang et al., 2019), which trains on subgraphs. Full-batch GCN needs the whole graph in memory and becomes impractical.
 
 \textbf{Inductive setting (unseen nodes at test time):}
 GraphSAGE, GAT, neural graph learning, or masked pretraining + fine-tuning.
@@ -1740,11 +1740,11 @@ Pretrain on the same graph using feature masking (no extra labels needed),
 then fine-tune. Alternatively, use label propagation or C\&S if the graph
 has strong homophily.
 
-\textbf{When you have abundant unlabeled data but limited labels:}
+\textbf{When you have abundant unlabelled data but limited labels:}
 All methods will benefit, but Correct \& Smooth and graph regularization
-explicitly leverage unlabeled nodes in the loss/optimization.
+explicitly leverage unlabelled nodes in the loss/optimization.
 
-\subsection{Recommended Pipelines}
+\subsection{Recommended pipelines}
 
 \begin{enumerate}
     \item \textbf{Quick baseline:} Train an MLP on node features (ignore graph).
@@ -1755,10 +1755,10 @@ explicitly leverage unlabeled nodes in the loss/optimization.
           dropout 0.5, learning rate 0.01, trained for 200 epochs.
 
     \item \textbf{Standard inductive:} GraphSAGE with mean aggregator,
-          neighbor samples [25, 10], hidden dimension 128, trained with
+          neighbour samples [25, 10], hidden dimension 128, trained with
           mini-batches.
 
-    \item \textbf{When you have abundant unlabeled features:} Masked feature
+    \item \textbf{When you have abundant unlabelled features:} Masked feature
           pretraining (Section~\ref{semi-supervised-graphs:sec:mlp}) for 50--100 epochs, then
           fine-tune on target task with small learning rate.
 
@@ -1766,7 +1766,7 @@ explicitly leverage unlabeled nodes in the loss/optimization.
           or specialized architectures like H$_2$GCN.
 \end{enumerate}
 
-\subsection{Key Hyperparameters}
+\subsection{Key hyperparameters}
 
 \begin{itemize}
     \item \textbf{Label spreading:} $\alpha \in [0.5, 0.99]$, default 0.9.
@@ -1775,7 +1775,7 @@ explicitly leverage unlabeled nodes in the loss/optimization.
           stronger/weaker than smoothing.
     \item \textbf{GNNs:} 2--3 layers (more causes over-smoothing), hidden dim
           64--256, dropout 0.5--0.8, learning rate 0.001--0.01 with Adam.
-    \item \textbf{GraphSAGE:} neighbor samples [25, 10] or [10, 5] for very
+    \item \textbf{GraphSAGE:} neighbour samples [25, 10] or [10, 5] for very
           large graphs.
     \item \textbf{GAT:} 8 attention heads in hidden layers, 1 in output,
           dropout 0.6.
@@ -1785,20 +1785,20 @@ explicitly leverage unlabeled nodes in the loss/optimization.
 
 \begin{chaptersummary}
 \begin{itemize}
-\item Under homophily, unlabeled nodes help because the graph tells where labels should agree. All methods of the chapter minimize, exactly or approximately, the Laplacian quadratic form $f^\top Lf = \sum_{\{i,j\}\in E}A_{ij}(f_i - f_j)^2$ or its normalized version.
-\item Label propagation iterates $Y_U \leftarrow P_{UL}Y_L + P_{UU}Y_U$ and converges to $Y_U^* = (I - P_{UU})^{-1}P_{UL}Y_L$, because $\rho(P_{UU}) < 1$ on a connected graph with a labeled node; $Y_U^*$ is the harmonic extension of the labels (Dirichlet problem) and the absorption probabilities of a random walk.
-\item Label spreading $Y \leftarrow \alpha SY + (1-\alpha)Y^{(0)}$ converges to $(1-\alpha)(I - \alpha S)^{-1}Y^{(0)}$, the minimizer of a normalized smoothness term plus $\frac{1-\alpha}{\alpha}\norm{F - Y^{(0)}}^2$; labeled nodes are softly clamped.
+\item Under homophily, unlabelled nodes help because the graph tells where labels should agree. All methods of the chapter minimize, exactly or approximately, the Laplacian quadratic form $f^\top Lf = \sum_{\{i,j\}\in E}A_{ij}(f_i - f_j)^2$ or its normalized version.
+\item Label propagation iterates $Y_U \leftarrow P_{UL}Y_L + P_{UU}Y_U$ and converges to $Y_U^* = (I - P_{UU})^{-1}P_{UL}Y_L$, because $\rho(P_{UU}) < 1$ on a connected graph with a labelled node; $Y_U^*$ is the harmonic extension of the labels (Dirichlet problem) and the absorption probabilities of a random walk.
+\item Label spreading $Y \leftarrow \alpha SY + (1-\alpha)Y^{(0)}$ converges to $(1-\alpha)(I - \alpha S)^{-1}Y^{(0)}$, the minimizer of a normalized smoothness term plus $\frac{1-\alpha}{\alpha}\norm{F - Y^{(0)}}^2$; labelled nodes are softly clamped.
 \item Correct and smooth spreads the residuals of a base model and then its corrected predictions, two label-spreading problems $\min\norm{F - B}^2 + \mu\tr(F^\top\mathcal L_{\mathrm{sym}}F)$ with solution $(1-\alpha)(I - \alpha S)^{-1}B$, $\alpha = \mu/(1+\mu)$.
-\item Graph regularization adds $\lambda\tr(F^\top LF)$ to a supervised loss on the labeled nodes; with an RKHS model this is manifold regularization (LapSVM, LapRLS), with a neural network and penalties on all layers it is neural graph learning. The graph is used in the loss only, so prediction needs no graph.
-\item GNNs use the graph in the forward pass and are trained on labeled nodes only; unlabeled nodes enter through aggregation. Deep stacks over-smooth. Masked feature (and edge) prediction gives a label-free pretraining task.
+\item Graph regularization adds $\lambda\tr(F^\top LF)$ to a supervised loss on the labelled nodes; with an RKHS model this is manifold regularization (LapSVM, LapRLS), with a neural network and penalties on all layers it is neural graph learning. The graph is used in the loss only, so prediction needs no graph.
+\item GNNs use the graph in the forward pass and are trained on labelled nodes only; unlabelled nodes enter through aggregation. Deep stacks over-smooth. Masked feature (and edge) prediction gives a label-free pretraining task.
 \end{itemize}
 \end{chaptersummary}
 
 \chapterappendix
-\section{Extended Proofs}
+\section{Extended proofs}
 \label{semi-supervised-graphs:app:proofs}
 
-\subsection{Powers of a Matrix and the Spectral Radius
+\subsection{Powers of a matrix and the spectral radius
   (Proposition~\ref{semi-supervised-graphs:prop:spectral_powers})}
 \label{semi-supervised-graphs:app:spectral_radius}
 
@@ -1815,25 +1815,25 @@ $|\lambda| < 1$, the geometric decay $|\lambda|^{t-\text{const}}$ dominates
 the polynomial growth $\binom{t}{\text{const}}$, so each entry $\to 0$.
 \end{proof}
 
-\subsection{Sub-Stochasticity Implies $\rho(P_{UU})<1$ (Step~2 of
+\subsection{Sub-stochasticity implies $\rho(P_{UU})<1$ (Step~2 of
   Theorem~\ref{semi-supervised-graphs:thm:lp_closed})}
 \label{semi-supervised-graphs:app:substochastic}
 
 We prove that if $P_{UU}$ is sub-stochastic and $G$ is connected with at least
-one labeled node, then $\rho(P_{UU}) < 1$.
+one labelled node, then $\rho(P_{UU}) < 1$.
 
 \paragraph{Setup and intuition.}
 Recall the block decomposition $P = \bigl(\begin{smallmatrix}P_{LL}&P_{LU}\\
-P_{UL}&P_{UU}\end{smallmatrix}\bigr)$.  A random walker currently at unlabeled
+P_{UL}&P_{UU}\end{smallmatrix}\bigr)$.  A random walker currently at unlabelled
 node $v_i$ moves to node $v_j$ with probability $P_{ij}$.  If $v_j$ happens to
-be a labeled node, the walk has \emph{escaped} $\mathcal{V}_U$.  Define
+be a labelled node, the walk has \emph{escaped} $\mathcal{V}_U$.  Define
 \[
   \ell_i \;:=\; \sum_{j \in \mathcal{V}_L} P_{ij}
   \;=\; 1 - \sum_{j \in \mathcal{V}_U}(P_{UU})_{ij} \;\geq\; 0,
 \]
 the \textbf{one-step escape probability} at $v_i$: the probability of jumping
 directly into $\mathcal{V}_L$ in a single step.  By assumption, $\ell_i > 0$
-for at least one unlabeled node (namely any node adjacent to a labeled node).
+for at least one unlabelled node (namely any node adjacent to a labelled node).
 
 The key quantity we track is the \emph{total probability mass} that a
 distribution $p \in \R^u$ (with $p_i \geq 0$, $\mathbf{1}^\top p = 1$) places
@@ -1860,7 +1860,7 @@ and $B$ is \emph{irreducible} (i.e.\ for every pair $(i,j)$ there exists $k$
 such that $(B^k)_{ij} > 0$), then $\rho(B) < 1$.
 \end{lemma}
 
-\begin{proof}[Proof of Lemma]
+\begin{proof}
 \textbf{Step~A ($\|B\|_\infty \leq 1$).}
 The $\ell^\infty$ operator norm of a non-negative matrix equals its maximum row
 sum: $\|B\|_\infty = \max_i r_i \leq 1$.  Hence every eigenvalue satisfies
@@ -1904,12 +1904,12 @@ We verify the two hypotheses:
     some node $i_0 \in \mathcal{V}_U$ has $\ell_{i_0} > 0$, giving a strictly
     sub-unit row sum.
   \item \emph{Irreducibility, component by component.}
-    $P_{UU}$ need not be irreducible: two unlabeled nodes may be joined only by paths through labeled nodes (on the path $u_1 - \ell - u_2$, $P_{UU} = 0$). Split $\mathcal V_U$ into the connected components $U_1, \ldots, U_r$ of the subgraph induced by the unlabeled nodes. After reordering, $P_{UU}$ is block diagonal with blocks $P_{U_kU_k}$, and each block is irreducible because $U_k$ is connected. Since $G$ is connected, every $U_k$ contains a node adjacent to a labeled node, so each block has a row with sum $< 1$.
+    $P_{UU}$ need not be irreducible: two unlabelled nodes may be joined only by paths through labelled nodes (on the path $u_1 - \ell - u_2$, $P_{UU} = 0$). Split $\mathcal V_U$ into the connected components $U_1, \ldots, U_r$ of the subgraph induced by the unlabelled nodes. After reordering, $P_{UU}$ is block diagonal with blocks $P_{U_kU_k}$, and each block is irreducible because $U_k$ is connected. Since $G$ is connected, every $U_k$ contains a node adjacent to a labelled node, so each block has a row with sum $< 1$.
 \end{enumerate}
 The lemma, applied to each block, gives $\rho(P_{U_kU_k}) < 1$, and the spectral radius of a block-diagonal matrix is the largest spectral radius of its blocks. Hence $\rho(P_{UU}) < 1$ and $I - P_{UU}$ is invertible. (\Cref{ch:harmonic-functions} proves the equivalent statement that $L_{UU}$ is positive definite.)
 
 
-\subsection{Proof of the Variational Formulation (Theorem~\ref{semi-supervised-graphs:thm:ls_energy})}
+\subsection{Proof of the variational formulation (Theorem~\ref{semi-supervised-graphs:thm:ls_energy})}
 \label{semi-supervised-graphs:app:ls_energy}
 
 \begin{proof}
@@ -1938,7 +1938,7 @@ positive definite (eigenvalues $\frac{2}{\alpha} - 2\sigma_k > 0$ since
 $\sigma_k \leq 1$ and $\alpha < 1$). So the critical point is a global minimum.
 \end{proof}
 
-\subsection{Proofs of C\&S Variational Theorems
+\subsection{Proofs of C\&S variational theorems
   (Theorems~\ref{semi-supervised-graphs:thm:cs_correct_opt} and~\ref{semi-supervised-graphs:thm:cs_smooth_opt})}
 \label{semi-supervised-graphs:app:cs_opt}
 
@@ -1959,7 +1959,7 @@ With $\alpha = \mu/(1+\mu)$, so that $1/(1+\mu) = 1-\alpha$, this is $f^* = (1-\
 
 \Cref{semi-supervised-graphs:thm:cs_correct_opt} is the case $b = E$, $\mu = \alpha/(1-\alpha)$, and \cref{semi-supervised-graphs:thm:cs_smooth_opt} the case $b = \hat Y^{\text{corr}}$, $\mu = \beta/(1-\beta)$. The variational formulation of label spreading (\cref{semi-supervised-graphs:thm:ls_energy}) is the case $b = Y^{(0)}$ with the roles of the two terms exchanged: dividing $\mathcal E$ by $\mu$ shows that the coefficient $\frac{1-\alpha}{\alpha}$ on the fitting term corresponds to $\mu = \frac{\alpha}{1-\alpha}$.
 
-\section{Python Code for Numerical Examples}
+\section{Python code for numerical examples}
 \label{semi-supervised-graphs:app:code}
 
 The following script reproduces the Correct \& Smooth numerical example of
@@ -2046,18 +2046,18 @@ Label propagation is due to Zhu and Ghahramani (2002) and, in its harmonic-funct
 \addcontentsline{toc}{section}{Exercises}
 
 \begin{exercise}\label{semi-supervised-graphs:exr:1}
-On the path $0 - 1 - 2 - 3$ with node $0$ labeled $1$ and node $3$ labeled $0$ (a single score column), compute the label propagation solution at nodes $1$ and $2$ from $(I - P_{UU})^{-1}P_{UL}Y_L$, and check that it is the linear interpolation predicted by harmonicity.
+On the path $0 - 1 - 2 - 3$ with node $0$ labelled $1$ and node $3$ labelled $0$ (a single score column), compute the label propagation solution at nodes $1$ and $2$ from $(I - P_{UU})^{-1}P_{UL}Y_L$, and check that it is the linear interpolation predicted by harmonicity.
 \solutionlink{semi-supervised-graphs:exr:1}
 \end{exercise}
 
 \begin{exercise}\label{semi-supervised-graphs:exr:2}
-For the same path, encode the two classes by the scores $+1$ (node $0$) and $-1$ (node $3$), $Y^{(0)} = (1, 0, 0, -1)^\top$, and compute label spreading with $\alpha = 0.5$. Compare the values at the labeled nodes with label propagation.
+For the same path, encode the two classes by the scores $+1$ (node $0$) and $-1$ (node $3$), $Y^{(0)} = (1, 0, 0, -1)^\top$, and compute label spreading with $\alpha = 0.5$. Compare the values at the labelled nodes with label propagation.
 \hint{$d = (1, 2, 2, 1)$; solve $(I - \tfrac12S)F = \tfrac12Y^{(0)}$, using the antisymmetry $F = (a, b, -b, -a)$.}
 \solutionlink{semi-supervised-graphs:exr:2}
 \end{exercise}
 
 \begin{exercise}\label{semi-supervised-graphs:exr:3}
-Give an example of a connected graph and a labeled set for which $P_{UU}$ is reducible, and check directly that $\rho(P_{UU}) < 1$.
+Give an example of a connected graph and a labelled set for which $P_{UU}$ is reducible, and check directly that $\rho(P_{UU}) < 1$.
 \solutionlink{semi-supervised-graphs:exr:3}
 \end{exercise}
 
@@ -2067,7 +2067,7 @@ Show that on a $k$-regular graph $S = P = A/k$, so that label spreading and the 
 \end{exercise}
 
 \begin{exercise}\label{semi-supervised-graphs:exr:5}
-Show that for the graph-regularized objective with squared loss and a linear model on fixed features, $F = XW$, $\mathcal L(W) = \norm{M(XW - Y)}_F^2 + \lambda\tr(W^\top X^\top LXW)$, where $M$ is the diagonal $0/1$ matrix selecting labeled nodes, the minimizer solves $(X^\top MX + \lambda X^\top LX)W = X^\top MY$. Why does the second term let unlabeled nodes influence $W$?
+Show that for the graph-regularized objective with squared loss and a linear model on fixed features, $F = XW$, $\mathcal L(W) = \norm{M(XW - Y)}_F^2 + \lambda\tr(W^\top X^\top LXW)$, where $M$ is the diagonal $0/1$ matrix selecting labelled nodes, the minimizer solves $(X^\top MX + \lambda X^\top LX)W = X^\top MY$. Why does the second term let unlabelled nodes influence $W$?
 \solutionlink{semi-supervised-graphs:exr:5}
 \end{exercise}
 
