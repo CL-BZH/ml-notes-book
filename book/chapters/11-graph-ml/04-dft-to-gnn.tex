@@ -1245,7 +1245,7 @@ Then:
 \mathbf{y} = \sum_{k=0}^{K-1} \theta_k \bar{\mathbf{x}}_k
 \]
 
-This requires only $K$ sparse matrix-vector multiplications with $L$,
+This requires only $K - 1$ sparse matrix-vector multiplications with $\tilde L$,
 giving complexity $O(K \cdot |E|)$ instead of $O(N^3)$.
 
 \begin{example}[ChebNet computation on a triangle graph]
@@ -1523,8 +1523,8 @@ forms the basis for many modern GNN architectures.
     \node[block] (dft) {DFT on\\the cycle};
     \node[block, right=of dft] (gft) {Graph Fourier\\transform};
     \node[block, right=of gft] (spec) {Spectral\\convolution};
-    \node[block, right=of spec] (cheb) {ChebNet\\(degree $K$)};
-    \node[block, right=of cheb] (gcn) {GCN\\($K = 1$)};
+    \node[block, right=of spec] (cheb) {ChebNet\\($K$ terms)};
+    \node[block, right=of cheb] (gcn) {GCN\\($K = 2$)};
 
     \draw[arrow] (dft) -- node[above] {Generalize} (gft);
     \draw[arrow] (gft) -- node[above] {Define} (spec);
@@ -1698,7 +1698,7 @@ satisfies $A_{ij} \neq A_{ji}$ in general.
 
     \node[align=center] at (7.5, -1.3) {$A \neq A^\top$ (asymmetric)\\
           $L$ may have complex eigenvalues\\
-          Eigenvectors not orthogonal};
+          Eigenvectors need not be orthogonal};
 \end{tikzpicture}
 \caption{Directed graphs break the symmetry that spectral methods
          rely on.}
@@ -2751,8 +2751,8 @@ Then:
 
 So we can precompute two vectors of size $N$ (one per node):
 \begin{align*}
-\mathbf{s}_1 &= Z \mathbf{a}_1 \in \mathbb{R}^{N} \quad \text{(score contribution from source node)} \\
-\mathbf{s}_2 &= Z \mathbf{a}_2 \in \mathbb{R}^{N} \quad \text{(score contribution from target node)}
+\mathbf{s}_1 &= Z \mathbf{a}_1 \in \mathbb{R}^{N} \quad \text{(score contribution from the receiving node $i$)} \\
+\mathbf{s}_2 &= Z \mathbf{a}_2 \in \mathbb{R}^{N} \quad \text{(score contribution from the sending node $j$)}
 \end{align*}
 
 The attention score for edge $(i,j)$ is then simply:

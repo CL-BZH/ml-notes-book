@@ -221,8 +221,9 @@ norm, here $G = 2$).}
         NeurIPS, 2019) drops the mean subtraction: $y_j = \gamma_ja_j/\sqrt{\frac1n\sum_ka_k^2 + \epsilon}$. It is cheaper and works as
         well in many transformers.
 \end{itemize}
-All of these are invariant to rescaling the weights of the preceding layer (for layer
-normalization, all weights of the layer at once), so \cref{normalization:prop:scale} applies
+All of these are invariant to rescaling together the weights (and biases) of the preceding
+layer that feed one set of statistics: one unit or channel for batch and instance normalization,
+one group for group normalization, the whole layer for layer and RMS normalization. So \cref{normalization:prop:scale} applies
 to them too.
 
 \begin{pitfall}[Batch normalization and dropout]

@@ -185,7 +185,7 @@ $x = (1, 0, 0, \dots)$: a pulse followed by silence.
 
 \emph{Step $1$.} $i_1 = \sigma(1) = 0.7311$, $g_1 = \tanh(1) = 0.7616$, $o_1 = \sigma(1) = 0.7311$, and $c_0 = 0$, so
 \[
-  c_1 = i_1g_1 = 0.5568,\qquad h_1 = o_1\tanh(c_1) = 0.7311\times0.5055 = 0.3696 .
+  c_1 = i_1g_1 = 0.5568,\qquad h_1 = o_1\tanh(c_1) = 0.7311\times0.5056 = 0.3696 .
 \]
 \emph{Steps $t\geq2$.} $x_t = 0$ gives $g_t = \tanh(0) = 0$, so nothing is written, and $f_t = \sigma(b_f)$ is constant: the cell
 decays geometrically, $c_t = \sigma(b_f)^{t-1}c_1$, while $h_t = \sigma(0)\tanh(c_t) = 0.5\tanh(c_t)$. With $b_f = 2$, $f = 0.8808$:

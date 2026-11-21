@@ -27,7 +27,8 @@ control the excess error rate. You will learn
 
 Take two classes, coded $y\in\{-1, +1\}$ in this chapter, and a real-valued score $f(x)$
 whose sign is the prediction. The 0--1 loss of the classifier $\sign f$ is
-$\bbone[yf(x)\leq0]$ (counting $f(x) = 0$ as an error), so it depends on $f$ and $y$ only through
+$\bbone[yf(x)\leq0]$ (counting $f(x) = 0$ as an error; in the risk $\Risk(\sign f)$, $\sign 0$ is
+given a fixed class, say $+1$, so that $\sign f$ is a classifier), so it depends on $f$ and $y$ only through
 the \emph{margin}
 \[
   m = yf(x),

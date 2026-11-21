@@ -470,8 +470,9 @@ $c_j = (1-\pi)\binom m{k_j}q^{k_j}(1-q)^{m-k_j}$, the E-step is $\gamma_j = b_j/
   p = \frac{\sum_j\gamma_jk_j}{m\sum_j\gamma_j},\qquad
   q = \frac{\sum_j(1-\gamma_j)k_j}{m\sum_j(1-\gamma_j)} .
 \]
-For $m\geq2$ the distribution of $k_j$ is no longer determined by a single number,
-and the parameters become identifiable (up to swapping B and C).
+For $m\geq3$ the distribution of $k_j$ determines the parameters (up to swapping B and C,
+and when $p\neq q$). For $m = 2$ it is still not enough: the law of $k_j\in\{0,1,2\}$ has two
+free values for three parameters.
 
 \solution{em-algorithm:exr:4}
 For $K = 1$, $\mathcal L_1 = \E_q[\log w(z)] = \mathrm{ELBO}$. Each $w(z_k)$ has expectation
@@ -618,8 +619,8 @@ a multiple of the tangent vector $(\sin\alpha, -\cos\alpha)$. It vanishes iff $\
         $\hat m_i/\sqrt{\hat s_i} = g_i/\abs{g_i} = \mathrm{sign}(g_i)$ for $g_i\neq0$ (and $0$ when $g_i = 0$, the limit with $\varepsilon>0$).
   \item Standard basis: step $-\eta(1, 1)$. In the basis $u_1 = \frac1{\sqrt2}(1,1)$, $u_2 = \frac1{\sqrt2}(-1,1)$, the
         coordinates of $g$ are $\inner g{u_1} = \frac3{\sqrt2}$ and $\inner g{u_2} = -\frac1{\sqrt2}$, so the step has coordinates
-        $-\eta(1, -1)$: it is $-\eta(u_1 - u_2) = -\eta(\sqrt2, 0)$ in the standard basis. The two steps differ in
-        length and are not even parallel. The dot product is the same in both orthonormal bases, so
+        $-\eta(1, -1)$: it is $-\eta(u_1 - u_2) = -\eta(\sqrt2, 0)$ in the standard basis. The two steps have the
+        same length $\sqrt2\,\eta$ but are not parallel. The dot product is the same in both orthonormal bases, so
         the difference does not come from the inner product but from the coordinatewise operations,
         which depend on the basis itself.
 \end{enumerate}
@@ -632,7 +633,7 @@ coordinates are
 \]
 The bracket is the second computation, so the two new points differ by the vector $\eta\lambda w$: each
 version contracts towards its own origin. For $L\equiv0$ and $0<\eta\lambda<2$, $x_k = (1 - \eta\lambda)^kx\to0$ and
-$x'_k\to0$, that is, $x_k\to w$ in the original coordinates: two different limits, the two origins.
+$x'_k\to0$, that is, $x'_k + w\to w$ in the original coordinates: two different limits, the two origins.
 
 \solution{gradient-tangent-space:exr:6}
 If $y - x\in\Z$ then $(y + v) - (x + v)\in\Z$, so $[x + v]$ depends only on $[x]$. Axioms 1 and 2 hold
@@ -918,7 +919,9 @@ With multipliers $\alpha_i, \mu_i\geq0$, $\mathcal L = \frac12\norm w^2 + \frac1
 $w = \sum\alpha_i\varphi(x_i)$, $\sum\alpha_i = 1$ (from $\rho$), $\alpha_i = \frac1{\nu n} - \mu_i\leq\frac1{\nu n}$, and the dual is
 $\min\frac12\alpha^\top K\alpha$ under these constraints. For $\nu = 1$, $\alpha_i\leq\frac1n$ and $\sum\alpha_i = 1$ force $\alpha_i = \frac1n$ for all $i$:
 every point is a support vector, $w$ is the mean of the feature vectors, and $f(x) = \frac1n\sum_ik(x_i, x) - \rho$
-is a kernel density estimate thresholded at its smallest training value.
+is a kernel density estimate minus a threshold. No margin support vector fixes $\rho$: with $w$ fixed,
+the primal is minimized by any $\rho$ at least the largest training value $\max_i\frac1n\sum_jk(x_j, x_i)$,
+so that all training points but at most one are outliers, as the $\nu$-property allows for $\nu = 1$.
 
 \solution{support-vector-methods:exr:3}
 With $C\geq1$ no slack pays off (the dual's bound $\alpha_i\leq C$ is inactive since $\sum\alpha_i = 1$), and SVDD is the
@@ -1669,7 +1672,7 @@ edges is also $2I$. Hence $V + I - 1 = 2I$, $I = V - 1$.
 
 \solution{hierarchical-softmax:exr:3}
 Merges: $f + e = 14$, $c + b = 25$, $14 + d = 30$, $25 + 30 = 55$, $a + 55 = 100$. Depths: $a$ $1$; $b$, $c$, $d$ $3$; $e$, $f$ $4$. Then
-$\bar L = (45 + 3(13 + 12 + 16) + 4(9 + 5))/100 = 2.24$, against $H = 2.22$ bits and $3$ for a tree with all six words at depth $3$.
+$\bar L = (45 + 3(13 + 12 + 16) + 4(9 + 5))/100 = 2.24$, against $H = 2.22$ bits and at most $3$ for a balanced tree.
 The very frequent $a$ is answered by a single binary decision.
 
 \solution{hierarchical-softmax:exr:4}
@@ -1708,7 +1711,7 @@ unigram distribution to the uniform one.
 
 \solution{hmm-viterbi:exr:1}
 Viterbi does about $TK^2 = 20\times2025 = 40\,500$ products $\delta_{t-1}(j)A_{jk}$, plus $TK = 900$ emission products. Enumeration
-evaluates $K^T = 45^{20}\approx1.2\times10^{33}$ sequences of $2T - 1 = 39$ factors each, about $4.5\times10^{34}$ products.
+evaluates $K^T = 45^{20}\approx1.2\times10^{33}$ sequences of $2T = 40$ factors each ($39$ multiplications), about $4.5\times10^{34}$ products.
 
 \solution{hmm-viterbi:exr:2}
 $\alpha_1 = (0.28, 0, 0, 0)$, $\alpha_2 = (0, 0.0224, 0, 0.0014)$ (one predecessor each, as for $\delta$). Then

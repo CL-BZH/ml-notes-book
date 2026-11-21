@@ -66,7 +66,7 @@ Networks}, AISTATS, 2011). For $z<0$ the derivative is $0$, which can kill units
   \item \emph{leaky ReLU} $\max(\alpha z, z)$ with a small fixed $\alpha$, e.g.\ $0.01$ (Maas, Hannun and Ng,
         \emph{Rectifier Nonlinearities Improve Neural Network Acoustic Models}, ICML Workshop, 2013);
         with a learned $\alpha$ it is the \emph{PReLU} of He, Zhang, Ren and Sun (2015, below);
-  \item \emph{ELU} $z$ for $z>0$ and $\alpha(e^z - 1)$ for $z\leq0$, smooth for $\alpha = 1$ and with negative outputs
+  \item \emph{ELU} $z$ for $z>0$ and $\alpha(e^z - 1)$ for $z\leq0$, continuously differentiable for $\alpha = 1$ and with negative outputs
         bounded below by $-\alpha$ (Clevert, Unterthiner and Hochreiter, ICLR, 2016);
   \item \emph{softplus} $\log(1 + e^z)$, a smooth ReLU with derivative $\sigma(z)$; it satisfies
         $0<\mathrm{softplus}(z) - \mathrm{ReLU}(z)\leq\log2$.
@@ -232,14 +232,17 @@ activations.
 
 A ReLU unit is \emph{dead} if its pre-activation $w_j^\top a + b_j$ is negative for every training input. Its
 output and its derivative are then $0$ on all the data, so the gradients for $w_j$ and $b_j$ vanish
-on every mini-batch, and gradient descent never changes them: the unit stays dead. (Weight decay
-only shrinks $w_j$ and $b_j$ towards $0$, which does not help if $b_j<0$ dominates.) A unit
+on every mini-batch, and gradient descent never changes them. If its inputs do not change either
+(in the first layer), the unit stays dead; deeper, the training of earlier layers can move its
+inputs and revive it. (Weight decay multiplies $w_j$ and $b_j$ by the same factor $1 - \eta\lambda>0$,
+which keeps every pre-activation negative, so it never helps.) A unit
 switched off for a single example is not dead; that is the normal sparsity of ReLU, and
 the pitfall of \cref{backpropagation:sec:pitfalls} shows its effect on one gradient.
 
 Units die after a large step pushes $b_j$ very negative, or $w_j$ in a direction where all inputs
-give negative values; high learning rates make this frequent. Leaky ReLU, ELU, GELU and SiLU
-have non-zero derivatives for $z<0$ and cannot die in this sense.
+give negative values; high learning rates make this frequent. Leaky ReLU and ELU
+have non-zero derivatives for $z<0$; the derivatives of GELU and SiLU vanish only at their minimum
+and as $z\to-\infty$. None of them can die in this sense.
 
 \section{Initialization}\label{activation-functions:sec:init}
 
@@ -296,8 +299,8 @@ scale still decays slowly, because $\abs{\tanh z}<\abs z$ shrinks every layer a 
 \begin{itemize}[nosep]
   \item Any continuous non-polynomial activation is expressive enough; what matters is $\phi'$, which
         multiplies the backward signal at every layer.
-  \item Sigmoid ($\sigma'\leq\frac14$) and tanh saturate; ReLU has derivative $0$ or $1$; leaky ReLU, ELU, softplus,
-        GELU and SiLU keep a non-zero derivative for $z<0$.
+  \item Sigmoid ($\sigma'\leq\frac14$) and tanh saturate; ReLU has derivative $0$ or $1$; leaky ReLU, ELU and softplus
+        keep a non-zero derivative for $z<0$, and that of GELU and SiLU vanishes at a single point.
   \item $\delta^{(l)}$ is a product of $L - l$ factors $D^{(k)}W^{(k+1)\top}$: it vanishes or explodes geometrically unless the
         factors are near $1$. Clipping treats explosion only.
   \item Positive activations restrict single-example updates of a unit's weights to an orthant;

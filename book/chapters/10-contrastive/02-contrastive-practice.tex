@@ -132,7 +132,7 @@ accuracy (\cref{contrastive-learning:sec:infonce}).
 
 SimCLR's negatives are limited by the batch. MoCo (He, Fan, Wu, Xie and Girshick, \emph{Momentum
 Contrast for Unsupervised Visual Representation Learning}, 2020) keeps a \emph{queue} of the
-encoded keys of the last $K$ batches ($K = 65\,536$ in the paper) and uses them as negatives, so the
+$K$ most recently encoded keys ($K = 65\,536$ in the paper) and uses them as negatives, so the
 number of negatives no longer depends on the batch size. For a query $q = f_q(\tilde x)$ and its positive key
 $k_+ = f_k(\tilde x')$ (normalized vectors),
 \[

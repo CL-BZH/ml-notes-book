@@ -240,12 +240,12 @@ $\sigma_W^2\approx47.23$.
         $\hat\mu_{N,M}$ is $\sqrt{59.77/100 + 47.23/1000}\approx0.80$. With $1000$ independent
         joint draws it is $\sqrt{107/1000}\approx0.33$: for the same $1000$ likelihood
         evaluations, the two-stage design is about $2.5$ times noisier, because $\ell$
-        depends strongly on $z_1$ (through $z_1^2$) and $\sigma_B^2$ is large.
+        depends strongly on the outer variable $z_1$ (through $z_1^2$) and $\sigma_B^2$ is large.
   \item $Z_2\mid Z_1$ is Gaussian and $\ell$ is a polynomial in $z_2$, so $\gamma(z_1)$ has a
         closed form, and Rao--Blackwellizing $z_2$ removes the fraction
-        $\sigma_W^2/\sigma^2\approx44\%$ of the variance. Integrating out the variable that
-        carries \emph{less} of the variability is the less profitable choice --- a
-        lesson in itself.
+        $\sigma_W^2/\sigma^2\approx44\%$ of the variance. Since $Z_1$ and $Z_2$ play symmetric
+        roles, integrating out $z_1$ instead would remove the same fraction: the larger share
+        $\sigma_B^2$ belongs to whichever variable is conditioned on.
 \end{itemize}
 \end{example}
 
@@ -390,6 +390,11 @@ has mean zero and $\E[(\hat\gamma_M - \gamma)^2\mid X] = v(X)/M$. Replacing
 $f''(\xi)$ by $f''(\gamma)$ costs $o(1/M)$, because $\hat\gamma_M\to\gamma$ and $f''$
 is bounded and continuous.
 \end{proof}
+
+For $f = \log$, used below and in \cref{ch:em-algorithm}, $f''(z) = -1/z^2$ is unbounded near
+$0$, so the proposition does not apply as stated. The expansion is then a heuristic, accurate
+when the inner estimates $\hat\gamma_M$ stay away from $0$; in the running model the constant it
+predicts agrees with a direct numerical computation.
 
 For $f(z) = z^2$, $f'' = 2$ and the formula gives back the exact bias
 $\E[v(X)]/M$ of \cref{monte-carlo:ex:square}.

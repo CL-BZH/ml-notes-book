@@ -23,7 +23,7 @@
 \begin{chapterintro}
 The graph Laplacian $\bL = \bD - \bA$ of \cref{ch:harmonic-functions} has a spectrum that reads like a summary of
 the graph. The multiplicity of its eigenvalue $0$ counts connected components; its next eigenvector
-splits the graph along its weakest cut; and its eigenvectors, ordered by eigenvalue, are the
+approximately splits the graph along a weak cut; and its eigenvectors, ordered by eigenvalue, are the
 ``frequencies'' of graph signal processing, from the smooth constant vector to signals that
 change sign across every edge. This chapter proves these facts and turns them into
 algorithms: spectral clustering, Laplacian eigenmaps, and smoothing by Laplacian
@@ -739,7 +739,7 @@ The spectral method perfectly recovers the two communities.
 \begin{keyidea}
 \emph{Spectral clustering algorithm} (for $K$ clusters):
 \begin{enumerate}
-    \item Compute the Laplacian $\bL$ (or $\bL_{\text{sym}}$, $\bL_{\text{rw}}$).
+    \item Compute the Laplacian $\bL$ (or $\bL_{\text{rw}}$; with $\bL_{\text{sym}}$, also normalize each row of $\bU$ to unit length before step 5).
     \item Find the $K$ eigenvectors $\be_n, \be_{n-1}, \ldots, \be_{n-K+1}$ for the $K$ smallest eigenvalues.
     \item Form matrix $\bU \in \R^{n \times K}$ with these eigenvectors as columns.
     \item Represent each node $u$ by row $\bU[u, :]$ (a $K$-dimensional vector).
@@ -751,7 +751,7 @@ The spectral method perfectly recovers the two communities.
 Why does this work for $K > 2$ clusters?
 \begin{itemize}
     \item The first eigenvector ($\lambda = 0$) is constant --- no cluster information.
-    \item The second eigenvector optimally splits the graph into 2 parts.
+    \item The second eigenvector solves the relaxed RatioCut problem, and its signs give an approximate split into 2 parts.
     \item The third eigenvector provides the next best ``direction'' of separation.
     \item Together, $K$ eigenvectors embed nodes so that cluster structure becomes apparent in Euclidean space.
 \end{itemize}

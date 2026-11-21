@@ -57,8 +57,9 @@ is orthogonal. The remaining relations follow by transposing and multiplying.
 
 The last $n-r$ columns of $V$ form an orthonormal basis of $\ker(A)$, and the last
 $m-r$ columns of $U$ one of $\ker(A^\top) = \operatorname{Im}(A)^\perp$. The singular
-values are unique; the singular vectors are unique up to sign when the $\sigma_i$ are
-distinct. The \emph{thin} SVD keeps only the first $r$ columns: $A = U_r\Sigma_rV_r^\top$
+values are unique; when $\sigma_1, \ldots, \sigma_r$ are distinct, the pairs $(u_i, v_i)$,
+$i\leq r$, are unique up to a common change of sign, while the remaining columns are any
+orthonormal bases of the two kernels. The \emph{thin} SVD keeps only the first $r$ columns: $A = U_r\Sigma_rV_r^\top$
 with $U_r\in\R^{m\times r}$, $\Sigma_r = \diag(\sigma_1,\dots,\sigma_r)$, $V_r\in\R^{n\times r}$.
 
 \section{Geometric meaning}\label{svd:sec:geometry}
@@ -78,8 +79,8 @@ Equivalently, by the rank-one sum,
   Ax = \sum_{i=1}^r\sigma_i\,(v_i^\top x)\,u_i :
 \]
 each term \emph{projects} $x$ on $v_i$, \emph{scales} the coordinate by $\sigma_i$, and
-\emph{embeds} it along $u_i$. In particular $A$ maps the unit sphere of $\R^n$ onto an
-ellipsoid in $\operatorname{Im}(A)$ with semi-axes $\sigma_iu_i$
+\emph{embeds} it along $u_i$. In particular, when $r = n$, $A$ maps the unit sphere of $\R^n$ onto an
+ellipsoid in $\operatorname{Im}(A)$ with semi-axes $\sigma_iu_i$ (when $r < n$, onto the solid ellipsoid)
 (\cref{svd:fig:ellipse}), and $\norm{A}_2 = \max_{\norm x=1}\norm{Ax} = \sigma_1$.
 
 \begin{figure}[ht]
@@ -130,8 +131,9 @@ Check: $\det A = 15 = \sigma_1\sigma_2$, and $\norm A_F^2 = 9+16+25 = 50 = \sigm
 The eigenvalues of this $A$ are $3$ and $5$ (it is triangular), not $6.71$ and $2.24$.
 Eigenvectors need not be orthogonal and describe directions that $A$ maps to
 themselves; singular vectors are always orthonormal and describe how $A$ maps one
-orthonormal frame to another. The two coincide (up to sign) only for symmetric positive
-semi-definite matrices.
+orthonormal frame to another. For a symmetric matrix the singular vectors can be taken to be
+eigenvectors (up to sign), with $\sigma_i = \abs{\lambda_i}$; singular values and eigenvalues
+coincide only for symmetric positive semi-definite matrices.
 \end{pitfall}
 
 \section{Best low-rank approximation}\label{svd:sec:eckart-young}
@@ -153,7 +155,10 @@ That $\norm{A - A_k}_2 = \sigma_{k+1}$ follows from $A - A_k = \sum_{i>k}\sigma_
 Let $B$ have rank $\leq k$; then $\ker(B)$ has dimension $\geq n-k$ and meets the
 $(k+1)$-dimensional space $\operatorname{span}(v_1,\dots,v_{k+1})$ in some unit vector $x$.
 Then $\norm{(A-B)x} = \norm{Ax} = \bigl(\sum_{i\leq k+1}\sigma_i^2(v_i^\top x)^2\bigr)^{1/2}\geq\sigma_{k+1}$.
-The Frobenius case is proved in \cref{ch:pca-overview} in the language of PCA.
+The Frobenius case is proved in \cref{ch:pca-overview} in the language of PCA, for
+approximations whose rows lie in a common $k$-dimensional subspace. This is no restriction:
+the rows of any matrix of rank at most $k$ lie in such a subspace, and projecting each row of
+$A$ on it can only decrease the error.
 \end{proof}
 
 \begin{example}[Rank-one approximation]
@@ -216,7 +221,7 @@ $\operatorname{Im}(A)$ is $(\frac12,\frac12)$); $A^+y = (\frac14,\frac14)$ is th
         $\sigma_1\geq\dots\geq\sigma_r>0$; $v_i$, $\sigma_i^2$ are eigenpairs of $A^\top A$ and
         $u_i = Av_i/\sigma_i$.
   \item Geometrically: rotate ($V^\top$), stretch and change dimension ($\Sigma$), rotate ($U$);
-        the unit sphere becomes an ellipsoid with semi-axes $\sigma_iu_i$, and $\norm A_2 = \sigma_1$.
+        the unit ball becomes an ellipsoid with semi-axes $\sigma_iu_i$, and $\norm A_2 = \sigma_1$.
   \item Truncating the sum gives the best rank-$k$ approximation, with errors
         $(\sum_{i>k}\sigma_i^2)^{1/2}$ in Frobenius norm and $\sigma_{k+1}$ in spectral norm.
   \item $A^+ = \sum_i\sigma_i^{-1}v_iu_i^\top$ gives the minimum-norm least-squares solution, and

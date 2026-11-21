@@ -270,7 +270,7 @@ $p(x_t = 1\mid x_{<t}) = \sigma(3h_{t-1} - 1)$. For $x = (1, 0, 1)$:
 $t$ & $h_{t-1}$ & $p(x_t = 1\mid x_{<t})$ & factor\\\hline
 $1$ & $0$ & $\sigma(-1) = 0.2689$ & $0.2689$\\
 $2$ & $\tanh(2) = 0.9640$ & $\sigma(1.8921) = 0.8690$ & $1 - 0.8690 = 0.1310$\\
-$3$ & $\tanh(0.4820) = 0.4479$ & $\sigma(0.3438) = 0.5851$ & $0.5851$
+$3$ & $\tanh(0.4820) = 0.4479$ & $\sigma(0.3436) = 0.5851$ & $0.5851$
 \end{tabular}
 \end{center}
 so $p(1, 0, 1) = 0.2689\times0.1310\times0.5851 = 0.0206$ and $-\log p = 3.8818$. The eight sequences have probabilities
@@ -309,8 +309,8 @@ bidirectional & $x_{1:T}$, everything & offline tagging and inference
 \end{center}
 Choosing the summary is choosing what each conditional distribution may depend on, and
 that choice should follow the conditional independences of the model. The deep Kalman filter
-of the next chapter is a complete example: its generative model needs a summary of the
-strict past, and its inference model a summary of the future.
+of the next chapter is a complete example: its inference model needs a summary of the
+future, and its autoregressive variant adds a summary of the strict past to the generative model.
 
 \begin{chaptersummary}
 \begin{itemize}

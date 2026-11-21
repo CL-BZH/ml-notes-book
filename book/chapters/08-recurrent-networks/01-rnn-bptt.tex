@@ -379,7 +379,7 @@ all the future losses.
 
 \paragraph{Cost.} Both passes do $O(T(m^2 + mn + Km))$ operations, as for an MLP of depth $T$. The memory is
 $O(Tm)$ for the stored states, which is what limits the length of the sequences in practice and
-motivates truncation (\cref{rnn-bptt:sec:truncated}). Unlike the layers of an MLP, the time steps
+motivates truncation (\cref{rnn-bptt:sec:truncated}). As for the layers of an MLP, the time steps
 cannot be computed in parallel: $h_t$ needs $h_{t-1}$.
 
 \section{A worked example}\label{rnn-bptt:sec:example}
@@ -415,8 +415,8 @@ $1$ & $(-0.2546,\ 0.2546)$ & $(-0.1666,\ 0.1070)$ & $(-0.0700,\ 0.0841)$
 \end{tabular}
 \end{center}
 At $t = 2$, the two children contribute $W_{ho}^\top\bar o_2 = (0.3447,\ -1.0342)$ (current loss) and
-$W_{hh}^\top\delta_3 = (0.0259,\ 0.4130)$ (future loss). The second is not small: the second
-coordinate of $h_2$ matters more through $\ell_3$ than through $\ell_2$.
+$W_{hh}^\top\delta_3 = (0.0259,\ 0.4130)$ (future loss). The second is not small: on the second
+coordinate of $h_2$ it is about $40\%$ of the direct term, with the opposite sign.
 
 \emph{Gradient of $W_{hh}$.} The contributions $\delta_th_{t-1}^\top$ are
 \[

@@ -93,9 +93,10 @@ It replaces it either by a hierarchical softmax (\cref{ch:hierarchical-softmax})
 sampling (\cref{ch:nce-negative-sampling}), both $O(d\log|\mathcal V|)$ or $O(dk)$ per pair. Two further details of the
 implementation matter in practice: frequent words are randomly discarded (subsampling,
 each occurrence of $w$ dropped with probability $1 - \sqrt{s/f(w)}$, with $f(w)$ the frequency of $w$ and $s$ a threshold
-around $10^{-5}$), and the window size is drawn at random between $1$ and $m$ for each centre word, which
-gives nearby words more weight (Mikolov, Sutskever, Chen, Corrado and Dean,
-\emph{Distributed Representations of Words and Phrases and their Compositionality}, 2013).
+around $10^{-5}$; Mikolov, Sutskever, Chen, Corrado and Dean,
+\emph{Distributed Representations of Words and Phrases and their Compositionality}, 2013), and the window size is drawn at random between $1$ and $m$ for each centre word, which
+gives nearby words more weight (Mikolov, Chen, Corrado and Dean, \emph{Efficient Estimation of Word
+Representations in Vector Space}, 2013).
 
 \paragraph{Which vectors?} The model has two vectors per word, and they play different roles:
 $v_w$ describes $w$ as a centre, $u_w$ as a context. The input vectors are the ones usually published and
@@ -146,7 +147,7 @@ and $v_{\text{Paris}} - v_{\text{France}} + v_{\text{Italy}}$ to $v_{\text{Rome}
 and the set $\mathcal V\setminus\{a,b,c\}$ matters.
 
 \begin{pitfall}[The query words are excluded]
-The offset $v_b - v_a$ between ``man'' and ``king'' is often small compared with the vectors
+The offset $v_c - v_a$ between ``man'' and ``woman'' is often small compared with the vectors
 themselves, so the nearest neighbour of $v_{\text{king}} - v_{\text{man}} + v_{\text{woman}}$ is very often ``king'' itself, or
 ``woman''. The evaluation of Mikolov et al.\ excludes the three query words, and the
 reported accuracies depend on it (Nissim, van Noord and van der Goot, \emph{Fair is Better

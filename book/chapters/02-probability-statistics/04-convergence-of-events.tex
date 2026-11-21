@@ -136,7 +136,8 @@ for even $n$, slightly smaller for odd $n$. Every $\omega<\frac12$ is eventually
 always in $A_n$ and every $\omega>\frac12$ eventually always out, but
 $\omega = \frac12$ belongs to all even-indexed sets and to no odd-indexed one. So
 $\liminf A_n = [0,\frac12)$ and $\limsup A_n = [0,\frac12]$: the events do not
-converge. Yet $\Prob(A_n) = \frac12 + \frac{(-1)^n}{n}\to\frac12$, because
+converge. Yet $\Prob(A_n) = \frac12 + \frac{(-1)^n}{n}$ for $n\geq2$ ($A_1 = \emptyset$), so
+$\Prob(A_n)\to\frac12$, because
 $\liminf$ and $\limsup$ differ by the null set $\{\frac12\}$
 (\cref{convergence-of-events:prop:fatou}); equivalently,
 $\Prob(A_n\,\Delta\,[0,\frac12])\leq\frac1n\to0$.

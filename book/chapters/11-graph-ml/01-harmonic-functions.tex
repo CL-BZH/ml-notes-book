@@ -35,7 +35,7 @@ edges to $100^\circ$C while cooling others to $0^\circ$C. After a long time,
 the plate reaches a \emph{steady state}: the temperature at every interior
 point stops changing. What determines this equilibrium temperature?
 
-The answer, known since the work of Laplace in the 18th century, is that the
+The answer, which goes back to Fourier's theory of heat in the early 19th century, is that the
 steady-state temperature is a \emph{harmonic function}: at every interior
 point, the temperature equals the average of the temperatures in a small
 neighbourhood around it. There are no ``hot spots'' or ``cold spots'' in the
@@ -132,8 +132,8 @@ It says:
           neighbours --- the function is locally convex (like a valley).
     \item $f''(x) < 0$: $f(x)$ is \emph{above} the average of its
           neighbours --- the function is locally concave (like a hilltop).
-    \item $f''(x) = 0$: $f(x)$ \emph{equals} the average of its
-          neighbours --- the function is locally linear (harmonic).
+    \item $f'' = 0$ on an interval: $f(x)$ \emph{equals} the average of its
+          neighbours --- the function is linear there (harmonic).
 \end{itemize}
 
 \begin{example}[The 1D boundary value problem]
@@ -753,7 +753,7 @@ $f_3 = 1/2$, $f_4 = 1/4$.
 
 The discrete solution (blue dots) is a linear interpolation between the
 boundary values --- exactly the discrete analogue of the continuous 1D
-harmonic function $T(x) = 1 - x/L$ from \cref{harmonic-functions:sec:1d} (red dashed).
+harmonic function $T(x) = 100(1 - x/L)$ from \cref{harmonic-functions:sec:1d}, rescaled to the boundary values $1$ and $0$ (red dashed).
 \end{example}
 
 \subsection{Summary of the analogy}
@@ -804,8 +804,8 @@ f(x) &= g(x) \quad \text{for } x \in \partial\Omega
 \end{align}
 \end{definition}
 
-Under mild regularity conditions (the boundary $\partial\Omega$ is smooth
-enough), this problem has a unique solution. The solution has several
+If $\Omega$ is bounded, its boundary $\partial\Omega$ is smooth enough and $g$ is
+continuous, this problem has a unique solution. The solution has several
 equivalent characterizations:
 \begin{enumerate}
     \item It is the unique function that is harmonic inside $\Omega$ and
@@ -1459,12 +1459,14 @@ One might try to ``cheat'' by using a clever stopping rule: ``I will stop
 as soon as the Brownian motion goes up by $1$''. In the short term, this
 feels like a winning strategy because you always stop when you are ahead.
 
-But this reasoning is flawed. To gain $+1$, you must risk the possibility
-that the motion drops far below your starting point before ever going up
-by~$1$. The deeper the drop, the rarer it is --- but the loss when it happens
-is correspondingly larger. When you average over all possible paths, the
-frequent small wins of $+1$ are exactly cancelled by the rare but deep
-losses. The expected outcome remains $x$.
+On the whole line, this rule does win: Brownian motion in one dimension
+reaches $x + 1$ with probability $1$, so $B_\tau = x + 1$ on every path and
+$\E[B_\tau] = x + 1$. The price is hidden elsewhere. Before it goes up by~$1$,
+the motion can drop arbitrarily far below the starting point, so the player
+needs unlimited credit, and the expected waiting time $\E[\tau]$ is infinite.
+On the rod this escape is closed: the motion is stopped at $0$ if it gets
+there first. The losses of these paths exactly cancel the frequent small wins
+of $+1$, and the expected outcome remains $x$.
 
 This is the essence of the optional stopping theorem: in a martingale,
 $\E[B_\tau] = \E[B_0]$ for any stopping time $\tau$ (under mild
