@@ -69,7 +69,7 @@ $\Delta(c) = s(c) - \log(kP_n(c))$ gives $e^{s(c)} = P_d(c)$. (Words with $P_d(c
 
 The subtraction of $\log(kP_n(c))$ is what makes this work: the classifier only has to learn how much
 more likely $c$ is under the data than under the noise, and the noise term supplies the rest.
-With finite data and a parametric model, Gutmann and Hyvärinen prove that the estimator is
+With a parametric model, Gutmann and Hyvärinen prove that the estimator is
 consistent, the normalizer being treated as an extra parameter; for language models,
 Mnih and Teh (\emph{A Fast and Simple Algorithm for Training Neural Probabilistic Language
 Models}, 2012) found that fixing it to $1$ works, the model becoming self-normalized.

@@ -265,7 +265,7 @@ Apply the chain rule and set $u = m - i$.
 Weight sharing makes the kernel gradient a \emph{sum} over all positions where the kernel
 was used (\cref{computational-graphs:sec:params}). The input gradient is the transpose of
 the convolution's matrix applied to $g$ (\cref{ch:backpropagation}: $\bar x = W^\top\bar y$); with the
-Toeplitz matrix of \cref{convolution-filtering:sec:definitions}, multiplying by its transpose is
+Toeplitz matrix of this valid cross-correlation (\cref{convolutional-layers:exr:4}), multiplying by its transpose is
 a full convolution, the cross-correlation with the flipped kernel. This operation, the
 \emph{transposed convolution}, is studied in \cref{ch:fully-convolutional}. For multichannel
 layers, the formulas are summed over the channels the weight connects; for strides,

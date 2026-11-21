@@ -243,7 +243,7 @@ Gx = correlate2d(I, Sx, mode="same", boundary="symm")   # 8 dI/dx
 Gy = correlate2d(I, Sy, mode="same", boundary="symm")   # 8 dI/dy, y down
 G = np.hypot(Gx, Gy)
 theta = np.degrees(np.arctan2(Gy, Gx))                    # in (-180, 180]
-# OpenCV: cv2.Sobel(I, cv2.CV_64F, 1, 0, ksize=3) gives the same Gx
+# OpenCV: cv2.Sobel(I, cv2.CV_64F, 1, 0, ksize=3, borderType=cv2.BORDER_REFLECT) gives the same Gx
 \end{lstlisting}
 
 \begin{chaptersummary}

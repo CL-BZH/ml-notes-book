@@ -105,7 +105,7 @@ Among all binary trees with the words as leaves, the Huffman tree minimizes $\ba
 \end{theorem}
 
 Optimality is proved by an exchange argument, and the bounds by Kraft's inequality; see Cover
-and Thomas, \emph{Elements of Information Theory}, 2006, Chapter~5. A balanced tree has depth
+and Thomas, \emph{Elements of Information Theory}, 2006, Chapter~5. A balanced tree has depth at most
 $\lceil\log_2V\rceil$ for every word, and $H(f)\leq\log_2V$: for the skewed frequencies of natural language, the
 Huffman tree is shorter on average. The worst case, however, can be much longer than $\log_2V$
 (up to $V - 1$ for a word of very low frequency), so the claim that hierarchical softmax costs

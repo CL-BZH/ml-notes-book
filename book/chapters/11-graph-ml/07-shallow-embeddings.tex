@@ -408,7 +408,7 @@ Given a high-order proximity matrix $\similarity$ (e.g.\ Katz index), find \emph
 \[
 S_{ij} \approx \vect{y}_{s,i}^\top \vect{y}_{t,j} \neq \vect{y}_{s,j}^\top \vect{y}_{t,i} \approx S_{ji}
 \]
-For undirected graphs, you can use $\embed_s = \embed_t$.
+For undirected graphs $\similarity$ is symmetric, but $\embed_s = \embed_t$ is possible only when the $d$ retained singular values come from positive eigenvalues; otherwise the two factors differ (\cref{shallow-embeddings:exr:1}).
 \end{keyidea}
 
 \begin{example}
@@ -850,7 +850,7 @@ A beautiful theoretical result shows that skip-gram with negative sampling impli
 \end{intuition}
 
 \begin{theorem}[What DeepWalk learns (Qiu et al., 2018)]
-Consider DeepWalk with skip-gram and $K$ negative samples, with target embeddings $\embed$ and context embeddings $\mathbf C$. In the limit of infinitely many walks of infinite length, and if the embedding dimension is large enough for the optimum to be reached, the inner products satisfy $\embed\mathbf C^\top = \mathbf M$, where the logarithm is taken entrywise:
+Consider DeepWalk with skip-gram and $K$ negative samples, with target embeddings $\embed$ and context embeddings $\mathbf C$. For a connected, non-bipartite graph, in the limit of infinitely many walks of infinite length, and if the embedding dimension is large enough for the optimum to be reached, the inner products satisfy $\embed\mathbf C^\top = \mathbf M$ on the entries where $\mathbf M$ is finite (pairs at distance greater than $c$ have $\mathbf M_{ij} = -\infty$, which is only approached), where the logarithm is taken entrywise:
 \[
 \mathbf{M} = \log\left(\frac{\text{vol}(G)}{c} \sum_{r=1}^{c} \transition^r \degree^{-1}\right) - \log K
 \]

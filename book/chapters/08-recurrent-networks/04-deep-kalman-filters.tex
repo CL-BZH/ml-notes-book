@@ -213,8 +213,8 @@ surprise and changes what $z_t$ must have been.
   q_\phi(z_{1:T}\mid x_{1:T}) = \prod_{t=1}^Tq_\phi(z_t\mid z_{t-1}, x_{t:T}),
 \end{equation}
 where from now on there are no inputs, as in the datasets of the repository. Then the
-family of $q_\phi$ contains the true posterior when the networks are flexible enough, and the
-ELBO can be tight. The first DKF paper experimented with mean-field inference networks
+family of $q_\phi$ has the conditional independences of the true posterior, so its structure does
+not prevent the ELBO from being tight; the remaining restriction is the form of each factor. The first DKF paper experimented with mean-field inference networks
 that ignore $z_{t-1}$, conditioning $z_t$ on $x_t$, on $x_{t-1:t+1}$, on $x_{1:t}$ or on $x_{1:T}$. They cannot represent the strong
 dependence between successive states of the posterior. The follow-up (Krishnan, Shalit and
 Sontag, \emph{Structured Inference Networks for Nonlinear State Space Models}, 2017) builds

@@ -99,7 +99,8 @@ $\norm{x} = \sqrt{\sum_i x_i^2}$.
 \end{example}
 
 \begin{example}[$L^2$ inner product on functions]
-On $V = \{f:[0,1] \to \R \mid \int_0^1 f(x)^2\,dx < \infty\}$, the $L^2$
+On the space $V$ of functions $f:[0,1] \to \R$ with $\int_0^1 f(x)^2\,dx < \infty$,
+two functions being identified when they agree almost everywhere, the $L^2$
 inner product is:
 \[
 \inner{f}{g}_{L^2} = \int_0^1 f(x)\,g(x)\,dx.
@@ -121,7 +122,7 @@ Informally: you can take limits freely without leaving the space.
 \end{definition}
 
 \paragraph{Why completeness matters.} When we optimize $\min_{f \in \hilb}
-J(f)$, we need the minimizing sequence to converge \emph{to an element
+J(f)$, we need a minimizing sequence, if it converges, to converge \emph{to an element
 of $\hilb$}. If the space were not complete, the limit might ``fall
 outside'' the space, and the minimum would not be attained. Completeness
 guarantees that optimization problems are well-posed.
@@ -1784,8 +1785,8 @@ For $K(x,x') = \exp(-\norm{x-x'}^2/2\sigma^2)$ on $\R^d$:
   $f(x) = \int \alpha(t)\,\exp(-\norm{x-t}^2/2\sigma^2)\,dt$.
   \item The RKHS norm penalizes ``roughness'': rapidly oscillating
   functions have large $\norm{f}_{\hk}$.
-  \item Smaller $\sigma$ allows finer detail but makes the RKHS norm of
-  a given function larger.
+  \item Smaller $\sigma$ penalizes high frequencies less, so finer detail is
+  allowed.
 \end{itemize}
 
 \begin{intuition}[The Gaussian feature space is infinite-dimensional]
@@ -1936,8 +1937,9 @@ where the convergence is absolute and uniform.
   \begin{equation}
   \norm{f}_{\hk}^2 = \sum_{k=1}^\infty \frac{a_k^2}{\lambda_k} < \infty.
   \end{equation}
-  \item Functions whose expansion coefficients $a_k$ decay faster than
-  $\sqrt{\lambda_k}$ belong to the RKHS; those that do not, do not.
+  \item A function belongs to the RKHS exactly when its coefficients $a_k$ are small
+  enough relative to $\sqrt{\lambda_k}$ for this series to converge; $a_k/\sqrt{\lambda_k}\to0$
+  is necessary but not sufficient.
   \item Larger eigenvalues $\lambda_k$ correspond to ``easier''
   directions: components along these eigenfunctions are penalized less
   by the RKHS norm.
@@ -1945,7 +1947,7 @@ where the convergence is absolute and uniform.
 
 \begin{example}[Mercer expansion of the Gaussian kernel
 on {$[0,1]$}]
-For the Gaussian kernel with $\sigma = 0.3$ on $[0,1]$ (with the uniform measure), the eigenvalues, computed numerically and divided by the largest, are $1,\ 0.49,\ 0.16,\ 0.036,\ 0.0063,\ 8.8\times10^{-4},\ 1.0\times10^{-4},\ 10^{-5}$. The ratio of consecutive eigenvalues itself decreases ($0.49, 0.32, 0.23, 0.17, \ldots$), so the decay is faster than geometric; for analytic kernels such as the Gaussian this super-geometric decay is the general rule. This rapid decay means:
+For the Gaussian kernel with $\sigma = 0.3$ on $[0,1]$ (with the uniform measure), the eigenvalues, computed numerically and divided by the largest, are $1,\ 0.49,\ 0.16,\ 0.036,\ 0.0063,\ 8.8\times10^{-4},\ 1.0\times10^{-4},\ 10^{-5}$. The ratio of consecutive eigenvalues itself decreases ($0.49, 0.32, 0.23, 0.17, \ldots$), so the decay is faster than geometric; for the Gaussian kernel on a bounded domain this super-geometric decay is the rule, while other analytic kernels may decay only geometrically. This rapid decay means:
 
 \begin{enumerate}
   \item The Gaussian RKHS contains only very smooth functions (because

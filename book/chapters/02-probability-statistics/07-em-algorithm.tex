@@ -66,7 +66,7 @@ The complete-data log-likelihood
 $\log P(y,z\mid\theta) = z\log(\pi p^y(1-p)^{1-y}) + (1-z)\log((1-\pi)q^y(1-q)^{1-y})$
 splits into separate terms for $\pi$, $p$ and $q$, each maximized by counting. The
 observed-data log-likelihood has the sum \emph{inside} the logarithm, which ties
-all parameters together: its gradient equations have no closed-form solution.
+all parameters together: in general its gradient equations have no closed-form solution.
 EM works with the complete-data form, replacing the unknown $z_j$ by its
 expectation.
 \end{intuition}
