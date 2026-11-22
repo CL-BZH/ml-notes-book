@@ -74,7 +74,8 @@ unbiased but noisy one-sample (or mini-batch) estimates of a gradient.
 \section{Expectations of expectations: ancestral and two-stage sampling}\label{monte-carlo:sec:hierarchical}
 
 Latent-variable models are usually specified by a \emph{chain of conditional
-distributions} rather than by a joint density: first $X\sim p(x)$, then
+distributions} rather than by a joint density, which need not exist
+(\cref{distributions-densities:sec:notation}): first $X\sim p(x)$, then
 $Y\sim p(y\mid x)$, and so on. The quantity of interest is often an iterated
 expectation
 \[

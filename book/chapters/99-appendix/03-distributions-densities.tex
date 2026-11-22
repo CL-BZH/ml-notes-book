@@ -1,0 +1,278 @@
+\begin{notechapter}
+\chapter{Distributions and Densities}\label{ch:distributions-densities}
+\chaptersubtitle{What a formula written with $p(\cdot)$ means}
+
+\begin{chapterintro}
+The book writes $p(x)$, $p(x, y)$ and $p(y\mid x)$ throughout, and most of the time these are densities.
+Sometimes no density exists: the empirical distribution of a sample (\cref{cross-entropy:def:empirical}),
+the output of a ReLU, a variable that is a deterministic function of another, a point constrained to a
+curve. The \emph{distribution} always exists; the \emph{density} is one way of writing it, available only
+in some cases. This appendix separates the two notions, and explains in what sense a formula written
+with densities remains correct when there is no density: it is then a shorthand for a statement about
+probabilities or expectations. You will learn
+\begin{itemize}[nosep]
+  \item what a distribution is, what a density is, and when the second exists;
+  \item densities with respect to other reference measures, which put sums and integrals, and discrete
+        and continuous variables, under one notation;
+  \item how a density changes with the coordinates, and why a mode is not invariant;
+  \item how to read a formula written with densities when there is none: sampling recipes, conditional
+        distributions, Bayes' rule with a prior that has no density, density ratios and KL divergences.
+\end{itemize}
+\prerequisites{integrals and expectations; \cref{ch:learning-problem} (the distribution of $(X, Y)$);
+\cref{ch:bayesian-reasoning} (Bayes' theorem) for the last sections.}
+\end{chapterintro}
+
+\section{Distribution and density}\label{distributions-densities:sec:basics}
+
+\begin{definition}[Distribution]\label{distributions-densities:def:distribution}
+The \emph{distribution} of a random variable $X$ with values in $\R^d$ is the function $P_X$ that gives,
+for every (measurable) region $A\subset\R^d$, the probability $P_X(A) = \Prob(X\in A)$.
+\end{definition}
+
+The distribution is equivalently described by the expectations $\E[g(X)]$ for all bounded continuous
+functions $g$: the indicator $g = \bbone_A$ gives back $P_X(A)$, and indicators can be approximated by
+continuous functions. Every random variable has a distribution. This is the object that the book
+calls $P$ in \cref{ch:learning-problem}, and the object a sampler produces: drawing $X$ many times and
+counting how often it falls in $A$ estimates $P_X(A)$.
+
+\begin{definition}[Density]\label{distributions-densities:def:density}
+A \emph{density} of $X$ is a function $p\geq0$ on $\R^d$ such that
+\[
+  \Prob(X\in A) = \int_Ap(x)\,dx\qquad\text{for every region }A.
+\]
+\end{definition}
+
+A density is a way of writing the distribution, and a density determines the distribution. Two
+densities of the same distribution can differ only on a set of zero volume: changing $p$ at a single
+point changes no integral. ``The value of the density at $x$'' is therefore meaningful only for a
+continuous version of $p$, and then it is a probability \emph{per unit volume},
+\[
+  p(x) = \lim_{r\to0}\frac{\Prob(X\in B(x, r))}{\operatorname{vol}(B(x, r))},
+\]
+where $B(x, r)$ is the ball of radius $r$ around $x$. It is not a probability. It has units (probability
+per unit of $x$ in each coordinate), it can exceed $1$ (the uniform density on $[0, \frac12]$ equals $2$),
+and the probability of a single point is $0$ whether or not there is a density.
+
+\paragraph{When there is no density.} If $X$ has a density, every region of zero volume has
+probability zero, since the integral of $p$ over it is zero. So a distribution that puts positive
+probability on a set of zero volume has no density. The converse also holds: if every set of zero
+volume has probability zero, a density exists. This is the Radon--Nikodym theorem, whose proof is
+beyond the scope of this book. Four cases occur in the book.
+\begin{itemize}
+  \item \textbf{Discrete values.} The result of a die, a class label $Y$, a word: all the probability is on
+        finitely or countably many points.
+  \item \textbf{The empirical distribution.} The distribution $\hat p_n$ of a sample puts mass $1/n$ on each
+        observed point (\cref{cross-entropy:def:empirical}). It is discrete even when the data are
+        continuous.
+  \item \textbf{Mixed distributions.} If $Z\sim\mathcal N(0, 1)$, then $Y = \max(0, Z)$, a ReLU unit fed a
+        Gaussian pre-activation, has $\Prob(Y = 0) = \frac12$: an atom at $0$. On $(0, \infty)$ its
+        probability is spread with the Gaussian density. $Y$ is neither discrete nor has a density
+        (\cref{distributions-densities:fig:examples}, left).
+  \item \textbf{Fewer degrees of freedom than coordinates.} A point $X = (\cos T, \sin T)$ with $T$ uniform on
+        $[0, 2\pi)$ lies on the unit circle, a curve of zero area: $X$ has no density in the plane. The
+        same happens to a pair $(X, g(X))$, which lies on the graph of $g$, and to two views of the same
+        image when one is a deterministic function of the other.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[name=relu, width=0.48\linewidth, height=5cm, xmin=-0.6, xmax=3.2, ymin=0, ymax=0.6,
+  xlabel={$y$}, axis lines=left, ytick={0, 0.2, 0.4}, tick label style={font=\scriptsize},
+  label style={font=\small}, clip=false]
+\addplot[thick, bookaccent, domain=0.001:3.2, samples=60] {exp(-x^2/2)/sqrt(2*pi)};
+\draw[very thick, bookpitfall, -{Stealth[length=2mm]}] (axis cs:0, 0) -- (axis cs:0, 0.5);
+\node[font=\scriptsize, anchor=west, bookpitfall] at (axis cs:0.06, 0.52) {atom $\Prob(Y = 0) = \frac12$};
+\node[font=\scriptsize, anchor=west, bookaccent] at (axis cs:0.9, 0.3) {density $\varphi(y)$ on $(0, \infty)$};
+\end{axis}
+\begin{axis}[at={(relu.east)}, anchor=west, xshift=1.2cm, width=0.44\linewidth, height=5cm,
+  axis equal image, xmin=-1.5, xmax=1.5, ymin=-1.5, ymax=1.5, axis lines=none]
+\addplot[thick, bookpitfall, domain=0:360, samples=90] ({cos(x)}, {sin(x)});
+\addplot[only marks, mark=*, mark size=0.9pt, bookaccent] coordinates {
+(0.93,0.27) (0.09,0.85) (0.43,-1.25) (-1.01,-0.39) (1.00,0.23) (-0.99,0.46) (-1.08,0.37) (0.36,0.90)
+(-0.25,-0.78) (0.75,0.60) (-1.03,0.88) (-0.88,0.01) (-0.74,0.47) (-0.95,-0.64) (-0.20,-0.79) (0.74,-0.36)
+(-0.26,1.01) (-0.51,-0.99) (-0.59,-0.94) (-0.08,1.08) (1.03,-0.04) (1.03,-0.20) (-0.18,0.83) (-0.37,0.90)
+(0.86,-0.60) (-0.48,-0.29) (-0.76,-0.13) (0.09,-1.08) (1.06,-0.15) (-0.09,-0.80) (-0.90,0.56) (0.72,0.55)
+(-0.44,-0.54) (0.88,-0.30) (0.29,1.23) (-0.57,-0.52) (-0.46,0.93) (-0.17,-0.77) (-0.08,-1.03) (0.13,1.05)
+(0.38,-1.02) (-0.48,-0.47) (-0.45,-1.00) (0.25,-1.10) (-0.82,0.56) (0.06,-0.95) (0.74,-0.67) (0.57,0.53)
+(0.60,-0.93) (-0.86,0.50) (-1.04,0.26) (0.55,0.77) (-0.20,-0.85) (-0.01,0.65) (0.82,-0.80) (-0.14,1.11)
+(-0.76,-0.22) (-0.78,0.83) (-0.80,-0.67) (0.45,0.86)};
+\end{axis}
+\end{tikzpicture}
+\caption{Left: the distribution of $Y = \max(0, Z)$ with $Z\sim\mathcal N(0, 1)$, an atom of mass $\frac12$
+at $0$ (arrow) and the Gaussian density on $(0, \infty)$. It has no density on $\R$. Right: $X$ uniform on the
+unit circle (red) has no density in the plane; $Z = X + V$ with Gaussian noise $V$ ($\sigma = 0.15$, $60$
+draws in blue) has one.}
+\label{distributions-densities:fig:examples}
+\end{figure}
+
+\section{Densities with respect to other reference measures}\label{distributions-densities:sec:reference}
+
+The volume in \cref{distributions-densities:def:density} is not the only possible yardstick. Replace it
+by the \emph{counting measure}, which gives to each set of integers its number of elements: integrals
+against it are sums, and a density of a discrete $Y$ with respect to it is the probability mass function,
+$\Prob(Y\in A) = \sum_{y\in A}p(y)$. In general, a density of $X$ with respect to a reference measure $\mu$ is a
+function $p\geq0$ with $\Prob(X\in A) = \int_Ap\,d\mu$ for every $A$, and then $\E[g(X)] = \int gp\,d\mu$. One
+notation covers sums and integrals.
+
+\paragraph{Mixed pairs.} In classification, $X\in\R^D$ is continuous and $Y\in\{1, \dots, K\}$ is a label.
+The pair $(X, Y)$ has no density on $\R^{D+1}$ (all its probability is on $K$ parallel copies of $\R^D$), but
+it has one with respect to ``volume in $x$ times counting in $y$'':
+\[
+  \Prob(X\in A, Y = k) = \int_Ap(x, k)\,dx,\qquad p(x, k) = \Prob(Y = k)\,p(x\mid Y = k).
+\]
+This is the sense of $p(x, y)$ in \cref{ch:learning-problem,ch:generative-discriminative}, and the
+reason why sums over $y$ and integrals over $x$ appear side by side in the same formula.
+
+\paragraph{The ReLU output.} With the reference measure ``length on $(0, \infty)$ plus a unit atom at $0$'',
+$Y = \max(0, Z)$ has the density $p(0) = \frac12$ and $p(y) = \varphi(y)$ for $y > 0$, where $\varphi$ is the
+standard Gaussian density. Then $\E[Y] = 0\cdot\frac12 + \int_0^\infty y\varphi(y)\,dy = 1/\sqrt{2\pi}\approx0.399$.
+
+\begin{pitfall}[Density values depend on the reference measure]
+The value $p(0) = \frac12$ above is a probability; the value $p(y) = \varphi(y)$ for $y > 0$ is a probability
+per unit length. Comparing them is meaningless, and so is adding the log-likelihood of a discrete
+observation to that of a continuous one as if they were on the same scale: the second changes when the
+continuous variable is measured in other units, the first does not. For the same reason a likelihood
+can be unbounded. A Gaussian mixture with one component centred on a data point and a variance
+tending to $0$ has a density at that point tending to infinity, although the probability of any region
+stays at most $1$.
+\end{pitfall}
+
+\section{Change of variables}\label{distributions-densities:sec:change}
+
+A smooth bijection $T$ of $\R^d$ carries the distribution of $X$ to that of $Y = T(X)$:
+$\Prob(Y\in A) = \Prob(X\in T^{-1}(A))$, with no condition. The density, when there is one, changes by the
+Jacobian factor that converts volumes:
+\[
+  p_Y(y) = p_X\bigl(T^{-1}(y)\bigr)\,\abs{\det J_{T^{-1}}(y)} .
+\]
+The distribution is transported unchanged; its density is not, because ``probability per unit volume''
+depends on how volume is measured in the new coordinates.
+
+\begin{example}[The mode moves]\label{distributions-densities:ex:lognormal}
+Let $X\sim\mathcal N(0, 1)$ and $Y = e^X$. Then $p_Y(y) = \varphi(\log y)/y$ for $y > 0$, and setting the
+derivative of $\log p_Y(y) = -\frac12(\log y)^2 - \log y + \text{const}$ to zero gives $\log y = -1$: the mode of
+$Y$ is $e^{-1}\approx0.368$, not $e^0 = 1$, the image of the mode of $X$. The median, which is defined by
+probabilities, is transported: it is $e^0 = 1$. The mean is $e^{1/2}\approx1.649$.
+\end{example}
+
+This is why a MAP estimate depends on the parametrization while posterior probabilities do not
+(\cref{bayesian-reasoning:sec:map}). If $T$ maps $\R^d$ into a space of higher dimension, for instance
+$x\mapsto(x, g(x))$, the image has no density at all (\cref{distributions-densities:sec:basics}). In the other
+direction, adding an independent variable that has a density restores one: $X + V$ has a density as soon as
+$V$ has one, whatever $X$ is (\cref{distributions-densities:ex:circle}).
+
+\section{Formulas with densities when there is none}\label{distributions-densities:sec:notation}
+
+A formula written with densities is a statement about probabilities or expectations. When no density
+exists, the book keeps the notation and the statement keeps its meaning; what changes is how it is
+read. Four readings cover the book.
+
+\paragraph{1. A chain of conditionals is a sampling recipe.} ``$X\sim p(x)$, then $Y\sim p(y\mid x)$'' says
+how $(X, Y)$ is produced: draw $X$, then draw $Y$ from a distribution that depends on the value drawn. A
+\emph{conditional distribution} of $Y$ given $X$ is exactly this: for each value $x$, a distribution
+$P_{Y\mid X = x}$, such that
+\[
+  \Prob(X\in A, Y\in B) = \int_AP_{Y\mid X = x}(B)\,dP_X(x)\qquad\text{for all }A, B .
+\]
+This makes sense for any distributions, with or without densities, and it is the reading of ancestral
+sampling (\cref{monte-carlo:sec:hierarchical}) and of the generative models of Part~II onwards. A
+deterministic step is the extreme case: ``$Y = g(X)$'' is the conditional distribution with all its mass at
+$g(x)$, often written $p(y\mid x) = \delta(y - g(x))$ with the Dirac notation. When all the factors have densities,
+the joint density is their product and $p(y\mid x) = p(x, y)/p(x)$; when some do not, the product is the
+recipe and the division is not available.
+
+\paragraph{2. Bayes' rule needs a density only for the likelihood.} Let $X$ have any distribution $P_X$, and
+let $Z$ given $X = x$ have a density $p(z\mid x)$ in $z$ (a sensor with Gaussian noise, say). Then $Z$ has a
+density even when $X$ does not.
+
+\begin{proposition}[Bayes' rule with a general prior]\label{distributions-densities:prop:bayes}
+Under these assumptions $Z$ has the density $p(z) = \E[p(z\mid X)] = \int p(z\mid x)\,dP_X(x)$, and for every $z$ with
+$p(z) > 0$ a conditional distribution of $X$ given $Z = z$ is
+\[
+  \Prob(X\in A\mid Z = z) = \frac{\E\bigl[\bbone_A(X)\,p(z\mid X)\bigr]}{p(z)}
+  = \frac{1}{p(z)}\int_Ap(z\mid x)\,dP_X(x) .
+\]
+\end{proposition}
+
+\begin{proof}
+For regions $A$ and $B$, the recipe of reading~1 and Fubini's theorem give
+\[
+  \Prob(X\in A, Z\in B) = \E\Bigl[\bbone_A(X)\int_Bp(z\mid X)\,dz\Bigr]
+  = \int_B\E\bigl[\bbone_A(X)\,p(z\mid X)\bigr]\,dz .
+\]
+With $A = \R^d$ this says that $Z$ has the density $p(z) = \E[p(z\mid X)]$. For general $A$, the integrand is
+$p(z)$ times the proposed $\Prob(X\in A\mid Z = z)$ (where $p(z) = 0$ the integrand is $0$ as well), which is what
+it means for this formula to be a conditional distribution of $X$ given $Z$ (reading~1 with the roles of
+the two variables exchanged).
+\end{proof}
+
+When $X$ has a density $p(x)$, the proposition is the familiar
+$p(x\mid z) = p(z\mid x)p(x)/p(z)$. In general it says that the posterior has a density \emph{with respect to
+the prior}, the ratio $p(z\mid x)/p(z)$: the likelihood reweights the prior, whatever the prior is.
+
+\begin{example}[A point on a circle, observed with noise]\label{distributions-densities:ex:circle}
+Let $X$ be uniform on the unit circle, $X = (\cos T, \sin T)$, and $Z = X + V$ with
+$V\sim\mathcal N(0, \sigma^2I)$ independent of $X$ (\cref{distributions-densities:fig:examples}, right). $X$ has no
+density in the plane, but $p(z\mid x)$ is the Gaussian density, so $Z$ has the density
+\[
+  p(z) = \frac1{2\pi}\int_0^{2\pi}\frac{1}{2\pi\sigma^2}\,e^{-\norm{z - (\cos t, \sin t)}^2/(2\sigma^2)}\,dt
+  = \frac{1}{2\pi\sigma^2}\,e^{-(\norm z^2 + 1)/(2\sigma^2)}\,I_0\bigl(\norm z/\sigma^2\bigr),
+\]
+where $I_0$ is the modified Bessel function of the first kind. By \cref{distributions-densities:prop:bayes} the
+posterior of $X$ reweights the uniform distribution on the circle by
+$p(z\mid x)\propto e^{z^\top x/\sigma^2}$: in terms of the angle, it has the density proportional to
+$e^{\kappa\cos(t - \alpha)}$, with $\alpha$ the direction of $z$ and $\kappa = \norm z/\sigma^2$, a von Mises
+distribution. For $z = (0.8, 0.6)$ and $\sigma = 0.5$: $\kappa = 4$, $p(z)\approx0.132$, and the angle lies within
+$0.5$ rad of $\alpha\approx0.644$ with probability $0.66$. The posterior is a distribution on the circle, a
+curve: it has no density in the plane either, only a density along the circle.
+\end{example}
+
+\paragraph{3. A density ratio needs the joint to be spread like the product.} The ratio
+$r(x, y) = p(x, y)/(p(x)p(y))$ of \cref{ch:contrastive-learning}, and the mutual information
+$I(X; Y) = \E[\log r(X, Y)]$, require the joint distribution to put zero probability wherever the
+product of the marginals does. Two continuous views with $Y = g(X)$ violate this: the joint lies on the
+graph of $g$, which has zero probability under the product when $Y$ has no atoms. Then $r$ does not exist
+and $I(X; Y) = \infty$. The InfoNCE bound $\log N - \mathcal L_N\leq I(X;Y)$ is still true, but says nothing.
+
+\paragraph{4. A KL divergence needs the same condition.} In general
+$\mathrm{KL}(P\Vert Q) = \E_P\bigl[\log\frac{dP}{dQ}\bigr]$, where $\frac{dP}{dQ}$ is the density of $P$ with respect to
+$Q$. It exists when every set of $Q$-probability zero has $P$-probability zero, and otherwise
+$\mathrm{KL}(P\Vert Q) = \infty$. With densities $p$ and $q$, $\frac{dP}{dQ} = p/q$ and the usual formula follows. For
+continuous data and a model $q$ with a density, both $\mathrm{KL}(\hat p_n\Vert q)$ and $\mathrm{KL}(q\Vert\hat p_n)$
+are infinite: $\hat p_n$ puts mass on points, which have $q$-probability zero, and $q$ puts mass where
+$\hat p_n$ has none (\cref{cross-entropy:sec:forward-reverse}). This is why data are compared with a model
+through the cross-entropy $\E_{\hat p_n}[-\log q]$, the average negative log-likelihood, which is finite; with
+discrete labels, the conditional KL divergences of \cref{cross-entropy:thm:mle} are finite too.
+
+\begin{keyidea}
+A distribution always exists; a density exists only when no set of zero volume carries probability, and
+its values depend on the coordinates and on the reference measure. When the book writes $p(\cdot)$ for a
+distribution without a density, the formula is a sampling recipe or a statement about expectations,
+and it remains correct in that sense.
+\end{keyidea}
+
+\begin{chaptersummary}
+\begin{itemize}
+  \item The distribution of $X$ gives $\Prob(X\in A)$ for every region $A$; a density is a function whose
+        integrals give these probabilities. Its values are probabilities per unit volume, not probabilities.
+  \item A density with respect to volume exists exactly when sets of zero volume have probability zero
+        (Radon--Nikodym). Discrete variables, empirical distributions, ReLU outputs and points on curves
+        have none.
+  \item Densities with respect to other reference measures (counting, or mixtures of volume and counting)
+        cover discrete and mixed variables, and give a meaning to $p(x, y)$ in classification.
+  \item Under a change of variables the distribution is transported, the density is multiplied by a
+        Jacobian, and the mode moves; probabilities, medians and expectations do not depend on the coordinates.
+  \item A chain of conditional distributions is a sampling recipe, valid with or without densities. Bayes'
+        rule needs a density only for the likelihood: the posterior reweights the prior by $p(z\mid x)/p(z)$.
+  \item Density ratios, mutual information and KL divergences require one distribution to be spread like
+        the other; otherwise they are infinite.
+\end{itemize}
+\end{chaptersummary}
+
+\paragraph{Further reading.} Williams, \emph{Probability with Martingales}, 1991, introduces measure-theoretic
+probability briefly and clearly; Capiński and Kopp, \emph{Measure, Integral and Probability}, 2nd ed., 2004,
+cover the Radon--Nikodym theorem and conditional expectations at an introductory level; Pollard,
+\emph{A User's Guide to Measure Theoretic Probability}, 2002, treats conditional distributions and densities
+with respect to general measures in detail.
+\end{notechapter}

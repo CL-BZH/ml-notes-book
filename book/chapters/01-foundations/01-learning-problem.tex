@@ -73,6 +73,9 @@ The distribution $P$ of $(X,Y)$ can always be split into two factors,
   P(X = x, Y = y) = \underbrace{P(X = x)}_{\text{how inputs occur}}
   \;\underbrace{P(Y = y \mid X = x)}_{\text{how outputs depend on inputs}} .
 \end{equation}
+For a continuous $X$ the probabilities $P(X = x)$ are zero, and the equation is read with densities, or
+as a sampling recipe: draw $X$, then $Y$ given the value drawn. The second reading is valid in all cases
+(\cref{ch:distributions-densities}).
 The first factor, the \emph{marginal} of $X$, says which inputs are common.
 The second, the \emph{conditional distribution} of $Y$ given $X$, contains all
 there is to know about predicting $Y$ from $X$. A predictor never needs the

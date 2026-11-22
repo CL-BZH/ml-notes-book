@@ -117,7 +117,8 @@ notebooks. They are organised here as a single LaTeX book (11 parts,
 
 - A. Darboux's Theorem
 - B. The Flat Circle ℝ/ℤ
-- C. Solutions to the Exercises
+- C. Distributions and Densities
+- D. Solutions to the Exercises
 
 ## Building the book
 

@@ -93,7 +93,8 @@ $p(x, y)/(p(x)p(y))$ between paired variables.
 \section{InfoNCE}\label{contrastive-learning:sec:infonce}
 
 \paragraph{Setting.} Let $(X, Y)$ be a pair of random variables with joint density $p(x, y)$, for instance two views of
-the same image, and let $r(x, y) = \frac{p(x, y)}{p(x)p(y)} = \frac{p(y\mid x)}{p(y)}$ be their \emph{density ratio}. Its logarithm is the pointwise
+the same image (if one view is a deterministic function of the other there is no joint density, and the
+mutual information below is infinite; see \cref{distributions-densities:sec:notation}), and let $r(x, y) = \frac{p(x, y)}{p(x)p(y)} = \frac{p(y\mid x)}{p(y)}$ be their \emph{density ratio}. Its logarithm is the pointwise
 mutual information, and its average under the joint distribution is the mutual information,
 \[
   \mathrm I(X; Y) = \E_{p(x,y)}\bigl[\log r(X, Y)\bigr] = \mathrm{KL}\bigl(p(x, y)\,\Vert\,p(x)p(y)\bigr) .
