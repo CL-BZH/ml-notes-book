@@ -51,7 +51,7 @@ continuous version of $p$, and then it is a probability \emph{per unit volume},
 \]
 where $B(x, r)$ is the ball of radius $r$ around $x$. It is not a probability. It has units (probability
 per unit of $x$ in each coordinate), it can exceed $1$ (the uniform density on $[0, \frac12]$ equals $2$),
-and the probability of a single point is $0$ whether or not there is a density.
+and when $X$ has a density, every single point has probability $0$, however large the density is there.
 
 \paragraph{When there is no density.} If $X$ has a density, every region of zero volume has
 probability zero, since the integral of $p$ over it is zero. So a distribution that puts positive
@@ -69,9 +69,12 @@ beyond the scope of this book. Four cases occur in the book.
         probability is spread with the Gaussian density. $Y$ is neither discrete nor has a density
         (\cref{distributions-densities:fig:examples}, left).
   \item \textbf{Fewer degrees of freedom than coordinates.} A point $X = (\cos T, \sin T)$ with $T$ uniform on
-        $[0, 2\pi)$ lies on the unit circle, a curve of zero area: $X$ has no density in the plane. The
-        same happens to a pair $(X, g(X))$, which lies on the graph of $g$, and to two views of the same
-        image when one is a deterministic function of the other.
+        $[0, 2\pi)$ lies on the unit circle, a curve of zero area: $X$ has no density in the plane. Similarly,
+        if $X$ is uniform on $[0, 1]$, the pair $(X, X^2)$ always lies on the parabola $y = x^2$, a curve of
+        zero area. Each coordinate has a density on $\R$, but the pair has none in the plane. The same holds
+        for any pair $(X, g(X))$, which lies on the graph of $g$, and for two views of an image when the second
+        is computed from the first by a fixed transformation, such as a horizontal flip: each view has a
+        distribution, but the pair of views is confined to the set of pairs (image, its flip).
 \end{itemize}
 
 \begin{figure}[ht]
